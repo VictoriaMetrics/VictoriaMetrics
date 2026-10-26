@@ -723,6 +723,20 @@ It enables back `Discovered targets` debug UI by default.
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly apply `extra_filters[]` filter when querying `vm_account_id` or `vm_project_id` labels via [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) request for `/api/v1/label/…/values` API. Before, `extra_filters` was ignored. See [#10503](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10503).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): revert the use of rollup result cache for [instant queries](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query) that contain [`rate`](https://docs.victoriametrics.com/victoriametrics/metricsql/#rate) function with a lookbehind window larger than `-search.minWindowForInstantRollupOptimization`. The cache usage was removed since [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.132.0). See [#10098](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10098#issuecomment-3895011084) for more details.
 
+## [v1.136.22](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.22)
+
+Released at 2026-10-23
+
+**v1.136.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.136.x line will be supported for at least 12 months since [v1.136.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11360) release**
+
+* SECURITY: upgrade Go builder from Go1.26.9 to Go1.26.10. See [the list of issues addressed in Go1.26.10](https://github.com/golang/go/issues?q=milestone%3AGo1.26.10%20label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.24.2 to 3.24.3. See [Alpine 3.24.4 release notes](https://alpinelinux.org/posts/Alpine-3.21.9-3.22.7-3.23.7-3.24.3-released.html).
+
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): set `__meta_kubernetes_namespace` and the namespace metadata to the namespace of the `Endpoints` or `EndpointSlice` object in [`role: endpoints`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) and `role: endpointslice` service discovery when the referenced pod lives in another namespace. Previously the namespace of the pod was used, unlike Prometheus. See [#11798](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11798). Thanks to @cestercian for contribution.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): stop saving the automatically calculated query step in shared URLs, so opening a link recalculates the step for the selected time range and screen width. Explicitly configured steps remain fixed. See [#11638](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11638).
+
 ## [v1.136.21](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.21)
 
 Released at 2026-10-19
