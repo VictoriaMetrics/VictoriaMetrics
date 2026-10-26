@@ -30,6 +30,7 @@ Migration in `vm-native` mode takes two steps:
     --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus \ # migrate from
     --vm-native-dst-addr=http://localhost:8428 \                     # migrate to
     --vm-native-filter-time-start='2022-11-20T00:00:00Z' \           # starting from
+    --vm-native-filter-time-end='2022-11-30T23:59:59Z' \             # ending at
     --vm-native-filter-match='{__name__!~"vm_.*"}'                   # match only metrics without `vm_` prefix
 VictoriaMetrics Native import mode
 

@@ -57,7 +57,7 @@ To start using `vmalert` you will need the following things:
 * remote write address [optional] - [remote write](https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol)
   compatible storage to persist rules and alerts state info. To persist results to multiple destinations use vmagent
   configured with multiple remote writes as a proxy;
-* remote read address [optional] - MetricsQL compatible datasource to restore alerts state from.
+* remote read address [optional] - Prometheus querying API compatible datasource to restore alerts state from.
 
 You can use the existing [docker-compose environment](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#victoriametrics-single-server)
 as an example. It already contains vmalert configured with the list of alerting rules and integrated with Alert Manager and VictoriaMetrics.
@@ -78,7 +78,7 @@ Then run `vmalert`:
     -notifier.url=http://localhost:9093 \    # AlertManager URL (required if alerting rules are used)
     -notifier.url=http://127.0.0.1:9093 \    # AlertManager replica URL
     -remoteWrite.url=http://localhost:8428 \ # Remote write compatible storage to persist rules and alerts state info (required if recording rules are used)
-    -remoteRead.url=http://localhost:8428 \  # MetricsQL compatible datasource to restore alerts state from
+    -remoteRead.url=http://localhost:8428 \  # Prometheus querying API compatible datasource to restore alerts state from
     -external.label=cluster=east-1 \         # External label to be applied for each rule
     -external.label=replica=a                # Multiple external labels may be set
 ```
@@ -440,7 +440,7 @@ to the remote database via the following flags:
   `ALERTS` and `ALERTS_FOR_STATE` via remote-write protocol.
   These time series can be queried from VictoriaMetrics just as any other time series.
   The state will be persisted to the configured address on each evaluation.
-* `-remoteRead.url` - URL to VictoriaMetrics (Single) or vmselect (Cluster). `vmalert` will try to restore alerts state
+* `-remoteRead.url` - URL to VictoriaMetrics (Single), vmselect (Cluster) or Prometheus. `vmalert` will try to restore alerts state
   from the configured address by querying time series with name `ALERTS_FOR_STATE`. The restore happens only once when
   `vmalert` process starts, and only for the configured rules. Config [hot reload](#hot-config-reload) doesn't trigger
   state restore.

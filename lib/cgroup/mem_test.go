@@ -1,6 +1,8 @@
 package cgroup
 
 import (
+	"math"
+	"os"
 	"testing"
 )
 
@@ -47,4 +49,23 @@ func TestGetHierarchicalMemoryLimitFailure(t *testing.T) {
 		}
 	}
 	f("testdata/", "testdata/none_existing_folder")
+}
+
+func TestNormalizeMemoryLimitV1(t *testing.T) {
+	f := func(limit, want int64) {
+		t.Helper()
+		if got := normalizeMemoryLimitV1(limit); got != want {
+			t.Fatalf("unexpected result for %d; got %d; want %d", limit, got, want)
+		}
+	}
+	// finite
+	f(1073741824, 1073741824)
+	// zero
+	f(0, 0)
+	// negative
+	f(-1, 0)
+	// unlimited
+	f(math.MaxInt64&^(int64(os.Getpagesize())-1), 0)
+	// max
+	f(math.MaxInt64, 0)
 }

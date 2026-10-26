@@ -475,3 +475,128 @@ func TestGetEndpointsLabels(t *testing.T) {
 		})
 	})
 }
+
+func TestGetEndpointsLabelsPodInOtherNamespace(t *testing.T) {
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11798
+	eps := Endpoints{
+		Metadata: ObjectMeta{
+			Name:      "demo",
+			Namespace: "ns-a",
+		},
+		Subsets: []EndpointSubset{
+			{
+				Addresses: []EndpointAddress{
+					{
+						IP: "10.1.2.3",
+						TargetRef: ObjectReference{
+							Kind:      "Pod",
+							Namespace: "ns-b",
+							Name:      "demo-backend",
+						},
+					},
+				},
+				Ports: []EndpointPort{
+					{
+						Name: "http",
+						Port: 8080,
+					},
+				},
+			},
+		},
+	}
+	gw := newTestGroupWatcherWithPodInOtherNamespace()
+
+	f := func(withService bool) {
+		t.Helper()
+		if !withService {
+			delete(gw.m["service"].objectsByKey, "ns-a/demo")
+		}
+		ms := eps.getTargetLabels(gw)
+		if len(ms) != 2 {
+			t.Fatalf("unexpected number of targets; got %d; want 2", len(ms))
+		}
+		for _, m := range ms {
+			checkNamespaceLabelsFromEndpoints(t, m)
+		}
+	}
+
+	f(true)
+	f(false)
+}
+
+// newTestGroupWatcherWithPodInOtherNamespace returns a groupWatcher with the service ns-a/demo
+// and the pod ns-b/demo-backend, which exposes the endpoint port 8080 and an extra port 9090.
+func newTestGroupWatcherWithPodInOtherNamespace() *groupWatcher {
+	newNamespace := func(name, team string) *Namespace {
+		return &Namespace{
+			Metadata: ObjectMeta{
+				Name:   name,
+				Labels: promutil.NewLabelsFromMap(map[string]string{"team": team}),
+			},
+		}
+	}
+	pod := &Pod{
+		Metadata: ObjectMeta{
+			Name:      "demo-backend",
+			Namespace: "ns-b",
+		},
+		Spec: PodSpec{
+			Containers: []Container{
+				{
+					Name: "backend",
+					Ports: []ContainerPort{
+						{Name: "http", ContainerPort: 8080},
+						{Name: "metrics", ContainerPort: 9090},
+					},
+				},
+			},
+		},
+		Status: PodStatus{
+			PodIP: "10.1.2.3",
+		},
+	}
+	svc := &Service{
+		Metadata: ObjectMeta{
+			Name:      "demo",
+			Namespace: "ns-a",
+		},
+	}
+	var gw groupWatcher
+	gw.m = map[string]*urlWatcher{
+		"pod": {
+			role: "pod",
+			objectsByKey: map[string]object{
+				"ns-b/demo-backend": pod,
+			},
+		},
+		"service": {
+			role: "service",
+			objectsByKey: map[string]object{
+				"ns-a/demo": svc,
+			},
+		},
+		"namespace": {
+			role: "namespace",
+			objectsByKey: map[string]object{
+				"/ns-a": newNamespace("ns-a", "team-a"),
+				"/ns-b": newNamespace("ns-b", "team-b"),
+			},
+		},
+	}
+	gw.attachNamespaceMetadata = true
+	return &gw
+}
+
+func checkNamespaceLabelsFromEndpoints(t *testing.T, m *promutil.Labels) {
+	t.Helper()
+	m.RemoveDuplicates()
+	if v := m.Get("__meta_kubernetes_namespace"); v != "ns-a" {
+		t.Fatalf("unexpected __meta_kubernetes_namespace for %s; got %q; want %q", m, v, "ns-a")
+	}
+	if v := m.Get("__meta_kubernetes_namespace_label_team"); v != "team-a" {
+		t.Fatalf("unexpected __meta_kubernetes_namespace_label_team for %s; got %q; want %q", m, v, "team-a")
+	}
+	if v := m.Get("__meta_kubernetes_pod_name"); v != "demo-backend" {
+		t.Fatalf("unexpected __meta_kubernetes_pod_name for %s; got %q; want %q", m, v, "demo-backend")
+	}
+}
