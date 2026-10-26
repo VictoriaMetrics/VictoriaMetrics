@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* BUGFIX: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards): account for samples ingested directly into `vmstorage` via `-enableIngestionAPI` in the `Ingestion rate` panels of the [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/) dashboard. Previously, these panels showed only samples received from `vminsert`. See [#11809](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11809).
+* BUGFIX: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards): update the `Ingestion rate` panels of the [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/) dashboard to account for samples ingested directly into `vmstorage` via the remote write protocol with `-enableIngestionAPI` enabled. Previously, these panels counted only samples received from `vminsert`. See [#11809](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11809).
 
 ## [v1.155.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.155.0)
 
