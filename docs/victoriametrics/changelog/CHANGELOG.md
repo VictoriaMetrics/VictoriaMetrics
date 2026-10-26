@@ -233,6 +233,23 @@ Released at 2026-08-05
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): fix incorrect [sum_samples_total](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#sum_samples_total) results when `enable_windows: true` is set. See [#11261](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11261). Thanks to @beyond-infra for contribution.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): accept scientific notation with sub-second precision (e.g. `1.784144612388E9`) for timestamp args such as `start` and `end` in `/api/v1/query_range` and `--vm-native-filter-time-start` and `--vm-native-filter-time-end` in `vmctl`. Previously, values with this pattern were rejected, which is incompatible with Prometheus. See [#11268](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11268). Thanks to @STiFLeR7 for contribution.
 
+## [v1.148.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.148.8)
+
+Released at 2026-10-23
+
+**v1.148.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.148.x line will be supported for at least 12 months since [v1.148.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11480) release**
+
+* SECURITY: upgrade Go builder from Go1.26.9 to Go1.26.10. See [the list of issues addressed in Go1.26.10](https://github.com/golang/go/issues?q=milestone%3AGo1.26.10%20label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.24.2 to 3.24.3. See [Alpine 3.24.4 release notes](https://alpinelinux.org/posts/Alpine-3.21.9-3.22.7-3.23.7-3.24.3-released.html).
+
+
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent metric metadata drops after transient RPC handshake timeouts when connecting to `vmstorage`. See [#11762](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11762). Thanks to @sakateka for contribution.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): skip keys with unsupported `kty` or `crv`, missing required members or invalid values in the JWKS fetched via [OIDC discovery](https://docs.victoriametrics.com/victoriametrics/vmauth/#oidc-discovery) instead of rejecting the whole key set, as required by [RFC 7517](https://www.rfc-editor.org/rfc/rfc7517#section-5). Previously, a single unsupported or malformed key in the JWKS caused vmauth to reject all JWTs from that issuer, including tokens signed with supported keys. See [#11748](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11748).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): set `__meta_kubernetes_namespace` and the namespace metadata to the namespace of the `Endpoints` or `EndpointSlice` object in [`role: endpoints`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) and `role: endpointslice` service discovery when the referenced pod lives in another namespace. Previously the namespace of the pod was used, unlike Prometheus. See [#11798](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11798). Thanks to @cestercian for contribution.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): stop saving the automatically calculated query step in shared URLs, so opening a link recalculates the step for the selected time range and screen width. Explicitly configured steps remain fixed. See [#11638](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11638).
+
 ## [v1.148.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.148.7)
 
 Released at 2026-10-19
