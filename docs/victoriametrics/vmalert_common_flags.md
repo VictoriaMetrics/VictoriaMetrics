@@ -107,6 +107,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default 16x CPU cores, capped at 256)
   -group.maxStartDelay duration
      Defines the max delay before starting the group evaluation. Group's start is artificially delayed for random duration on interval [0..min(--group.maxStartDelay, group.interval)]. This helps smoothing out the load on the configured datasource, so evaluations aren't executed too close to each other. (default 5m0s)
+  -healthcheck
+     Whether to check that the running process accepts connections at -httpListenAddr and exit. The exit code is non-zero if the check fails. This is useful for Docker HEALTHCHECK in images without curl or wget. Pass the same -httpListenAddr as the checked process has
   -http.connTimeout duration
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableCORS
