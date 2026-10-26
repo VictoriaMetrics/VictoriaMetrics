@@ -555,35 +555,47 @@ func putLinesIterator(li *linesIterator) {
 
 func (li *linesIterator) Init(s string) {
 	a := strings.Split(s, "\n")
-	sort.Strings(a)
-	li.a = a
+	keys := li.a[:0]
+	rows := li.rows[:0]
+	tagsPool := li.tagsPool[:0]
+	var key []byte
+	for _, line := range a {
+		// Do not log errors here, since they will be logged during the real data parsing later.
+		rows, tagsPool = unmarshalRow(rows[:0], line, tagsPool[:0], false, nil)
+		if len(rows) == 0 {
+			continue
+		}
+		// Label pairs may arrive in arbitrary order for the same series across scrapes.
+		// Sort them before building the key, so the key identifies the series
+		// regardless of the label pairs order. Otherwise a series with re-ordered
+		// label pairs is treated as missing, and a bogus stale marker is emitted for it.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1857
+		tags := rows[0].Tags
+		if len(tags) > 1 {
+			sortTagsForDiffKey(tags)
+		}
+		key = marshalMetricNameWithTags(key[:0], &rows[0])
+		keys = append(keys, string(key))
+	}
+	// The merge in GetRowsDiff assumes that keys arrive in ascending bytes.Compare order,
+	// so sort the normalized keys rather than the raw lines. Sorting raw lines leaves
+	// keys out of order when label pairs order differs between lines.
+	sort.Strings(keys)
+	li.a = keys
+	li.rows = rows
+	li.tagsPool = tagsPool
 }
 
 // NextKey advances to the next key in li.
 //
 // It returns true if the next key is found and Key is successfully updated.
 func (li *linesIterator) NextKey() bool {
-	for {
-		if len(li.a) == 0 {
-			return false
-		}
-		// Do not log errors here, since they will be logged during the real data parsing later.
-		li.rows, li.tagsPool = unmarshalRow(li.rows[:0], li.a[0], li.tagsPool[:0], false, nil)
-		li.a = li.a[1:]
-		if len(li.rows) > 0 {
-			// Label pairs may arrive in arbitrary order for the same series across scrapes.
-			// Sort them before building the key, so the key identifies the series
-			// regardless of the label pairs order. Otherwise a series with re-ordered
-			// label pairs is treated as missing, and a bogus stale marker is emitted for it.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1857
-			tags := li.rows[0].Tags
-			if len(tags) > 1 {
-				sortTagsForDiffKey(tags)
-			}
-			li.Key = marshalMetricNameWithTags(li.Key[:0], &li.rows[0])
-			return true
-		}
+	if len(li.a) == 0 {
+		return false
 	}
+	li.Key = append(li.Key[:0], li.a[0]...)
+	li.a = li.a[1:]
+	return true
 }
 
 // sortTagsForDiffKey sorts tags by (key, value) using insertion sort.

@@ -33,6 +33,9 @@ func TestGetRowsDiff(t *testing.T) {
 	f(`foo{z="a",x="y"} 123`, `foo{x="y",z="a"} 344`, "")
 	// A genuinely missing series is still reported when other series change label pairs order.
 	f(`gone{a="1",b="2"} 1`+"\n"+`foo{x="y",z="a"} 123`, `foo{z="a",x="y"} 344`, "gone{a=\"1\",b=\"2\"} 0\n")
+	// The merge assumes keys in ascending bytes.Compare order, so the iterator must emit
+	// series ordered by their normalized (label-sorted) key, not by the raw line text.
+	f(`foo{b="1",a="5"} 1`+"\n"+`foo{a="9"} 1`, `foo{b="1",a="5"} 1`, "foo{a=\"9\"} 0\n")
 }
 
 func TestAreIdenticalSeriesFast(t *testing.T) {
