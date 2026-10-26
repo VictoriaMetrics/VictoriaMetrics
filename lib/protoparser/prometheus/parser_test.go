@@ -38,6 +38,16 @@ func TestGetRowsDiff(t *testing.T) {
 	f(`foo{b="1",a="5"} 1`+"\n"+`foo{a="9"} 1`, `foo{b="1",a="5"} 1`, "foo{a=\"9\"} 0\n")
 }
 
+func TestGetRowsDiffNoInvalidLinesCount(t *testing.T) {
+	// Malformed rows in the diff inputs must not bump vm_rows_invalid_total, since
+	// the real scrape parser already records these errors when it parses the same data.
+	n := invalidLines.Get()
+	_ = GetRowsDiff(`foo{x="y"} 1`+"\n"+`bar{bad`, `foo{x="y"} 2`+"\n"+`baz{a=`)
+	if got := invalidLines.Get(); got != n {
+		t.Fatalf("GetRowsDiff must not increment invalidLines; before=%d, after=%d", n, got)
+	}
+}
+
 func TestAreIdenticalSeriesFast(t *testing.T) {
 	f := func(s1, s2 string, resultExpected bool) {
 		t.Helper()

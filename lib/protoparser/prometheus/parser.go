@@ -275,8 +275,8 @@ func unmarshalRow(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger
 		if errLogger != nil {
 			msg := fmt.Sprintf("cannot unmarshal Prometheus line %q: %s", s, err)
 			errLogger(msg)
+			invalidLines.Inc()
 		}
-		invalidLines.Inc()
 	}
 	return dst, tagsPool
 }
