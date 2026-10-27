@@ -18,6 +18,7 @@ OPTIONS:
    -s                                                                 Whether to run in silent mode. If set to true no confirmation prompts will appear. (default: false)
    --verbose                                                          Whether to enable verbosity in logs output. (default: false)
    --disable-progress-bar                                             Whether to disable progress bar during the import. (default: false)
+   --state-dir value                                                  Directory for migration state files, which allow resuming interrupted migrations. The current working directory is used if empty. Supported only in vm-native mode.
    --pushmetrics.url value [ --pushmetrics.url value ]                Optional URL to push metrics. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics
    --pushmetrics.interval value                                       Interval for pushing metrics to every -pushmetrics.url (default: 10s)
    --pushmetrics.extraLabel value [ --pushmetrics.extraLabel value ]  Extra labels to add to pushed metrics. In case of collision, label value defined by flag will have priority. Flag can be set multiple times, to add few additional labels. For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to every -pushmetrics.url

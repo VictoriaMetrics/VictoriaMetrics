@@ -30,7 +30,7 @@ Migration in `vm-native` mode takes two steps:
     --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus \ # migrate from
     --vm-native-dst-addr=http://localhost:8428 \                     # migrate to
     --vm-native-filter-time-start='2022-11-20T00:00:00Z' \           # starting from
-    --vm-native-filter-time-end='2022-11-30T23:59:59Z' \             # ending at
+    --vm-native-filter-time-end='2023-03-01T00:00:00Z' \             # ending at
     --vm-native-filter-match='{__name__!~"vm_.*"}'                   # match only metrics without `vm_` prefix
 VictoriaMetrics Native import mode
 
@@ -38,6 +38,7 @@ VictoriaMetrics Native import mode
                     to "http://localhost:8428/api/v1/import/native" with filter 
         filter: match[]={__name__!~"vm_.*"}
         start: 2022-11-20T00:00:00Z
+        end: 2023-03-01T00:00:00Z
 2023/03/02 09:22:02 Exploring metrics...
 Found 9 metrics to import. Continue? [Y/n] 
 2023/03/02 09:22:04 Requests to make: 9
@@ -63,7 +64,7 @@ For example, when migrating 1 year of data with `--vm-native-step-interval=month
 requests from the beginning of the interval to its end. 
 
 > To reverse the order set `--vm-native-filter-time-reverse` and migration will start from the newest to the
-oldest data. `--vm-native-filter-time-start` is required to be set when using `--vm-native-step-interval`.
+oldest data.
 
 It is recommended using default `month` step when migrating the data over the long time intervals. If you hit query
 limits on `--vm-native-src-addr` and can't or don't want to change them, try lowering the step interval to `week`, `day` or `hour`.
@@ -74,6 +75,7 @@ Usage example:
     --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus \ 
     --vm-native-dst-addr=http://localhost:8428 \
     --vm-native-filter-time-start='2022-11-20T00:00:00Z' \
+    --vm-native-filter-time-end='2023-03-01T00:00:00Z' \
     --vm-native-step-interval=month \
     --vm-native-filter-match='{__name__!~"vm_.*"}'    
 VictoriaMetrics Native import mode
@@ -81,6 +83,7 @@ VictoriaMetrics Native import mode
 2023/03/02 09:18:05 Initing import process from "http://127.0.0.1:8481/select/0/prometheus/api/v1/export/native" to "http://localhost:8428/api/v1/import/native" with filter 
         filter: match[]={__name__!~"vm_.*"}
         start: 2022-11-20T00:00:00Z
+        end: 2023-03-01T00:00:00Z
 2023/03/02 09:18:05 Exploring metrics...
 Found 9 metrics to import. Continue? [Y/n] 
 2023/03/02 09:18:07 Selected time range will be split into 5 ranges according to "month" step. Requests to make: 45.
@@ -99,6 +102,7 @@ and `--vm-native-dst-addr` value to http://vminsert:8480/:
   --vm-native-dst-addr=http://127.0.0.1:8480/ \
   --vm-native-filter-match='{__name__="vm_app_uptime_seconds"}' \
   --vm-native-filter-time-start='2023-02-01T00:00:00Z' \
+  --vm-native-filter-time-end='2023-03-01T00:00:00Z' \
   --vm-native-step-interval=day \  
   --vm-intercluster
   
@@ -132,6 +136,26 @@ Requests to make for tenant 1:0: 28 / 28 [████████████�
   requests retries: 0;
 2023/02/28 10:42:49 Total time: 1m7.147971417s
 ```
+
+## Resuming migration
+
+vmctl tracks finished requests in a state file, so an interrupted migration can be resumed.
+Run the same command again with flags unchanged, and vmctl skips the requests finished before the interruption.
+
+The state file `vmctl-vm-native-<key>.state` is stored in the directory set via `--state-dir`.
+The current working directory is used if `--state-dir` isn't set. The directory is created if it doesn't exist.
+The key depends on the source and destination addresses, filters, time range, step interval,
+`--vm-intercluster`, extra labels and headers. A run with any of these flags changed starts a new migration with a new state file.
+For example, a changed `AccountID` or `ProjectID` header in `--vm-native-src-headers` or `--vm-native-dst-headers` starts a new migration.
+
+The state file is human-readable. Its first line contains the migration flags in JSON.
+Headers are stored as hashes, since they may contain secrets.
+Every next line is a finished request: `<tenant> <start ms> <end ms> <metric name>`. The tenant is `-` without `--vm-intercluster`.
+
+When all the requests are finished, vmctl keeps the state file, and repeated runs have nothing to migrate.
+Remove the state file to start the migration over.
+
+> The state isn't tracked with `--vm-native-disable-per-metric-migration`, since vmctl doesn't split the migration into retryable per-metric requests in this mode.
 
 ## Configuration
 

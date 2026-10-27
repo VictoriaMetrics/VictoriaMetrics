@@ -31,15 +31,32 @@ func TestSingleToSingleVmctlNativeProtocol(t *testing.T) {
 	vmSrcAddr := fmt.Sprintf("http://%s/", vmsingleSrc.HTTPAddr())
 	vmDstAddr := fmt.Sprintf("http://%s/", vmsingleDst.HTTPAddr())
 
+	// Backfill source with data
+	const numSamples = 1000
+	const ingestTimestamp = 1748623176000 // 2025-05-30T16:39:36Z
+	dataSet := make([]string, numSamples)
+	for i := range numSamples {
+		metricsName := fmt.Sprintf("metric_%03d", i)
+		dataSet[i] = fmt.Sprintf("%s %d %d", metricsName, i, ingestTimestamp)
+	}
+	vmsingleSrc.PrometheusAPIV1ImportPrometheus(t, dataSet, apptest.QueryOpts{})
+	vmsingleSrc.ForceFlush(t)
+
 	flags := []string{
 		`vm-native`,
 		`--vm-native-src-addr=` + vmSrcAddr,
 		`--vm-native-dst-addr=` + vmDstAddr,
 		`--vm-native-filter-match={__name__=~".*"}`,
 		`--vm-native-filter-time-start=2025-05-30T16:39:00Z`,
+		`--vm-native-filter-time-end=2025-05-30T16:40:00Z`,
 		`--disable-progress-bar=true`,
+		// Store the migration state in the test dir, so it is removed together with the test dir.
+		`--state-dir=` + tc.Dir(),
 	}
 
+	testVmctlNativeProtocol(tc, vmsingleSrc, vmsingleDst, flags)
+	// repeated test shouldn't produce duplicates as vmctl tracks the migration state
+	// and skips metrics it previously migrated.
 	testVmctlNativeProtocol(tc, vmsingleSrc, vmsingleDst, flags)
 }
 
@@ -81,70 +98,47 @@ func TestClusterTenantsToTenantsVmctlNativeProtocol(t *testing.T) {
 	vmSrcAddr := fmt.Sprintf("http://%s/", clusterSrc.Vmselect.HTTPAddr())
 	vmDstAddr := fmt.Sprintf("http://%s/", clusterDst.Vminsert.HTTPAddr())
 
+	// Backfill source with data
+	const numSamples = 1000
+	const ingestTimestamp = 1748623176000 // 2025-05-30T16:39:36Z
+	dataSet := make([]string, numSamples)
+	for i := range numSamples {
+		metricsName := fmt.Sprintf("metric_%03d", i)
+		dataSet[i] = fmt.Sprintf("%s %d %d", metricsName, i, ingestTimestamp)
+	}
+	clusterSrc.PrometheusAPIV1ImportPrometheus(t, dataSet, apptest.QueryOpts{})
+	clusterSrc.ForceFlush(t)
+
 	flags := []string{
 		`vm-native`,
 		`--vm-native-src-addr=` + vmSrcAddr,
 		`--vm-native-dst-addr=` + vmDstAddr,
 		`--vm-native-filter-match={__name__=~".*"}`,
-		`--vm-native-filter-time-start=2025-05-30T00:00:00Z`,
-		`--vm-native-filter-time-end=2025-05-30T23:59:59Z`,
+		`--vm-native-filter-time-start=2025-05-30T16:39:00Z`,
+		`--vm-native-filter-time-end=2025-05-30T16:40:00Z`,
 		`--disable-progress-bar=true`,
+		// Store the migration state in the test dir, so it is removed together with the test dir.
+		`--state-dir=` + tc.Dir(),
 		`--vm-intercluster`,
 	}
 
+	testVmctlNativeProtocol(tc, clusterSrc, clusterDst, flags)
+	// repeated test shouldn't produce duplicates as vmctl tracks the migration state
+	// and skips metrics it previously migrated.
 	testVmctlNativeProtocol(tc, clusterSrc, clusterDst, flags)
 }
 
 func testVmctlNativeProtocol(tc *apptest.TestCase, srcSut apptest.PrometheusWriteQuerier, dstSut apptest.PrometheusWriteQuerier, vmctlFlags []string) {
 	t := tc.T()
+	t.Helper()
 
-	cmpOpt := cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
-
-	// test for empty data request in the source
-	got := srcSut.PrometheusAPIV1Query(t, `{__name__=~".*"}`, apptest.QueryOpts{
-		Step: "5m",
-		Time: "2025-05-30T12:45:00Z",
+	want := srcSut.PrometheusAPIV1Export(t, `{__name__=~".*"}`, apptest.QueryOpts{
+		Start: "2025-05-30T16:39:36Z",
+		End:   "2025-05-30T16:39:37Z",
 	})
-
-	want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data":{"result":[]}}`)
-	if diff := cmp.Diff(want, got, cmpOpt); diff != "" {
-		t.Errorf("unexpected response (-want, +got):\n%s", diff)
-	}
-
-	// Prepare the source with some data
-	// Insert some data.
-	const numSamples = 1000
-	const ingestTimestamp = " 1748623176000" // 2025-05-30T16:39:36Z
-
-	expectedQueryData := apptest.QueryData{
-		ResultType: "matrix",
-		Result:     make([]*apptest.QueryResult, 0, numSamples),
-	}
-	dataSet := make([]string, numSamples)
-	for i := range numSamples {
-		metricsName := fmt.Sprintf("metric_%03d", i)
-		metrics := map[string]string{"__name__": metricsName}
-		sample := &apptest.Sample{Value: float64(i), Timestamp: 1748623176000}
-		expectedQueryData.Result = append(expectedQueryData.Result, &apptest.QueryResult{
-			Metric:  metrics,
-			Samples: []*apptest.Sample{sample},
-		})
-
-		dataSet[i] = fmt.Sprintf("%s %d %s", metricsName, i, ingestTimestamp)
-	}
-
-	wantResponse := apptest.PrometheusAPIV1QueryResponse{
-		Status: "success",
-		Data:   &expectedQueryData,
-	}
-
-	wantResponse.Sort()
-
-	srcSut.PrometheusAPIV1ImportPrometheus(t, dataSet, apptest.QueryOpts{})
-	srcSut.ForceFlush(t)
+	want.Sort()
 
 	tc.MustStartVmctl("vmctl", vmctlFlags)
-
 	dstSut.ForceFlush(t)
 
 	tc.Assert(&apptest.AssertOptions{
@@ -157,7 +151,7 @@ func testVmctlNativeProtocol(tc *apptest.TestCase, srcSut apptest.PrometheusWrit
 			exported.Sort()
 			return exported.Data.Result
 		},
-		Want: wantResponse.Data.Result,
+		Want: want.Data.Result,
 		CmpOpts: []cmp.Option{
 			cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
 		},

@@ -14,6 +14,7 @@ const (
 	globalSilent             = "s"
 	globalVerbose            = "verbose"
 	globalDisableProgressBar = "disable-progress-bar"
+	globalStateDir           = "state-dir"
 
 	globalPushMetricsURL         = "pushmetrics.url"
 	globalPushMetricsInterval    = "pushmetrics.interval"
@@ -38,6 +39,10 @@ var (
 			Name:  globalDisableProgressBar,
 			Value: false,
 			Usage: "Whether to disable progress bar during the import.",
+		},
+		&cli.StringFlag{
+			Name:  globalStateDir,
+			Usage: "Directory for migration state files, which allow resuming interrupted migrations. The current working directory is used if empty. Supported only in vm-native mode.",
 		},
 		&cli.StringSliceFlag{
 			Name:  globalPushMetricsURL,
@@ -656,8 +661,9 @@ var (
 			Required: true,
 		},
 		&cli.StringFlag{
-			Name:  vmNativeFilterTimeEnd,
-			Usage: "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats",
+			Name:     vmNativeFilterTimeEnd,
+			Usage:    "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats",
+			Required: true,
 		},
 		&cli.StringFlag{
 			Name: vmNativeStepInterval,
