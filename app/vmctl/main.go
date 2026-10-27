@@ -516,6 +516,9 @@ func main() {
 						cc:                       cc,
 						disablePerMetricRequests: c.Bool(vmNativeDisablePerMetricMigration),
 						isNative:                 !c.Bool(vmNativeDisableBinaryProtocol),
+						stateDir:                 c.String(globalStateDir),
+						srcHeaders:               c.String(vmNativeSrcHeaders),
+						dstHeaders:               c.String(vmNativeDstHeaders),
 					}
 					return p.run(ctx)
 				},
