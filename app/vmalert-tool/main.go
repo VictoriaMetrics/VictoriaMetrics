@@ -43,7 +43,7 @@ Examples:
 					},
 					&cli.BoolFlag{
 						Name:     "respectGroupInterval",
-						Usage:    "Whether to evaluate every rule group on its own `interval` instead of the file-wide `evaluation_interval`. Groups without `interval` keep using `evaluation_interval`. Disabled by default for backward compatibility.",
+						Usage:    "Whether to evaluate every rule group on its own interval instead of the file-wide evaluation_interval. Groups without interval keep using evaluation_interval. Disabled by default for backward compatibility.",
 						Required: false,
 					},
 					&cli.StringSliceFlag{
