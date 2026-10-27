@@ -533,6 +533,8 @@ By update strategy:
 
 ### Univariate Models
 
+For a visual introduction, see [a metric compared with its own history](https://docs.victoriametrics.com/anomaly-detection/guides/model-selection/#follow-each-metric-over-time).
+
 For a univariate model, **one separate model instance** is fitted and used for each time series returned by its selected [queries](#queries).
 
 For example, a univariate model attached to three [MetricsQL queries](https://docs.victoriametrics.com/victoriametrics/metricsql/), each returning five time series, creates 15 model instances. Each instance produces its own [output](#vmanomaly-output).
@@ -547,6 +549,8 @@ If during an inference, you got a series having **new labelset** (not present in
 
 
 ### Multivariate Models
+
+For a visual introduction, see [connected signals with an unusual combination](https://docs.victoriametrics.com/anomaly-detection/guides/model-selection/#watch-related-signals-together).
 
 For a multivariate model, **one shared model instance** is fitted and used across all aligned time series returned by its selected [queries](#queries).
 
@@ -581,6 +585,8 @@ models:
 
 
 ### Peer-group Models
+
+For a visual introduction, see [an entity compared with its peers](https://docs.victoriametrics.com/anomaly-detection/guides/model-selection/#find-the-odd-one-out).
 
 For a peer-group model {{% available_from "v1.31.0" anomaly %}}, **one shared model instance per query and group** compares comparable entities at each timestamp and produces a **separate anomaly score for each peer**. Unlike multivariate models, the population is not a fixed set of channels. Unlike univariate models, each member does not need its own fitted model.
 
@@ -644,6 +650,10 @@ Every other model that isn't [online](#online-models). Offline models are comple
 ## Built-in Models 
 
 ### Overview
+
+> [!TIP]
+> For a practical path from metric behavior to a model configuration, see [Choose a model for your metrics](https://docs.victoriametrics.com/anomaly-detection/guides/model-selection/). It includes reproducible playground examples and tuning hints.
+
 Built-in models support 2 groups of arguments:
 
 - **Model-specific arguments** - please refer to the collapsed *Model-specific arguments* section for each model below.
