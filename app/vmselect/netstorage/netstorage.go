@@ -2616,15 +2616,14 @@ func (sn *storageNode) execOnConn(ctx context.Context, qt *querytracer.Tracer, f
 	if err := f(bc); err != nil {
 		remoteAddr := bc.RemoteAddr()
 		var er *errRemote
-		var ec *errCancel
 		switch {
 		case errors.As(err, &er):
 			// Remote error. The connection may be re-used. Return it to the pool.
 			_ = readTrace(qt, bc)
 			sn.connPool.Put(bc)
-		case errors.As(err, &ec):
+		case errors.Is(err, context.Canceled):
+			// Context was canceled by client. The connection may be re-used. Return it to the pool.
 			_ = readTrace(qt, bc)
-			err = ec.Unwrap()
 			sn.connPool.Put(bc)
 		default:
 			// Local error.
@@ -3108,13 +3107,20 @@ func (sn *storageNode) processSearchQueryOnConn(ctx context.Context, bc *handsha
 	}
 	// Read response. It may consist of multiple MetricBlocks.
 	blocksRead := 0
+	var wasCancelRequestMarkerSent bool
 	for {
 		if err := ctx.Err(); err != nil {
-			// request was canceled, drain the remaining data from the connection.
-			if errors.Is(err, context.Canceled) {
-				return drainMetricBlocks(ctx, buf, bc)
+			if !errors.Is(err, context.Canceled) {
+				return searchutil.AnnotateContextError(ctx)
 			}
-			return searchutil.AnnotateContextError(ctx)
+			if !wasCancelRequestMarkerSent {
+				// write and flush the cancel request marker, so the server can abort the request
+				// and the connection can be re-used.
+				if err := writeCancelRequestMarker(buf, bc); err != nil {
+					return err
+				}
+				wasCancelRequestMarkerSent = true
+			}
 		}
 		buf, err = readBytes(buf[:0], bc, maxMetricBlockSize)
 		if err != nil {
@@ -3122,7 +3128,7 @@ func (sn *storageNode) processSearchQueryOnConn(ctx context.Context, bc *handsha
 		}
 		if len(buf) == 0 {
 			// Reached the end of the response
-			return nil
+			break
 		}
 		blocksRead++
 		sn.metricBlocksRead.Inc()
@@ -3130,44 +3136,15 @@ func (sn *storageNode) processSearchQueryOnConn(ctx context.Context, bc *handsha
 			return fmt.Errorf("cannot process Raw MetricBlock #%d: %w", blocksRead, err)
 		}
 	}
-}
-
-func drainMetricBlocks(ctx context.Context, buf []byte, bc *handshake.BufferedConn) error {
-	// write and flush the cancel request marker, so the server can abort the request
-	// and the connection can be re-used.
-	if err := writeCancelRequestMarker(buf, bc); err != nil {
-		return err
+	if err := ctx.Err(); err != nil {
+		return searchutil.AnnotateContextError(ctx)
 	}
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		logger.Panicf("BUG: context must have deadline defined")
-	}
-	// limit the max drain time: it's faster to establish a new connection
-	// if vmstorage doesn't stop sending blocks within maxDrainDuration.
-	const maxDrainDuration = 5 * time.Second
-	maxDrainDeadline := time.Now().Add(maxDrainDuration)
-	if deadline.After(maxDrainDeadline) {
-		deadline = maxDrainDeadline
-	}
-	if err := bc.SetReadDeadline(deadline); err != nil {
-		return fmt.Errorf("cannot set bc read deadline: %w", err)
-	}
-	var err error
-	for {
-		buf, err = readBytes(buf[:0], bc, maxMetricBlockSize)
-		if err != nil {
-			return fmt.Errorf("cannot drain MetricBlocks: %w", err)
-		}
-		if len(buf) == 0 {
-			// data was fully drained, so the connection is safe to re-use.
-			return &errCancel{origin: ctx.Err()}
-		}
-	}
+	return nil
 }
 
 func writeCancelRequestMarker(buf []byte, bc *handshake.BufferedConn) error {
 	buf = append(buf[:0], handshake.CancelRequestMarker)
-	if err := writeBytes(bc, buf[:1]); err != nil {
+	if err := writeBytes(bc, buf); err != nil {
 		return fmt.Errorf("cannot write request cancel marker: %w", err)
 	}
 	if err := bc.Flush(); err != nil {
@@ -3175,14 +3152,6 @@ func writeCancelRequestMarker(buf []byte, bc *handshake.BufferedConn) error {
 	}
 	return nil
 }
-
-type errCancel struct {
-	origin error
-}
-
-func (ec *errCancel) Error() string { return ec.origin.Error() }
-
-func (ec *errCancel) Unwrap() error { return ec.origin }
 
 func writeTimeRange(bc *handshake.BufferedConn, tr storage.TimeRange) error {
 	if err := writeUint64(bc, uint64(tr.MinTimestamp)); err != nil {

@@ -491,14 +491,7 @@ func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 	}
 	if len(ctx.dataBuf) == 1 && ctx.dataBuf[0] == handshake.CancelRequestMarker {
 		// request cancel marker from previous request.
-		// re-read rpc name.
-		if err := ctx.readDataBufBytes(maxRPCNameSize); err != nil {
-			if err == io.EOF {
-				// Remote client gracefully closed the connection.
-				return err
-			}
-			return fmt.Errorf("cannot read rpcName: %w", err)
-		}
+		return nil
 	}
 	rpcName := string(ctx.dataBuf)
 
