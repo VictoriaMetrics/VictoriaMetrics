@@ -40,7 +40,7 @@ which aren't always backward compatible with [PromQL](https://prometheus.io/docs
 
 ### Limitations
 
-* vmalert-tool evaluates all the groups defined in `rule_files` using `evaluation_interval`(default `1m`) instead of `interval` under each rule group.
+* vmalert-tool evaluates all the groups defined in `rule_files` using `evaluation_interval`(default `1m`) instead of `interval` under each rule group unless `-skipUnrelatedRuleGroups` is set.
 * vmalert-tool shares the same limitation with [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#limitations) on chaining rules under one group:
 
 >by default, rules execution is sequential within one group, but persistence of execution results to remote storage is asynchronous. Hence, user shouldn’t rely on chaining of recording rules when result of previous recording rule is reused in the next one;
@@ -288,6 +288,26 @@ In all tests, functions that depend on the current time, such as `time()` and `d
 
 By default, at the start of test evaluation, `time()` returns `946684800` (Unix timestamp: January 1, 2000, at 00:00:00 UTC). The `eval_time` field specifies a duration relative to this test start time. Therefore, by default, `time()` returns `946684800 + eval_time`.
 
+### Skipping unrelated rule groups
+
+> This feature is experimental. It may change or be removed in future releases.
+
+By default, every test evaluates all the rule groups from the configured `rule_files`, even the groups it doesn't assert on. This is wasteful when many tests share a single large rule file, since every test pays for every group at every evaluation step.
+
+Pass `-skipUnrelatedRuleGroups` to evaluate only the rule groups a test can observe:
+
+```sh
+vmalert-tool unittest -files=test.yaml -skipUnrelatedRuleGroups
+```
+
+The groups are selected from the `alertname` of every `alert_rule_test` and from the metric names of every `metricsql_expr_test` expression, and then expanded over dependencies between groups: if a selected group reads a metric recorded by another group, or reads its alerts via the `ALERTS` series, that group is selected too.
+
+Every series selector is resolved against the names of the metrics recorded by the configured rule groups and of the alerts they define. A regexp on `__name__` or a selector without a metric name therefore selects every group it may match, instead of forcing all groups to be evaluated. Queries made from alert label and annotation templates via the `query` function count as reads too, and a template query whose expression is not a string literal cannot be resolved, so every rule group is evaluated once such a group is needed.
+
+Skipped groups are not evaluated at all, so evaluation errors in their rules are not reported when the flag is set. Run the tests without the flag to catch those errors.
+
+Results are expected to be the same with and without the flag, so if a test changes its outcome when the flag is set, please [file an issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new/choose).
+
 ### Debug mode
 
 vmalert-tool can print additional log messages for specific alerting rules, similar to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#debug-mode), by following these steps:
@@ -330,4 +350,6 @@ Run `vmalert-tool unittest --help` to get all configuration options:
     Optional local port for incoming HTTP requests. If not specified, a random unoccupied port will be used.
   -loggerLevel
     Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "ERROR").
+  -skipUnrelatedRuleGroups
+    Experimental. Evaluate only the rule groups a test can observe, instead of every group from the configured rule_files. Skipped groups are not evaluated, so their evaluation errors are not reported. (default: false)
 ```

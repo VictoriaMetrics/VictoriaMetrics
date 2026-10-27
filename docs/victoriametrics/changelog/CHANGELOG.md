@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): add experimental `-skipUnrelatedRuleGroups` flag for evaluating only the rule groups a test can observe, instead of every group from the configured `rule_files`. This speeds up test files where many tests share a single big rule file. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/#skipping-unrelated-rule-groups).
+
 ## [v1.155.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.155.0)
 
 Released at 2026-10-26

@@ -150,13 +150,20 @@ func ValidateTemplates(annotations map[string]string) error {
 	return err
 }
 
+// TemplateHeader returns the template text prepended to every alert label and
+// annotation template. It declares the variables available to them, such as
+// $labels and $value.
+func TemplateHeader() string {
+	return strings.Join(tplHeaders, "")
+}
+
 func templateAnnotations(annotations map[string]string, data AlertTplData, tmpl *textTpl.Template, execute bool) (map[string]string, error) {
 	var builder strings.Builder
 	var buf bytes.Buffer
 	eg := new(vmalertutil.ErrGroup)
 	r := make(map[string]string, len(annotations))
 	tData := tplData{data, externalLabels, externalURL}
-	header := strings.Join(tplHeaders, "")
+	header := TemplateHeader()
 	for key, text := range annotations {
 		// simple check to skip text without template
 		if !strings.Contains(text, "{{") || !strings.Contains(text, "}}") {
