@@ -1,0 +1,68 @@
+groups:
+  # Records dep:level1 from the input series.
+  - name: chainBase
+    rules:
+      - record: dep:level1
+        expr: raw_input
+
+  # Records dep:level2 from dep:level1.
+  - name: chainMiddle
+    rules:
+      - record: dep:level2
+        expr: dep:level1 * 2
+
+  # Alerts on dep:level2.
+  - name: chainTop
+    rules:
+      - alert: ChainAlert
+        expr: dep:level2 > 15
+
+  # Reads ChainAlert through the ALERTS series.
+  - name: alertsReader
+    rules:
+      - record: dep:firing_chain_alerts
+        expr: count(ALERTS{alertname="ChainAlert"}) or vector(0)
+
+  # Records dep:tagged with a job label.
+  - name: feeder
+    rules:
+      - record: dep:tagged
+        expr: label_replace(raw_input, "job", "dep-job", "", "")
+
+  # Reads every recorded series, since the selector has no metric name.
+  - name: dynamicSelector
+    rules:
+      - record: dep:dynamic
+        expr: count({job="dep-job"}) or vector(0)
+
+  # Reads the recorded series matching a __name__ regexp.
+  - name: regexpReader
+    rules:
+      - record: dep:regexp
+        expr: count({__name__=~"dep:level.*"}) or vector(0)
+
+  # Reads dep:level2 from an annotation query.
+  - name: templated
+    rules:
+      - alert: TemplatedAlert
+        expr: raw_input > 0
+        annotations:
+          level2: '{{ with query "dep:level2" }}{{ . | first | value }}{{ end }}'
+
+  # Defines SharedDepAlert from raw_input.
+  - name: sharedNameOne
+    rules:
+      - alert: SharedDepAlert
+        expr: raw_input > 5
+
+  # Defines SharedDepAlert from other_input.
+  - name: sharedNameTwo
+    rules:
+      - alert: SharedDepAlert
+        expr: other_input > 5
+
+  # Records dep:unrelated. No test asserts on it.
+  - name: unrelated
+    rules:
+      - record: dep:unrelated
+        expr: raw_input * 100
