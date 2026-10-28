@@ -1091,6 +1091,11 @@ scrape_configs:
 
 See [these examples](https://docs.victoriametrics.com/victoriametrics/scrape_config_examples/#kubernetes-target-discovery) on how to discover and scrape Kubernetes targets.
 
+By default, Kubernetes objects are requested from Kubernetes API server in JSON format. Set `-promscrape.kubernetes.useProtobuf` command-line flag {{% available_from "#" %}}
+for requesting pods in protobuf format instead. This reduces network traffic, CPU usage and memory usage at both Kubernetes API server and `vmagent`
+when discovering big number of pods. Pods watched for `role: endpoints` and `role: endpointslice` are requested in protobuf format as well,
+while other objects are still requested in JSON. JSON responses are still accepted if Kubernetes API server cannot return protobuf for the requested objects.
+
 One of the following `role` types can be configured to discover targets:
 
 ### Kubernetes role: node

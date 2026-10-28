@@ -508,7 +508,10 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 }
 
 // doRequest performs http request to the given requestURL.
-func (gw *groupWatcher) doRequest(ctx context.Context, requestURL string) (*http.Response, error) {
+//
+// If accept isn't empty, then it is used as the value for the Accept header,
+// so the Kubernetes API server can return the response in the requested format (for example, protobuf).
+func (gw *groupWatcher) doRequest(ctx context.Context, requestURL, accept string) (*http.Response, error) {
 	if strings.Contains(requestURL, "/apis/networking.k8s.io/v1/") && gw.useNetworkingV1Beta1.Load() {
 		// Update networking URL for old Kubernetes API, which supports only v1beta1 path.
 		requestURL = strings.Replace(requestURL, "/apis/networking.k8s.io/v1/", "/apis/networking.k8s.io/v1beta1/", 1)
@@ -524,6 +527,9 @@ func (gw *groupWatcher) doRequest(ctx context.Context, requestURL string) (*http
 	if err := gw.setHeaders(req); err != nil {
 		return nil, fmt.Errorf("cannot set request headers: %w", err)
 	}
+	if accept != "" {
+		req.Header.Set("Accept", accept)
+	}
 	resp, err := gw.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -531,11 +537,11 @@ func (gw *groupWatcher) doRequest(ctx context.Context, requestURL string) (*http
 	if resp.StatusCode == http.StatusNotFound {
 		if strings.Contains(requestURL, "/apis/networking.k8s.io/v1/") && !gw.useNetworkingV1Beta1.Load() {
 			gw.useNetworkingV1Beta1.Store(true)
-			return gw.doRequest(ctx, requestURL)
+			return gw.doRequest(ctx, requestURL, accept)
 		}
 		if strings.Contains(requestURL, "/apis/discovery.k8s.io/v1/") && !gw.useDiscoveryV1Beta1.Load() {
 			gw.useDiscoveryV1Beta1.Store(true)
-			return gw.doRequest(ctx, requestURL)
+			return gw.doRequest(ctx, requestURL, accept)
 		}
 	}
 	return resp, nil
@@ -569,6 +575,13 @@ type urlWatcher struct {
 	parseObject     parseObjectFunc
 	parseObjectList parseObjectListFunc
 
+	// parseObjectProtobuf and parseObjectListProtobuf are set to non-nil only if protobuf is enabled for the given role
+	// via -promscrape.kubernetes.useProtobuf. They are used for parsing protobuf responses from Kubernetes API server.
+	// The Kubernetes API server may still return JSON responses, so parseObject and parseObjectList must be used
+	// for responses with non-protobuf Content-Type.
+	parseObjectProtobuf     parseObjectFunc
+	parseObjectListProtobuf parseObjectListFunc
+
 	// awsPending contains pending apiWatcher objects, which are registered in a batch.
 	// Batch registering saves CPU time needed for registering big number of Kubernetes objects
 	// shared among big number of scrape jobs, since per-object labels are generated only once
@@ -597,6 +610,14 @@ func newURLWatcher(role, apiURL string, gw *groupWatcher) *urlWatcher {
 	parseObject, parseObjectList := getObjectParsersForRole(role)
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_url_watchers{role=%q}`, role)).Inc()
 
+	// Fix the useProtobuf option value at urlWatcher creation time,
+	// so the background goroutines don't read the global flag, which may be changed in tests.
+	var parseObjectProtobuf parseObjectFunc
+	var parseObjectListProtobuf parseObjectListFunc
+	if *useProtobuf {
+		parseObjectProtobuf, parseObjectListProtobuf = getObjectProtobufParsersForRole(role)
+	}
+
 	uw := &urlWatcher{
 		role:   role,
 		apiURL: apiURL,
@@ -604,6 +625,9 @@ func newURLWatcher(role, apiURL string, gw *groupWatcher) *urlWatcher {
 
 		parseObject:     parseObject,
 		parseObjectList: parseObjectList,
+
+		parseObjectProtobuf:     parseObjectProtobuf,
+		parseObjectListProtobuf: parseObjectListProtobuf,
 
 		awsPending:   make(map[*apiWatcher]struct{}),
 		aws:          make(map[*apiWatcher]struct{}),
@@ -717,7 +741,7 @@ func (uw *urlWatcher) reloadObjects() string {
 	// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4855 .
 	delimiter := getQueryArgsDelimiter(apiURL)
 	requestURL := apiURL + delimiter + "resourceVersion=0&resourceVersionMatch=NotOlderThan"
-	resp, err := gw.doRequest(gw.ctx, requestURL)
+	resp, err := gw.doRequest(gw.ctx, requestURL, uw.getAcceptHeader())
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
 			logger.Errorf("cannot perform request to %q: %s", requestURL, err)
@@ -730,7 +754,11 @@ func (uw *urlWatcher) reloadObjects() string {
 		logger.Errorf("unexpected status code for request to %q: %d; want %d; response: %q", requestURL, resp.StatusCode, http.StatusOK, body)
 		return ""
 	}
-	objectsByKey, metadata, err := uw.parseObjectList(resp.Body)
+	parseObjectList := uw.parseObjectList
+	if uw.isProtobufResponse(resp) {
+		parseObjectList = uw.parseObjectListProtobuf
+	}
+	objectsByKey, metadata, err := parseObjectList(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
 		logger.Errorf("cannot parse objects from %q: %s", requestURL, err)
@@ -807,7 +835,7 @@ func (uw *urlWatcher) watchForUpdates() {
 			continue
 		}
 		requestURL := apiURL + "&resourceVersion=" + url.QueryEscape(resourceVersion)
-		resp, err := gw.doRequest(gw.ctx, requestURL)
+		resp, err := gw.doRequest(gw.ctx, requestURL, uw.getAcceptHeader())
 		if err != nil {
 			if !errors.Is(err, context.Canceled) {
 				logger.Errorf("cannot perform request to %q: %s", requestURL, err)
@@ -830,7 +858,7 @@ func (uw *urlWatcher) watchForUpdates() {
 			continue
 		}
 		bt.Reset()
-		err = uw.readObjectUpdateStream(resp.Body)
+		err = uw.readObjectUpdateStream(resp.Body, uw.isProtobufResponse(resp))
 		_ = resp.Body.Close()
 		if err != nil {
 			if !errors.Is(err, io.EOF) && !errors.Is(err, context.Canceled) {
@@ -844,28 +872,41 @@ func (uw *urlWatcher) watchForUpdates() {
 }
 
 // readObjectUpdateStream reads Kubernetes watch events from r and updates locally cached objects according to the received events.
-func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
+//
+// If isProtobuf is true, then the events are read in protobuf format. Otherwise, they are read in JSON format.
+func (uw *urlWatcher) readObjectUpdateStream(r io.Reader, isProtobuf bool) error {
 	gw := uw.gw
-	d := json.NewDecoder(r)
-	var we WatchEvent
+
+	var wr watchEventReader = newJSONWatchEventReader(r)
+	parseObject := uw.parseObject
+	parseBookmarkRV := parseBookmarkResourceVersionJSON
+	parseErrorCode := parseErrorCodeJSON
+	if isProtobuf {
+		wr = newProtobufWatchEventReader(r)
+		parseObject = uw.parseObjectProtobuf
+		parseBookmarkRV = parseBookmarkResourceVersionProtobuf
+		parseErrorCode = parseErrorCodeProtobuf
+	}
+
 	for {
-		if err := d.Decode(&we); err != nil {
-			return fmt.Errorf("cannot parse WatchEvent json response: %w", err)
+		eventType, obj, err := wr.readEvent()
+		if err != nil {
+			return err
 		}
-		switch we.Type {
+		switch eventType {
 		case "ADDED", "MODIFIED":
-			o, err := uw.parseObject(we.Object)
+			o, err := parseObject(obj)
 			if err != nil {
-				return fmt.Errorf("cannot parse %s object: %w", we.Type, err)
+				return fmt.Errorf("cannot parse %s object: %w", eventType, err)
 			}
 			key := o.key()
 			gw.mu.Lock()
 			uw.updateObjectLocked(key, o)
 			gw.mu.Unlock()
 		case "DELETED":
-			o, err := uw.parseObject(we.Object)
+			o, err := parseObject(obj)
 			if err != nil {
-				return fmt.Errorf("cannot parse %s object: %w", we.Type, err)
+				return fmt.Errorf("cannot parse %s object: %w", eventType, err)
 			}
 			key := o.key()
 			gw.mu.Lock()
@@ -873,25 +914,25 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 			gw.mu.Unlock()
 		case "BOOKMARK":
 			// See https://kubernetes.io/docs/reference/using-api/api-concepts/#watch-bookmarks
-			bm, err := parseBookmark(we.Object)
+			rv, err := parseBookmarkRV(obj)
 			if err != nil {
-				return fmt.Errorf("cannot parse bookmark from %q: %w", we.Object, err)
+				return fmt.Errorf("cannot parse bookmark: %w", err)
 			}
-			uw.resourceVersion = bm.Metadata.ResourceVersion
+			uw.resourceVersion = rv
 		case "ERROR":
-			em, err := parseError(we.Object)
+			code, err := parseErrorCode(obj)
 			if err != nil {
-				return fmt.Errorf("cannot parse error message from %q: %w", we.Object, err)
+				return fmt.Errorf("cannot parse error message: %w", err)
 			}
-			if em.Code == 410 {
+			if code == 410 {
 				// See https://kubernetes.io/docs/reference/using-api/api-concepts/#410-gone-responses
 				uw.staleResourceVersions.Inc()
 				uw.resourceVersion = ""
 				return nil
 			}
-			return fmt.Errorf("unexpected error message: %q", we.Object)
+			return fmt.Errorf("unexpected error code: %d", code)
 		default:
-			return fmt.Errorf("unexpected WatchEvent type %q: %q", we.Type, we.Object)
+			return fmt.Errorf("unexpected WatchEvent type %q", eventType)
 		}
 	}
 }
@@ -998,6 +1039,40 @@ func parseError(data []byte) (*Error, error) {
 	return &em, nil
 }
 
+// parseBookmarkResourceVersionJSON returns resourceVersion from JSON-encoded bookmark object.
+func parseBookmarkResourceVersionJSON(data []byte) (string, error) {
+	bm, err := parseBookmark(data)
+	if err != nil {
+		return "", err
+	}
+	return bm.Metadata.ResourceVersion, nil
+}
+
+// parseErrorCodeJSON returns the code from JSON-encoded Status object.
+func parseErrorCodeJSON(data []byte) (int, error) {
+	em, err := parseError(data)
+	if err != nil {
+		return 0, err
+	}
+	return em.Code, nil
+}
+
+// getAcceptHeader returns the value for the Accept header for requests to Kubernetes API server.
+//
+// Empty string means the default JSON format. If protobuf is enabled for the given role,
+// then protobuf format is preferred, while JSON is still accepted as a fallback.
+func (uw *urlWatcher) getAcceptHeader() string {
+	if uw.parseObjectListProtobuf != nil {
+		return protobufAcceptHeader
+	}
+	return ""
+}
+
+// isProtobufResponse returns true if resp contains protobuf-encoded data.
+func (uw *urlWatcher) isProtobufResponse(resp *http.Response) bool {
+	return uw.parseObjectListProtobuf != nil && isProtobufContentType(resp.Header.Get("Content-Type"))
+}
+
 func getAPIPathsWithNamespaces(role string, namespaces []string, selectors []Selector) []string {
 	objectType := getObjectTypeByRole(role)
 	if objectType == "nodes" || objectType == "namespaces" || len(namespaces) == 0 {
@@ -1093,6 +1168,19 @@ func getObjectParsersForRole(role string) (parseObjectFunc, parseObjectListFunc)
 		return parseNamespace, parseNamespaceList
 	default:
 		logger.Panicf("BUG: unsupported role=%q", role)
+		return nil, nil
+	}
+}
+
+// getObjectProtobufParsersForRole returns protobuf parsers for the given role.
+//
+// It returns (nil, nil) for roles, which don't support protobuf parsing yet.
+// Currently protobuf is supported only for pods.
+func getObjectProtobufParsersForRole(role string) (parseObjectFunc, parseObjectListFunc) {
+	switch role {
+	case "pod":
+		return parsePodProtobuf, parsePodListProtobuf
+	default:
 		return nil, nil
 	}
 }
