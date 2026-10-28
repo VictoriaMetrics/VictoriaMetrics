@@ -1158,12 +1158,83 @@ func Tenants(ctx context.Context, qt *querytracer.Tracer, tr storage.TimeRange) 
 	return tenants, nil
 }
 
+// MetadataTenants returns tenants with non-empty metrics metadata storage.
+func MetadataTenants(ctx context.Context, qt *querytracer.Tracer) ([]storage.TenantToken, error) {
+	qt = qt.NewChild("get metadata tenants")
+	defer qt.Done()
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context error before starting the query processing: %w", searchutil.AnnotateContextError(ctx))
+	}
+
+	type nodeResult struct {
+		tenants []storage.TenantToken
+		err     error
+	}
+	sns := getStorageNodes()
+	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
+		sn.metadataTenantsRequests.Inc()
+		tenants, err := sn.getMetadataTenants(ctx, qt)
+		if err != nil {
+			sn.metadataTenantsErrors.Inc()
+			err = fmt.Errorf("cannot get metadata tenants from vmstorage %s: %w", sn.connPool.Addr(), err)
+		}
+		return &nodeResult{
+			tenants: tenants,
+			err:     err,
+		}
+	})
+
+	tenantSet := make(map[storage.TenantToken]struct{})
+	_, err := snr.collectResults(partialMetadataResults, func(result any) error {
+		nr := result.(*nodeResult)
+		if nr.err != nil {
+			return nr.err
+		}
+		for _, tenant := range nr.tenants {
+			tenantSet[tenant] = struct{}{}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot fetch metadata tenants from vmstorage nodes: %w", err)
+	}
+
+	tenants := make([]storage.TenantToken, 0, len(tenantSet))
+	for tenant := range tenantSet {
+		tenants = append(tenants, tenant)
+	}
+	sort.Slice(tenants, func(i, j int) bool {
+		if tenants[i].AccountID != tenants[j].AccountID {
+			return tenants[i].AccountID < tenants[j].AccountID
+		}
+		return tenants[i].ProjectID < tenants[j].ProjectID
+	})
+	qt.Printf("found %d unique metadata tenants", len(tenants))
+	return tenants, nil
+}
+
 // GetMetricsMetadata returns time series metric names metadata for the given args
 func GetMetricsMetadata(ctx context.Context, qt *querytracer.Tracer, tt *storage.TenantToken, denyPartialResponse bool, limit int, metricName string) ([]*metricsmetadata.Row, bool, error) {
+	return getMetricsMetadata(ctx, qt, []*storage.TenantToken{tt}, denyPartialResponse, limit, metricName)
+}
+
+// GetMetricsMetadataForTenants returns time series metric names metadata for the given tenants.
+func GetMetricsMetadataForTenants(ctx context.Context, qt *querytracer.Tracer, tts []storage.TenantToken, denyPartialResponse bool, limit int, metricName string) ([]*metricsmetadata.Row, bool, error) {
+	ttPtrs := make([]*storage.TenantToken, len(tts))
+	for i := range tts {
+		ttPtrs[i] = &tts[i]
+	}
+	return getMetricsMetadata(ctx, qt, ttPtrs, denyPartialResponse, limit, metricName)
+}
+
+func getMetricsMetadata(ctx context.Context, qt *querytracer.Tracer, tts []*storage.TenantToken, denyPartialResponse bool, limit int, metricName string) ([]*metricsmetadata.Row, bool, error) {
 	qt = qt.NewChild("get metrics metadata: limit=%d, metric_name=%q", limit, metricName)
 	defer qt.Done()
 	if err := ctx.Err(); err != nil {
 		return nil, false, fmt.Errorf("context error before starting the query processing: %w", searchutil.AnnotateContextError(ctx))
+	}
+	if len(tts) == 0 {
+		return nil, false, nil
 	}
 	type nodeResult struct {
 		metadata []*metricsmetadata.Row
@@ -1171,25 +1242,40 @@ func GetMetricsMetadata(ctx context.Context, qt *querytracer.Tracer, tt *storage
 	}
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		sn.metricsMetadataRequests.Inc()
-		metadata, err := sn.getMetricsMetadata(ctx, qt, tt, limit, metricName)
-		if err != nil {
-			sn.metricsMetadataErrors.Inc()
-			err = fmt.Errorf("cannot get metrics metadata from vmstorage %s: %w", sn.connPool.Addr(), err)
+		results := make([]*nodeResult, 0, len(tts))
+		for _, tt := range tts {
+			qtL := qt
+			if len(tts) > 1 && qt.Enabled() {
+				qtL = qt.NewChild("query for tenant: %s", tt.String())
+			}
+			sn.metricsMetadataRequests.Inc()
+			metadata, err := sn.getMetricsMetadata(ctx, qtL, tt, limit, metricName)
+			if err != nil {
+				sn.metricsMetadataErrors.Inc()
+				err = fmt.Errorf("cannot get metrics metadata from vmstorage %s: %w", sn.connPool.Addr(), err)
+			}
+			if qtL != qt {
+				qtL.Done()
+			}
+			results = append(results, &nodeResult{
+				metadata: metadata,
+				err:      err,
+			})
+			if err != nil {
+				break
+			}
 		}
-		return &nodeResult{
-			metadata: metadata,
-			err:      err,
-		}
+		return results
 	})
 
 	var metadata []*metricsmetadata.Row
 	isPartial, err := snr.collectResults(partialMetadataResults, func(result any) error {
-		nr := result.(*nodeResult)
-		if nr.err != nil {
-			return nr.err
+		for _, nr := range result.([]*nodeResult) {
+			if nr.err != nil {
+				return nr.err
+			}
+			metadata = append(metadata, nr.metadata...)
 		}
-		metadata = append(metadata, nr.metadata...)
 		return nil
 	})
 	if err != nil {
@@ -2364,6 +2450,10 @@ type storageNode struct {
 	// The number of list tenants errors to storageNode.
 	tenantsErrors *metrics.Counter
 
+	metadataTenantsRequests *metrics.Counter
+
+	metadataTenantsErrors *metrics.Counter
+
 	metricsMetadataRequests *metrics.Counter
 
 	metricsMetadataErrors *metrics.Counter
@@ -2438,6 +2528,22 @@ func (sn *storageNode) getTenants(ctx context.Context, qt *querytracer.Tracer, t
 		return nil
 	}
 	if err := sn.execOnConnWithPossibleRetry(ctx, qt, "tenants_v1", f); err != nil {
+		return nil, err
+	}
+	return tenants, nil
+}
+
+func (sn *storageNode) getMetadataTenants(ctx context.Context, qt *querytracer.Tracer) ([]storage.TenantToken, error) {
+	var tenants []storage.TenantToken
+	f := func(bc *handshake.BufferedConn) error {
+		result, err := sn.getMetadataTenantsOnConn(bc)
+		if err != nil {
+			return err
+		}
+		tenants = result
+		return nil
+	}
+	if err := sn.execOnConnWithPossibleRetry(ctx, qt, "metadataTenants_v1", f); err != nil {
 		return nil, err
 	}
 	return tenants, nil
@@ -2861,6 +2967,41 @@ func (sn *storageNode) getTenantsOnConn(bc *handshake.BufferedConn, tr storage.T
 	}
 }
 
+func (sn *storageNode) getMetadataTenantsOnConn(bc *handshake.BufferedConn) ([]storage.TenantToken, error) {
+	if err := bc.Flush(); err != nil {
+		return nil, fmt.Errorf("cannot flush metadata tenants request: %w", err)
+	}
+
+	buf, err := readBytes(nil, bc, maxErrorMessageSize)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read error message: %w", err)
+	}
+	if len(buf) > 0 {
+		return nil, newErrRemote(buf)
+	}
+
+	tenantsCount, err := readUint64(bc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read metadata tenants count: %w", err)
+	}
+	tenants := make([]storage.TenantToken, tenantsCount)
+	for i := range tenantsCount {
+		accountID, err := readUint32(bc)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read metadata tenant #%d accountID: %w", i, err)
+		}
+		projectID, err := readUint32(bc)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read metadata tenant #%d projectID: %w", i, err)
+		}
+		tenants[i] = storage.TenantToken{
+			AccountID: accountID,
+			ProjectID: projectID,
+		}
+	}
+	return tenants, nil
+}
+
 func (sn *storageNode) getTagValueSuffixesOnConn(bc *handshake.BufferedConn, accountID, projectID uint32,
 	tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxSuffixes int,
 ) ([]string, error) {
@@ -3227,6 +3368,15 @@ func readUint64(bc *handshake.BufferedConn) (uint64, error) {
 	return n, nil
 }
 
+func readUint32(bc *handshake.BufferedConn) (uint32, error) {
+	var buf [4]byte
+	if _, err := io.ReadFull(bc, buf[:]); err != nil {
+		return 0, fmt.Errorf("cannot read uint32: %w", err)
+	}
+	n := encoding.UnmarshalUint32(buf[:])
+	return n, nil
+}
+
 type storageNodesBucket struct {
 	ms  *metrics.Set
 	sns []*storageNode
@@ -3327,6 +3477,8 @@ func newStorageNode(ms *metrics.Set, group *storageNodesGroup, addr string) *sto
 		searchErrors:                ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 		tenantsRequests:             ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="tenants", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 		tenantsErrors:               ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tenants", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		metadataTenantsRequests:     ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="metadataTenants", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		metadataTenantsErrors:       ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="metadataTenants", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 		metricsMetadataRequests:     ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="metricsMetadata", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 		metricsMetadataErrors:       ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="metricsMetadata", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 

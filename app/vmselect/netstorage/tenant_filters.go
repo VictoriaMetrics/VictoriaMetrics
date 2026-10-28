@@ -57,6 +57,33 @@ func splitFiltersByType(tfs [][]storage.TagFilter) ([][]storage.TagFilter, [][]s
 	return tenantFilters, otherFilters
 }
 
+// HasTenantFilters returns true if tfs contains filters for tenant labels.
+func HasTenantFilters(tfs [][]storage.TagFilter) bool {
+	for _, tfs := range tfs {
+		for _, tf := range tfs {
+			if isTenancyLabel(string(tf.Key)) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// FilterTenantTokens returns tenant tokens matching the tenant filters from tfs.
+func FilterTenantTokens(tts []storage.TenantToken, tfs [][]storage.TagFilter) ([]storage.TenantToken, error) {
+	// Preserve every OR group. A group without tenant filters must remain empty,
+	// so it matches every tenant instead of being dropped.
+	tenantFilters := make([][]storage.TagFilter, len(tfs))
+	for i, filters := range tfs {
+		for _, tf := range filters {
+			if isTenancyLabel(string(tf.Key)) {
+				tenantFilters[i] = append(tenantFilters[i], tf)
+			}
+		}
+	}
+	return applyFiltersToTenants(tts, tenantFilters)
+}
+
 // ApplyTenantFiltersToTagFilters applies the given tenant filters to the given tag filters.
 func ApplyTenantFiltersToTagFilters(tts []storage.TenantToken, tfs [][]storage.TagFilter) ([]storage.TenantToken, [][]storage.TagFilter) {
 	tenantFilters, otherFilters := splitFiltersByType(tfs)

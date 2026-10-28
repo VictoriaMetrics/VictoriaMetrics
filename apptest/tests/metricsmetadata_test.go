@@ -197,23 +197,38 @@ func TestClusterMetricsMetadata(t *testing.T) {
 		},
 	}
 
-	assertMetadataIngestOn := func(t *testing.T, vminsert *apptest.Vminsert, tenantID string) {
+	expectedMetadata := func(tenantMetricNames ...string) map[string][]apptest.MetadataEntry {
+		data := map[string][]apptest.MetadataEntry{
+			"metric_name_1":            {{Help: "some help message", Type: "gauge"}},
+			"metric_name_2":            {{Help: "some help message", Type: "counter"}},
+			"metric_name_3":            {{Help: "some help message", Type: "gauge"}},
+			"metric_name_4":            {{Help: "some help message", Type: "summary"}},
+			"metric_name_5":            {{Help: "some help message", Type: "summary"}},
+			"metric_name_6":            {{Help: "some help message", Type: "stateset"}},
+			`metric_name_7_!@"_suffix`: {{Help: "some help message", Type: "stateset"}},
+		}
+		for _, metricName := range tenantMetricNames {
+			data[metricName] = []apptest.MetadataEntry{{Help: "metadata for " + metricName, Type: "gauge"}}
+		}
+		return data
+	}
+
+	assertMetadataIngestOn := func(t *testing.T, vminsert *apptest.Vminsert, tenantID, tenantMetricName string) {
 		t.Helper()
 		vminsert.PrometheusAPIV1ImportPrometheus(t, prometheusTextDataSet, apptest.QueryOpts{Tenant: tenantID})
-		vminsert.PrometheusAPIV1Write(t, prometheusRemoteWriteDataSet, apptest.QueryOpts{Tenant: tenantID})
+		remoteWriteDataSet := prometheusRemoteWriteDataSet
+		remoteWriteDataSet.Metadata = append([]prompb.MetricMetadata{}, prometheusRemoteWriteDataSet.Metadata...)
+		remoteWriteDataSet.Metadata = append(remoteWriteDataSet.Metadata, prompb.MetricMetadata{
+			MetricFamilyName: tenantMetricName,
+			Help:             "metadata for " + tenantMetricName,
+			Type:             prompb.MetricTypeGauge,
+		})
+		vminsert.PrometheusAPIV1Write(t, remoteWriteDataSet, apptest.QueryOpts{Tenant: tenantID})
 		vmstorage1.ForceFlush(t)
 		vmstorage2.ForceFlush(t)
 		expected := &apptest.PrometheusAPIV1Metadata{
 			Status: "success",
-			Data: map[string][]apptest.MetadataEntry{
-				"metric_name_1":            {{Help: "some help message", Type: "gauge"}},
-				"metric_name_2":            {{Help: "some help message", Type: "counter"}},
-				"metric_name_3":            {{Help: "some help message", Type: "gauge"}},
-				"metric_name_4":            {{Help: "some help message", Type: "summary"}},
-				"metric_name_5":            {{Help: "some help message", Type: "summary"}},
-				"metric_name_6":            {{Help: "some help message", Type: "stateset"}},
-				`metric_name_7_!@"_suffix`: {{Help: "some help message", Type: "stateset"}},
-			},
+			Data:   expectedMetadata(tenantMetricName),
 		}
 		gotStats := vmselect.PrometheusAPIV1Metadata(t, "", 0, apptest.QueryOpts{Tenant: tenantID})
 		if diff := cmp.Diff(expected, gotStats); diff != "" {
@@ -221,9 +236,106 @@ func TestClusterMetricsMetadata(t *testing.T) {
 		}
 	}
 
-	assertMetadataIngestOn(t, vminsert1, "2:2")
-	assertMetadataIngestOn(t, vminsert2, "3:3")
-	assertMetadataIngestOn(t, vminsertGlobal, "5:5")
+	assertMetadataIngestOn(t, vminsert1, "2:2", "tenant_2_metric")
+	assertMetadataIngestOn(t, vminsert2, "3:3", "tenant_3_metric")
+	assertMetadataIngestOn(t, vminsertGlobal, "5:5", "tenant_5_metric")
+	const metadataOnlyMetric = "metadata_only_metric"
+	vminsertGlobal.PrometheusAPIV1Write(t, prompb.WriteRequest{
+		Metadata: []prompb.MetricMetadata{{
+			MetricFamilyName: metadataOnlyMetric,
+			Help:             "metadata for " + metadataOnlyMetric,
+			Type:             prompb.MetricTypeGauge,
+		}},
+	}, apptest.QueryOpts{Tenant: "7:7"})
+
+	// check unfiltered multitenant query
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /api/v1/metadata response",
+		Got: func() any {
+			return vmselect.PrometheusAPIV1Metadata(t, "", 0, apptest.QueryOpts{Tenant: "multitenant"})
+		},
+		Want: &apptest.PrometheusAPIV1Metadata{
+			Status: "success",
+			Data:   expectedMetadata(metadataOnlyMetric, "tenant_2_metric", "tenant_3_metric", "tenant_5_metric"),
+		},
+	})
+
+	// check that non-tenant filters preserve the unfiltered metadata query
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /api/v1/metadata response",
+		Got: func() any {
+			return vmselect.PrometheusAPIV1Metadata(t, "", 0, apptest.QueryOpts{
+				Tenant:       "multitenant",
+				ExtraFilters: []string{`{job="vmselect"}`},
+			})
+		},
+		Want: &apptest.PrometheusAPIV1Metadata{
+			Status: "success",
+			Data:   expectedMetadata(metadataOnlyMetric, "tenant_2_metric", "tenant_3_metric", "tenant_5_metric"),
+		},
+	})
+
+	// check tenant filtering for a tenant that has metadata, but no time series
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /api/v1/metadata response",
+		Got: func() any {
+			return vmselect.PrometheusAPIV1Metadata(t, "", 0, apptest.QueryOpts{
+				Tenant:       "multitenant",
+				ExtraFilters: []string{`{vm_account_id="7",vm_project_id="7"}`},
+			})
+		},
+		Want: &apptest.PrometheusAPIV1Metadata{
+			Status: "success",
+			Data: map[string][]apptest.MetadataEntry{
+				metadataOnlyMetric: {{Help: "metadata for " + metadataOnlyMetric, Type: "gauge"}},
+			},
+		},
+	})
+
+	// check tenant account filter
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /api/v1/metadata response",
+		Got: func() any {
+			return vmselect.PrometheusAPIV1Metadata(t, "", 0, apptest.QueryOpts{
+				Tenant:       "multitenant",
+				ExtraFilters: []string{`{vm_account_id=~"2|5"}`},
+			})
+		},
+		Want: &apptest.PrometheusAPIV1Metadata{
+			Status: "success",
+			Data:   expectedMetadata("tenant_2_metric", "tenant_5_metric"),
+		},
+	})
+
+	// check tenant project filter
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /api/v1/metadata response",
+		Got: func() any {
+			return vmselect.PrometheusAPIV1Metadata(t, "", 0, apptest.QueryOpts{
+				Tenant:       "multitenant",
+				ExtraFilters: []string{`{vm_project_id="3"}`},
+			})
+		},
+		Want: &apptest.PrometheusAPIV1Metadata{
+			Status: "success",
+			Data:   expectedMetadata("tenant_3_metric"),
+		},
+	})
+
+	// check tenant filter without matches
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /api/v1/metadata response",
+		Got: func() any {
+			return vmselect.PrometheusAPIV1Metadata(t, "", 0, apptest.QueryOpts{
+				Tenant:       "multitenant",
+				ExtraFilters: []string{`{vm_account_id="42"}`},
+			})
+		},
+		Want: &apptest.PrometheusAPIV1Metadata{
+			Status: "success",
+			Data:   map[string][]apptest.MetadataEntry{},
+		},
+	})
 
 	// check query metric name filter
 	tc.Assert(&apptest.AssertOptions{

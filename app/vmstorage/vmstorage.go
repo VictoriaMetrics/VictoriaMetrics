@@ -396,6 +396,10 @@ func (vms *VMStorage) GetMetadataRecords(ctx context.Context, qt *querytracer.Tr
 	return vms.s.GetMetadataRows(ctx, qt, tt, limit, metricName)
 }
 
+func (vms *VMStorage) GetMetadataTenants(ctx context.Context, qt *querytracer.Tracer) ([]storage.TenantToken, error) {
+	return vms.s.GetMetadataTenants(ctx, qt)
+}
+
 // deleteSnapshot deletes a snapshot by its name.
 func (vms *VMStorage) deleteSnapshot(snapshotName string) error {
 	snapshots := vms.s.MustListSnapshots()

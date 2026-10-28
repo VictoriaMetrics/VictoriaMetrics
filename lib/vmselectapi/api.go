@@ -51,6 +51,9 @@ type API interface {
 
 	// GetMetadataRecords returns metrics metadata.
 	GetMetadataRecords(ctx context.Context, qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string) ([]*metricsmetadata.Row, error)
+
+	// GetMetadataTenants returns tenants with non-empty metrics metadata storage.
+	GetMetadataTenants(ctx context.Context, qt *querytracer.Tracer) ([]storage.TenantToken, error)
 }
 
 // BlockIterator must iterate through series blocks found by VMSelect.InitSearch.

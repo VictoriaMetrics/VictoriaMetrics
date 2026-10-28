@@ -2813,6 +2813,23 @@ func (s *Storage) GetMetadataRows(_ context.Context, qt *querytracer.Tracer, tt 
 	return res, nil
 }
 
+// GetMetadataTenants returns tenants with non-empty metadata storage.
+func (s *Storage) GetMetadataTenants(_ context.Context, qt *querytracer.Tracer) ([]TenantToken, error) {
+	qt = qt.NewChild("search metrics metadata tenants")
+	defer qt.Done()
+
+	metadataTenants := s.metadataStorage.GetTenants()
+	tenants := make([]TenantToken, len(metadataTenants))
+	for i, tenant := range metadataTenants {
+		tenants[i] = TenantToken{
+			AccountID: tenant.AccountID,
+			ProjectID: tenant.ProjectID,
+		}
+	}
+	qt.Printf("found %d metadata tenants", len(tenants))
+	return tenants, nil
+}
+
 // AddMetadataRows writes time series metric names metadata into storage
 func (s *Storage) AddMetadataRows(rows []metricsmetadata.Row) {
 	s.metadataStorage.Add(rows)

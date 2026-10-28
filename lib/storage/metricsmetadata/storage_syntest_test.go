@@ -75,6 +75,9 @@ func TestWriteEviction(t *testing.T) {
 		if sm.ItemsCurrent != 0 {
 			t.Fatalf("unexpected items count: %d want 0", sm.ItemsCurrent)
 		}
+		if got := s.GetTenants(); len(got) != 0 {
+			t.Fatalf("unexpected tenants after metadata expiration: %v", got)
+		}
 	})
 
 }
