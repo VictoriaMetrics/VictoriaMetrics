@@ -531,8 +531,18 @@ func GetRowsDiff(s1, s2 string) string {
 
 type linesIterator struct {
 	rows     []Row
-	a        []string
 	tagsPool []Tag
+
+	// keysBuf contains all the normalized series keys, stored back to back.
+	// keysIdx contains (offset, length) pairs locating each key inside keysBuf,
+	// and order lists the keys sorted by contents as indices into keysIdx.
+	//
+	// All three are reused between GetRowsDiff calls via linesIteratorPool,
+	// so iterating a scrape body doesn't allocate per series.
+	keysBuf []byte
+	keysIdx []int
+	order   []int
+	next    int
 
 	// Key contains the next key after NextKey call
 	Key []byte
@@ -549,16 +559,16 @@ func getLinesIterator() *linesIterator {
 }
 
 func putLinesIterator(li *linesIterator) {
-	li.a = nil
 	linesIteratorPool.Put(li)
 }
 
 func (li *linesIterator) Init(s string) {
 	a := strings.Split(s, "\n")
-	keys := li.a[:0]
+	keysBuf := li.keysBuf[:0]
+	keysIdx := li.keysIdx[:0]
+	order := li.order[:0]
 	rows := li.rows[:0]
 	tagsPool := li.tagsPool[:0]
-	var key []byte
 	for _, line := range a {
 		// Do not log errors here, since they will be logged during the real data parsing later.
 		rows, tagsPool = unmarshalRow(rows[:0], line, tagsPool[:0], false, nil)
@@ -574,27 +584,47 @@ func (li *linesIterator) Init(s string) {
 		if len(tags) > 1 {
 			sortTagsForDiffKey(tags)
 		}
-		key = marshalMetricNameWithTags(key[:0], &rows[0])
-		keys = append(keys, string(key))
+		keysIdx = append(keysIdx, len(keysBuf))
+		keysBuf = marshalMetricNameWithTags(keysBuf, &rows[0])
+		order = append(order, len(order))
 	}
 	// The merge in GetRowsDiff assumes that keys arrive in ascending bytes.Compare order,
 	// so sort the normalized keys rather than the raw lines. Sorting raw lines leaves
 	// keys out of order when label pairs order differs between lines.
-	sort.Strings(keys)
-	li.a = keys
+	sort.Slice(order, func(i, j int) bool {
+		ai, bi := order[i], order[j]
+		aStart := keysIdx[ai]
+		aEnd := keyEnd(keysBuf, keysIdx, ai)
+		bStart := keysIdx[bi]
+		bEnd := keyEnd(keysBuf, keysIdx, bi)
+		return bytes.Compare(keysBuf[aStart:aEnd], keysBuf[bStart:bEnd]) < 0
+	})
+	li.keysBuf = keysBuf
+	li.keysIdx = keysIdx
+	li.order = order
+	li.next = 0
 	li.rows = rows
 	li.tagsPool = tagsPool
+}
+
+// keyEnd returns the end offset of key i inside keysBuf.
+func keyEnd(keysBuf []byte, keysIdx []int, i int) int {
+	if i+1 < len(keysIdx) {
+		return keysIdx[i+1]
+	}
+	return len(keysBuf)
 }
 
 // NextKey advances to the next key in li.
 //
 // It returns true if the next key is found and Key is successfully updated.
 func (li *linesIterator) NextKey() bool {
-	if len(li.a) == 0 {
+	if li.next >= len(li.order) {
 		return false
 	}
-	li.Key = append(li.Key[:0], li.a[0]...)
-	li.a = li.a[1:]
+	i := li.order[li.next]
+	li.next++
+	li.Key = li.keysBuf[li.keysIdx[i]:keyEnd(li.keysBuf, li.keysIdx, i)]
 	return true
 }
 
