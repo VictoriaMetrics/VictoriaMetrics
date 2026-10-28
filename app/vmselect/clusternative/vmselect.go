@@ -121,6 +121,11 @@ func (api *vmstorageAPI) GetMetadataRecords(ctx context.Context, qt *querytracer
 	return meta, wrapClusterNativeError(err)
 }
 
+func (api *vmstorageAPI) GetMetadataTenants(ctx context.Context, qt *querytracer.Tracer) ([]storage.TenantToken, error) {
+	tenants, err := netstorage.MetadataTenants(ctx, qt)
+	return tenants, wrapClusterNativeError(err)
+}
+
 // blockIterator implements vmselectapi.BlockIterator
 type blockIterator struct {
 	workCh chan workItem

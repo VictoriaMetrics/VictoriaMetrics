@@ -274,6 +274,38 @@ func TestStorageWrite(t *testing.T) {
 	f(rowToUpdate, expected)
 }
 
+func TestStorageGetTenants(t *testing.T) {
+	s := NewStorage(4096)
+	defer s.MustClose()
+
+	if got := s.GetTenants(); len(got) != 0 {
+		t.Fatalf("unexpected tenants in empty storage: %v", got)
+	}
+
+	s.Add([]Row{
+		{MetricFamilyName: []byte("metric1"), AccountID: 3, ProjectID: 15},
+		{MetricFamilyName: []byte("metric2"), AccountID: 1, ProjectID: 2},
+		{MetricFamilyName: []byte("metric3"), AccountID: 3, ProjectID: 15},
+		{MetricFamilyName: []byte("metric4"), AccountID: 0, ProjectID: 0},
+	})
+
+	// Empty tenant maps may remain after eviction and mustn't be exposed.
+	b := s.buckets[0]
+	b.mu.Lock()
+	b.perTenantStorage[encodeTenantID(42, 24)] = map[string]*Row{}
+	b.mu.Unlock()
+
+	got := s.GetTenants()
+	want := []Tenant{
+		{AccountID: 0, ProjectID: 0},
+		{AccountID: 1, ProjectID: 2},
+		{AccountID: 3, ProjectID: 15},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("unexpected tenants (-want, +got):\n%s", diff)
+	}
+}
+
 func TestStorageRead(t *testing.T) {
 	s := NewStorage(4096)
 	defer s.MustClose()

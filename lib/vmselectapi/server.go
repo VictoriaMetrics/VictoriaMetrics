@@ -71,6 +71,7 @@ type Server struct {
 	searchMetricNamesRequests   *metrics.Counter
 	searchRequests              *metrics.Counter
 	tenantsRequests             *metrics.Counter
+	metadataTenantsRequests     *metrics.Counter
 	searchMetadataRequests      *metrics.Counter
 
 	metricBlocksRead *metrics.Counter
@@ -132,6 +133,7 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		searchMetricNamesRequests:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="searchMetricNames",addr=%q}`, addr)),
 		searchRequests:              metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="search",addr=%q}`, addr)),
 		tenantsRequests:             metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tenants",addr=%q}`, addr)),
+		metadataTenantsRequests:     metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="metadataTenants",addr=%q}`, addr)),
 		searchMetadataRequests:      metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="searchMetadata",addr=%q}`, addr)),
 
 		metricBlocksRead: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_blocks_read_total{addr=%q}`, addr)),
@@ -476,6 +478,14 @@ func (ctx *vmselectRequestCtx) writeUint64(n uint64) error {
 	return nil
 }
 
+func (ctx *vmselectRequestCtx) writeUint32(n uint32) error {
+	ctx.sizeBuf = encoding.MarshalUint32(ctx.sizeBuf[:0], n)
+	if _, err := ctx.bc.Write(ctx.sizeBuf); err != nil {
+		return fmt.Errorf("cannot write uint32 %d: %w", n, err)
+	}
+	return nil
+}
+
 const maxRPCNameSize = 128
 
 func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
@@ -579,6 +589,8 @@ func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 		return s.processRegisterMetricNames(ctx)
 	case "tenants_v1":
 		return s.processTenants(ctx)
+	case "metadataTenants_v1":
+		return s.processMetadataTenants(ctx)
 	case "metricNamesUsageStats_v1":
 		return s.processMetricNamesUsageStats(ctx)
 	case "resetMetricNamesStats_v1":
@@ -947,6 +959,39 @@ func (s *Server) processTenants(ctx *vmselectRequestCtx) error {
 	// Send 'end of response' marker
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send 'end of response' marker")
+	}
+	return nil
+}
+
+func (s *Server) processMetadataTenants(ctx *vmselectRequestCtx) error {
+	s.metadataTenantsRequests.Inc()
+
+	if err := s.beginConcurrentRequest(ctx); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	defer s.endConcurrentRequest()
+
+	rCtx, cm := withRequestContext(ctx)
+	tenants, err := s.api.GetMetadataTenants(rCtx, ctx.qt)
+	if err != nil {
+		cm.stop()
+		return ctx.writeErrorMessage(err)
+	}
+	cm.stop()
+
+	if err := ctx.writeString(""); err != nil {
+		return fmt.Errorf("cannot send empty error message to vmselect: %w", err)
+	}
+	if err := ctx.writeUint64(uint64(len(tenants))); err != nil {
+		return fmt.Errorf("cannot write metadata tenants count: %w", err)
+	}
+	for _, tenant := range tenants {
+		if err := ctx.writeUint32(tenant.AccountID); err != nil {
+			return fmt.Errorf("cannot write metadata tenant accountID: %w", err)
+		}
+		if err := ctx.writeUint32(tenant.ProjectID); err != nil {
+			return fmt.Errorf("cannot write metadata tenant projectID: %w", err)
+		}
 	}
 	return nil
 }

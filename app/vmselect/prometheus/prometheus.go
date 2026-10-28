@@ -867,17 +867,36 @@ func MetadataHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token
 
 	metricName := r.FormValue("metric")
 
-	var tt *storage.TenantToken
+	var metadata []*metricsmetadata.Row
+	var isPartial bool
 	if at != nil {
-		tt = &storage.TenantToken{
+		tt := &storage.TenantToken{
 			AccountID: at.AccountID,
 			ProjectID: at.ProjectID,
 		}
+		metadata, isPartial, err = netstorage.GetMetricsMetadata(ctx, qt, tt, httputil.GetDenyPartialResponse(r), limit, metricName)
+	} else {
+		var etfs [][]storage.TagFilter
+		etfs, err = searchutil.GetExtraTagFilters(r)
+		if err != nil {
+			return httpserver.InvalidParamError(err)
+		}
+		denyPartialResponse := httputil.GetDenyPartialResponse(r)
+		if netstorage.HasTenantFilters(etfs) {
+			var tts []storage.TenantToken
+			tts, err = netstorage.MetadataTenants(ctx, qt)
+			if err != nil {
+				return fmt.Errorf("cannot obtain metadata tenants: %w", err)
+			}
+			tts, err = netstorage.FilterTenantTokens(tts, etfs)
+			if err != nil {
+				return httpserver.InvalidParamError(fmt.Errorf("cannot apply tenant filters: %w", err))
+			}
+			metadata, isPartial, err = netstorage.GetMetricsMetadataForTenants(ctx, qt, tts, denyPartialResponse, limit, metricName)
+		} else {
+			metadata, isPartial, err = netstorage.GetMetricsMetadata(ctx, qt, nil, denyPartialResponse, limit, metricName)
+		}
 	}
-
-	denyPartialResponse := httputil.GetDenyPartialResponse(r)
-
-	metadata, isPartial, err := netstorage.GetMetricsMetadata(ctx, qt, tt, denyPartialResponse, limit, metricName)
 	if err != nil {
 		return fmt.Errorf("cannot get metadata: %w", err)
 	}

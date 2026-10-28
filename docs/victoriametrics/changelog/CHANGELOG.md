@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): apply `vm_account_id` and `vm_project_id` filters passed via `extra_label`, `extra_filters` or `extra_filters[]` to [/api/v1/metadata](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#metrics-metadata) requests against the `multitenant` endpoint, including tenants that have metadata but no time series. Previously, these filters were ignored and metadata from all tenants was returned. See [#11824](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11824).
+
 ## [v1.155.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.155.0)
 
 Released at 2026-10-26

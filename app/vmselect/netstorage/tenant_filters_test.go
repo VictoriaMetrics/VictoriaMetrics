@@ -56,3 +56,56 @@ func TestIsTenancyLabel(t *testing.T) {
 	f("instance", false)
 
 }
+
+func TestHasTenantFilters(t *testing.T) {
+	tests := []struct {
+		name string
+		tfs  [][]storage.TagFilter
+		want bool
+	}{
+		{
+			name: "empty",
+		},
+		{
+			name: "other filters",
+			tfs: [][]storage.TagFilter{{
+				{Key: []byte("job"), Value: []byte("vmselect")},
+			}},
+		},
+		{
+			name: "account filter",
+			tfs: [][]storage.TagFilter{{
+				{Key: []byte("job"), Value: []byte("vmselect")},
+				{Key: []byte("vm_account_id"), Value: []byte("1")},
+			}},
+			want: true,
+		},
+		{
+			name: "project filter in another group",
+			tfs: [][]storage.TagFilter{
+				{{Key: []byte("job"), Value: []byte("vmselect")}},
+				{{Key: []byte("vm_project_id"), Value: []byte("2")}},
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := HasTenantFilters(tt.tfs); got != tt.want {
+				t.Fatalf("unexpected result; got %v; want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFilterTenantTokensError(t *testing.T) {
+	tfs := [][]storage.TagFilter{{{
+		Key:      []byte("vm_account_id"),
+		Value:    []byte("["),
+		IsRegexp: true,
+	}}}
+	if _, err := FilterTenantTokens([]storage.TenantToken{{AccountID: 1}}, tfs); err == nil {
+		t.Fatal("expecting non-nil error")
+	}
+}

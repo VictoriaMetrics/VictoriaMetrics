@@ -40,6 +40,12 @@ type Storage struct {
 	wg sync.WaitGroup
 }
 
+// Tenant identifies a metadata tenant.
+type Tenant struct {
+	AccountID uint32
+	ProjectID uint32
+}
+
 // NewStorage returns new initialized Storage.
 func NewStorage(maxSizeBytes int) *Storage {
 	s := &Storage{
@@ -147,6 +153,36 @@ func (s *Storage) Get(limit int, metricName string) []*Row {
 		dst = dst[:limit]
 	}
 	return dst
+}
+
+// GetTenants returns tenants with non-empty metadata storage.
+func (s *Storage) GetTenants() []Tenant {
+	tenantSet := make(map[Tenant]struct{})
+	for _, b := range s.buckets {
+		b.mu.Lock()
+		for tenantID, rows := range b.perTenantStorage {
+			if len(rows) == 0 {
+				continue
+			}
+			tenantSet[Tenant{
+				AccountID: uint32(tenantID >> 32),
+				ProjectID: uint32(tenantID),
+			}] = struct{}{}
+		}
+		b.mu.Unlock()
+	}
+
+	tenants := make([]Tenant, 0, len(tenantSet))
+	for tenant := range tenantSet {
+		tenants = append(tenants, tenant)
+	}
+	sort.Slice(tenants, func(i, j int) bool {
+		if tenants[i].AccountID != tenants[j].AccountID {
+			return tenants[i].AccountID < tenants[j].AccountID
+		}
+		return tenants[i].ProjectID < tenants[j].ProjectID
+	})
+	return tenants
 }
 
 func (s *Storage) getRowsByMetricName(metricName string) []*Row {
