@@ -42,7 +42,7 @@ var (
 		},
 		&cli.StringFlag{
 			Name:  globalStateDir,
-			Usage: "Directory for migration state files, which allow resuming interrupted migrations. The current working directory is used if empty. Supported only in vm-native mode.",
+			Usage: "Directory for migration state files, which allow resuming interrupted migrations when per-metric migration is enabled. The current working directory is used if empty. Supported only in vm-native mode.",
 		},
 		&cli.StringSliceFlag{
 			Name:  globalPushMetricsURL,
