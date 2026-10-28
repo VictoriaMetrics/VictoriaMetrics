@@ -344,6 +344,9 @@ var (
 type packedTimeseries struct {
 	metricName string
 	brs        []blockRef
+
+	// updates contains blocks of series updates sorted by revision in ascending order.
+	updates [][]blockRef
 }
 
 type unpackWork struct {
@@ -454,6 +457,31 @@ func (pts *packedTimeseries) Unpack(ctx context.Context, dst *Result, tbf *tmpBl
 	dedupInterval := storage.GetDedupInterval()
 	mergeSortBlocks(dst, sbh, dedupInterval)
 	putSortBlocksHeap(sbh)
+	if len(pts.updates) == 0 || len(dst.Timestamps) == 0 {
+		return nil
+	}
+	// slow path apply updates to time series.
+	patches := pts.updates
+	var patch Result
+	rowsSkipped := dst.rowsSkipped
+	sbh = getSortBlocksHeap()
+
+	var tmpPts packedTimeseries
+	for _, brs := range patches {
+		tmpPts.brs = brs
+		sbh.sbs, err = tmpPts.unpackTo(ctx, sbh.sbs[:0], tbf, tr)
+		if err != nil {
+			putSortBlocksHeap(sbh)
+			return err
+		}
+		patch.reset()
+		mergeSortBlocks(&patch, sbh, dedupInterval)
+		rowsSkipped += patch.rowsSkipped
+		mergeResult(dst, &patch)
+	}
+	putSortBlocksHeap(sbh)
+
+	dst.rowsSkipped = rowsSkipped
 	return nil
 }
 
@@ -1088,6 +1116,15 @@ func SearchMetricNames(ctx context.Context, qt *querytracer.Tracer, sq *storage.
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.
 func ProcessSearchQuery(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery) (*Results, error) {
+	return ProcessSearchQueryWithMergeLabel(ctx, qt, sq, "")
+}
+
+// ProcessSearchQueryWithMergeLabel performs sq with given optional mergeLabel.
+//
+// If mergeLabel is set, timeseries with mergeLables are treated as updates for corresponding timeseries without it.
+//
+// Results.RunParallel or Results.Cancel must be called on the returned Results.
+func ProcessSearchQueryWithMergeLabel(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, mergeLabel string) (*Results, error) {
 	qt = qt.NewChild("fetch matching series: %s", sq)
 	defer qt.Done()
 	if err := ctx.Err(); err != nil {
@@ -1131,6 +1168,11 @@ func ProcessSearchQuery(ctx context.Context, qt *querytracer.Tracer, sq *storage
 	// in the load order. This order is important for triggering sequential data reading.
 	orderedMetricNames := make([]string, 0, maxSeriesCount)
 
+	var suc *seriesUpdateContext[blockRef]
+	if len(mergeLabel) > 0 {
+		suc = newSeriesUpdateContext(mergeLabel, maxSeriesCount)
+	}
+
 	var brsIdx int
 	for sr.NextMetricBlock(ctx) {
 		blocksRead++
@@ -1162,6 +1204,19 @@ func ProcessSearchQuery(ctx context.Context, qt *querytracer.Tracer, sq *storage
 		}
 
 		metricName := sr.MetricBlockRef.MetricName
+		isPatch, err := suc.tryAddUpdate(metricName, blockRef{
+			partRef: br.PartRef(),
+			addr:    addr,
+		})
+		if err != nil {
+			putTmpBlocksFile(tbf)
+			vmstorage.PutSearch(sr)
+			return nil, err
+		}
+		if isPatch {
+			continue
+		}
+
 		if metricNamePrev == nil || string(metricName) != string(metricNamePrev) {
 			idx, ok := m[string(metricName)]
 			if !ok {
@@ -1235,6 +1290,7 @@ func ProcessSearchQuery(ctx context.Context, qt *querytracer.Tracer, sq *storage
 		pts[i] = packedTimeseries{
 			metricName: metricName,
 			brs:        brssPool[m[metricName]].brs,
+			updates:    suc.getUpdatesByMetricName(metricName),
 		}
 	}
 	rss.packedTimeseries = pts
@@ -1303,4 +1359,16 @@ func ResetMetricNamesStats(ctx context.Context, qt *querytracer.Tracer) error {
 	qt = qt.NewChild("reset metric names usage stats")
 	defer qt.Done()
 	return vmstorage.VMSelectAPI.ResetMetricNamesUsageStats(ctx, qt)
+}
+
+// mergeResults expects that timestamps are sorted.
+func mergeResult(dst, patch *Result) {
+	if len(patch.Timestamps) == 0 {
+		return
+	}
+	// search for patch.Timestamps[0]-1 in order to get first timestamp greater or equal first timestamp at patch.
+	start := binarySearchTimestamps(dst.Timestamps, patch.Timestamps[0]-1)
+	end := start + binarySearchTimestamps(dst.Timestamps[start:], patch.Timestamps[len(patch.Timestamps)-1])
+	dst.Timestamps = slices.Replace(dst.Timestamps, start, end, patch.Timestamps...)
+	dst.Values = slices.Replace(dst.Values, start, end, patch.Values...)
 }

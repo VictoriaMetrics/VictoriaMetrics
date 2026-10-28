@@ -971,6 +971,10 @@ data structures. While this approach is very efficient for write-heavy databases
 updates. In short, modifying already written [time series](#time-series) requires rewriting the whole data block where
 it is stored. Due to this limitation, VictoriaMetrics does not support direct data modification.
 
+### Series updates
+
+Already written time series can be updated at query time. See [series updates](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#series-updates).
+
 ### Deletion
 
 See [How to delete time series](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-delete-time-series)

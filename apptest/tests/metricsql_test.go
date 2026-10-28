@@ -121,7 +121,6 @@ var staleNaNsData = func() prompb.WriteRequest {
 }()
 
 func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.PrometheusWriteQuerier) {
-
 	sut.PrometheusAPIV1Write(t, staleNaNsData, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 
@@ -245,7 +244,6 @@ func testQueryRangeWithAtModifier(t *testing.T, sut apptest.PrometheusWriteQueri
 // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10446
 // Spec: https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values
 func testLabelValuesWithUTFNames(t *testing.T, sut apptest.PrometheusWriteQuerier) {
-
 	timestamp := millis("2025-01-01T00:00:00Z")
 	data := prompb.WriteRequest{
 		Timeseries: []prompb.TimeSeries{
