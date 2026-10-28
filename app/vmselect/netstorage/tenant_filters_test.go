@@ -100,12 +100,34 @@ func TestHasTenantFilters(t *testing.T) {
 }
 
 func TestFilterTenantTokensError(t *testing.T) {
-	tfs := [][]storage.TagFilter{{{
-		Key:      []byte("vm_account_id"),
-		Value:    []byte("["),
-		IsRegexp: true,
-	}}}
+	tfs := [][]storage.TagFilter{
+		{{
+			Key:      []byte("vm_account_id"),
+			Value:    []byte("["),
+			IsRegexp: true,
+		}},
+		{{Key: []byte("job"), Value: []byte("vmselect")}},
+	}
 	if _, err := FilterTenantTokens([]storage.TenantToken{{AccountID: 1}}, tfs); err == nil {
 		t.Fatal("expecting non-nil error")
+	}
+}
+
+func TestFilterTenantTokensWithNonTenantORGroup(t *testing.T) {
+	tts := []storage.TenantToken{
+		{AccountID: 1, ProjectID: 1},
+		{AccountID: 1, ProjectID: 2},
+	}
+	tfs := [][]storage.TagFilter{
+		{{Key: []byte("vm_project_id"), Value: []byte("2")}},
+		{{Key: []byte("job"), Value: []byte("vmselect")}},
+	}
+
+	got, err := FilterTenantTokens(tts, tfs)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if !reflect.DeepEqual(got, tts) {
+		t.Fatalf("unexpected tenants result; got %v; want %v", got, tts)
 	}
 }
