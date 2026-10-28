@@ -46,8 +46,7 @@ func TestState(t *testing.T) {
 		t.Fatalf("unexpected state file contents\ngot\n%s\nwant\n%s", data, want)
 	}
 
-	// Simulate a partially written line for "foo_suffix". It parses as a line for "foo",
-	// but it must be ignored, since it isn't newline-terminated.
+	// Simulate a partially written line for "foo". It must be ignored, since it isn't newline-terminated.
 	u4 := &Unit{MetricName: "foo", TR: storage.TimeRange{MinTimestamp: 3, MaxTimestamp: 4}}
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0)
 	if err != nil {
