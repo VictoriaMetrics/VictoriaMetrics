@@ -923,6 +923,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		GetRequestURI: func() string {
 			return httpserver.GetRequestURI(r)
 		},
+		MergeLatestLabel: r.FormValue("merge_latest_label"),
 	}
 	qs := promql.NewQueryStats(query, nil, ec)
 	ec.QueryStats = qs
@@ -1036,6 +1037,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		GetRequestURI: func() string {
 			return httpserver.GetRequestURI(r)
 		},
+		MergeLatestLabel: r.FormValue("merge_latest_label"),
 	}
 	qs := promql.NewQueryStats(query, nil, ec)
 	ec.QueryStats = qs

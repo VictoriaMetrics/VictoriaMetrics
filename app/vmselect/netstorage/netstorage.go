@@ -344,6 +344,9 @@ var (
 type packedTimeseries struct {
 	metricName string
 	brs        []blockRef
+
+	// patches contains blocks of series updates sorted by revision in ascending order.
+	patches [][]blockRef
 }
 
 type unpackWork struct {
@@ -454,6 +457,31 @@ func (pts *packedTimeseries) Unpack(ctx context.Context, dst *Result, tbf *tmpBl
 	dedupInterval := storage.GetDedupInterval()
 	mergeSortBlocks(dst, sbh, dedupInterval)
 	putSortBlocksHeap(sbh)
+	if len(pts.patches) == 0 || len(dst.Timestamps) == 0 {
+		return nil
+	}
+	// slow path apply updates to time series.
+	patches := pts.patches
+	var patch Result
+	rowsSkipped := dst.rowsSkipped
+	sbh = getSortBlocksHeap()
+
+	var tmpPts packedTimeseries
+	for _, brs := range patches {
+		tmpPts.brs = brs
+		sbh.sbs, err = tmpPts.unpackTo(ctx, sbh.sbs[:0], tbf, tr)
+		if err != nil {
+			putSortBlocksHeap(sbh)
+			return err
+		}
+		patch.reset()
+		mergeSortBlocks(&patch, sbh, dedupInterval)
+		rowsSkipped += patch.rowsSkipped
+		mergeResult(dst, &patch)
+	}
+	putSortBlocksHeap(sbh)
+
+	dst.rowsSkipped = rowsSkipped
 	return nil
 }
 
@@ -1088,6 +1116,15 @@ func SearchMetricNames(ctx context.Context, qt *querytracer.Tracer, sq *storage.
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.
 func ProcessSearchQuery(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery) (*Results, error) {
+	return ProcessSearchQueryWithMergeLabel(ctx, qt, sq, "")
+}
+
+// ProcessSearchQueryWithMergeLabel performs sq with given optional mergeLabel.
+//
+// If mergeLabel is set, timeseries with mergeLables are treated as updates for corresponding timeseries without it.
+//
+// Results.RunParallel or Results.Cancel must be called on the returned Results.
+func ProcessSearchQueryWithMergeLabel(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, mergeLabel string) (*Results, error) {
 	qt = qt.NewChild("fetch matching series: %s", sq)
 	defer qt.Done()
 	if err := ctx.Err(); err != nil {
@@ -1131,6 +1168,11 @@ func ProcessSearchQuery(ctx context.Context, qt *querytracer.Tracer, sq *storage
 	// in the load order. This order is important for triggering sequential data reading.
 	orderedMetricNames := make([]string, 0, maxSeriesCount)
 
+	var mlc *mergeLabelContext[blockRef]
+	if len(mergeLabel) > 0 {
+		mlc = newMergeLabelContext(mergeLabel, maxSeriesCount)
+	}
+
 	var brsIdx int
 	for sr.NextMetricBlock(ctx) {
 		blocksRead++
@@ -1162,6 +1204,19 @@ func ProcessSearchQuery(ctx context.Context, qt *querytracer.Tracer, sq *storage
 		}
 
 		metricName := sr.MetricBlockRef.MetricName
+		isPatch, err := mlc.addPatch(metricName, blockRef{
+			partRef: br.PartRef(),
+			addr:    addr,
+		})
+		if err != nil {
+			putTmpBlocksFile(tbf)
+			vmstorage.PutSearch(sr)
+			return nil, err
+		}
+		if isPatch {
+			continue
+		}
+
 		if metricNamePrev == nil || string(metricName) != string(metricNamePrev) {
 			idx, ok := m[string(metricName)]
 			if !ok {
@@ -1199,15 +1254,8 @@ func ProcessSearchQuery(ctx context.Context, qt *querytracer.Tracer, sq *storage
 			})
 		}
 		if len(brs.brs) == 1 {
-			if cap(metricNamesBuf) >= maxFastAllocBlockSize && len(metricNamesBuf)+len(metricName) > cap(metricNamesBuf) {
-				// Allocate a new metricNamesBuf in order to avoid slow allocation of byte slice
-				// bigger than maxFastAllocBlockSize bytes at append() below.
-				metricNamesBuf = make([]byte, 0, maxFastAllocBlockSize)
-			}
-			metricNamesBufLen := len(metricNamesBuf)
-			metricNamesBuf = append(metricNamesBuf, metricName...)
-			metricNameStr := bytesutil.ToUnsafeString(metricNamesBuf[metricNamesBufLen:])
-
+			var metricNameStr string
+			metricNamesBuf, metricNameStr = cloneMetricNameWithBuf(metricNamesBuf, metricName)
 			orderedMetricNames = append(orderedMetricNames, metricNameStr)
 			m[metricNameStr] = brsIdx
 		}
@@ -1235,6 +1283,7 @@ func ProcessSearchQuery(ctx context.Context, qt *querytracer.Tracer, sq *storage
 		pts[i] = packedTimeseries{
 			metricName: metricName,
 			brs:        brssPool[m[metricName]].brs,
+			patches:    mlc.getPatchesByMetricName(metricName),
 		}
 	}
 	rss.packedTimeseries = pts

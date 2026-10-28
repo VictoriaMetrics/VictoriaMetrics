@@ -98,6 +98,7 @@ type QueryOpts struct {
 	Until               string
 	StorageStep         string
 	DenyPartialResponse string
+	MergeLatestLabel    string
 }
 
 func (qos *QueryOpts) getHeaders() http.Header {
@@ -134,6 +135,7 @@ func (qos *QueryOpts) asURLValues() url.Values {
 	addNonEmpty("until", qos.Until)
 	addNonEmpty("storage_step", qos.StorageStep)
 	addNonEmpty("deny_partial_response", qos.DenyPartialResponse)
+	addNonEmpty("merge_latest_label", qos.MergeLatestLabel)
 
 	return uv
 }
@@ -175,7 +177,6 @@ func (pqr *PrometheusAPIV1QueryResponse) Sort() {
 		}
 		for k, v := range pqr.Data.Result[j].Metric {
 			rightS = append(rightS, fmt.Sprintf("%s=%s", k, v))
-
 		}
 		sort.Strings(leftS)
 		sort.Strings(rightS)

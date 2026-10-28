@@ -161,6 +161,11 @@ type EvalConfig struct {
 	// The caller must initialize QueryStats, otherwise it isn't collected.
 	QueryStats *QueryStats
 
+	// MergeLatestLabel is the name of the label with the revision of series patches.
+	//
+	// If it is non-empty, then series patches are applied to the selected series.
+	MergeLatestLabel string
+
 	timestamps     []int64
 	timestampsOnce sync.Once
 }
@@ -182,6 +187,7 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.CacheTagFilters = src.CacheTagFilters
 	ec.GetRequestURI = src.GetRequestURI
 	ec.QueryStats = src.QueryStats
+	ec.MergeLatestLabel = src.MergeLatestLabel
 
 	// do not copy src.timestamps - they must be generated again.
 	return &ec
@@ -1832,7 +1838,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		minTimestamp -= ec.Step
 	}
 	sq := storage.NewSearchQuery(minTimestamp, ec.End, tfss, ec.MaxSeries)
-	rss, err := netstorage.ProcessSearchQuery(ec.Context, qt, sq)
+	rss, err := netstorage.ProcessSearchQueryWithMergeLabel(ec.Context, qt, sq, ec.MergeLatestLabel)
 	if err != nil {
 		return nil, err
 	}
