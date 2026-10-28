@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -268,8 +269,32 @@ func (rctx *relabelCtx) appendExtraLabels(tss []prompb.TimeSeries, extraLabels [
 		ts := &tss[i]
 		labelsLen := len(labels)
 		labels = append(labels, ts.Labels...)
+		if *sortLabels {
+			// Per-URL relabeling and stream aggregation can modify label names
+			// after sortLabelsIfNeeded() has run, so restore the order before
+			// inserting extra labels into it.
+			promrelabel.SortLabels(labels[labelsLen:])
+		}
 		for j := range extraLabels {
 			extraLabel := extraLabels[j]
+			if *sortLabels {
+				labelsCurrent := labels[labelsLen:]
+				n := sort.Search(len(labelsCurrent), func(i int) bool {
+					return labelsCurrent[i].Name >= extraLabel.Name
+				})
+				if n < len(labelsCurrent) && labelsCurrent[n].Name == extraLabel.Name {
+					labels[labelsLen+n].Value = extraLabel.Value
+					continue
+				}
+
+				// Preserve the restored order without sorting the whole series
+				// again after adding every extra label.
+				insertAt := labelsLen + n
+				labels = append(labels, prompb.Label{})
+				copy(labels[insertAt+1:], labels[insertAt:len(labels)-1])
+				labels[insertAt] = extraLabel
+				continue
+			}
 			tmp := promrelabel.GetLabelByName(labels[labelsLen:], extraLabel.Name)
 			if tmp != nil {
 				tmp.Value = extraLabel.Value

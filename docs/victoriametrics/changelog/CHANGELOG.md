@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): preserve label sorting when labels configured with `-remoteWrite.label` are added. Previously, using `-remoteWrite.label` together with `-sortLabels` could produce out-of-order labels rejected by Prometheus-compatible remote write receivers. See [#3875](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3875).
+
 ## [v1.155.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.155.0)
 
 Released at 2026-10-26
