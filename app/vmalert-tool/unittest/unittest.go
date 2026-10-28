@@ -45,9 +45,10 @@ var (
 	storagePath    string
 	httpListenAddr string
 	// Insert series from 2000-01-01T00:00:00.
-	testStartTime          = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
-	testLogLevel           = "ERROR"
-	disableAlertgroupLabel bool
+	testStartTime           = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	testLogLevel            = "ERROR"
+	disableAlertgroupLabel  bool
+	skipUnrelatedRuleGroups bool
 )
 
 func durationToTime(pd *promutil.Duration) time.Time {
@@ -62,7 +63,7 @@ const (
 )
 
 // UnitTest runs unittest for files
-func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, externalURL, httpListenPort, logLevel string) bool {
+func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, externalURL, httpListenPort, logLevel string, skipUnrelatedGroups bool) bool {
 	if logLevel != "" {
 		testLogLevel = logLevel
 	}
@@ -123,6 +124,7 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 	defer vminsert.Stop()
 	defer vmselect.Stop()
 	disableAlertgroupLabel = disableGroupLabel
+	skipUnrelatedRuleGroups = skipUnrelatedGroups
 
 	testfiles, err := vmalertconfig.ReadFromFS(files)
 	if err != nil {
@@ -215,13 +217,24 @@ func ruleUnitTest(filename string, content []byte, externalLabels map[string]str
 		return []error{fmt.Errorf("found no rule group in %v", unitTestInp.RuleFiles)}
 	}
 
+	// sort group eval order according to the given "group_eval_order".
+	sort.Slice(testGroups, func(i, j int) bool {
+		return groupOrderMap[testGroups[i].Name] < groupOrderMap[testGroups[j].Name]
+	})
+
+	// Build the dependency graph once per test file, after sorting the groups, so that the graph indexes match the order of testGroups.
+	var rg *ruleGraph
+	if skipUnrelatedRuleGroups {
+		rg = newRuleGraph(testGroups)
+	}
+
 	var errs []error
 	for _, t := range unitTestInp.Tests {
 		if err := verifyTestGroup(t); err != nil {
 			errs = append(errs, err)
 			continue
 		}
-		testErrs := t.test(unitTestInp.EvaluationInterval.Duration(), groupOrderMap, testGroups, externalLabels)
+		testErrs := t.test(unitTestInp.EvaluationInterval.Duration(), testGroups, rg, externalLabels)
 		errs = append(errs, testErrs...)
 	}
 
@@ -321,7 +334,7 @@ func tearDown() {
 	fs.MustRemoveDir(storagePath)
 }
 
-func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]int, testGroups []vmalertconfig.Group, externalLabels map[string]string) (checkErrs []error) {
+func (tg *testGroup) test(evalInterval time.Duration, testGroups []vmalertconfig.Group, rg *ruleGraph, externalLabels map[string]string) (checkErrs []error) {
 	// set up vmstorage and http server for ingest and read queries
 	setUp()
 	// tear down vmstorage and clean the data dir
@@ -363,14 +376,15 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	}
 	slices.Sort(alertEvalTimes)
 
-	// sort group eval order according to the given "group_eval_order".
-	sort.Slice(testGroups, func(i, j int) bool {
-		return groupOrderMap[testGroups[i].Name] < groupOrderMap[testGroups[j].Name]
-	})
+	// evaluate only the rule groups this test can observe
+	evalGroups := testGroups
+	if rg != nil {
+		evalGroups = rg.reachableGroups(tg)
+	}
 
 	// create groups with given rule
 	var groups []*rule.Group
-	for _, group := range testGroups {
+	for _, group := range evalGroups {
 		mergedExternalLabels := make(map[string]string)
 		maps.Copy(mergedExternalLabels, tg.ExternalLabels)
 		maps.Copy(mergedExternalLabels, externalLabels)
