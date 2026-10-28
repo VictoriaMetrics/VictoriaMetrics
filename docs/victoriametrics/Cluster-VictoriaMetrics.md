@@ -443,7 +443,7 @@ Please note that migrating big volumes of data is a time- and resource-consuming
 
   - Run vmctl in the same network as cluster for the best performance
   - If you have load balancer like vmauth in front of vminsert nodes, specify its address in `--vm-native-dst-addr`. This will ensure that import requests will be distributed across all vminserts.
-  - Specify `--vm-native-filter-match`, `--vm-native-filter-time-start` or `--vm-native-filter-time-end` if you want to migrate only a subset of data. See more about [vmctl configuration](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/#configuration).
+  - The `--vm-native-filter-time-start` and `--vm-native-filter-time-end` flags are required. Specify `--vm-native-filter-match` to migrate only a subset of metrics. See more about [vmctl configuration](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/#configuration).
 4. Wait for migration to complete. See how to [monitor migration process](https://docs.victoriametrics.com/victoriametrics/vmctl/#monitoring-the-migration-process) and [migration tips](https://docs.victoriametrics.com/victoriametrics/vmctl/#migration-tips). It is OK to restart migration and re-ingest the same data again if main `vmselect` and `vmstorage` nodes have deduplication enabled.
 5. Once migration is completed, remove `vmstorage` from [`-storageNode` command-line flag](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup) on all `vmselect` nodes. Verify that read queries are still returning expected results.
 6. Remove and decommission the temporary `vmselect` node, and `vmstorage` that had to be removed.

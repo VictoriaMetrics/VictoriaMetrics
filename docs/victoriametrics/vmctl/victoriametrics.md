@@ -64,7 +64,7 @@ For example, when migrating 1 year of data with `--vm-native-step-interval=month
 requests from the beginning of the interval to its end. 
 
 > To reverse the order set `--vm-native-filter-time-reverse` and migration will start from the newest to the
-oldest data.
+oldest data. Both `--vm-native-filter-time-start` and `--vm-native-filter-time-end` are required.
 
 It is recommended using default `month` step when migrating the data over the long time intervals. If you hit query
 limits on `--vm-native-src-addr` and can't or don't want to change them, try lowering the step interval to `week`, `day` or `hour`.
