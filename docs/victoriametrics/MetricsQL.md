@@ -1541,7 +1541,7 @@ Additional details:
   An explicit [subquery](#subqueries) such as `rate(merge_latest(temperature, "rev")[5m:1m])` is calculated over [default_rollup](#default_rollup) results for the merged series.
 * Results of queries with `merge_latest()` may be cached, it's required to [reset query cache](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#rollup-result-cache) if patch was ingested.
 * The query fails if `rev_label` value cannot be parsed as an integer.
-* timeseries with "rev" label are de-duplicated according to [dedup configuration](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication).
+* Time series with the `rev_label` label are de-duplicated according to [dedup configuration](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication).
 
 #### minute
 
