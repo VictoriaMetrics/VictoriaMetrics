@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): add `merge_latest(selector,"revision_label")` function, which applies updates (patches) the original time series. See more at the following [doc](https://docs.victoriametrics.com/victoriametrics/metricsql/#merge_latest). See [#3992](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3992).
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): add `merge_latest(selector,"revision_label")` function, which applies updates (patches) to the original time series. See more at the following [doc](https://docs.victoriametrics.com/victoriametrics/metricsql/#merge_latest). See [#3992](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3992).
 
 ## [v1.155.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.155.0)
 
