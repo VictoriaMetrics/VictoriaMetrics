@@ -483,7 +483,7 @@ models:
 
 ### Decay
 
-> The `decay` argument works only in combination with [online models](#online-models) like [`ZScoreOnlineModel`](#online-z-score) or [`OnlineQuantileModel`](#online-seasonal-quantile).
+> The `decay` argument works only in combination with [online models](#online-models) like [`OnlineMADModel`](#online-mad), [`ZScoreOnlineModel`](#online-z-score) or [`OnlineQuantileModel`](#online-seasonal-quantile).
 
 The `decay` {{% available_from "v1.23.0" anomaly %}} argument is used to control the (exponential) **decay factor** for online models, which determines how quickly the model adapts to new data. It is a positive float value from `(0.0, 1.0]` interval, where:
 - Value `1.0` means no decay (the model treats all data points equally, without giving more weight to recent ones). This is the default value for backward compatibility.
@@ -1012,6 +1012,7 @@ The MAD model is a robust method for anomaly detection that is *less sensitive* 
 - `threshold` (float, optional) - The threshold multiplier for the MAD to determine anomalies. Defaults to `2.5`. Higher values will identify fewer points as anomalies.
 - `min_n_samples_seen` (int, optional) - the minimum number of samples to be seen (`n_samples_seen_` property) before computing the anomaly score. Otherwise, the **anomaly score will be 0**, as there is not enough data to trust the model's predictions. Defaults to 16.
 - `history_strength` (float, optional) - {{% available_from "v1.30.0" anomaly %}} strength of the initial history learned by `fit`. Values above `1` preserve fitted quantiles initially but reduce the leverage of subsequent updates. Defaults to `1`.
+- `decay` (float, optional) - exponential forgetting factor in `(0, 1]`. Defaults to `1.0` (no forgetting). Values below `1` reduce the weight of older observations so the online baseline can adapt without periodic refitting; faster forgetting can also absorb sustained anomalies. See [decay](#decay) for background.
 - `compression` (int, optional) - the compression parameter for  underlying [t-digest](https://www.sciencedirect.com/science/article/pii/S2665963820300403). Higher values mean higher accuracy but higher memory usage. By default 100.
 
 {{% /collapse %}}
@@ -1026,6 +1027,7 @@ models:
     threshold: 2.5
     min_n_samples_seen: 128  # i.e. calculate it as full seasonality / data freq
     history_strength: 2  # retain fitted history as a stronger prior
+    decay: 1.0  # no forgetting; use a value below 1 for an adapting baseline
     compression: 100  # higher values mean higher accuracy but higher memory usage
     provide_series: ['anomaly_score', 'yhat']  # common arg example
     # Common arguments for built-in model, if not set, default to
