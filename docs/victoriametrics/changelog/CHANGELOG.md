@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: vmselect: do not increment `vm_http_request_errors_total` when a query is canceled, including cancellations during server shutdown. Query timeouts and other errors are still counted. This prevents false `RequestErrorsToAPI` alerts. See [#11828](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11828).
+
 ## [v1.155.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.155.0)
 
 Released at 2026-10-26
