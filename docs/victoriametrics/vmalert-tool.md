@@ -40,7 +40,8 @@ which aren't always backward compatible with [PromQL](https://prometheus.io/docs
 
 ### Limitations
 
-* vmalert-tool evaluates all the groups defined in `rule_files` using `evaluation_interval`(default `1m`) instead of `interval` under each rule group.
+* vmalert-tool evaluates all the groups defined in `rule_files` using `evaluation_interval`(default `1m`) instead of `interval` under each rule group unless `-respectGroupInterval` is set.
+* vmalert-tool ignores `eval_offset` and `eval_delay` of rule groups: every group is evaluated exactly at the test timestamps, with `-respectGroupInterval` as well.
 * vmalert-tool shares the same limitation with [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#limitations) on chaining rules under one group:
 
 >by default, rules execution is sequential within one group, but persistence of execution results to remote storage is asynchronous. Hence, user shouldn’t rely on chaining of recording rules when result of previous recording rule is reused in the next one;
@@ -73,7 +74,8 @@ The configuration format for files specified in `--files` cmd-line flag is the f
 rule_files:
   [ - <string> ]
 
-# The evaluation interval for rules specified in `rule_files`
+# The file-wide evaluation interval used for every rule group from `rule_files`
+# unless `-respectGroupInterval` is set
 [ evaluation_interval: <duration> | default = 1m ]
 
 # Groups listed below will be evaluated by order.
@@ -330,4 +332,6 @@ Run `vmalert-tool unittest --help` to get all configuration options:
     Optional local port for incoming HTTP requests. If not specified, a random unoccupied port will be used.
   -loggerLevel
     Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "ERROR").
+  -respectGroupInterval
+    Whether to evaluate every rule group on its own interval instead of the file-wide evaluation_interval. Groups without interval keep using evaluation_interval. Disabled by default for backward compatibility. (default: false)
 ```
