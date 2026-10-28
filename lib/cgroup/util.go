@@ -22,6 +22,20 @@ func getStatGeneric(statName, sysfsPrefix, cgroupPath, cgroupGrepLine string) (i
 }
 
 func getFileContents(statName, sysfsPrefix, cgroupPath, cgroupGrepLine string) (string, error) {
+	// First try reading from the process cgroup subpath defined in cgroupPath.
+	// This ensures that when running in a service or sub-cgroup where both the controller root
+	// and the process sub-cgroup are present, the process reads its effective sub-cgroup limit
+	// rather than being shadowed by the controller root limit.
+	if cgroupData, err := os.ReadFile(cgroupPath); err == nil {
+		if subPath, err := grepFirstMatch(string(cgroupData), cgroupGrepLine, 2, ":"); err == nil {
+			filepath := path.Join(sysfsPrefix, subPath, statName)
+			if data, err := os.ReadFile(filepath); err == nil {
+				return string(data), nil
+			}
+		}
+	}
+	// Fall back to reading directly under sysfsPrefix (e.g. inside containers where the cgroup
+	// controller is mounted directly at sysfsPrefix and host subpaths do not exist on disk).
 	filepath := path.Join(sysfsPrefix, statName)
 	data, err := os.ReadFile(filepath)
 	if err == nil {
