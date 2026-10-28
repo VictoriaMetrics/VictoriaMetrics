@@ -8,6 +8,7 @@ import (
 	"math"
 	"slices"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -344,6 +345,9 @@ var (
 type packedTimeseries struct {
 	metricName string
 	brs        []blockRef
+
+	// patches contains blocks of series updates sorted by revision in ascending order.
+	patches [][]blockRef
 }
 
 type unpackWork struct {
@@ -445,7 +449,7 @@ func (pts *packedTimeseries) Unpack(ctx context.Context, dst *Result, tbf *tmpBl
 	}
 	sbh := getSortBlocksHeap()
 	var err error
-	sbh.sbs, err = pts.unpackTo(ctx, sbh.sbs[:0], tbf, tr)
+	sbh.sbs, err = unpackBlockRefsTo(ctx, sbh.sbs[:0], pts.brs, tbf, tr)
 	pts.brs = pts.brs[:0]
 	if err != nil {
 		putSortBlocksHeap(sbh)
@@ -454,11 +458,46 @@ func (pts *packedTimeseries) Unpack(ctx context.Context, dst *Result, tbf *tmpBl
 	dedupInterval := storage.GetDedupInterval()
 	mergeSortBlocks(dst, sbh, dedupInterval)
 	putSortBlocksHeap(sbh)
+	if len(pts.patches) == 0 {
+		return nil
+	}
+	// slow path apply updates to time series.
+	patches := pts.patches
+	var patch Result
+	rowsSkipped := dst.rowsSkipped
+	sbh = getSortBlocksHeap()
+
+	for _, brs := range patches {
+		sbh.sbs, err = unpackBlockRefsTo(ctx, sbh.sbs[:0], brs, tbf, tr)
+		if err != nil {
+			putSortBlocksHeap(sbh)
+			return err
+		}
+		patch.reset()
+		mergeSortBlocks(&patch, sbh, dedupInterval)
+		rowsSkipped += patch.rowsSkipped
+		mergeResult(dst, &patch)
+	}
+	putSortBlocksHeap(sbh)
+
+	dst.rowsSkipped = rowsSkipped
 	return nil
 }
 
-func (pts *packedTimeseries) unpackTo(ctx context.Context, dst []*sortBlock, tbf *tmpBlocksFile, tr storage.TimeRange) ([]*sortBlock, error) {
-	upwsLen := len(pts.brs)
+// mergeResults expects that timestamps are sorted.
+func mergeResult(dst, patch *Result) {
+	if len(patch.Timestamps) == 0 {
+		return
+	}
+	// search for patch.Timestamps[0]-1 in order to get first timestamp greater or equal first timestamp at patch.
+	start := binarySearchTimestamps(dst.Timestamps, patch.Timestamps[0]-1)
+	end := start + binarySearchTimestamps(dst.Timestamps[start:], patch.Timestamps[len(patch.Timestamps)-1])
+	dst.Timestamps = slices.Replace(dst.Timestamps, start, end, patch.Timestamps...)
+	dst.Values = slices.Replace(dst.Values, start, end, patch.Values...)
+}
+
+func unpackBlockRefsTo(ctx context.Context, dst []*sortBlock, brs []blockRef, tbf *tmpBlocksFile, tr storage.TimeRange) ([]*sortBlock, error) {
+	upwsLen := len(brs)
 	if upwsLen == 0 {
 		// Nothing to do
 		return nil, nil
@@ -474,7 +513,7 @@ func (pts *packedTimeseries) unpackTo(ctx context.Context, dst []*sortBlock, tbf
 		samples := 0
 		tmpBlock := getTmpStorageBlock()
 		var err error
-		for _, br := range pts.brs {
+		for _, br := range brs {
 			initUnpackWork(upw, br)
 			upw.unpack(ctx, tmpBlock)
 			if upw.err != nil {
@@ -507,7 +546,7 @@ func (pts *packedTimeseries) unpackTo(ctx context.Context, dst []*sortBlock, tbf
 
 	// Prepare the work for workers.
 	upws := make([]*unpackWork, upwsLen)
-	for i, br := range pts.brs {
+	for i, br := range brs {
 		upw := getUnpackWork()
 		initUnpackWork(upw, br)
 		upws[i] = upw
@@ -673,7 +712,7 @@ func equalValuesPrefix(a, b []float64) int {
 }
 
 func binarySearchTimestamps(timestamps []int64, ts int64) int {
-	// The code has been adapted from sort.Search.
+	// The code adapted from sort.Search.
 	n := len(timestamps)
 	if n > 0 && timestamps[n-1] <= ts {
 		// Fast path for timestamps scanned in ascending order.
@@ -1088,6 +1127,15 @@ func SearchMetricNames(ctx context.Context, qt *querytracer.Tracer, sq *storage.
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.
 func ProcessSearchQuery(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery) (*Results, error) {
+	return ProcessSearchQueryWithMergeLabel(ctx, qt, sq, "")
+}
+
+// ProcessSearchQueryWithMergeLabel performs sq with given optional mergeLabel.
+//
+// If mergeLabel is set, timeseries with mergeLables are treated as updates for corresponding timeseries without it.
+//
+// Results.RunParallel or Results.Cancel must be called on the returned Results.
+func ProcessSearchQueryWithMergeLabel(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, mergeLabel string) (*Results, error) {
 	qt = qt.NewChild("fetch matching series: %s", sq)
 	defer qt.Done()
 	if err := ctx.Err(); err != nil {
@@ -1108,6 +1156,7 @@ func ProcessSearchQuery(ctx context.Context, qt *querytracer.Tracer, sq *storage
 	tbf := getTmpBlocksFile()
 	var buf []byte
 	var metricNamePrev []byte
+	var metricNameStr string
 
 	// metricNamesBuf is used for holding all the loaded unique metric names at m and orderedMetricNames.
 	// It should reduce pressure on Go GC by reducing the number of string allocations
@@ -1130,6 +1179,14 @@ func ProcessSearchQuery(ctx context.Context, qt *querytracer.Tracer, sq *storage
 	// orderedMetricNames contains the list of loaded unique metric names
 	// in the load order. This order is important for triggering sequential data reading.
 	orderedMetricNames := make([]string, 0, maxSeriesCount)
+
+	// patches maps from metricName without mergeLabel to patch blocks grouped by revision.
+	patches := make(map[string]map[int64][]blockRef, maxSeriesCount)
+	var mn storage.MetricName
+	var patchNamePrev, patchKey []byte
+	var patchRev int64
+	// patchRevsCount is the number of unique (metricName, revision) pairs at patches.
+	var patchRevsCount int
 
 	var brsIdx int
 	for sr.NextMetricBlock(ctx) {
@@ -1162,6 +1219,34 @@ func ProcessSearchQuery(ctx context.Context, qt *querytracer.Tracer, sq *storage
 		}
 
 		metricName := sr.MetricBlockRef.MetricName
+		if mergeLabel != "" {
+			if patchNamePrev == nil || string(metricName) != string(patchNamePrev) {
+				patchNamePrev = append(patchNamePrev[:0], metricName...)
+				patchKey, patchRev, err = getMetricNameRevisionValue(patchKey[:0], &mn, metricName, mergeLabel)
+				if err != nil {
+					putTmpBlocksFile(tbf)
+					vmstorage.PutSearch(sr)
+					return nil, err
+				}
+			}
+			if len(patchKey) > 0 {
+				revs := patches[string(patchKey)]
+				if revs == nil {
+					metricNamesBuf, metricNameStr = cloneMetricNameWithBuf(metricNamesBuf, patchKey)
+					revs = make(map[int64][]blockRef)
+					patches[metricNameStr] = revs
+				}
+				if len(revs[patchRev]) == 0 {
+					patchRevsCount++
+				}
+				// TODO: reduce allocations if needed
+				revs[patchRev] = append(revs[patchRev], blockRef{
+					partRef: br.PartRef(),
+					addr:    addr,
+				})
+				continue
+			}
+		}
 		if metricNamePrev == nil || string(metricName) != string(metricNamePrev) {
 			idx, ok := m[string(metricName)]
 			if !ok {
@@ -1199,15 +1284,7 @@ func ProcessSearchQuery(ctx context.Context, qt *querytracer.Tracer, sq *storage
 			})
 		}
 		if len(brs.brs) == 1 {
-			if cap(metricNamesBuf) >= maxFastAllocBlockSize && len(metricNamesBuf)+len(metricName) > cap(metricNamesBuf) {
-				// Allocate a new metricNamesBuf in order to avoid slow allocation of byte slice
-				// bigger than maxFastAllocBlockSize bytes at append() below.
-				metricNamesBuf = make([]byte, 0, maxFastAllocBlockSize)
-			}
-			metricNamesBufLen := len(metricNamesBuf)
-			metricNamesBuf = append(metricNamesBuf, metricName...)
-			metricNameStr := bytesutil.ToUnsafeString(metricNamesBuf[metricNamesBufLen:])
-
+			metricNamesBuf, metricNameStr = cloneMetricNameWithBuf(metricNamesBuf, metricName)
 			orderedMetricNames = append(orderedMetricNames, metricNameStr)
 			m[metricNameStr] = brsIdx
 		}
@@ -1226,21 +1303,71 @@ func ProcessSearchQuery(ctx context.Context, qt *querytracer.Tracer, sq *storage
 		vmstorage.PutSearch(sr)
 		return nil, fmt.Errorf("cannot finalize temporary file: %w", err)
 	}
-	qt.Printf("fetch unique series=%d, blocks=%d, samples=%d, bytes=%d", len(m), blocksRead, samples, tbf.Len())
+	qt.Printf("fetch unique series=%d, blocks=%d, samples=%d, bytes=%d, series_with_patches=%d", len(m), blocksRead, samples, tbf.Len(), len(patches))
 
 	var rss Results
 	rss.tr = sq.GetTimeRange()
-	pts := make([]packedTimeseries, len(orderedMetricNames))
+	pts := make([]packedTimeseries, len(orderedMetricNames), len(orderedMetricNames)+len(patches))
+	// patchesPool holds patches for all the loaded time series in order to reduce the number of allocations.
+	var patchesPool [][]blockRef
+	if patchRevsCount > 0 {
+		patchesPool = make([][]blockRef, 0, patchRevsCount)
+	}
+	var revsBuf []int64
 	for i, metricName := range orderedMetricNames {
 		pts[i] = packedTimeseries{
 			metricName: metricName,
 			brs:        brssPool[m[metricName]].brs,
+		}
+		if revs, ok := patches[metricName]; ok {
+			n := len(patchesPool)
+			patchesPool, revsBuf = appendSortedPatches(patchesPool, revsBuf[:0], revs)
+			pts[i].patches = patchesPool[n:len(patchesPool):len(patchesPool)]
 		}
 	}
 	rss.packedTimeseries = pts
 	rss.sr = sr
 	rss.tbf = tbf
 	return &rss, nil
+}
+
+func cloneMetricNameWithBuf(metricNamesBuf []byte, metricName []byte) ([]byte, string) {
+	if cap(metricNamesBuf) >= maxFastAllocBlockSize && len(metricNamesBuf)+len(metricName) > cap(metricNamesBuf) {
+		// Allocate a new metricNamesBuf in order to avoid slow allocation of byte slice
+		// bigger than maxFastAllocBlockSize bytes at append() below.
+		metricNamesBuf = make([]byte, 0, maxFastAllocBlockSize)
+	}
+	metricNamesBufLen := len(metricNamesBuf)
+	metricNamesBuf = append(metricNamesBuf, metricName...)
+	metricNameStr := bytesutil.ToUnsafeString(metricNamesBuf[metricNamesBufLen:])
+	return metricNamesBuf, metricNameStr
+}
+
+func getMetricNameRevisionValue(dst []byte, mn *storage.MetricName, metricName []byte, mergeLabel string) ([]byte, int64, error) {
+	if err := mn.Unmarshal(metricName); err != nil {
+		return dst, 0, fmt.Errorf("cannot unmarshal metricName %q: %w", metricName, err)
+	}
+	v := mn.GetTagValue(mergeLabel)
+	if len(v) == 0 {
+		return dst, 0, nil
+	}
+	rev, err := strconv.ParseInt(string(v), 10, 64)
+	if err != nil {
+		return dst, 0, fmt.Errorf("cannot parse revision from %q label value of series %s: %w", mergeLabel, mn.String(), err)
+	}
+	mn.RemoveTag(mergeLabel)
+	return mn.Marshal(dst), rev, nil
+}
+
+func appendSortedPatches(dst [][]blockRef, revsBuf []int64, revs map[int64][]blockRef) ([][]blockRef, []int64) {
+	for rev := range revs {
+		revsBuf = append(revsBuf, rev)
+	}
+	slices.Sort(revsBuf)
+	for _, rev := range revsBuf {
+		dst = append(dst, revs[rev])
+	}
+	return dst, revsBuf
 }
 
 type blockRef struct {

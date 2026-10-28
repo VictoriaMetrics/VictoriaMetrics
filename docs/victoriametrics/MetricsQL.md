@@ -1505,6 +1505,44 @@ This function is supported by PromQL.
 
 See also [log2](#log2) and [ln](#ln).
 
+#### merge_latest
+
+`merge_latest(series_selector, "rev_label")` is a [transform function](#transform-functions), which applies updates (patches)
+to time series matching the given [series selector](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering).
+
+Time series without `rev_label` label are treated as original series. Time series with `rev_label` label are treated as patches
+for the original series with the same set of labels except of `rev_label`. The `rev_label` value must contain an integer revision of the patch.
+
+Patches are applied to raw samples of the original series in ascending order of revisions. Every patch replaces all the raw samples
+of the original series on the time range between the first and the last sample of the patch. The patch may also add new samples
+outside the time range of the original series. Patches for original series without samples on the selected time range are ignored.
+The `rev_label` label is removed from the resulting series.
+
+For example, the following time series:
+
+```
+temperature{city="Paris"}          1@10:00 2@10:01 3@10:02 4@10:03
+temperature{city="Paris",rev="1"}          10@10:01 10@10:02
+temperature{city="Paris",rev="2"}                   20@10:02 20@10:03 20@10:04
+```
+
+are merged by `merge_latest(temperature, "rev")` into:
+
+```
+temperature{city="Paris"}          1@10:00 10@10:01 20@10:02 20@10:03 20@10:04
+```
+
+Additional details:
+
+* The first arg must be a series selector. For example, `merge_latest(rate(temperature[5m]), "rev")` is invalid.
+  Use `rate(merge_latest(temperature, "rev")[5m])` instead.
+* `merge_latest()` can be used instead of series selector inside [rollup functions](#rollup-functions) and [aggregate functions](#aggregate-functions).
+  For example, `rate(merge_latest(temperature, "rev")[5m])` calculates [rate](#rate) over the merged raw samples.
+  An explicit [subquery](#subqueries) such as `rate(merge_latest(temperature, "rev")[5m:1m])` is calculated over [default_rollup](#default_rollup) results for the merged series.
+* Results of queries with `merge_latest()` may be cached, it's required to [reset query cache](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#rollup-result-cache) if patch was ingested.
+* The query fails if `rev_label` value cannot be parsed as an integer.
+* timeseries with "rev" label are de-duplicated according to [dedup configuration](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication).
+
 #### minute
 
 `minute(q)` is a [transform function](#transform-functions), which returns the minute for every point of every time series returned by `q`.

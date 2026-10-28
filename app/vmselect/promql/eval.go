@@ -161,6 +161,11 @@ type EvalConfig struct {
 	// The caller must initialize QueryStats, otherwise it isn't collected.
 	QueryStats *QueryStats
 
+	// MergeLatestLabel is the name of the label with the revision of series patches.
+	//
+	// If it is non-empty, then series patches are applied to the selected series. See merge_latest() function.
+	MergeLatestLabel string
+
 	timestamps     []int64
 	timestampsOnce sync.Once
 }
@@ -182,6 +187,7 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.CacheTagFilters = src.CacheTagFilters
 	ec.GetRequestURI = src.GetRequestURI
 	ec.QueryStats = src.QueryStats
+	ec.MergeLatestLabel = src.MergeLatestLabel
 
 	// do not copy src.timestamps - they must be generated again.
 	return &ec
@@ -296,6 +302,12 @@ func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) 
 		return rv, nil
 	}
 	if fe, ok := e.(*metricsql.FuncExpr); ok {
+		if strings.ToLower(fe.Name) == "merge_latest" {
+			qtChild := qt.NewChild("merge_latest()")
+			rv, err := evalMergeLatest(qtChild, ec, fe)
+			qtChild.Donef("series=%d", len(rv))
+			return rv, err
+		}
 		nrf := getRollupFunc(fe.Name)
 		if nrf == nil {
 			qtChild := qt.NewChild("transform %s()", fe.Name)
@@ -344,6 +356,31 @@ func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) 
 		return rv, nil
 	}
 	return nil, fmt.Errorf("unexpected expression %q", e.AppendString(nil))
+}
+
+func evalMergeLatest(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.FuncExpr) ([]*timeseries, error) {
+	me, mergeLabel, err := getMergeLatestArgs(fe)
+	if err != nil {
+		return nil, err
+	}
+	ecNew := copyEvalConfig(ec)
+	ecNew.MergeLatestLabel = mergeLabel
+	return evalExpr(qt, ecNew, me)
+}
+
+func getMergeLatestArgs(fe *metricsql.FuncExpr) (*metricsql.MetricExpr, string, error) {
+	if len(fe.Args) != 2 {
+		return nil, "", fmt.Errorf(`unexpected number of args for %q; got %d; want 2`, fe.AppendString(nil), len(fe.Args))
+	}
+	me, ok := fe.Args[0].(*metricsql.MetricExpr)
+	if !ok || me.IsEmpty() {
+		return nil, "", fmt.Errorf(`arg #1 of %q must be a series selector`, fe.AppendString(nil))
+	}
+	se, ok := fe.Args[1].(*metricsql.StringExpr)
+	if !ok || se.S == "" {
+		return nil, "", fmt.Errorf(`arg #2 of %q must be a non-empty label name`, fe.AppendString(nil))
+	}
+	return me, se.S, nil
 }
 
 func evalTransformFunc(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.FuncExpr) ([]*timeseries, error) {
@@ -978,9 +1015,21 @@ func evalRollupFuncWithoutAt(qt *querytracer.Tracer, ec *EvalConfig, funcName st
 		ecNew.End += step
 		offset -= step
 	}
+	reExpr := re.Expr
+	if fe, ok := reExpr.(*metricsql.FuncExpr); !re.ForSubquery() && ok && strings.ToLower(fe.Name) == "merge_latest" {
+		// Evaluate rollup(merge_latest(m, "rev")[d]) on raw samples instead of subquery,
+		// since merge_latest() replaces default_rollup() for m.
+		me, mergeLabel, err := getMergeLatestArgs(fe)
+		if err != nil {
+			return nil, err
+		}
+		ecNew = copyEvalConfig(ecNew)
+		ecNew.MergeLatestLabel = mergeLabel
+		reExpr = me
+	}
 	var rvs []*timeseries
 	var err error
-	if me, ok := re.Expr.(*metricsql.MetricExpr); ok {
+	if me, ok := reExpr.(*metricsql.MetricExpr); ok {
 		rvs, err = evalRollupFuncWithMetricExpr(qt, ecNew, funcName, rf, expr, me, iafc, re.Window)
 	} else {
 		if iafc != nil {
@@ -1831,7 +1880,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		minTimestamp -= ec.Step
 	}
 	sq := storage.NewSearchQuery(minTimestamp, ec.End, tfss, ec.MaxSeries)
-	rss, err := netstorage.ProcessSearchQuery(ec.Context, qt, sq)
+	rss, err := netstorage.ProcessSearchQueryWithMergeLabel(ec.Context, qt, sq, ec.MergeLatestLabel)
 	if err != nil {
 		return nil, err
 	}
