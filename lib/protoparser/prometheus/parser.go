@@ -534,7 +534,7 @@ type linesIterator struct {
 	tagsPool []Tag
 
 	// keysBuf contains all the normalized series keys, stored back to back.
-	// keysIdx contains (offset, length) pairs locating each key inside keysBuf,
+	// keysIdx contains the starting offset of each key inside keysBuf,
 	// and order lists the keys sorted by contents as indices into keysIdx.
 	//
 	// All three are reused between GetRowsDiff calls via linesIteratorPool,
