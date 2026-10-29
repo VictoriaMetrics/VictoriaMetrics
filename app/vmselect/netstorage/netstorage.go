@@ -458,7 +458,7 @@ func (pts *packedTimeseries) Unpack(ctx context.Context, dst *Result, tbf *tmpBl
 	dedupInterval := storage.GetDedupInterval()
 	mergeSortBlocks(dst, sbh, dedupInterval)
 	putSortBlocksHeap(sbh)
-	if len(pts.patches) == 0 {
+	if len(pts.patches) == 0 || len(dst.Timestamps) == 0 {
 		return nil
 	}
 	// slow path apply updates to time series.
