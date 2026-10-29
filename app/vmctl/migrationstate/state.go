@@ -130,6 +130,8 @@ func (st *State) IsDone(u *Unit) bool {
 }
 
 // MarkDone appends u to the state file.
+// It doesn't update in-memory state, so IsDone will not get the change.
+// We don't update st.done because it is not needed - IsDone is called before MarkDone is called.
 func (st *State) MarkDone(u *Unit) error {
 	st.mu.Lock()
 	defer st.mu.Unlock()
