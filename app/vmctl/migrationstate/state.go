@@ -3,6 +3,7 @@
 package migrationstate
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -62,10 +63,10 @@ func Load(path string, params any) (*State, error) {
 	}
 	// State is append-only file. If \n is missing it means vmctl was killed ungracefully.
 	// Restore state from the last written \n char and discard the rest.
-	n := strings.LastIndexByte(string(data), '\n') + 1
-	lines := strings.Split(string(data[:n]), "\n")
-	if lines[0] != string(header) {
-		return nil, fmt.Errorf("unexpected header in state file %q; got %q; want %q; remove the file to start the migration over", path, lines[0], header)
+	n := bytes.LastIndexByte(data, '\n') + 1
+	firstLine, lines, _ := bytes.Cut(data[:n], []byte{'\n'})
+	if !bytes.Equal(firstLine, header) {
+		return nil, fmt.Errorf("unexpected header in state file %q; got %q; want %q; remove the file to start the migration over", path, firstLine, header)
 	}
 	// Remove the incomplete last line, so the next appended line isn't glued to it.
 	if n < len(data) {
@@ -74,14 +75,17 @@ func Load(path string, params any) (*State, error) {
 			return nil, fmt.Errorf("cannot remove incomplete last line from state file %q: %w", st.path, err)
 		}
 	}
-	// The last element is empty, since data[:n] ends with a newline.
-	for i, line := range lines[1 : len(lines)-1] {
+	// lines ends with a newline, so every line is complete.
+	for i := 1; len(lines) > 0; i++ {
+		var line []byte
+		line, lines, _ = bytes.Cut(lines, []byte{'\n'})
+		s := string(line)
 		// Skip lines, which don't parse.
-		if !isValidStateLine(line) {
-			log.Printf("WARNING: invalid state line %d: %q in %q; skipping it", i+1, line, st.path)
+		if !isValidStateLine(s) {
+			log.Printf("WARNING: invalid state line %d: %q in %q; skipping it", i, s, st.path)
 			continue
 		}
-		st.done[line] = struct{}{}
+		st.done[s] = struct{}{}
 	}
 	return st, st.open()
 }
