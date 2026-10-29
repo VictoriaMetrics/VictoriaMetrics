@@ -260,6 +260,8 @@ If you are using [VM Operator](https://docs.victoriametrics.com/operator/) to ma
 
 ## How to configure vmanomaly
 
+Need help choosing a model and its initial settings? Use [Choose a model for your metrics](https://docs.victoriametrics.com/anomaly-detection/guides/model-selection/) for worked examples and copyable recipes, then return here to complete the deployment.
+
 To run `vmanomaly`, use YAML files or directories containing YAML files. The configuration files support shallow merge, allowing splitting the configuration into multiple files for better organization.
 
 > If you are using directories, all `.yaml` files inside will be shallow merged, without deeper recursion. If you want to merge multiple YAML files, you can specify them as separate arguments, e.g.
