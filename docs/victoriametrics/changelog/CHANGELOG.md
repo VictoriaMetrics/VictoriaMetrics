@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): prevent spikes in `rate_sum` and `rate_avg` outputs with `enable_windows: true` when out-of-order samples arrive around the aggregation window boundary. Previously, an out-of-order sample could be treated as a counter reset, causing large spike in the result. See [#11810](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11810).
+
 ## [v1.155.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.155.0)
 
 Released at 2026-10-26
