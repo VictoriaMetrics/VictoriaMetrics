@@ -23,6 +23,7 @@ type increaseAggrConfig struct {
 	// cannot be distinguished from already existing series. This is tracked with ignoreFirstSampleDeadline.
 	ignoreFirstSampleDeadline uint64
 	counterResetsTotal        *metrics.Counter
+	counterOutOfOrderSamples  *metrics.Counter
 }
 
 type increaseAggrValue struct {
@@ -43,8 +44,9 @@ func (av *increaseAggrValue) pushSample(c aggrConfig, sample *pushSample, key st
 		ok = false
 	}
 	if ok {
-		if sample.timestamp < lv.timestamp {
-			// Skip out of order sample
+		if sample.timestamp < lv.timestamp || (sample.timestamp == lv.timestamp && sample.value < lv.value) {
+			// Skip out of order sample or a duplicate with lower value
+			ac.counterOutOfOrderSamples.Inc()
 			return
 		}
 		if sample.value >= lv.value {
@@ -90,6 +92,7 @@ func newIncreaseAggrConfig(ms *metrics.Set, metricLabels string, ignoreFirstSamp
 		ignoreFirstSampleDeadline: ignoreFirstSampleDeadline,
 	}
 	cfg.counterResetsTotal = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_counter_resets_total{%s}`, metricLabels))
+	cfg.counterOutOfOrderSamples = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_counter_dropped_samples_total{reason="out_of_order",%s}`, metricLabels))
 	return cfg
 }
 

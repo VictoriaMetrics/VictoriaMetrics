@@ -62,11 +62,14 @@ Please see example graph illustrating this logic below:
 
 ## Choosing the right model for vmanomaly
 
+> [!TIP]
+> For worked examples and copyable configurations, see [Choose a model for your metrics](https://docs.victoriametrics.com/anomaly-detection/guides/model-selection/).
+
 Start with what you want to compare: a metric with its own history, related signals with each other, or an entity with its peers. Then choose a model for the data's behavior and the [types of anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#categories-of-anomalies) you want to detect.
 
 ### Independent time series
 
-[Univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models) evaluate each time series independently, using its own history. Choose this type when metrics have different behavior or need separate anomaly decisions.
+[Univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models) evaluate each time series independently, using its own history. Choose this type when metrics have different behavior or need separate anomaly decisions. See the [CPU history example](https://docs.victoriametrics.com/anomaly-detection/guides/model-selection/#follow-each-metric-over-time).
 
 - Use [Online MAD](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-mad) for simple, mostly stationary data with no-to-slow trend, when robustness to outliers is important.
 - Use [Online Z-score](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score) for simple, light-tailed data where standard-deviation units are meaningful.
@@ -74,13 +77,13 @@ Start with what you want to compare: a metric with its own history, related sign
 
 ### Related signals
 
-[Multivariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) learn relationships across a fixed set of related signals and produce a joint anomaly decision per group, for example CPU, memory and request rate for one service.
+[Multivariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) learn relationships across a fixed set of related signals and produce a joint anomaly decision per group, for example CPU, memory and request rate for one service. See the [CPU and RAM comparison](https://docs.victoriametrics.com/anomaly-detection/guides/model-selection/#watch-related-signals-together).
 
 Use multivariate [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) when normal relationships between aligned metrics matter. It is the recommended replacement for [Isolation Forest](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate), which is planned for deprecation in a future release.
 
 ### Comparable peers
 
-[Peer-group models](https://docs.victoriametrics.com/anomaly-detection/components/models/#peer-group-models) compare similar entities at the same timestamp and score each peer separately. Use [Peer Outlier](https://docs.victoriametrics.com/anomaly-detection/components/models/#peer-outlier) {{% available_from "v1.31.0" anomaly %}} to find unusual members among comparable replicas or hosts. Queries remain isolated, and `groupby` separates populations within each query.
+[Peer-group models](https://docs.victoriametrics.com/anomaly-detection/components/models/#peer-group-models) compare similar entities at the same timestamp and score each peer separately. Use [Peer Outlier](https://docs.victoriametrics.com/anomaly-detection/components/models/#peer-outlier) {{% available_from "v1.31.0" anomaly %}} to find unusual members among comparable replicas or hosts. Queries remain isolated, and `groupby` separates populations within each query. See the [replica comparison](https://docs.victoriametrics.com/anomaly-detection/guides/model-selection/#find-the-odd-one-out).
 
 A new peer can use an existing, warmed-up group's learned state without a separate per-peer fit. Missing or departed peers do not reset that state, but each timestamp still needs enough valid peers to score. A new group requires its own fit and warmup. See the [peer-group lifecycle](https://docs.victoriametrics.com/anomaly-detection/components/models/#peer-group-models).
 
