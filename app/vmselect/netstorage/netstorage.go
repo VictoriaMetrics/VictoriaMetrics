@@ -1303,7 +1303,10 @@ func ProcessSearchQueryWithMergeLabel(ctx context.Context, qt *querytracer.Trace
 		vmstorage.PutSearch(sr)
 		return nil, fmt.Errorf("cannot finalize temporary file: %w", err)
 	}
-	qt.Printf("fetch unique series=%d, blocks=%d, samples=%d, bytes=%d, series_with_patches=%d", len(m), blocksRead, samples, tbf.Len(), len(patches))
+	qt.Printf("fetch unique series=%d, blocks=%d, samples=%d, bytes=%d", len(m), blocksRead, samples, tbf.Len())
+	if len(mergeLabel) > 0 {
+		qt.Printf("unique revision label pairs=%d, patches=%d for merge_label=%s", patchRevsCount, len(patches), mergeLabel)
+	}
 
 	var rss Results
 	rss.tr = sq.GetTimeRange()

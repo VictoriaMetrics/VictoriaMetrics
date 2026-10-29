@@ -217,11 +217,11 @@ func ResetRollupResultCache() {
 	logger.Infof("rollupResult cache has been cleared")
 }
 
-func (rrc *rollupResultCache) GetInstantValues(qt *querytracer.Tracer, expr metricsql.Expr, window, step int64, etfss [][]storage.TagFilter) []*timeseries {
+func (rrc *rollupResultCache) GetInstantValues(qt *querytracer.Tracer, expr metricsql.Expr, window int64, ec *EvalConfig) []*timeseries {
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
 		query = stringsutil.LimitStringLen(query, 300)
-		qt = qt.NewChild("rollup cache get instant values: query=%s, window=%d, step=%d", query, window, step)
+		qt = qt.NewChild("rollup cache get instant values: query=%s, window=%d, step=%d", query, window, ec.Step)
 		defer qt.Done()
 	}
 
@@ -229,7 +229,7 @@ func (rrc *rollupResultCache) GetInstantValues(qt *querytracer.Tracer, expr metr
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
 
-	bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], expr, window, step, etfss)
+	bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], expr, window, ec.Step, ec.EnforcedTagFilterss, ec.MergeLatestLabel)
 	tss, ok := rrc.getSeriesFromCache(qt, bb.B)
 	if !ok || len(tss) == 0 {
 		return nil
@@ -239,7 +239,7 @@ func (rrc *rollupResultCache) GetInstantValues(qt *querytracer.Tracer, expr metr
 	return tss
 }
 
-func (rrc *rollupResultCache) PutInstantValues(qt *querytracer.Tracer, expr metricsql.Expr, window, step int64, etfss [][]storage.TagFilter, tss []*timeseries) {
+func (rrc *rollupResultCache) PutInstantValues(qt *querytracer.Tracer, expr metricsql.Expr, window int64, ec *EvalConfig, tss []*timeseries) {
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
 		query = stringsutil.LimitStringLen(query, 300)
@@ -247,7 +247,7 @@ func (rrc *rollupResultCache) PutInstantValues(qt *querytracer.Tracer, expr metr
 		if len(tss) > 0 {
 			startStr = storage.TimestampToHumanReadableFormat(tss[0].Timestamps[0])
 		}
-		qt = qt.NewChild("rollup cache put instant values: query=%s, window=%d, step=%d, series=%d, time=%s", query, window, step, len(tss), startStr)
+		qt = qt.NewChild("rollup cache put instant values: query=%s, window=%d, step=%d, series=%d, time=%s, merge_latest_label=%s", query, window, ec.Step, len(tss), startStr, ec.MergeLatestLabel)
 		defer qt.Done()
 	}
 	if len(tss) == 0 {
@@ -260,23 +260,23 @@ func (rrc *rollupResultCache) PutInstantValues(qt *querytracer.Tracer, expr metr
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
 
-	bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], expr, window, step, etfss)
-	_ = rrc.putSeriesToCache(qt, bb.B, step, tss)
+	bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], expr, window, ec.Step, ec.EnforcedTagFilterss, ec.MergeLatestLabel)
+	_ = rrc.putSeriesToCache(qt, bb.B, ec.Step, tss)
 }
 
-func (rrc *rollupResultCache) DeleteInstantValues(qt *querytracer.Tracer, expr metricsql.Expr, window, step int64, etfss [][]storage.TagFilter) {
+func (rrc *rollupResultCache) DeleteInstantValues(qt *querytracer.Tracer, expr metricsql.Expr, window int64, ec *EvalConfig) {
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
 
-	bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], expr, window, step, etfss)
-	if !rrc.putSeriesToCache(qt, bb.B, step, nil) {
+	bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], expr, window, ec.Step, ec.EnforcedTagFilterss, ec.MergeLatestLabel)
+	if !rrc.putSeriesToCache(qt, bb.B, ec.Step, nil) {
 		logger.Panicf("BUG: cannot store zero series to cache")
 	}
 
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
 		query = stringsutil.LimitStringLen(query, 300)
-		qt.Printf("rollup result cache delete instant values: query=%s, window=%d, step=%d", query, window, step)
+		qt.Printf("rollup result cache delete instant values: query=%s, window=%d, step=%d, merge_latest_label=%s", query, window, ec.Step, ec.MergeLatestLabel)
 	}
 }
 
@@ -284,7 +284,7 @@ func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
 		query = stringsutil.LimitStringLen(query, 300)
-		qt = qt.NewChild("rollup cache get series: query=%s, timeRange=%s, window=%d, step=%d", query, ec.timeRangeString(), window, ec.Step)
+		qt = qt.NewChild("rollup cache get series: query=%s, timeRange=%s, window=%d, step=%d, merge_latest_label=%s", query, ec.timeRangeString(), window, ec.Step, ec.MergeLatestLabel)
 		defer qt.Done()
 	}
 
@@ -292,7 +292,7 @@ func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
 
-	bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], expr, window, ec.Step, ec.CacheTagFilters)
+	bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], expr, window, ec.Step, ec.CacheTagFilters, ec.MergeLatestLabel)
 	metainfoBuf := rrc.c.Get(nil, bb.B)
 	if len(metainfoBuf) == 0 {
 		qt.Printf("nothing found")
@@ -314,7 +314,7 @@ func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	if !ok {
 		mi.RemoveKey(key)
 		metainfoBuf = mi.Marshal(metainfoBuf[:0])
-		bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], expr, window, ec.Step, ec.CacheTagFilters)
+		bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], expr, window, ec.Step, ec.CacheTagFilters, ec.MergeLatestLabel)
 		rrc.c.Set(bb.B, metainfoBuf)
 		return nil, ec.Start
 	}
@@ -365,7 +365,7 @@ func (rrc *rollupResultCache) PutSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
 		query = stringsutil.LimitStringLen(query, 300)
-		qt = qt.NewChild("rollup cache put series: query=%s, timeRange=%s, step=%d, window=%d, series=%d", query, ec.timeRangeString(), ec.Step, window, len(tss))
+		qt = qt.NewChild("rollup cache put series: query=%s, timeRange=%s, step=%d, window=%d, series=%d, merge_latest_label=%s", query, ec.timeRangeString(), ec.Step, window, len(tss), ec.MergeLatestLabel)
 		defer qt.Done()
 	}
 	if len(tss) == 0 {
@@ -420,7 +420,7 @@ func (rrc *rollupResultCache) PutSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	metainfoBuf := bbPool.Get()
 	defer bbPool.Put(metainfoBuf)
 
-	metainfoKey.B = marshalRollupResultCacheKeyForSeries(metainfoKey.B[:0], expr, window, ec.Step, ec.CacheTagFilters)
+	metainfoKey.B = marshalRollupResultCacheKeyForSeries(metainfoKey.B[:0], expr, window, ec.Step, ec.CacheTagFilters, ec.MergeLatestLabel)
 	metainfoBuf.B = rrc.c.Get(metainfoBuf.B[:0], metainfoKey.B)
 	var mi rollupResultCacheMetainfo
 	if len(metainfoBuf.B) > 0 {
@@ -549,14 +549,14 @@ func mustSaveRollupResultCacheKeyPrefix(path string) {
 var tooBigRollupResults = metrics.NewCounter("vm_too_big_rollup_results_total")
 
 // Increment this value every time the format of the cache changes.
-const rollupResultCacheVersion = 11
+const rollupResultCacheVersion = 12
 
 const (
 	rollupResultCacheTypeSeries        = 0
 	rollupResultCacheTypeInstantValues = 1
 )
 
-func marshalRollupResultCacheKeyForSeries(dst []byte, expr metricsql.Expr, window, step int64, etfs [][]storage.TagFilter) []byte {
+func marshalRollupResultCacheKeyForSeries(dst []byte, expr metricsql.Expr, window, step int64, etfs [][]storage.TagFilter, mergeLatestLabel string) []byte {
 	dst = append(dst, rollupResultCacheVersion)
 	dst = encoding.MarshalUint64(dst, rollupResultCacheKeyPrefix.Load())
 	dst = append(dst, rollupResultCacheTypeSeries)
@@ -564,10 +564,11 @@ func marshalRollupResultCacheKeyForSeries(dst []byte, expr metricsql.Expr, windo
 	dst = encoding.MarshalInt64(dst, step)
 	dst = marshalTagFiltersForRollupResultCacheKey(dst, etfs)
 	dst = expr.AppendString(dst)
+	dst = append(dst, mergeLatestLabel...)
 	return dst
 }
 
-func marshalRollupResultCacheKeyForInstantValues(dst []byte, expr metricsql.Expr, window, step int64, etfs [][]storage.TagFilter) []byte {
+func marshalRollupResultCacheKeyForInstantValues(dst []byte, expr metricsql.Expr, window, step int64, etfs [][]storage.TagFilter, mergeLatestLabel string) []byte {
 	dst = append(dst, rollupResultCacheVersion)
 	dst = encoding.MarshalUint64(dst, rollupResultCacheKeyPrefix.Load())
 	dst = append(dst, rollupResultCacheTypeInstantValues)
@@ -575,6 +576,7 @@ func marshalRollupResultCacheKeyForInstantValues(dst []byte, expr metricsql.Expr
 	dst = encoding.MarshalInt64(dst, step)
 	dst = marshalTagFiltersForRollupResultCacheKey(dst, etfs)
 	dst = expr.AppendString(dst)
+	dst = append(dst, mergeLatestLabel...)
 	return dst
 }
 
