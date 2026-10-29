@@ -148,6 +148,10 @@ The key depends on the source and destination addresses, filters, time range, st
 `--vm-intercluster`, extra labels and headers. A run with any of these flags changed starts a new migration with a new state file.
 For example, a changed `AccountID` or `ProjectID` header in `--vm-native-src-headers` or `--vm-native-dst-headers` starts a new migration.
 
+> Note: If you're using some advanced routing to destination or source using basic auth or other params, then state file
+> might not be aware of such params and it won't start a new migration if these params were changed.
+> You can check which params identify the migration key in the first line of the state file.
+
 The state file is human-readable. Its first line contains the migration flags in JSON.
 Headers are stored as hashes, since they may contain secrets.
 Every next line is a finished request: `<tenant> <start ms> <end ms> <metric name>`. The tenant is `-` without `--vm-intercluster`.
