@@ -654,18 +654,27 @@ See also [why you shouldn't put an aggregator behind a load balancer](https://do
 
 ## Aggregation windows
 
-By default, stream aggregation and deduplication store a single state for each aggregation output result.
-The data for each aggregator is flushed independently once per aggregation interval. But there's no guarantee that
-incoming samples with timestamps close to the aggregation interval's end will get into it. For example, when aggregating
-with `interval: 1m`, a data sample with timestamp 1739473078 (18:57:59) can fall into the aggregation round `18:58:00` or `18:59:00`.
-It depends on network lag, load, clock synchronization, etc. In most scenarios, it doesn't impact aggregation or
-deduplication results, which are consistent within the margin of error. But for metrics represented as a collection of series,
-like [histograms](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram), such inaccuracy leads to invalid aggregation results.
+By default, stream aggregation and deduplication store a single state for each aggregation output result
+and assign incoming samples to the aggregation interval by their ingestion time, not by their timestamps.
+So there's no guarantee that samples with timestamps close to the aggregation interval's end will get into it.
+For example, when aggregating with `interval: 1m`, a data sample with timestamp 1739473078 (18:57:59) can fall into
+the aggregation round `18:58:00` or `18:59:00`. It depends on network lag, load, clock synchronization, etc.
+In most scenarios, it doesn't impact aggregation or deduplication results, which are consistent within the margin of error.
+But for metrics represented as a collection of series, like [histograms](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram),
+such inaccuracy leads to invalid aggregation results, since buckets of the same histogram may end up in different aggregation rounds.
 
-For this case, streaming aggregation and deduplication support mode with aggregation windows for the current and previous state.
-In this mode, flush doesn't happen immediately but is delayed by a calculated sample lag, which should significantly improve the accuracy of calculations when samples arrive with a delay. {{% available_from "v1.112.0" %}}
+Aggregation windows solve this issue. {{% available_from "v1.112.0" %}} In this mode, samples are assigned to the aggregation interval by their timestamps,
+and the current and the previous intervals are aggregated separately. The previous interval isn't flushed
+immediately at its end, but after a delay equal to the max lag of the samples received during the previous interval
+(see `vm_streamaggr_samples_lag_seconds` metric). This gives delayed samples a chance to get into the correct aggregation interval.
 
-This mode doubles the memory used for the aggregation state, since two states(for the current and previous intervals) are stored per series simultaneously. Aggregation windows can be enabled via
+Aggregation windows are intended for samples delayed by less than the aggregation `interval` (or `dedup_interval` for deduplication),
+so the flush delay is capped at 90% of the interval. Samples for already flushed intervals are dropped
+(see `vm_streamaggr_ignored_samples_total{reason="too_old"}` and `vm_streamaggr_dedup_dropped_samples_total` metrics).
+If samples are constantly delayed by more than the interval, then increase the `interval` or perform stream aggregation closer to the data source.
+See also [data delay and staleness](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#staleness).
+
+This mode doubles the memory used for the aggregation state, since two states (for the current and previous intervals) are stored per series simultaneously. Aggregation windows can be enabled via
 the following settings:
 
 - `-streamAggr.enableWindows` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
