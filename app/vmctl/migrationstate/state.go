@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -58,8 +57,14 @@ func Load(path string, params any) (*State, error) {
 			return nil, fmt.Errorf("cannot read state file: %w", err)
 		}
 		// state doesn't exist, so we create a new one
-		fs.MustWriteAtomic(path, append(header, '\n'), false)
-		return st, st.open()
+		if err := st.open(); err != nil {
+			return nil, err
+		}
+		if _, err := st.f.Write(append(header, '\n')); err != nil {
+			st.Close()
+			return nil, fmt.Errorf("cannot write header to state file %q: %w", path, err)
+		}
+		return st, nil
 	}
 	// State is append-only file. If \n is missing it means vmctl was killed ungracefully.
 	// Restore state from the last written \n char and discard the rest.
@@ -102,7 +107,7 @@ func (st *State) DoneCount() int {
 
 // open opens the state file for appending finished units.
 func (st *State) open() error {
-	f, err := os.OpenFile(st.path, os.O_WRONLY|os.O_APPEND, 0o644)
+	f, err := os.OpenFile(st.path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
 	if err != nil {
 		return fmt.Errorf("cannot open state file: %w", err)
 	}
