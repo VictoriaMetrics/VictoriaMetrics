@@ -1305,7 +1305,7 @@ func ProcessSearchQueryWithMergeLabel(ctx context.Context, qt *querytracer.Trace
 	}
 	qt.Printf("fetch unique series=%d, blocks=%d, samples=%d, bytes=%d", len(m), blocksRead, samples, tbf.Len())
 	if len(mergeLabel) > 0 {
-		qt.Printf("unique revision label pairs=%d, patches=%d for merge_label=%s", patchRevsCount, len(patches), mergeLabel)
+		qt.Printf("unique revision label pairs=%d, series_with_patches=%d for merge_label=%s", patchRevsCount, len(patches), mergeLabel)
 	}
 
 	var rss Results
