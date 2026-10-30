@@ -126,21 +126,20 @@ func reloadStreamAggrConfig() {
 	logger.Infof("reloading -streamAggr.config=%q", *streamAggrConfig)
 	saCfgReloads.Inc()
 
-	sasNew, err := streamaggr.LoadFromFile(*streamAggrConfig, pushAggregateSeries, newStreamAggrOptions(), "global")
+	sas := sasGlobal.Load()
+	sasNew, err := sas.Reload()
 	if err != nil {
 		saCfgSuccess.Set(0)
 		saCfgReloadErr.Inc()
 		logger.Errorf("cannot reload -streamAggr.config=%q: use the previously loaded config; error: %s", *streamAggrConfig, err)
 		return
 	}
-	sas := sasGlobal.Load()
-	if !sasNew.Equal(sas) {
-		sasOld := sasGlobal.Swap(sasNew)
-		sasOld.MustStop()
+	if sasNew != sas {
+		sasGlobal.Store(sasNew)
+		sas.MustStop()
 		logger.Infof("successfully reloaded stream aggregation config at -streamAggr.config=%q", *streamAggrConfig)
 	} else {
 		logger.Infof("nothing changed in -streamAggr.config=%q", *streamAggrConfig)
-		sasNew.MustStop()
 	}
 	saCfgSuccess.Set(1)
 	saCfgTimestamp.Set(fasttime.UnixTimestamp())
