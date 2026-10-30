@@ -2558,3 +2558,58 @@ func (db *indexDB) searchMetricIDs(ctx context.Context, tfss []*TagFilters, tr T
 
 	return all, nil
 }
+
+func TestIndexItems(t *testing.T) {
+	f := func(got, want *indexItems) {
+		t.Helper()
+		if diff := cmp.Diff(want, got, cmp.AllowUnexported(indexItems{})); diff != "" {
+			t.Fatalf("unexpected indexItems (-want, +got):\n%s", diff)
+		}
+	}
+
+	a := []byte{1}
+	b := []byte{2, 2}
+	c := []byte{3, 3, 3}
+	d := []byte{4, 4, 4, 4}
+
+	got := &indexItems{}
+
+	got.B = append(got.B, a...)
+	got.Next()
+	f(got, &indexItems{
+		B:     a,
+		Items: [][]byte{a},
+		start: len(a),
+	})
+
+	got.B = append(got.B, b...)
+	got.Next()
+	f(got, &indexItems{
+		B:     slices.Concat(a, b),
+		Items: [][]byte{a, b},
+		start: len(a) + len(b),
+	})
+
+	got.B = append(got.B, c...)
+	got.Next()
+	f(got, &indexItems{
+		B:     slices.Concat(a, b, c),
+		Items: [][]byte{a, b, c},
+		start: len(a) + len(b) + len(c),
+	})
+
+	got.B = append(got.B, d...)
+	got.Next()
+	f(got, &indexItems{
+		B:     slices.Concat(a, b, c, d),
+		Items: [][]byte{a, b, c, d},
+		start: len(a) + len(b) + len(c) + len(d),
+	})
+
+	got.reset()
+	f(got, &indexItems{
+		B:     []byte{},
+		Items: [][]byte{},
+		start: 0,
+	})
+}
