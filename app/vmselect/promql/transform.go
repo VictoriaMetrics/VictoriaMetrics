@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/rand"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -408,9 +409,10 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 
 	// Group timeseries by all MetricGroup+tags excluding `le` tag.
 	type x struct {
-		le   float64
-		hits float64
-		ts   *timeseries
+		le        float64
+		hits      float64
+		hasValues bool
+		ts        *timeseries
 	}
 	m := make(map[string][]x)
 	var b []byte
@@ -458,10 +460,19 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 			for i := range leGroup {
 				xx := &leGroup[i]
 				value := xx.ts.Values[n]
+				if math.IsNaN(value) {
+					// Skip NaN, so it doesn't make the hits of this and the next bucket NaN.
+					continue
+				}
+				xx.hasValues = true
 				xx.hits += value - prevValue
 				prevValue = value
 			}
 		}
+		// Drop buckets without values. They carry no hits, but would take a place among the `limit` buckets.
+		leGroup = slices.DeleteFunc(leGroup, func(xx x) bool {
+			return !xx.hasValues
+		})
 
 		// Remove buckets that are consecutively empty at left and right ends to obtain more accurate max and min values.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10417.
