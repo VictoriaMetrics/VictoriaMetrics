@@ -184,6 +184,12 @@ type rawRowsShards struct {
 
 	rowssToFlushLock sync.Mutex
 	rowssToFlush     [][]rawRow
+
+	// Full flushes happen when a shard overflows; partial flushes happen on pendingRowsFlushInterval ticks.
+	fullFlushes        atomic.Uint64
+	fullFlushedRows    atomic.Uint64
+	partialFlushes     atomic.Uint64
+	partialFlushedRows atomic.Uint64
 }
 
 func (rrss *rawRowsShards) init() {
@@ -205,6 +211,27 @@ func (rrss *rawRowsShards) Len() int {
 	return n
 }
 
+// CapBytes returns the size of buffers allocated for pending rows.
+//
+// The difference with Len() * sizeof(rawRow) is the memory reserved, but not used yet.
+func (rrss *rawRowsShards) CapBytes() int {
+	n := 0
+	for i := range rrss.shards {
+		rrs := &rrss.shards[i]
+		rrs.mu.Lock()
+		n += cap(rrs.rows)
+		rrs.mu.Unlock()
+	}
+
+	rrss.rowssToFlushLock.Lock()
+	for _, rows := range rrss.rowssToFlush {
+		n += cap(rows)
+	}
+	rrss.rowssToFlushLock.Unlock()
+
+	return n * int(unsafe.Sizeof(rawRow{}))
+}
+
 func (rrss *rawRowsShards) addRows(flush func([][]rawRow), rows []rawRow) {
 	shards := rrss.shards
 	shardsLen := uint32(len(shards))
@@ -221,6 +248,8 @@ func (rrss *rawRowsShards) addRowsToFlush(flush func([][]rawRow), rowsToFlush []
 	if len(rowsToFlush) == 0 {
 		return
 	}
+	rrss.fullFlushes.Add(1)
+	rrss.fullFlushedRows.Add(uint64(len(rowsToFlush)))
 
 	var rowssToMerge [][]rawRow
 
@@ -254,11 +283,31 @@ func (rrss *rawRowsShards) flush(flush func(rrs [][]rawRow), isFinal bool) {
 		rrss.rowssToFlushLock.Unlock()
 	}
 
+	// Rows already in dst come from full flushes; count only the rows moved from shards.
+	fullRows := rawRowssLen(dst)
+
+	// Size flush buffers by the total pending rows, so rows from multiple shards share them.
+	totalRows := 0
 	for i := range rrss.shards {
-		dst = rrss.shards[i].appendRawRowsToFlush(dst, currentTimeMs, isFinal)
+		totalRows += rrss.shards[i].Len()
+	}
+	for i := range rrss.shards {
+		dst = rrss.shards[i].appendRawRowsToFlush(dst, totalRows, currentTimeMs, isFinal)
+	}
+	if partialRows := rawRowssLen(dst) - fullRows; partialRows > 0 {
+		rrss.partialFlushes.Add(1)
+		rrss.partialFlushedRows.Add(uint64(partialRows))
 	}
 
 	flush(dst)
+}
+
+func rawRowssLen(rowss [][]rawRow) int {
+	n := 0
+	for _, rows := range rowss {
+		n += len(rows)
+	}
+	return n
 }
 
 type rawRowsShardNopad struct {
@@ -289,8 +338,8 @@ func (rrs *rawRowsShard) addRows(rows []rawRow) ([]rawRow, []rawRow) {
 
 	rrs.mu.Lock()
 	rrs.idleFlushes = 0
-	if cap(rrs.rows) == 0 {
-		rrs.rows = newRawRows()
+	if need := len(rrs.rows) + len(rows); need > cap(rrs.rows) && cap(rrs.rows) < maxRawRowsPerShard {
+		rrs.rows = growRawRows(rrs.rows, need)
 	}
 	if len(rrs.rows) == 0 {
 		rrs.updateFlushDeadline()
@@ -312,14 +361,102 @@ func (rrs *rawRowsShard) addRows(rows []rawRow) ([]rawRow, []rawRow) {
 }
 
 func newRawRows() []rawRow {
-	return make([]rawRow, 0, maxRawRowsPerShard)
+	return getRawRows(maxRawRowsPerShard)
 }
+
+// minRawRowsPerShard is the initial shard buffer capacity: 1024 rows, ~48KB.
+const minRawRowsPerShard = 1024
+
+// growRawRows returns a buffer with rows and capacity for at least need rows, up to maxRawRowsPerShard.
+//
+// Shard buffers start small and double on demand, so low ingestion rate doesn't reserve 8MB per shard.
+// For example, 3000 rows grow the buffer 1024 -> 4096.
+func growRawRows(rows []rawRow, need int) []rawRow {
+	n := max(cap(rows), minRawRowsPerShard)
+	for n < need {
+		n *= 2
+	}
+	dst := getRawRows(min(n, maxRawRowsPerShard))
+	dst = append(dst, rows...)
+	putRawRows(rows)
+	return dst
+}
+
+// getRawRows returns an empty rawRow buffer with at least n capacity.
+//
+// Return it via putRawRows when it is no longer needed.
+func getRawRows(n int) []rawRow {
+	rawRowsFreeLock.Lock()
+	defer rawRowsFreeLock.Unlock()
+
+	// Pick the smallest free buffer that fits n rows.
+	best := -1
+	for i, rows := range rawRowsFree {
+		if cap(rows) >= n && (best < 0 || cap(rows) < cap(rawRowsFree[best])) {
+			best = i
+		}
+	}
+	if best < 0 {
+		return make([]rawRow, 0, n)
+	}
+	rows := rawRowsFree[best]
+	last := len(rawRowsFree) - 1
+	rawRowsFree[best] = rawRowsFree[last]
+	rawRowsFree[last] = nil
+	rawRowsFree = rawRowsFree[:last]
+	return rows
+}
+
+// putRawRows returns rows to the free list. rows mustn't be used after the call.
+func putRawRows(rows []rawRow) {
+	if cap(rows) == 0 || cap(rows) > maxRawRowsPerShard {
+		return
+	}
+	rows = rows[:0]
+
+	rawRowsFreeLock.Lock()
+	defer rawRowsFreeLock.Unlock()
+
+	// Keep at most 8 MiB of reusable rows and one buffer per shard.
+	total := cap(rows)
+	for _, free := range rawRowsFree {
+		total += cap(free)
+	}
+
+	for total > maxRawRowsPerShard || len(rawRowsFree) >= numRawRowsShards {
+		// Prefer larger buffers, which can satisfy more future requests.
+		smallest := 0
+		for i := range rawRowsFree {
+			if cap(rawRowsFree[i]) < cap(rawRowsFree[smallest]) {
+				smallest = i
+			}
+		}
+		if cap(rows) <= cap(rawRowsFree[smallest]) {
+			return
+		}
+		total -= cap(rawRowsFree[smallest])
+		last := len(rawRowsFree) - 1
+		rawRowsFree[smallest] = rawRowsFree[last]
+		rawRowsFree[last] = nil
+		rawRowsFree = rawRowsFree[:last]
+	}
+	rawRowsFree = append(rawRowsFree, rows)
+}
+
+// rawRowsFree reuses flush buffers, since they are dead once converted into in-memory parts.
+//
+// sync.Pool isn't used, since a single buffer put on one P is invisible to Get on other Ps,
+// and the flusher rarely runs on the same P between 2s ticks.
+var (
+	rawRowsFreeLock sync.Mutex
+	rawRowsFree     [][]rawRow
+)
 
 func (rrs *rawRowsShard) updateFlushDeadline() {
 	rrs.flushDeadlineMs.Store(time.Now().Add(pendingRowsFlushInterval).UnixMilli())
 }
 
-func (rrs *rawRowsShard) appendRawRowsToFlush(dst [][]rawRow, currentTimeMs int64, isFinal bool) [][]rawRow {
+func (rrs *rawRowsShard) appendRawRowsToFlush(dst [][]rawRow, totalRows int, currentTimeMs int64, isFinal bool) [][]rawRow {
 	flushDeadlineMs := rrs.flushDeadlineMs.Load()
 	if !isFinal && currentTimeMs < flushDeadlineMs {
 		// Fast path - nothing to flush
@@ -338,26 +475,26 @@ func (rrs *rawRowsShard) appendRawRowsToFlush(dst [][]rawRow, currentTimeMs int6
 		return dst
 	}
 
-	dst = appendRawRowss(dst, rrs.rows)
+	dst = appendRawRowss(dst, rrs.rows, totalRows)
 	rrs.rows = rrs.rows[:0]
 	rrs.mu.Unlock()
 
 	return dst
 }
 
-func appendRawRowss(dst [][]rawRow, src []rawRow) [][]rawRow {
+func appendRawRowss(dst [][]rawRow, src []rawRow, totalRows int) [][]rawRow {
 	if len(src) == 0 {
 		return dst
 	}
 	if len(dst) == 0 {
-		dst = append(dst, newRawRows())
+		dst = append(dst, getRawRows(min(max(len(src), totalRows), maxRawRowsPerShard)))
 	}
 	prows := &dst[len(dst)-1]
 	n := copy((*prows)[len(*prows):cap(*prows)], src)
 	*prows = (*prows)[:len(*prows)+n]
 	src = src[n:]
 	for len(src) > 0 {
-		rows := newRawRows()
+		rows := getRawRows(min(max(len(src), totalRows), maxRawRowsPerShard))
 		n := copy(rows[:cap(rows)], src)
 		rows = rows[:len(rows)+n]
 		src = src[n:]
