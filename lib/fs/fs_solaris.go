@@ -10,8 +10,8 @@ import (
 
 func mmap(fd int, length int) (data []byte, err error) {
 	return unix.Mmap(fd, 0, length, unix.PROT_READ, unix.MAP_SHARED)
-
 }
+
 func mUnmap(data []byte) error {
 	return unix.Munmap(data)
 }
@@ -66,3 +66,19 @@ func totalSpace(stat unix.Statvfs_t) uint64 {
 func freeSpace(stat unix.Statvfs_t) uint64 {
 	return uint64(stat.Bavail) * uint64(stat.Bsize)
 }
+
+// getFsType returns the filesystem type for the given path.
+func getFsType(path string) string {
+	var stat unix.Statvfs_t
+	if err := unix.Statvfs(path, &stat); err != nil {
+		return "unknown"
+	}
+
+	var fsType []byte
+	for _, c := range stat.Basetype {
+		if c == 0 {
+			break
+		}
+		fsType = append(fsType, byte(c))
+	}
+	return string(fsType
