@@ -755,7 +755,7 @@ func (sb *sortBlock) reset() {
 func (sb *sortBlock) unpackFrom(tmpBlock *storage.Block, tbfs []*tmpBlocksFile, addr tmpBlockAddr, tr storage.TimeRange) error {
 	tmpBlock.Reset()
 	tbfs[addr.tbfIdx].MustReadBlockAt(tmpBlock, addr)
-	if err := tmpBlock.UnmarshalData(); err != nil {
+	if err := tmpBlock.UnmarshalDataCached(&tbfs[addr.tbfIdx].tsc); err != nil {
 		return fmt.Errorf("cannot unmarshal block: %w", err)
 	}
 	sb.Timestamps, sb.Values = tmpBlock.AppendRowsWithTimeRangeFilter(sb.Timestamps[:0], sb.Values[:0], tr)
@@ -3251,6 +3251,7 @@ func getStorageNodes() []*storageNode {
 //
 // MustStop must be called when the initialized connections are no longer needed.
 func Init(addrs []string) {
+	storage.SetTimestampsCacheMaxBytes(maxTimestampsCacheSize())
 	snb := initStorageNodes(addrs)
 	setStorageNodesBucket(snb)
 }

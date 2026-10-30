@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmselect): share decoded timestamps across series of the same query when they come from the same block, as happens for series scraped from the same target. This speeds up timestamp decoding for such queries. The new `-search.timestampsCacheSize` flag limits the memory used for this cache (1/64 of available memory by default). The new `vm_ts_decode_cache_hits_total`, `vm_ts_decode_cache_misses_total` and `vm_ts_decode_cache_size_bytes` metrics expose the cache behavior.
+
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): prevent skipping aggregation and deduplication flushes when [aggregation windows](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-windows) are enabled and incoming samples are delayed by one interval or more, e.g. when the ingestion pipeline is overloaded. Previously, the flush delay could grow with the sample lag, causing skipped flushes and gaps in the results. Now the flush delay is capped at 90% of the aggregation or deduplication interval. See [#11811](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11811).
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): prevent spikes in `rate_sum` and `rate_avg` outputs with `enable_windows: true` when out-of-order samples arrive around the aggregation window boundary. Previously, an out-of-order sample could be treated as a counter reset, causing large spike in the result. See [#11810](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11810).
 
