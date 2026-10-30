@@ -22,6 +22,105 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
 
+func TestRequestHandlerGlobalResponseHeaders(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Foo", "backend")
+		w.Header().Set("Server", "backend")
+		w.WriteHeader(http.StatusCreated)
+	}))
+	defer ts.Close()
+
+	f := func(cfg, path, token, fooExpected string, statusExpected int) {
+		t.Helper()
+
+		cfg = strings.ReplaceAll(cfg, "{BACKEND}", ts.URL)
+		defer setAuthConfig(t, cfg)()
+
+		r := httptest.NewRequest(http.MethodGet, "http://vmauth"+path, nil)
+		if token != "" {
+			r.Header.Set("Authorization", "Bearer "+token)
+		}
+		w := &fakeResponseWriter{}
+		if !requestHandlerWithInternalRoutes(w, r) {
+			t.Fatal("request wasn't handled")
+		}
+		if w.statusCode != statusExpected {
+			t.Fatalf("unexpected response status; got %d; want %d", w.statusCode, statusExpected)
+		}
+		if got := w.Header().Get("Foo"); got != fooExpected {
+			t.Fatalf("unexpected Foo response header; got %q; want %q", got, fooExpected)
+		}
+		commonExpected := "global"
+		if statusExpected == http.StatusUnauthorized {
+			commonExpected = ""
+		}
+		if got := w.Header().Get("X-Common"); got != commonExpected {
+			t.Fatalf("unexpected X-Common response header; got %q; want %q", got, commonExpected)
+		}
+		if got := w.Header().Get("Server"); got != "" {
+			t.Fatalf("unexpected Server response header: %q", got)
+		}
+	}
+
+	globalHeaders := `
+response_headers:
+- "X-Common: global"
+- "FoO: global"
+- "Server:"
+`
+
+	// Global response headers apply to authenticated users and override backend headers.
+	cfg := globalHeaders + `
+users:
+- bearer_token: secret
+  url_prefix: {BACKEND}
+`
+	f(cfg, "/", "secret", "global", http.StatusCreated)
+	// Authentication errors aren't responses from the backend.
+	f(cfg, "/", "", "", http.StatusUnauthorized)
+
+	// User-level headers extend or override the global response headers.
+	cfg = globalHeaders + `
+users:
+- bearer_token: secret
+  url_prefix: {BACKEND}
+  response_headers:
+  - "foo: user"
+`
+	f(cfg, "/", "secret", "user", http.StatusCreated)
+
+	// URL maps inherit global headers and can override them independently of user-level headers.
+	cfg = globalHeaders + `
+users:
+- bearer_token: secret
+  default_url: {BACKEND}
+  response_headers:
+  - "foo: user"
+  url_map:
+  - src_paths: ["/route"]
+    url_prefix: {BACKEND}
+    response_headers:
+    - "foo: route"
+  - src_paths: ["/inherited"]
+    url_prefix: {BACKEND}
+`
+	f(cfg, "/route", "secret", "route", http.StatusCreated)
+	f(cfg, "/inherited", "secret", "global", http.StatusCreated)
+	f(cfg, "/default", "secret", "user", http.StatusCreated)
+
+	// Global response headers also apply to unauthorized_user.
+	cfg = globalHeaders + `
+unauthorized_user:
+  url_prefix: {BACKEND}
+`
+	f(cfg, "/", "", "global", http.StatusCreated)
+	cfg += `
+  response_headers:
+  - "foo: anonymous"
+`
+	f(cfg, "/", "", "anonymous", http.StatusCreated)
+}
+
 func TestRequestHandler(t *testing.T) {
 	f := func(cfgStr, requestURL string, backendHandler http.HandlerFunc, responseExpected string) {
 		t.Helper()
