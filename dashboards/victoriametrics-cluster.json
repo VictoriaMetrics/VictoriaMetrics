@@ -257,7 +257,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(vm_vminsert_metrics_read_total{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])) ",
+          "expr": "sum(rate({__name__=~\"vm_vminsert_metrics_read_total|vm_rows_inserted_total\", job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval]))",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -6006,7 +6006,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vm_vminsert_metrics_read_total{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])) ",
+              "expr": "sum(rate({__name__=~\"vm_vminsert_metrics_read_total|vm_rows_inserted_total\", job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval]))",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "ingestion rate",
