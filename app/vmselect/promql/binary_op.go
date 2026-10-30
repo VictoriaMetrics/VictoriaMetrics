@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metricsql"
 	"github.com/VictoriaMetrics/metricsql/binaryop"
@@ -671,30 +672,69 @@ func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
 		return
 	}
 
-	nameLeft, nameRight := bbPool.Get(), bbPool.Get()
+	var rightIdxByName map[string]int
+	rightIdxByNameSize := 0
+	rightIdxByNameSizeMax := memory.Allowed() / 1000
+	uncached := 0
+	name := bbPool.Get()
+	// A single left series compares each right name only once, so the map cannot save any work.
+	if len(tssLeft) > 1 {
+		rightIdxByName = make(map[string]int, len(tssRight))
+		uncached = len(tssRight)
+		for j, tsRight := range tssRight {
+			if rightIdxByNameSize >= rightIdxByNameSizeMax {
+				uncached = j
+				break
+			}
+			name.B = marshalMetricNameSorted(name.B[:0], &tsRight.MetricName)
+			rightIdxByName[string(name.B)] = j
+			rightIdxByNameSize += len(name.B)
+		}
+	}
+
+	nameRight := bbPool.Get()
+	leftHasValue := make([]bool, len(tssRight[0].Values))
 	for _, tsLeft := range tssLeft {
-		valuesLeft := tsLeft.Values
-		nameLeft.B = marshalMetricNameSorted(nameLeft.B[:0], &tsLeft.MetricName)
-		for i, v := range valuesLeft {
-			leftIsNaN := math.IsNaN(v)
-			for _, tsRight := range tssRight {
-				nameRight.B = marshalMetricNameSorted(nameRight.B[:0], &tsRight.MetricName)
-				canBeMerged := bytes.Equal(nameLeft.B, nameRight.B)
-				valueRight := tsRight.Values[i]
-				if leftIsNaN && canBeMerged {
-					// fill NaNs with valueRight if labels match
-					valuesLeft[i] = valueRight
-				}
-				if !leftIsNaN || canBeMerged {
-					// set NaN to valueRight if valueLeft is not NaN
-					// or if left and right can be merged
-					tsRight.Values[i] = nan
+		name.B = marshalMetricNameSorted(name.B[:0], &tsLeft.MetricName)
+		j, ok := rightIdxByName[string(name.B)]
+		if !ok {
+			for k := uncached; k < len(tssRight); k++ {
+				nameRight.B = marshalMetricNameSorted(nameRight.B[:0], &tssRight[k].MetricName)
+				if bytes.Equal(name.B, nameRight.B) {
+					j, ok = k, true
+					break
 				}
 			}
 		}
+
+		valuesLeft := tsLeft.Values
+		for i, v := range valuesLeft {
+			if !math.IsNaN(v) {
+				leftHasValue[i] = true
+				continue
+			}
+			if !ok {
+				continue
+			}
+			if leftHasValue[i] {
+				continue
+			}
+			valuesRight := tssRight[j].Values
+			valuesLeft[i] = valuesRight[i]
+			valuesRight[i] = nan
+		}
 	}
-	bbPool.Put(nameLeft)
+	bbPool.Put(name)
 	bbPool.Put(nameRight)
+
+	for _, tsRight := range tssRight {
+		valuesRight := tsRight.Values
+		for i, hasValue := range leftHasValue {
+			if hasValue {
+				valuesRight[i] = nan
+			}
+		}
+	}
 }
 
 func binaryOpIfnot(bfa *binaryOpFuncArg) ([]*timeseries, error) {
