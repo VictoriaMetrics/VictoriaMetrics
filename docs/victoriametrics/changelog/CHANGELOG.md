@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): reduce CPU usage when merging query results from non-interleaving blocks or identical replicas by avoiding heap-based merging.
+* 
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): prevent skipping aggregation and deduplication flushes when [aggregation windows](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-windows) are enabled and incoming samples are delayed by one interval or more, e.g. when the ingestion pipeline is overloaded. Previously, the flush delay could grow with the sample lag, causing skipped flushes and gaps in the results. Now the flush delay is capped at 90% of the aggregation or deduplication interval. See [#11811](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11811).
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): prevent spikes in `rate_sum` and `rate_avg` outputs with `enable_windows: true` when out-of-order samples arrive around the aggregation window boundary. Previously, an out-of-order sample could be treated as a counter reset, causing large spike in the result. See [#11810](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11810).
 
