@@ -62,6 +62,8 @@ Released at 2026-10-26
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): stop saving the automatically calculated query step in shared URLs, so opening a link recalculates the step for the selected time range and screen width. Explicitly configured steps remain fixed. See [#11638](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11638).
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): change the default time range for [/admin/tenants](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) HTTP endpoint to search tenants only for the current day instead of searching the entire `[0, now]` time range. This should prevent unnecessary load on `vmstorage` and prevent OOMs. See the updated [URL format](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) and [#11791](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11791) for details.
 
+* DOCS: [HTTP APIs](https://docs.victoriametrics.com/victoriametrics/url-examples/#http-status-codes): document common status codes and explain how to identify parsing errors in imported data. See [#7919](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7919).
+
 ## [v1.154.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.154.1)
 
 Released at 2026-10-20
