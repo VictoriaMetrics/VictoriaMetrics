@@ -8477,12 +8477,12 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
-	t.Run(`running_avg(time() != 1400)`, func(t *testing.T) {
+	t.Run(`running_avg(time() != 1500)`, func(t *testing.T) {
 		t.Parallel()
-		q := `running_avg(time() != 1400)`
+		q := `running_avg(time() != 1500)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{1000, 1100, 1100, 1266.6666666666667, 1400, 1520},
+			Values:     []float64{1000, 1100, 1200, 1300, 1400, 1500},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
