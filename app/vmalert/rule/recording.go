@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
+	"strconv"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
@@ -262,17 +262,20 @@ func (rr *RecordingRule) logDebugf(at time.Time, format string, args ...any) {
 	logger.Infof("%s", prefix+msg)
 }
 
+// stringifyLabels returns a unique key for the given labels.
+// Label values are quoted, so values containing ',' or '=' can't make
+// two different label sets produce the same key.
 func stringifyLabels(labels []prompb.Label) string {
-	b := strings.Builder{}
+	var b []byte
 	for i, l := range labels {
-		b.WriteString(l.Name)
-		b.WriteString("=")
-		b.WriteString(l.Value)
+		b = append(b, l.Name...)
+		b = append(b, '=')
+		b = strconv.AppendQuote(b, l.Value)
 		if i != len(labels)-1 {
-			b.WriteString(",")
+			b = append(b, ',')
 		}
 	}
-	return b.String()
+	return string(b)
 }
 
 func (rr *RecordingRule) toTimeSeries(m datasource.Metric) prompb.TimeSeries {

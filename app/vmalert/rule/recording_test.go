@@ -486,6 +486,29 @@ func TestRecordingRuleExec_Negative(t *testing.T) {
 	}
 }
 
+func TestRecordingRuleExec_LabelValuesWithSeparators(t *testing.T) {
+	rr := &RecordingRule{
+		Name:    "job:foo",
+		state:   &ruleState{entries: make([]StateEntry, 10)},
+		metrics: getTestRecordingRuleMetrics(),
+	}
+	fq := &datasource.FakeQuerier{}
+	rr.q = fq
+
+	// these series have different labels, but would get the same key
+	// if label values with ',' and '=' were not escaped
+	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "x", "1,y=2"))
+	fq.Add(metricWithValueAndLabels(t, 2, "__name__", "foo", "x", "1", "y", "2"))
+
+	tss, err := rr.exec(context.TODO(), time.Now(), 0, nil)
+	if err != nil {
+		t.Fatalf("cannot execute recording rule: %s", err)
+	}
+	if len(tss) != 2 {
+		t.Fatalf("expected to get 2 time series; got %d", len(tss))
+	}
+}
+
 func TestSetIntervalAsTimeFilter(t *testing.T) {
 	f := func(s, dType string, expected bool) {
 		t.Helper()
