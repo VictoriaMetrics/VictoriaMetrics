@@ -221,6 +221,49 @@ func TestRecordingRule_Exec(t *testing.T) {
 				},
 			}),
 	}})
+
+	// label values with ',' and '=' must be kept as is in stale markers
+	f(&RecordingRule{
+		Name: "foo",
+	}, [][]datasource.Metric{
+		{
+			metricWithValueAndLabels(t, 1, "__name__", "bar", "path", "/api?a=b,c=d", "job", "foo"),
+		},
+		{},
+	}, [][]prompb.TimeSeries{
+		{
+			newTimeSeries([]float64{1}, []int64{ts.UnixNano()}, []prompb.Label{
+				{
+					Name:  "__name__",
+					Value: "foo",
+				},
+				{
+					Name:  "path",
+					Value: "/api?a=b,c=d",
+				},
+				{
+					Name:  "job",
+					Value: "foo",
+				},
+			}),
+		},
+		{
+			newTimeSeries([]float64{decimal.StaleNaN}, []int64{ts.Add(defaultStep).UnixNano()}, []prompb.Label{
+				{
+					Name:  "__name__",
+					Value: "foo",
+				},
+				{
+					Name:  "path",
+					Value: "/api?a=b,c=d",
+				},
+				{
+					Name:  "job",
+					Value: "foo",
+				},
+			}),
+		},
+	})
 }
 
 func TestRecordingRule_ExecRange(t *testing.T) {
