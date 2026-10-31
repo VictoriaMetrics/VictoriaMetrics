@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
+	"strconv"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
@@ -39,7 +39,10 @@ type RecordingRule struct {
 	// during evaluations
 	state *ruleState
 
-	lastEvaluation map[string]struct{}
+	// lastEvaluation holds the labels of the series produced by the previous
+	// evaluation, keyed by stringifyLabels. The labels are kept as is, since
+	// the key can't be parsed back reliably when label values contain ',' or '='.
+	lastEvaluation map[string][]prompb.Label
 
 	metrics *recordingRuleMetrics
 }
@@ -221,7 +224,7 @@ func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int, _ fu
 		return nil, curState.Err
 	}
 
-	curEvaluation := make(map[string]struct{}, len(qMetrics))
+	curEvaluation := make(map[string][]prompb.Label, len(qMetrics))
 	lastEvaluation := rr.lastEvaluation
 	var tss []prompb.TimeSeries
 	for _, r := range qMetrics {
@@ -231,14 +234,14 @@ func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int, _ fu
 			curState.Err = fmt.Errorf("original metric %v; resulting labels %q: %w", r, key, errDuplicate)
 			return nil, curState.Err
 		}
-		curEvaluation[key] = struct{}{}
+		curEvaluation[key] = ts.Labels
 		delete(lastEvaluation, key)
 		tss = append(tss, ts)
 	}
 	// check for stale time series
-	for k := range lastEvaluation {
+	for _, labels := range lastEvaluation {
 		tss = append(tss, prompb.TimeSeries{
-			Labels: stringToLabels(k),
+			Labels: labels,
 			Samples: []prompb.Sample{
 				{Value: decimal.StaleNaN, Timestamp: ts.UnixNano() / 1e6},
 			},
@@ -259,31 +262,20 @@ func (rr *RecordingRule) logDebugf(at time.Time, format string, args ...any) {
 	logger.Infof("%s", prefix+msg)
 }
 
-func stringToLabels(s string) []prompb.Label {
-	labels := strings.Split(s, ",")
-	rLabels := make([]prompb.Label, 0, len(labels))
-	for i := range labels {
-		if label := strings.Split(labels[i], "="); len(label) == 2 {
-			rLabels = append(rLabels, prompb.Label{
-				Name:  label[0],
-				Value: label[1],
-			})
-		}
-	}
-	return rLabels
-}
-
+// stringifyLabels returns a unique key for the given labels.
+// Label values are quoted, so values containing ',' or '=' can't make
+// two different label sets produce the same key.
 func stringifyLabels(labels []prompb.Label) string {
-	b := strings.Builder{}
+	var b []byte
 	for i, l := range labels {
-		b.WriteString(l.Name)
-		b.WriteString("=")
-		b.WriteString(l.Value)
+		b = append(b, l.Name...)
+		b = append(b, '=')
+		b = strconv.AppendQuote(b, l.Value)
 		if i != len(labels)-1 {
-			b.WriteString(",")
+			b = append(b, ',')
 		}
 	}
-	return b.String()
+	return string(b)
 }
 
 func (rr *RecordingRule) toTimeSeries(m datasource.Metric) prompb.TimeSeries {
