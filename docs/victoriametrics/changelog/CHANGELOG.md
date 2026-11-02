@@ -26,11 +26,16 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): prevent skipping aggregation and deduplication flushes when [aggregation windows](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-windows) are enabled and incoming samples are delayed by one interval or more, e.g. when the ingestion pipeline is overloaded. Previously, the flush delay could grow with the sample lag, causing skipped flushes and gaps in the results. Now the flush delay is capped at 90% of the aggregation or deduplication interval. See [#11811](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11811).
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): prevent spikes in `rate_sum` and `rate_avg` outputs with `enable_windows: true` when out-of-order samples arrive around the aggregation window boundary. Previously, an out-of-order sample could be treated as a counter reset, causing large spike in the result. See [#11810](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11810).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly calculate [running_avg](https://docs.victoriametrics.com/victoriametrics/metricsql/#running_avg) and [range_avg](https://docs.victoriametrics.com/victoriametrics/metricsql/#range_avg) for series with `NaN` points in the middle. Previously, every `NaN` point was counted in the divisor, so each value after the gap moved the result by less than it should. See [#11823](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11823). Thanks to @spicysharkco for contribution.
 * BUGFIX: vmselect: do not increase `vm_http_request_errors_total` when a query is canceled. This prevents false `RequestErrorsToAPI` alerts. See [#11828](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11828).
 
 ## [v1.155.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.155.0)
 
 Released at 2026-10-26
+
+{{< youtube d_p5DNgKmpU >}}
 
 **Update Note 1:** `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): `/admin/tenants` requests without `start` and `end` query args now return tenants for the current day. This is a breaking change because previously it was expected to return all tenants. If you still need to retrieve all tenants, set the `start` and `end` params so that the resulting time range fully includes the `-retentionPeriod`. Also note that [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/) is known to send requests to `/admin/tenants` under the hood when migrating data between VictoriaMetrics deployments. Therefore, make sure that you run `vmctl` with both `*-filter-time-start` and `*-filter-time-end` params. See the updated [URL format](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) and [#11791](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11791) for details.
 

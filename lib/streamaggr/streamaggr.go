@@ -815,6 +815,13 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlu
 		pf := pushFunc
 		if a.enableWindows {
 			delay := time.Duration(a.flushAfterMsec.Swap(0)) * time.Millisecond
+			// Cap the delay at 90% of the flush interval, so the flush has some time left to finish before the next tick.
+			// Otherwise the flusher may skip the next interval and merge it into the following one.
+			// The delay may exceed the interval if the samples lag keeps growing, e.g. when the ingestion pipeline is overloaded.
+			// The uncapped delay would then grow with every flush and cause missing aggregation results,
+			// while the correctness of the produced results can't be guaranteed in this case anyway.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11811
+			delay = min(delay, interval*9/10)
 			time.Sleep(delay)
 		}
 

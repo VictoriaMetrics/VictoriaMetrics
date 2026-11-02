@@ -366,8 +366,8 @@ foo:1m_total{baz="qwe"} 15
 	f([]string{`
 foo 123
 bar{baz="qwe"} 1.32
-bar{baz="qwe"} 4.34
-bar{baz="qwe"} 2
+bar{baz="qwe"} 4.34 1
+bar{baz="qwe"} 2 2
 foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
@@ -385,8 +385,8 @@ foo:1m_total_prometheus{baz="qwe"} 15
 	f([]string{`
 foo 123
 bar{baz="qwe"} 1.32
-bar{baz="qwe"} 4.34
-bar{baz="qwe"} 2
+bar{baz="qwe"} 4.34 1
+bar{baz="qwe"} 2 2
 foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
@@ -403,8 +403,8 @@ foo:1m_total 15
 	f([]string{`
 foo 123
 bar{baz="qwe"} 1.32
-bar{baz="qwe"} 4.34
-bar{baz="qwe"} 2
+bar{baz="qwe"} 4.34 1
+bar{baz="qwe"} 2 2
 foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
@@ -416,6 +416,19 @@ foo:1m_total_prometheus 15
   by: [__name__]
   outputs: [total_prometheus]
 `, "11111111")
+
+	// total output must skip a duplicate sample with the same timestamp and a lower value instead of treating it as a counter reset
+	f([]string{`
+foo 100
+foo 105 10
+foo 103 10
+foo 105 10
+foo 110 20
+`}, time.Minute, `foo:1m_total 10
+`, `
+- interval: 1m
+  outputs: [total]
+`, "11111")
 
 	// increase output for non-repeated series
 	f([]string{`
@@ -443,8 +456,8 @@ foo:1m_increase_prometheus 0
 	f([]string{`
 foo 123
 bar{baz="qwe"} 1.32
-bar{baz="qwe"} 4.34
-bar{baz="qwe"} 2
+bar{baz="qwe"} 4.34 1
+bar{baz="qwe"} 2 2
 foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
@@ -462,8 +475,8 @@ foo:1m_increase{baz="qwe"} 15
 	f([]string{`
 foo 123
 bar{baz="qwe"} 1.32
-bar{baz="qwe"} 4.34
-bar{baz="qwe"} 2
+bar{baz="qwe"} 4.34 1
+bar{baz="qwe"} 2 2
 foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
@@ -986,4 +999,24 @@ foo:1m_total 3
   outputs: [increase, total]
   enable_windows: true
 `, "1111111111")
+
+	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11810
+	// rate_sum with enable_windows must skip out-of-order samples across windows instead of treating them as counter resets.
+	f([]string{`
+foo 1000000
+foo 1000005 5
+`, `
+foo 1000065 35
+bar 1 -30
+`, `
+foo 1000045 -10
+`, `
+foo 1000090
+`, ``, ``}, 30*time.Second, `foo:1m_rate_sum 1
+foo:1m_rate_sum 1
+`, `
+- interval: 1m
+  outputs: [rate_sum]
+  enable_windows: true
+`, "111111")
 }
