@@ -24,9 +24,9 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "latest backup hasn't completed successfully for more than a day on \"{{ $labels.job }}\"(\"{{ $labels.instance }}\")"
+          summary: "latest backup hasn't completed successfully for more than 1 day on \"{{ $labels.job }}\"(\"{{ $labels.instance }}\")"
           description: >
-            vmbackupmanager on "{{ $labels.job }}"("{{ $labels.instance }}") hasn't completed the latest backup for more than a day.
+            vmbackupmanager on "{{ $labels.job }}"("{{ $labels.instance }}") hasn't completed the latest backup for more than 1 day.
             The threshold assumes the default backup schedule. If -backupInterval is set to a value
             longer than the threshold, the alert fires between scheduled backups, so adjust the threshold accordingly.
             Check error logs on vmbackupmanager for root cause.
