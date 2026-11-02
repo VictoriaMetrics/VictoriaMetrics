@@ -131,8 +131,8 @@ func TestSearchMetricNamesV3(t *testing.T) {
 // vmselect API that is used in TestSearchMetricNamesV3ClosedConn().
 type testSearchMetricNamesV3ClosedConnAPI struct {
 	API
-	called    chan struct{}
-	cancelled chan struct{}
+	called   chan struct{}
+	canceled chan struct{}
 }
 
 func (api *testSearchMetricNamesV3ClosedConnAPI) SearchMetricNames(ctx context.Context, _ *querytracer.Tracer, _ *storage.SearchQuery) ([]string, error) {
@@ -142,7 +142,7 @@ func (api *testSearchMetricNamesV3ClosedConnAPI) SearchMetricNames(ctx context.C
 	defer tt.Stop()
 	select {
 	case <-ctx.Done():
-		close(api.cancelled)
+		close(api.canceled)
 	case <-tt.C:
 		panic("timed out while waiting for API call to be canceled")
 	}
@@ -160,8 +160,8 @@ func TestSearchMetricNamesV3ClosedConn(t *testing.T) {
 
 	// Start the vmselect RPC server and connect to it.
 	api := &testSearchMetricNamesV3ClosedConnAPI{
-		called:    make(chan struct{}),
-		cancelled: make(chan struct{}),
+		called:   make(chan struct{}),
+		canceled: make(chan struct{}),
 	}
 	s := startServer(t, api)
 	defer s.MustStop()
@@ -176,7 +176,7 @@ func TestSearchMetricNamesV3ClosedConn(t *testing.T) {
 	c.WriteSearchQuery(sq)
 	<-api.called
 	c.Close()
-	<-api.cancelled
+	<-api.canceled
 }
 
 func startServer(t *testing.T, api API) *Server {
