@@ -128,8 +128,8 @@ func TestSearchMetricNamesV3(t *testing.T) {
 	f([]string{"m1", "m2", "m3"}, "")
 }
 
-// testSearchMetricNamesV3API is the fake implementation of the vmselect API
-// that is used in TestSearchMetricNamesV3ClosedConn().
+// testSearchMetricNamesV3ClosedConnAPI is the fake implementation of the
+// vmselect API that is used in TestSearchMetricNamesV3ClosedConn().
 type testSearchMetricNamesV3ClosedConnAPI struct {
 	API
 	called chan struct{}
