@@ -10,7 +10,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
@@ -142,7 +141,6 @@ func (api *testSearchMetricNamesV3ClosedConnAPI) SearchMetricNames(ctx context.C
 	defer tt.Stop()
 	select {
 	case <-ctx.Done():
-		logger.Errorf("cancel searching metric names")
 		return nil, nil
 	case <-tt.C:
 		panic("timed out while waiting for API call to be canceled")
