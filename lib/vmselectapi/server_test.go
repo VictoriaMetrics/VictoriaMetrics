@@ -10,8 +10,10 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -24,12 +26,13 @@ type testSearchMetricNamesV3API struct {
 	err            error
 }
 
-func (api *testSearchMetricNamesV3API) SearchMetricNames(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery) ([]string, error) {
+func (api *testSearchMetricNamesV3API) SearchMetricNames(_ context.Context, _ *querytracer.Tracer, sq *storage.SearchQuery) ([]string, error) {
 	api.gotSearchQuery = sq
 	return api.metricNames, api.err
 }
 
 func TestSearchMetricNamesV3(t *testing.T) {
+	defer metrics.UnregisterAllMetrics()
 	const (
 		enableQueryTracer = false
 		timeoutSecs       = 1
@@ -123,6 +126,55 @@ func TestSearchMetricNamesV3(t *testing.T) {
 	f([]string{"m1", "m2"}, "")
 	f(nil, "test error")
 	f([]string{"m1", "m2", "m3"}, "")
+}
+
+// testSearchMetricNamesV3API is the fake implementation of the vmselect API
+// that is used in TestSearchMetricNamesV3ClosedConn().
+type testSearchMetricNamesV3ClosedConnAPI struct {
+	API
+	called chan struct{}
+}
+
+func (api *testSearchMetricNamesV3ClosedConnAPI) SearchMetricNames(ctx context.Context, _ *querytracer.Tracer, _ *storage.SearchQuery) ([]string, error) {
+	close(api.called)
+
+	tt := time.NewTimer(time.Second)
+	defer tt.Stop()
+	select {
+	case <-ctx.Done():
+		logger.Errorf("cancel searching metric names")
+		return nil, nil
+	case <-tt.C:
+		panic("timed out while waiting for API call to be canceled")
+	}
+}
+
+func TestSearchMetricNamesV3ClosedConn(t *testing.T) {
+	defer metrics.UnregisterAllMetrics()
+	const (
+		enableQueryTracer = false
+		timeoutSecs       = 1
+	)
+	tfss := [][]storage.TagFilter{{tf(nil, []byte("metric1"), false, false)}}
+	sq := storage.NewSearchQuery(12, 34, 56, 78, tfss, 90)
+
+	// Start the vmselect RPC server and connect to it.
+	api := &testSearchMetricNamesV3ClosedConnAPI{
+		called: make(chan struct{}),
+	}
+	s := startServer(t, api)
+	defer s.MustStop()
+	c := newConn(t, s)
+
+	// Make an RPC, wait until the server calls the API, and close the connection.
+	// was called the correct arguments. Closing the connection should trigger
+	// the API call cancelation.
+	c.WriteString("searchMetricNames_v3")
+	c.WriteBool(enableQueryTracer)
+	c.WriteUint32(timeoutSecs)
+	c.WriteSearchQuery(sq)
+	<-api.called
+	c.Close()
 }
 
 func startServer(t *testing.T, api API) *Server {
