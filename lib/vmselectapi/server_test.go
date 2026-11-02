@@ -8,12 +8,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 )
 
 // testSearchMetricNamesV3API is the fake implementation of the vmselect API
@@ -179,6 +184,1028 @@ func TestSearchMetricNamesV3ClosedConn(t *testing.T) {
 	<-api.canceled
 }
 
+// testBlockIterator is the fake implementation of BlockIterator
+// that is used in TestSearchV7().
+type testBlockIterator struct {
+	blocks [][]byte
+	closed bool
+}
+
+func (bi *testBlockIterator) NextBlock(_ context.Context, dst []byte) ([]byte, bool) {
+	if len(bi.blocks) == 0 {
+		return dst, false
+	}
+	dst = append(dst, bi.blocks[0]...)
+	bi.blocks = bi.blocks[1:]
+	return dst, true
+}
+
+func (bi *testBlockIterator) MustClose() {
+	bi.closed = true
+}
+
+func (bi *testBlockIterator) Error() error {
+	return nil
+}
+
+// testSearchV7API is the fake implementation of the vmselect API
+// that is used in TestSearchV7().
+type testSearchV7API struct {
+	API
+	gotSearchQuery *storage.SearchQuery
+	bi             *testBlockIterator
+	err            error
+}
+
+func (api *testSearchV7API) InitSearch(_ context.Context, _ *querytracer.Tracer, sq *storage.SearchQuery) (BlockIterator, error) {
+	api.gotSearchQuery = sq
+	if api.err != nil {
+		return nil, api.err
+	}
+	return api.bi, nil
+}
+
+func TestSearchV7(t *testing.T) {
+	defer metrics.UnregisterAllMetrics()
+	const enableQueryTracer = false
+
+	api := &testSearchV7API{}
+	s := startServer(t, api)
+	defer s.MustStop()
+	c := newConn(t, s)
+	defer c.Close()
+
+	f := func(wantBlocks []string, wantErr string) {
+		t.Helper()
+
+		sq := newTestSearchQuery()
+		api.gotSearchQuery = nil
+		api.bi = &testBlockIterator{}
+		for _, b := range wantBlocks {
+			api.bi.blocks = append(api.bi.blocks, []byte(b))
+		}
+		api.err = nil
+		if wantErr != "" {
+			api.err = errors.New(wantErr)
+		}
+
+		c.WriteString("search_v7")
+		c.WriteBool(enableQueryTracer)
+		c.WriteUint32(1)
+		c.WriteSearchQuery(sq)
+		if gotErr := c.ReadString(); gotErr != wantErr {
+			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
+		}
+		if diff := cmp.Diff(sq, api.gotSearchQuery); diff != "" {
+			t.Fatalf("unexpected search query (-want, +got):\n%s", diff)
+		}
+		if wantErr != "" {
+			c.ReadEmptyTrace()
+			return
+		}
+
+		var gotBlocks []string
+		for {
+			b := c.ReadString()
+			if b == "" {
+				break
+			}
+			gotBlocks = append(gotBlocks, b)
+		}
+		if diff := cmp.Diff(wantBlocks, gotBlocks, cmpopts.EquateEmpty()); diff != "" {
+			t.Fatalf("unexpected blocks (-want, +got):\n%s", diff)
+		}
+		c.ReadEmptyTrace()
+		if !api.bi.closed {
+			t.Fatalf("block iterator must be closed")
+		}
+	}
+
+	f([]string{}, "")
+	f([]string{"block1"}, "")
+	f([]string{"block1", "block2"}, "")
+	f(nil, "test error")
+	f([]string{"block1", "block2", "block3"}, "")
+}
+
+// testLabelValuesV5API is the fake implementation of the vmselect API
+// that is used in TestLabelValuesV5().
+type testLabelValuesV5API struct {
+	API
+	gotSearchQuery    *storage.SearchQuery
+	gotLabelName      string
+	gotMaxLabelValues int
+	labelValues       []string
+	err               error
+}
+
+func (api *testLabelValuesV5API) LabelValues(_ context.Context, _ *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int) ([]string, error) {
+	api.gotSearchQuery = sq
+	api.gotLabelName = labelName
+	api.gotMaxLabelValues = maxLabelValues
+	return api.labelValues, api.err
+}
+
+func TestLabelValuesV5(t *testing.T) {
+	defer metrics.UnregisterAllMetrics()
+	const (
+		enableQueryTracer = false
+		labelName         = "label1"
+		maxLabelValues    = 100
+	)
+
+	api := &testLabelValuesV5API{}
+	s := startServer(t, api)
+	defer s.MustStop()
+	c := newConn(t, s)
+	defer c.Close()
+
+	f := func(wantLabelValues []string, wantErr string) {
+		t.Helper()
+
+		sq := newTestSearchQuery()
+		api.gotSearchQuery = nil
+		api.gotLabelName = ""
+		api.gotMaxLabelValues = 0
+		api.labelValues = wantLabelValues
+		api.err = nil
+		if wantErr != "" {
+			api.err = errors.New(wantErr)
+		}
+
+		c.WriteString("labelValues_v5")
+		c.WriteBool(enableQueryTracer)
+		c.WriteUint32(1)
+		c.WriteString(labelName)
+		c.WriteSearchQuery(sq)
+		c.WriteUint32(maxLabelValues)
+		if gotErr := c.ReadString(); gotErr != wantErr {
+			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
+		}
+		if diff := cmp.Diff(sq, api.gotSearchQuery); diff != "" {
+			t.Fatalf("unexpected search query (-want, +got):\n%s", diff)
+		}
+		if api.gotLabelName != labelName {
+			t.Fatalf("unexpected labelName: got %q, want %q", api.gotLabelName, labelName)
+		}
+		if api.gotMaxLabelValues != maxLabelValues {
+			t.Fatalf("unexpected maxLabelValues: got %d, want %d", api.gotMaxLabelValues, maxLabelValues)
+		}
+		if wantErr != "" {
+			c.ReadEmptyTrace()
+			return
+		}
+
+		var gotLabelValues []string
+		for {
+			v := c.ReadString()
+			if v == "" {
+				break
+			}
+			gotLabelValues = append(gotLabelValues, v)
+		}
+		if diff := cmp.Diff(wantLabelValues, gotLabelValues, cmpopts.EquateEmpty()); diff != "" {
+			t.Fatalf("unexpected label values (-want, +got):\n%s", diff)
+		}
+		c.ReadEmptyTrace()
+	}
+
+	f([]string{}, "")
+	f([]string{"v1"}, "")
+	f([]string{"v1", "v2"}, "")
+	f(nil, "test error")
+	f([]string{"v1", "v2", "v3"}, "")
+}
+
+// testTagValueSuffixesV4API is the fake implementation of the vmselect API
+// that is used in TestTagValueSuffixesV4().
+type testTagValueSuffixesV4API struct {
+	API
+	gotAccountID      uint32
+	gotProjectID      uint32
+	gotTimeRange      storage.TimeRange
+	gotTagKey         string
+	gotTagValuePrefix string
+	gotDelimiter      byte
+	gotMaxSuffixes    int
+	suffixes          []string
+	err               error
+}
+
+func (api *testTagValueSuffixesV4API) TagValueSuffixes(_ context.Context, _ *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxSuffixes int) ([]string, error) {
+	api.gotAccountID = accountID
+	api.gotProjectID = projectID
+	api.gotTimeRange = tr
+	api.gotTagKey = tagKey
+	api.gotTagValuePrefix = tagValuePrefix
+	api.gotDelimiter = delimiter
+	api.gotMaxSuffixes = maxSuffixes
+	return api.suffixes, api.err
+}
+
+func TestTagValueSuffixesV4(t *testing.T) {
+	defer metrics.UnregisterAllMetrics()
+	const (
+		enableQueryTracer = false
+		accountID         = 12
+		projectID         = 34
+		minTimestamp      = 123456789
+		maxTimestamp      = 987654321
+		tagKey            = "key1"
+		tagValuePrefix    = "prefix."
+		delimiter         = '.'
+		maxSuffixes       = 100
+	)
+
+	api := &testTagValueSuffixesV4API{}
+	s := startServer(t, api)
+	defer s.MustStop()
+	c := newConn(t, s)
+	defer c.Close()
+
+	f := func(wantSuffixes []string, wantErr string) {
+		t.Helper()
+
+		*api = testTagValueSuffixesV4API{suffixes: wantSuffixes}
+		if wantErr != "" {
+			api.err = errors.New(wantErr)
+		}
+
+		c.WriteString("tagValueSuffixes_v4")
+		c.WriteBool(enableQueryTracer)
+		c.WriteUint32(1)
+		c.WriteUint32(accountID)
+		c.WriteUint32(projectID)
+		c.WriteUint64(minTimestamp)
+		c.WriteUint64(maxTimestamp)
+		c.WriteString(tagKey)
+		c.WriteString(tagValuePrefix)
+		c.WriteUint8(delimiter)
+		c.WriteUint32(maxSuffixes)
+		if gotErr := c.ReadString(); gotErr != wantErr {
+			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
+		}
+		wantAPI := testTagValueSuffixesV4API{
+			gotAccountID:      accountID,
+			gotProjectID:      projectID,
+			gotTimeRange:      storage.TimeRange{MinTimestamp: minTimestamp, MaxTimestamp: maxTimestamp},
+			gotTagKey:         tagKey,
+			gotTagValuePrefix: tagValuePrefix,
+			gotDelimiter:      delimiter,
+			gotMaxSuffixes:    maxSuffixes,
+		}
+		gotAPI := *api
+		gotAPI.suffixes = nil
+		gotAPI.err = nil
+		if diff := cmp.Diff(wantAPI, gotAPI, cmp.AllowUnexported(testTagValueSuffixesV4API{})); diff != "" {
+			t.Fatalf("unexpected API args (-want, +got):\n%s", diff)
+		}
+		if wantErr != "" {
+			c.ReadEmptyTrace()
+			return
+		}
+
+		n := c.ReadUint64()
+		gotSuffixes := make([]string, n)
+		for i := range gotSuffixes {
+			gotSuffixes[i] = c.ReadString()
+		}
+		if diff := cmp.Diff(wantSuffixes, gotSuffixes, cmpopts.EquateEmpty()); diff != "" {
+			t.Fatalf("unexpected suffixes (-want, +got):\n%s", diff)
+		}
+		c.ReadEmptyTrace()
+	}
+
+	f([]string{}, "")
+	f([]string{"s1"}, "")
+	f([]string{"", "s1", "s2"}, "")
+	f(nil, "test error")
+	f([]string{"s1", "s2", "s3"}, "")
+}
+
+// testLabelNamesV5API is the fake implementation of the vmselect API
+// that is used in TestLabelNamesV5().
+type testLabelNamesV5API struct {
+	API
+	gotSearchQuery   *storage.SearchQuery
+	gotMaxLabelNames int
+	labelNames       []string
+	err              error
+}
+
+func (api *testLabelNamesV5API) LabelNames(_ context.Context, _ *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int) ([]string, error) {
+	api.gotSearchQuery = sq
+	api.gotMaxLabelNames = maxLabelNames
+	return api.labelNames, api.err
+}
+
+func TestLabelNamesV5(t *testing.T) {
+	defer metrics.UnregisterAllMetrics()
+	const (
+		enableQueryTracer = false
+		maxLabelNames     = 100
+	)
+
+	api := &testLabelNamesV5API{}
+	s := startServer(t, api)
+	defer s.MustStop()
+	c := newConn(t, s)
+	defer c.Close()
+
+	f := func(wantLabelNames []string, wantErr string) {
+		t.Helper()
+
+		sq := newTestSearchQuery()
+		api.gotSearchQuery = nil
+		api.gotMaxLabelNames = 0
+		api.labelNames = wantLabelNames
+		api.err = nil
+		if wantErr != "" {
+			api.err = errors.New(wantErr)
+		}
+
+		c.WriteString("labelNames_v5")
+		c.WriteBool(enableQueryTracer)
+		c.WriteUint32(1)
+		c.WriteSearchQuery(sq)
+		c.WriteUint32(maxLabelNames)
+		if gotErr := c.ReadString(); gotErr != wantErr {
+			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
+		}
+		if diff := cmp.Diff(sq, api.gotSearchQuery); diff != "" {
+			t.Fatalf("unexpected search query (-want, +got):\n%s", diff)
+		}
+		if api.gotMaxLabelNames != maxLabelNames {
+			t.Fatalf("unexpected maxLabelNames: got %d, want %d", api.gotMaxLabelNames, maxLabelNames)
+		}
+		if wantErr != "" {
+			c.ReadEmptyTrace()
+			return
+		}
+
+		var gotLabelNames []string
+		for {
+			v := c.ReadString()
+			if v == "" {
+				break
+			}
+			gotLabelNames = append(gotLabelNames, v)
+		}
+		if diff := cmp.Diff(wantLabelNames, gotLabelNames, cmpopts.EquateEmpty()); diff != "" {
+			t.Fatalf("unexpected label names (-want, +got):\n%s", diff)
+		}
+		c.ReadEmptyTrace()
+	}
+
+	f([]string{}, "")
+	f([]string{"l1"}, "")
+	f([]string{"l1", "l2"}, "")
+	f(nil, "test error")
+	f([]string{"l1", "l2", "l3"}, "")
+}
+
+// testSeriesCountV4API is the fake implementation of the vmselect API
+// that is used in TestSeriesCountV4().
+type testSeriesCountV4API struct {
+	API
+	gotAccountID uint32
+	gotProjectID uint32
+	n            uint64
+	err          error
+}
+
+func (api *testSeriesCountV4API) SeriesCount(_ context.Context, _ *querytracer.Tracer, accountID, projectID uint32) (uint64, error) {
+	api.gotAccountID = accountID
+	api.gotProjectID = projectID
+	return api.n, api.err
+}
+
+func TestSeriesCountV4(t *testing.T) {
+	defer metrics.UnregisterAllMetrics()
+	const (
+		enableQueryTracer = false
+		accountID         = 12
+		projectID         = 34
+	)
+
+	api := &testSeriesCountV4API{}
+	s := startServer(t, api)
+	defer s.MustStop()
+	c := newConn(t, s)
+	defer c.Close()
+
+	f := func(wantN uint64, wantErr string) {
+		t.Helper()
+
+		*api = testSeriesCountV4API{n: wantN}
+		if wantErr != "" {
+			api.err = errors.New(wantErr)
+		}
+
+		c.WriteString("seriesCount_v4")
+		c.WriteBool(enableQueryTracer)
+		c.WriteUint32(1)
+		c.WriteUint32(accountID)
+		c.WriteUint32(projectID)
+		if gotErr := c.ReadString(); gotErr != wantErr {
+			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
+		}
+		if api.gotAccountID != accountID || api.gotProjectID != projectID {
+			t.Fatalf("unexpected tenant: got %d:%d, want %d:%d", api.gotAccountID, api.gotProjectID, accountID, projectID)
+		}
+		if wantErr != "" {
+			c.ReadEmptyTrace()
+			return
+		}
+
+		if got := c.ReadUint64(); got != wantN {
+			t.Fatalf("unexpected series count: got %d, want %d", got, wantN)
+		}
+		c.ReadEmptyTrace()
+	}
+
+	f(0, "")
+	f(123, "")
+	f(0, "test error")
+	f(456, "")
+}
+
+// testTSDBStatusV6API is the fake implementation of the vmselect API
+// that is used in TestTSDBStatusV6().
+type testTSDBStatusV6API struct {
+	API
+	gotSearchQuery *storage.SearchQuery
+	gotFocusLabel  string
+	gotTopN        int
+	status         *storage.TSDBStatus
+	err            error
+}
+
+func (api *testTSDBStatusV6API) TSDBStatus(_ context.Context, _ *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int) (*storage.TSDBStatus, error) {
+	api.gotSearchQuery = sq
+	api.gotFocusLabel = focusLabel
+	api.gotTopN = topN
+	return api.status, api.err
+}
+
+func TestTSDBStatusV6(t *testing.T) {
+	defer metrics.UnregisterAllMetrics()
+	const (
+		enableQueryTracer = false
+		focusLabel        = "label1"
+		topN              = 10
+	)
+
+	api := &testTSDBStatusV6API{}
+	s := startServer(t, api)
+	defer s.MustStop()
+	c := newConn(t, s)
+	defer c.Close()
+
+	readTopHeapEntries := func() []storage.TopHeapEntry {
+		t.Helper()
+		entries := make([]storage.TopHeapEntry, c.ReadUint64())
+		for i := range entries {
+			entries[i].Name = c.ReadString()
+			entries[i].Count = c.ReadUint64()
+		}
+		return entries
+	}
+
+	f := func(wantStatus *storage.TSDBStatus, wantErr string) {
+		t.Helper()
+
+		sq := newTestSearchQuery()
+		api.gotSearchQuery = nil
+		api.gotFocusLabel = ""
+		api.gotTopN = 0
+		api.status = wantStatus
+		api.err = nil
+		if wantErr != "" {
+			api.err = errors.New(wantErr)
+		}
+
+		c.WriteString("tsdbStatus_v6")
+		c.WriteBool(enableQueryTracer)
+		c.WriteUint32(1)
+		c.WriteSearchQuery(sq)
+		c.WriteString(focusLabel)
+		c.WriteUint32(topN)
+		if gotErr := c.ReadString(); gotErr != wantErr {
+			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
+		}
+		if diff := cmp.Diff(sq, api.gotSearchQuery); diff != "" {
+			t.Fatalf("unexpected search query (-want, +got):\n%s", diff)
+		}
+		if api.gotFocusLabel != focusLabel {
+			t.Fatalf("unexpected focusLabel: got %q, want %q", api.gotFocusLabel, focusLabel)
+		}
+		if api.gotTopN != topN {
+			t.Fatalf("unexpected topN: got %d, want %d", api.gotTopN, topN)
+		}
+		if wantErr != "" {
+			c.ReadEmptyTrace()
+			return
+		}
+
+		gotStatus := &storage.TSDBStatus{
+			TotalSeries:                  c.ReadUint64(),
+			TotalLabelValuePairs:         c.ReadUint64(),
+			SeriesCountByMetricName:      readTopHeapEntries(),
+			SeriesCountByLabelName:       readTopHeapEntries(),
+			SeriesCountByFocusLabelValue: readTopHeapEntries(),
+			SeriesCountByLabelValuePair:  readTopHeapEntries(),
+			LabelValueCountByLabelName:   readTopHeapEntries(),
+		}
+		records := make([]metricnamestats.StatRecord, c.ReadUint64())
+		for i := range records {
+			records[i].MetricName = c.ReadString()
+			records[i].LastRequestTs = c.ReadUint64()
+			records[i].RequestsCount = c.ReadUint64()
+		}
+		gotStatus.SeriesQueryStatsByMetricName = records
+		if diff := cmp.Diff(wantStatus, gotStatus, cmpopts.EquateEmpty()); diff != "" {
+			t.Fatalf("unexpected status (-want, +got):\n%s", diff)
+		}
+		c.ReadEmptyTrace()
+	}
+
+	f(&storage.TSDBStatus{}, "")
+	f(&storage.TSDBStatus{
+		TotalSeries:                  100,
+		TotalLabelValuePairs:         200,
+		SeriesCountByMetricName:      []storage.TopHeapEntry{{Name: "m1", Count: 1}, {Name: "m2", Count: 2}},
+		SeriesCountByLabelName:       []storage.TopHeapEntry{{Name: "l1", Count: 3}},
+		SeriesCountByFocusLabelValue: []storage.TopHeapEntry{{Name: "v1", Count: 4}},
+		SeriesCountByLabelValuePair:  []storage.TopHeapEntry{{Name: "l1=v1", Count: 5}},
+		LabelValueCountByLabelName:   []storage.TopHeapEntry{{Name: "l1", Count: 6}},
+		SeriesQueryStatsByMetricName: []metricnamestats.StatRecord{{MetricName: "m1", RequestsCount: 7, LastRequestTs: 8}},
+	}, "")
+	f(nil, "test error")
+	f(&storage.TSDBStatus{TotalSeries: 1}, "")
+}
+
+// testDeleteSeriesV5API is the fake implementation of the vmselect API
+// that is used in TestDeleteSeriesV5().
+type testDeleteSeriesV5API struct {
+	API
+	gotSearchQuery *storage.SearchQuery
+	deletedCount   int
+	err            error
+}
+
+func (api *testDeleteSeriesV5API) DeleteSeries(_ context.Context, _ *querytracer.Tracer, sq *storage.SearchQuery) (int, error) {
+	api.gotSearchQuery = sq
+	return api.deletedCount, api.err
+}
+
+func TestDeleteSeriesV5(t *testing.T) {
+	defer metrics.UnregisterAllMetrics()
+	const enableQueryTracer = false
+
+	api := &testDeleteSeriesV5API{}
+	s := startServer(t, api)
+	defer s.MustStop()
+	c := newConn(t, s)
+	defer c.Close()
+
+	f := func(wantDeletedCount int, wantErr string) {
+		t.Helper()
+
+		sq := newTestSearchQuery()
+		*api = testDeleteSeriesV5API{deletedCount: wantDeletedCount}
+		if wantErr != "" {
+			api.err = errors.New(wantErr)
+		}
+
+		c.WriteString("deleteSeries_v5")
+		c.WriteBool(enableQueryTracer)
+		c.WriteUint32(1)
+		c.WriteSearchQuery(sq)
+		if gotErr := c.ReadString(); gotErr != wantErr {
+			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
+		}
+		if diff := cmp.Diff(sq, api.gotSearchQuery); diff != "" {
+			t.Fatalf("unexpected search query (-want, +got):\n%s", diff)
+		}
+		if wantErr != "" {
+			c.ReadEmptyTrace()
+			return
+		}
+
+		if got, want := c.ReadUint64(), uint64(wantDeletedCount); got != want {
+			t.Fatalf("unexpected deleted count: got %d, want %d", got, want)
+		}
+		c.ReadEmptyTrace()
+	}
+
+	f(0, "")
+	f(123, "")
+	f(0, "test error")
+	f(456, "")
+}
+
+// testRegisterMetricNamesV3API is the fake implementation of the vmselect API
+// that is used in TestRegisterMetricNamesV3().
+type testRegisterMetricNamesV3API struct {
+	API
+	gotMetricRows []storage.MetricRow
+	err           error
+}
+
+func (api *testRegisterMetricNamesV3API) RegisterMetricNames(_ context.Context, _ *querytracer.Tracer, mrs []storage.MetricRow) error {
+	api.gotMetricRows = mrs
+	return api.err
+}
+
+func TestRegisterMetricNamesV3(t *testing.T) {
+	defer metrics.UnregisterAllMetrics()
+	const enableQueryTracer = false
+
+	api := &testRegisterMetricNamesV3API{}
+	s := startServer(t, api)
+	defer s.MustStop()
+	c := newConn(t, s)
+	defer c.Close()
+
+	f := func(mrs []storage.MetricRow, wantErr string) {
+		t.Helper()
+
+		*api = testRegisterMetricNamesV3API{}
+		if wantErr != "" {
+			api.err = errors.New(wantErr)
+		}
+
+		c.WriteString("registerMetricNames_v3")
+		c.WriteBool(enableQueryTracer)
+		c.WriteUint32(1)
+		c.WriteUint64(uint64(len(mrs)))
+		for _, mr := range mrs {
+			c.WriteBytes(mr.MetricNameRaw)
+			c.WriteUint64(uint64(mr.Timestamp))
+		}
+		if gotErr := c.ReadString(); gotErr != wantErr {
+			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
+		}
+		if diff := cmp.Diff(mrs, api.gotMetricRows, cmpopts.EquateEmpty()); diff != "" {
+			t.Fatalf("unexpected metric rows (-want, +got):\n%s", diff)
+		}
+		c.ReadEmptyTrace()
+	}
+
+	f([]storage.MetricRow{}, "")
+	f([]storage.MetricRow{{MetricNameRaw: []byte("m1"), Timestamp: 123}}, "")
+	f([]storage.MetricRow{{MetricNameRaw: []byte("m1"), Timestamp: 123}}, "test error")
+	f([]storage.MetricRow{
+		{MetricNameRaw: []byte("m1"), Timestamp: 123},
+		{MetricNameRaw: []byte("m2"), Timestamp: 456},
+	}, "")
+}
+
+// testTenantsV1API is the fake implementation of the vmselect API
+// that is used in TestTenantsV1().
+type testTenantsV1API struct {
+	API
+	gotTimeRange storage.TimeRange
+	tenants      []string
+	err          error
+}
+
+func (api *testTenantsV1API) Tenants(_ context.Context, _ *querytracer.Tracer, tr storage.TimeRange) ([]string, error) {
+	api.gotTimeRange = tr
+	return api.tenants, api.err
+}
+
+func TestTenantsV1(t *testing.T) {
+	defer metrics.UnregisterAllMetrics()
+	const enableQueryTracer = false
+	wantTimeRange := storage.TimeRange{MinTimestamp: 123456789, MaxTimestamp: 987654321}
+
+	api := &testTenantsV1API{}
+	s := startServer(t, api)
+	defer s.MustStop()
+	c := newConn(t, s)
+	defer c.Close()
+
+	f := func(wantTenants []string, wantErr string) {
+		t.Helper()
+
+		*api = testTenantsV1API{tenants: wantTenants}
+		if wantErr != "" {
+			api.err = errors.New(wantErr)
+		}
+
+		c.WriteString("tenants_v1")
+		c.WriteBool(enableQueryTracer)
+		c.WriteUint32(1)
+		c.WriteUint64(uint64(wantTimeRange.MinTimestamp))
+		c.WriteUint64(uint64(wantTimeRange.MaxTimestamp))
+		if gotErr := c.ReadString(); gotErr != wantErr {
+			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
+		}
+		if api.gotTimeRange != wantTimeRange {
+			t.Fatalf("unexpected time range: got %v, want %v", api.gotTimeRange, wantTimeRange)
+		}
+		if wantErr != "" {
+			c.ReadEmptyTrace()
+			return
+		}
+
+		var gotTenants []string
+		for {
+			v := c.ReadString()
+			if v == "" {
+				break
+			}
+			gotTenants = append(gotTenants, v)
+		}
+		if diff := cmp.Diff(wantTenants, gotTenants, cmpopts.EquateEmpty()); diff != "" {
+			t.Fatalf("unexpected tenants (-want, +got):\n%s", diff)
+		}
+		c.ReadEmptyTrace()
+	}
+
+	f([]string{}, "")
+	f([]string{"1:2"}, "")
+	f([]string{"1:2", "3:4"}, "")
+	f(nil, "test error")
+	f([]string{"1:2", "3:4", "5:6"}, "")
+}
+
+// testMetricNamesUsageStatsV1API is the fake implementation of the vmselect API
+// that is used in TestMetricNamesUsageStatsV1().
+type testMetricNamesUsageStatsV1API struct {
+	API
+	gotTenantToken  *storage.TenantToken
+	gotLimit        int
+	gotLE           int
+	gotMatchPattern string
+	result          metricnamestats.StatsResult
+	err             error
+}
+
+func (api *testMetricNamesUsageStatsV1API) GetMetricNamesUsageStats(_ context.Context, _ *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string) (metricnamestats.StatsResult, error) {
+	api.gotTenantToken = tt
+	api.gotLimit = limit
+	api.gotLE = le
+	api.gotMatchPattern = matchPattern
+	return api.result, api.err
+}
+
+func TestMetricNamesUsageStatsV1(t *testing.T) {
+	defer metrics.UnregisterAllMetrics()
+	const (
+		enableQueryTracer = false
+		limit             = 100
+		le                = 5
+		matchPattern      = "m*"
+	)
+
+	api := &testMetricNamesUsageStatsV1API{}
+	s := startServer(t, api)
+	defer s.MustStop()
+	c := newConn(t, s)
+	defer c.Close()
+
+	f := func(tt *storage.TenantToken, wantResult metricnamestats.StatsResult, wantErr string) {
+		t.Helper()
+
+		*api = testMetricNamesUsageStatsV1API{result: wantResult}
+		if wantErr != "" {
+			api.err = errors.New(wantErr)
+		}
+
+		c.WriteString("metricNamesUsageStats_v1")
+		c.WriteBool(enableQueryTracer)
+		c.WriteUint32(1)
+		c.WriteBool(tt != nil)
+		if tt != nil {
+			c.WriteUint32(tt.AccountID)
+			c.WriteUint32(tt.ProjectID)
+		}
+		c.WriteLimit(limit)
+		c.WriteInt64(le)
+		c.WriteString(matchPattern)
+		if gotErr := c.ReadString(); gotErr != wantErr {
+			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
+		}
+		if diff := cmp.Diff(tt, api.gotTenantToken); diff != "" {
+			t.Fatalf("unexpected tenant token (-want, +got):\n%s", diff)
+		}
+		if api.gotLimit != limit || api.gotLE != le || api.gotMatchPattern != matchPattern {
+			t.Fatalf("unexpected args: got limit=%d, le=%d, matchPattern=%q; want limit=%d, le=%d, matchPattern=%q",
+				api.gotLimit, api.gotLE, api.gotMatchPattern, limit, le, matchPattern)
+		}
+		if wantErr != "" {
+			c.ReadEmptyTrace()
+			return
+		}
+
+		gotResult := metricnamestats.StatsResult{
+			CollectedSinceTs: c.ReadUint64(),
+			TotalRecords:     c.ReadUint64(),
+			CurrentSizeBytes: c.ReadUint64(),
+			MaxSizeBytes:     c.ReadUint64(),
+			Records:          make([]metricnamestats.StatRecord, c.ReadUint64()),
+		}
+		for i := range gotResult.Records {
+			r := &gotResult.Records[i]
+			r.MetricName = c.ReadString()
+			r.LastRequestTs = c.ReadUint64()
+			r.RequestsCount = c.ReadUint64()
+		}
+		if diff := cmp.Diff(wantResult, gotResult, cmpopts.EquateEmpty()); diff != "" {
+			t.Fatalf("unexpected result (-want, +got):\n%s", diff)
+		}
+		c.ReadEmptyTrace()
+	}
+
+	result := metricnamestats.StatsResult{
+		CollectedSinceTs: 1,
+		TotalRecords:     2,
+		MaxSizeBytes:     3,
+		CurrentSizeBytes: 4,
+		Records: []metricnamestats.StatRecord{
+			{MetricName: "m1", RequestsCount: 5, LastRequestTs: 6},
+			{MetricName: "m2", RequestsCount: 7, LastRequestTs: 8},
+		},
+	}
+	f(nil, metricnamestats.StatsResult{}, "")
+	f(nil, result, "")
+	f(&storage.TenantToken{AccountID: 12, ProjectID: 34}, result, "")
+	f(nil, metricnamestats.StatsResult{}, "test error")
+	f(&storage.TenantToken{AccountID: 12, ProjectID: 34}, result, "")
+}
+
+// testResetMetricNamesStatsV1API is the fake implementation of the vmselect API
+// that is used in TestResetMetricNamesStatsV1().
+type testResetMetricNamesStatsV1API struct {
+	API
+	calls int
+}
+
+func (api *testResetMetricNamesStatsV1API) ResetMetricNamesUsageStats(_ context.Context, _ *querytracer.Tracer) error {
+	api.calls++
+	return nil
+}
+
+func TestResetMetricNamesStatsV1(t *testing.T) {
+	defer metrics.UnregisterAllMetrics()
+	const enableQueryTracer = false
+
+	api := &testResetMetricNamesStatsV1API{}
+	s := startServer(t, api)
+	defer s.MustStop()
+	c := newConn(t, s)
+	defer c.Close()
+
+	for i := range 3 {
+		c.WriteString("resetMetricNamesStats_v1")
+		c.WriteBool(enableQueryTracer)
+		c.WriteUint32(1)
+		c.ReadEmptyTrace()
+		if got, want := api.calls, i+1; got != want {
+			t.Fatalf("unexpected number of API calls: got %d, want %d", got, want)
+		}
+	}
+}
+
+// testSearchMetadataV1API is the fake implementation of the vmselect API
+// that is used in TestSearchMetadataV1().
+type testSearchMetadataV1API struct {
+	API
+	gotTenantToken *storage.TenantToken
+	gotLimit       int
+	gotMetricName  string
+	rows           []*metricsmetadata.Row
+	err            error
+}
+
+func (api *testSearchMetadataV1API) GetMetadataRecords(_ context.Context, _ *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string) ([]*metricsmetadata.Row, error) {
+	api.gotTenantToken = tt
+	api.gotLimit = limit
+	api.gotMetricName = metricName
+	return api.rows, api.err
+}
+
+func TestSearchMetadataV1(t *testing.T) {
+	defer metrics.UnregisterAllMetrics()
+	const (
+		enableQueryTracer = false
+		limit             = 100
+		metricName        = "metric1"
+	)
+
+	api := &testSearchMetadataV1API{}
+	s := startServer(t, api)
+	defer s.MustStop()
+	c := newConn(t, s)
+	defer c.Close()
+
+	f := func(tt *storage.TenantToken, wantRows []*metricsmetadata.Row, wantErr string) {
+		t.Helper()
+
+		*api = testSearchMetadataV1API{rows: wantRows}
+		if wantErr != "" {
+			api.err = errors.New(wantErr)
+		}
+
+		c.WriteString("searchMetadata_v1")
+		c.WriteBool(enableQueryTracer)
+		c.WriteUint32(1)
+		c.WriteBool(tt != nil)
+		if tt != nil {
+			c.WriteUint32(tt.AccountID)
+			c.WriteUint32(tt.ProjectID)
+		}
+		c.WriteLimit(limit)
+		c.WriteString(metricName)
+		if gotErr := c.ReadString(); gotErr != wantErr {
+			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
+		}
+		if diff := cmp.Diff(tt, api.gotTenantToken); diff != "" {
+			t.Fatalf("unexpected tenant token (-want, +got):\n%s", diff)
+		}
+		if api.gotLimit != limit || api.gotMetricName != metricName {
+			t.Fatalf("unexpected args: got limit=%d, metricName=%q; want limit=%d, metricName=%q",
+				api.gotLimit, api.gotMetricName, limit, metricName)
+		}
+		if wantErr != "" {
+			c.ReadEmptyTrace()
+			return
+		}
+
+		gotRows := make([]*metricsmetadata.Row, c.ReadUint64())
+		for i := range gotRows {
+			gotRows[i] = &metricsmetadata.Row{}
+			tail, err := gotRows[i].Unmarshal(c.ReadBytes())
+			if err != nil {
+				t.Fatalf("cannot unmarshal metadata row: %s", err)
+			}
+			if len(tail) > 0 {
+				t.Fatalf("unexpected non-empty tail after unmarshaling metadata row: %q", tail)
+			}
+		}
+		if diff := cmp.Diff(wantRows, gotRows, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(metricsmetadata.Row{})); diff != "" {
+			t.Fatalf("unexpected rows (-want, +got):\n%s", diff)
+		}
+		c.ReadEmptyTrace()
+	}
+
+	rows := []*metricsmetadata.Row{
+		{
+			MetricFamilyName: []byte("metric1"),
+			Help:             []byte("help1"),
+			Unit:             []byte("seconds"),
+			AccountID:        12,
+			ProjectID:        34,
+			Type:             prompb.MetricTypeCounter,
+		},
+		{
+			MetricFamilyName: []byte("metric2"),
+			Help:             []byte("help2"),
+			Unit:             []byte("bytes"),
+			Type:             prompb.MetricTypeGauge,
+		},
+	}
+	f(nil, []*metricsmetadata.Row{}, "")
+	f(nil, rows, "")
+	f(&storage.TenantToken{AccountID: 12, ProjectID: 34}, rows[:1], "")
+	f(nil, nil, "test error")
+	f(&storage.TenantToken{AccountID: 12, ProjectID: 34}, rows, "")
+}
+
+func TestUnsupportedRPC(t *testing.T) {
+	defer metrics.UnregisterAllMetrics()
+	const enableQueryTracer = false
+
+	s := startServer(t, &testSearchMetricNamesV3API{})
+	defer s.MustStop()
+	c := newConn(t, s)
+	defer c.Close()
+
+	// The server closes the connection on unsupported rpcName.
+	c.WriteString("unsupported_v1")
+	c.WriteBool(enableQueryTracer)
+	c.WriteUint32(1)
+	if _, err := io.ReadFull(c.bc, make([]byte, 1)); err == nil {
+		t.Fatalf("expecting non-nil error when reading from conn closed by server")
+	}
+}
+
+func newTestSearchQuery() *storage.SearchQuery {
+	tfss := [][]storage.TagFilter{
+		{
+			tf(nil, []byte("metric1"), false, false),
+			tf([]byte("label2"), []byte("value2"), true, false),
+		},
+	}
+	sq := storage.NewSearchQuery(12, 34, 123456789, 987654321, tfss, 1000000)
+	sq.AccountID = 12
+	sq.ProjectID = 34
+	return sq
+}
+
 func startServer(t *testing.T, api API) *Server {
 	t.Helper()
 
@@ -268,6 +1295,50 @@ func (c *conn) WriteUint32(n uint32) {
 	}
 }
 
+func (c *conn) WriteLimit(limit int) {
+	c.t.Helper()
+	if limit < 0 {
+		limit = 0
+	}
+	if limit > 1<<31-1 {
+		limit = 1<<31 - 1
+	}
+	limitU32 := uint32(limit)
+	c.WriteUint32(limitU32)
+}
+
+func (c *conn) WriteInt64(n int64) {
+	c.t.Helper()
+	sizeBuf := encoding.MarshalInt64(nil, n)
+	if _, err := c.bc.Write(sizeBuf); err != nil {
+		c.t.Fatalf("could not write int64 %d to conn: %s", n, err)
+	}
+	if err := c.bc.Flush(); err != nil {
+		c.t.Fatalf("could not flush int64: %s", err)
+	}
+}
+
+func (c *conn) WriteUint64(n uint64) {
+	c.t.Helper()
+	buf := encoding.MarshalUint64(nil, n)
+	if _, err := c.bc.Write(buf); err != nil {
+		c.t.Fatalf("could not write uint64 %d to conn: %s", n, err)
+	}
+	if err := c.bc.Flush(); err != nil {
+		c.t.Fatalf("could not flush uint64: %s", err)
+	}
+}
+
+func (c *conn) WriteUint8(b byte) {
+	c.t.Helper()
+	if _, err := c.bc.Write([]byte{b}); err != nil {
+		c.t.Fatalf("could not write byte %d to conn: %s", b, err)
+	}
+	if err := c.bc.Flush(); err != nil {
+		c.t.Fatalf("could not flush byte: %s", err)
+	}
+}
+
 func (c *conn) WriteSearchQuery(sq *storage.SearchQuery) {
 	c.t.Helper()
 	var buf []byte
@@ -279,6 +1350,15 @@ func (c *conn) WriteSearchQuery(sq *storage.SearchQuery) {
 func (c *conn) ReadString() string {
 	c.t.Helper()
 	return string(c.ReadBytes())
+}
+
+// ReadEmptyTrace reads the query trace from conn and verifies it is empty,
+// since all tests disable query tracing.
+func (c *conn) ReadEmptyTrace() {
+	c.t.Helper()
+	if got := c.ReadString(); got != "" {
+		c.t.Fatalf("unexpected trace: got %q, want empty", got)
+	}
 }
 
 func (c *conn) ReadBytes() []byte {
