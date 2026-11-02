@@ -27,6 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add a new flag `-remoteWrite.queuePath`, which allows configuring [persistent-queue](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence) path for each `-remoteWrite.url` independently. See [#11662](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11662).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix predefined dashboard rows not expanding when clicking the row title. See [#11829](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11829).
 
 * BUGFIX: all VictoriaMetrics components: OS `solaris` fixes compilation error. See [#11850](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11850). Thanks to @szaydel for contribution.
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): prevent skipping aggregation and deduplication flushes when [aggregation windows](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-windows) are enabled and incoming samples are delayed by one interval or more, e.g. when the ingestion pipeline is overloaded. Previously, the flush delay could grow with the sample lag, causing skipped flushes and gaps in the results. Now the flush delay is capped at 90% of the aggregation or deduplication interval. See [#11811](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11811).

@@ -53,11 +53,8 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({
   };
 
   const handleMouseUp = useCallback(() => {
-    setResize({
-      ...resize,
-      enable: false
-    });
-  }, [resize]);
+    setResize(prev => prev.enable ? { ...prev, enable: false } : prev);
+  }, []);
 
   const handleChangeExpanded = (val: boolean) => setExpanded(val);
 
@@ -68,25 +65,23 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({
   useEventListener("mousemove", handleMouseMove);
   useEventListener("mouseup", handleMouseUp);
 
-  const HeaderAccordion = () => (
-    <div
-      className={classNames({
-        "vm-predefined-dashboard-header": true,
-        "vm-predefined-dashboard-header_open": expanded
-      })}
-    >
-      {(title || filename) && <span className="vm-predefined-dashboard-header__title">
-        {title || `${index+1}. ${filename}`}
-      </span>}
-      {panels && <span className="vm-predefined-dashboard-header__count">({panels.length} panels)</span>}
-    </div>
-  );
-
   return <div className="vm-predefined-dashboard">
     <Accordion
       defaultExpanded={expanded}
       onChange={handleChangeExpanded}
-      title={<HeaderAccordion/>}
+      title={(
+        <div
+          className={classNames({
+            "vm-predefined-dashboard-header": true,
+            "vm-predefined-dashboard-header_open": expanded
+          })}
+        >
+          {(title || filename) && <span className="vm-predefined-dashboard-header__title">
+            {title || `${index+1}. ${filename}`}
+          </span>}
+          {panels && <span className="vm-predefined-dashboard-header__count">({panels.length} panels)</span>}
+        </div>
+      )}
     >
       <div className="vm-predefined-dashboard-panels">
         {Array.isArray(panels) && !!panels.length
