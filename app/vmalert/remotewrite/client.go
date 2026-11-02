@@ -114,7 +114,7 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 	}
 	hc := &http.Client{
 		Timeout:   *sendTimeout,
-		Transport: httputil.NewSyncBodyTransport(cfg.Transport),
+		Transport: cfg.Transport,
 	}
 	rwURL, err := url.Parse(cfg.Addr)
 	if err != nil {

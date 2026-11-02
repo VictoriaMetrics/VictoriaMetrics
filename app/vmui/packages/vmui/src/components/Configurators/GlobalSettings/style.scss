@@ -54,6 +54,15 @@
     &__button {
       margin-top: $padding-small;
     }
+
+    &__warning {
+      margin-top: $padding-global;
+    }
+
+    & + .vm-checkbox {
+      margin-top: $padding-tiny;
+      font-size: $font-size-small;
+    }
   }
 
   &-footer {
@@ -69,4 +78,8 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
   }
+}
+
+.vm-server-url-deprecation-warning {
+  padding: $padding-small $padding-small 0;
 }

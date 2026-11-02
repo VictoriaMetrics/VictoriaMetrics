@@ -26,6 +26,7 @@ func TestClusterMultiTenantSelectViaHeaders(t *testing.T) {
 	vminsert := tc.MustStartVminsert("vminsert", []string{
 		"-storageNode=" + vmstorage.VminsertAddr(),
 	})
+	apptest.EnsureBlockingIngestion(t, vminsert, []*apptest.Vmstorage{vmstorage})
 	vmselect := tc.MustStartVmselect("vmselect", []string{
 		"-storageNode=" + vmstorage.VmselectAddr(),
 		"-search.tenantCacheExpireDuration=0",

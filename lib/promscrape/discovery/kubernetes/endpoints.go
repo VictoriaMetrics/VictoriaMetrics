@@ -127,13 +127,13 @@ func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []*promutil.Labels {
 			addr := discoveryutil.JoinHostPort(p.Status.PodIP, cp.ContainerPort)
 			m := promutil.GetLabels()
 			m.Add("__address__", addr)
-			p.appendCommonLabels(m, gw)
+			p.appendTargetRefLabels(m, gw)
 			p.appendContainerLabels(m, c, &cp, isInit)
 
 			// Prometheus sets endpoints_name and namespace labels for all endpoints
 			// Even if port is not matching service port.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4154
-			p.appendEndpointLabels(m, eps)
+			p.appendEndpointLabels(m, gw, eps)
 			if svc != nil {
 				svc.appendCommonLabels(m, gw)
 			}
@@ -185,7 +185,8 @@ func getEndpointLabelsForAddressAndPort(gw *groupWatcher, podPortsSeen map[*Pod]
 	if ea.TargetRef.Kind != "Pod" || p == nil {
 		return m
 	}
-	p.appendCommonLabels(m, gw)
+	appendNamespaceLabels(m, gw, eps.Metadata.Namespace)
+	p.appendTargetRefLabels(m, gw)
 	// always add pod targetRef, even if epp port doesn't match container port
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2134
 	if _, ok := podPortsSeen[p]; !ok {

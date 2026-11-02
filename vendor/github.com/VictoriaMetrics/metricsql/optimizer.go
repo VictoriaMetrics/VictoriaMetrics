@@ -181,6 +181,7 @@ func getCommonLabelFilters(e Expr) []LabelFilter {
 				// {f1} * on(f2) group_left() {f2} -> {f1, f2}
 				// {f1} * on(f1, f2) group_left() {f2} -> {f1, f2}
 				// {f1} * on(f3) group_left() {f2} -> {f1}
+				lfsLeft = trimFiltersByJoinModifier(lfsLeft, t)
 				lfsRight = TrimFiltersByGroupModifier(lfsRight, t)
 				return unionLabelFilters(lfsLeft, lfsRight)
 			case "group_right":
@@ -191,6 +192,7 @@ func getCommonLabelFilters(e Expr) []LabelFilter {
 				// {f1} * on(f1, f2) group_right() {f2} -> {f1, f2}
 				// {f1} * on(f3) group_right() {f2} -> {f2}
 				lfsLeft = TrimFiltersByGroupModifier(lfsLeft, t)
+				lfsRight = trimFiltersByJoinModifier(lfsRight, t)
 				return unionLabelFilters(lfsLeft, lfsRight)
 			default:
 				// {f1} * {f2} -> {f1, f2}
@@ -332,6 +334,68 @@ func TrimFiltersByGroupModifier(lfs []LabelFilter, be *BinaryOpExpr) []LabelFilt
 	default:
 		return lfs
 	}
+}
+
+func trimFiltersByJoinModifier(lfs []LabelFilter, be *BinaryOpExpr) []LabelFilter {
+	args := be.JoinModifier.Args
+	if len(args) == 0 {
+		return lfs
+	}
+
+	skipTags := make(map[string]struct{})
+	if strings.EqualFold(be.GroupModifier.Op, "on") {
+		for _, arg := range be.GroupModifier.Args {
+			skipTags[arg] = struct{}{}
+		}
+	}
+
+	var prefix string
+	if be.JoinModifierPrefix != nil {
+		prefix = be.JoinModifierPrefix.S
+	}
+
+	// group_left(*) / group_right(*) copy all labels except labels from on(...).
+	if len(args) == 1 && args[0] == "*" {
+		lfsNew := make([]LabelFilter, 0, len(lfs))
+		for _, lf := range lfs {
+			if prefix == "" {
+				// Without prefix, every copied label may overwrite the
+				// destination label. Labels from on(...) aren't copied.
+				if _, ok := skipTags[lf.Label]; !ok {
+					continue
+				}
+			} else if len(lf.Label) > len(prefix) && strings.HasPrefix(lf.Label, prefix) {
+				// With prefix, src label "a" may overwrite dst label
+				// "<prefix>a", unless "a" belongs to on(...).
+				srcLabel := strings.TrimPrefix(lf.Label, prefix)
+				if _, ok := skipTags[srcLabel]; !ok {
+					continue
+				}
+			}
+			lfsNew = append(lfsNew, lf)
+		}
+		return lfsNew
+	}
+
+	var overwrittenLabels []string
+	for _, arg := range args {
+		if _, ok := skipTags[arg]; ok {
+			continue
+		}
+
+		// The destination label isn't guaranteed to preserve its original
+		// value after the join. It may be overwritten, or removed when the
+		// source label is absent.
+		overwrittenLabels = append(overwrittenLabels, arg)
+
+		// With a prefix, the copied source label is exposed under the
+		// prefixed name, so that destination label may also be overwritten.
+		if prefix != "" {
+			overwrittenLabels = append(overwrittenLabels, prefix+arg)
+		}
+	}
+
+	return filterLabelFiltersIgnoring(lfs, overwrittenLabels)
 }
 
 func getCommonLabelFiltersWithoutMetricName(lfss [][]LabelFilter) []LabelFilter {

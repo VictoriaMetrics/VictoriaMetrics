@@ -150,6 +150,13 @@ func TestRegexMatchString(t *testing.T) {
 	// Trigger syntax.ErrNestingDepth
 	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/1112
 	f("a{0,1000}", "a", true)
+
+	// An alternation followed by `.+literal.+` must keep the alternation.
+	// getOrValues() used to strip the leading alternation from the parsed
+	// regexp in place, so NewRegex() saw only the `.+c.+` tail and took the
+	// substring fast path.
+	f("(a|b).+c.+", "axcx", true)
+	f("(a|b).+c.+", "xcx", false)
 }
 
 func TestGetLiterals(t *testing.T) {

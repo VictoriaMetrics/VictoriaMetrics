@@ -1,6 +1,7 @@
 package vmstorage
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -212,7 +213,7 @@ var (
 	vmStorage      *VMStorage
 	VMInsertAPI    vminsertapi.API
 	VMSelectAPI    vmselectapi.API
-	GetSearch      func(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (*storage.Search, int, error)
+	GetSearch      func(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery) (*storage.Search, int, error)
 	PutSearch      func(sr *storage.Search)
 	RequestHandler func(w http.ResponseWriter, r *http.Request) bool
 

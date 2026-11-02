@@ -150,10 +150,10 @@ func TestClusterMetricNamesStats(t *testing.T) {
 		"-retentionPeriod=100y",
 		"-storage.trackMetricNamesStats",
 	})
-
 	vminsert := tc.MustStartVminsert("vminsert", []string{
 		fmt.Sprintf("-storageNode=%s,%s", vmstorage1.VminsertAddr(), vmstorage2.VminsertAddr()),
 	})
+	apptest.EnsureBlockingIngestion(t, vminsert, []*apptest.Vmstorage{vmstorage1, vmstorage2})
 	vmselect := tc.MustStartVmselect("vmselect", []string{
 		fmt.Sprintf("-storageNode=%s,%s", vmstorage1.VmselectAddr(), vmstorage2.VmselectAddr()),
 	})
@@ -284,13 +284,14 @@ func TestClusterMetricNamesStatsWithParams(t *testing.T) {
 		"-storageDataPath=" + tc.Dir() + "/vmstorage-2",
 		"-retentionPeriod=100y",
 	})
-
 	vminsert1 := tc.MustStartVminsert("vminsert-1", []string{
 		fmt.Sprintf("-storageNode=%s", vmstorage1.VminsertAddr()),
 	})
+	apptest.EnsureBlockingIngestion(t, vminsert1, []*apptest.Vmstorage{vmstorage1})
 	vminsert2 := tc.MustStartVminsert("vminsert-2", []string{
 		fmt.Sprintf("-storageNode=%s", vmstorage2.VminsertAddr()),
 	})
+	apptest.EnsureBlockingIngestion(t, vminsert2, []*apptest.Vmstorage{vmstorage2})
 	vmselect1 := tc.MustStartVmselect("vmselect-1", []string{
 		fmt.Sprintf("-storageNode=%s", vmstorage1.VmselectAddr()),
 	})

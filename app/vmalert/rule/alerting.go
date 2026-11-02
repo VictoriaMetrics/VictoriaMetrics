@@ -832,9 +832,10 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 		}
 		labelsFilter += fmt.Sprintf(",%s=%q", k, v)
 	}
-	// use `default_rollup()` instead of `last_over_time()` here to accounts for possible staleness markers
-	expr := fmt.Sprintf("default_rollup(%s{%s%s}[%ds])",
-		alertForStateMetricName, nameStr, labelsFilter, int(remoteReadLookBack.Seconds()))
+	// use plain series selector to account for possible staleness markers
+	// and to stay compatible with Prometheus as -remoteRead.url.
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11574
+	expr := fmt.Sprintf("%s{%s%s}", alertForStateMetricName, nameStr, labelsFilter)
 
 	res, _, err := q.Query(ctx, expr, ts)
 	if err != nil {

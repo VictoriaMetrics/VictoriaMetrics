@@ -133,16 +133,19 @@ func TestClusterMetricsMetadata(t *testing.T) {
 		"-storageDataPath=" + tc.Dir() + "/vmstorage-2",
 		"-retentionPeriod=100y",
 	})
-
+	vmstorages := []*apptest.Vmstorage{vmstorage1, vmstorage2}
 	vminsert1 := tc.MustStartVminsert("vminsert1", []string{
 		fmt.Sprintf("-storageNode=%s,%s", vmstorage1.VminsertAddr(), vmstorage2.VminsertAddr()),
 	})
+	apptest.EnsureBlockingIngestion(t, vminsert1, vmstorages)
 	vminsert2 := tc.MustStartVminsert("vminsert-2", []string{
 		fmt.Sprintf("-storageNode=%s,%s", vmstorage1.VminsertAddr(), vmstorage2.VminsertAddr()),
 	})
+	apptest.EnsureBlockingIngestion(t, vminsert2, vmstorages)
 	vminsertGlobal := tc.MustStartVminsert("vminsert-global", []string{
 		fmt.Sprintf("-storageNode=%s,%s", vminsert1.ClusternativeListenAddr(), vminsert2.ClusternativeListenAddr()),
 	})
+	apptest.EnsureBlockingIngestion(t, vminsertGlobal, vmstorages)
 	vmselect := tc.MustStartVmselect("vmselect", []string{
 		fmt.Sprintf("-storageNode=%s,%s", vmstorage1.VmselectAddr(), vmstorage2.VmselectAddr()),
 	})

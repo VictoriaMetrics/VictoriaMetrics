@@ -86,7 +86,8 @@ func TestClusterTenantsToTenantsVmctlNativeProtocol(t *testing.T) {
 		`--vm-native-src-addr=` + vmSrcAddr,
 		`--vm-native-dst-addr=` + vmDstAddr,
 		`--vm-native-filter-match={__name__=~".*"}`,
-		`--vm-native-filter-time-start=2025-05-30T16:39:00Z`,
+		`--vm-native-filter-time-start=2025-05-30T00:00:00Z`,
+		`--vm-native-filter-time-end=2025-05-30T23:59:59Z`,
 		`--disable-progress-bar=true`,
 		`--vm-intercluster`,
 	}
@@ -96,7 +97,6 @@ func TestClusterTenantsToTenantsVmctlNativeProtocol(t *testing.T) {
 
 func testVmctlNativeProtocol(tc *apptest.TestCase, srcSut apptest.PrometheusWriteQuerier, dstSut apptest.PrometheusWriteQuerier, vmctlFlags []string) {
 	t := tc.T()
-	t.Helper()
 
 	cmpOpt := cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
 
@@ -111,7 +111,7 @@ func testVmctlNativeProtocol(tc *apptest.TestCase, srcSut apptest.PrometheusWrit
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
-	// Prepare the source vmsingle with some data
+	// Prepare the source with some data
 	// Insert some data.
 	const numSamples = 1000
 	const ingestTimestamp = " 1748623176000" // 2025-05-30T16:39:36Z
@@ -148,8 +148,7 @@ func testVmctlNativeProtocol(tc *apptest.TestCase, srcSut apptest.PrometheusWrit
 	dstSut.ForceFlush(t)
 
 	tc.Assert(&apptest.AssertOptions{
-		Retries: 300,
-		Msg:     `unexpected metrics stored on vmsingle via the native protocol`,
+		Msg: "unexpected /prometheus/api/v1/export response",
 		Got: func() any {
 			exported := dstSut.PrometheusAPIV1Export(t, `{__name__=~".*"}`, apptest.QueryOpts{
 				Start: "2025-05-30T16:39:36Z",

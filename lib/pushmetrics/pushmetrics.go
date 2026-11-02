@@ -112,6 +112,7 @@ func StopAndPush() {
 				ExtraLabels:        extraLabels,
 				Headers:            *pushHeader,
 				DisableCompression: *disableCompression,
+				LogErr:             logger.Errorf,
 			}
 			if err := metrics.PushMetricsExt(ctxLocal, pu, appmetrics.WritePrometheusMetrics, opts); err != nil {
 				logger.Errorf("failed to push metrics to %q: %s", pu, err)

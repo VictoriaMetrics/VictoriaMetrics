@@ -164,7 +164,7 @@ func writeFDMetrics(w io.Writer) {
 	}
 	maxOpenFDs, err := getMaxFilesLimit("/proc/self/limits")
 	if err != nil {
-		log.Printf("ERROR: metrics: cannot determine the limit on open file descritors: %s", err)
+		log.Printf("ERROR: metrics: cannot determine the limit on open file descriptors: %s", err)
 		return
 	}
 	WriteGaugeUint64(w, "process_max_fds", maxOpenFDs)

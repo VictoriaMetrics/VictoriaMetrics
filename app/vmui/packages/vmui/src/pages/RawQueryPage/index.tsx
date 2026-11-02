@@ -111,7 +111,10 @@ const RawQueryPage: FC = () => {
         includeFunctions={false}
       />
       {showPageDescription && (
-        <Alert variant="info">
+        <Alert
+          variant="info"
+          title="Query raw samples"
+        >
           <div className="vm-explore-metrics-header-description">
             <ul>
               <li>
@@ -139,7 +142,14 @@ const RawQueryPage: FC = () => {
           </div>
         </Alert>
       )}
-      {showError && <Alert variant="error">{error}</Alert>}
+      {showError && (
+        <Alert
+          variant="error"
+          title="Unable to load query results"
+        >
+          {error}
+        </Alert>
+      )}
       {warning && (
         <WarningLimitSeries
           warning={warning}

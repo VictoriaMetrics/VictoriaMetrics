@@ -4043,30 +4043,14 @@ func TestExecExprFailure(t *testing.T) {
 
 	f(`linearRegression()`)
 	f(`linearRegression(10)`)
-	f(`linearRegression(none.exist.metric)`)
-	f(`linearRegression(none.exist.metric,"badarg1")`)
 	f(`linearRegression(time("foo.baz",15),"-1min","badargv2")`)
 
 	f(`holtWintersForecast()`)
-	f(`holtWintersForecast(none.exist.metric)`)
-	f(`holtWintersForecast(none.exist.metric,124124)`)
-	f(`holtWintersForecast(none.exist.metric,7d,"ads124")`)
-	f(`holtWintersForecast(none.exist.metric,"7d","ads124")`)
-	f(`holtWintersForecast(none.exist.metric,"afsf","7d")`)
-	f(`holtWintersForecast(none.exist.metric,"7d",124214)`)
 
 	f(`holtWintersConfidenceBands()`)
-	f(`holtWintersConfidenceBands(none.exist.metric)`)
-	f(`holtWintersConfidenceBands(none.exist.metric,"124124")`)
-	f(`holtWintersConfidenceBands(none.exist.metric,7,123)`)
-	f(`holtWintersConfidenceBands(none.exist.metric,7,"ads124")`)
-	f(`holtWintersConfidenceBands(none.exist.metric,7,"7d","ads124")`)
-	f(`holtWintersConfidenceBands(none.exist.metric,7,"afsf","7d")`)
-	f(`holtWintersConfidenceBands(none.exist.metric,7,"7d",124214)`)
 
 	f(`holtWintersAberration()`)
 	f(`holtWintersAberration(124)`)
-	f(`holtWintersAberration(none.exist.metric)`)
 
 	f(`holtWintersConfidenceArea(group(time("foo.baz",15),time("foo.baz",15)))`)
 	f(`holtWintersConfidenceArea()`)

@@ -135,7 +135,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		for range b.N {
 			// Use special globalIndexDate to instruct indexDB to search global
 			// index instead of per-day index.
-			metricIDs, err := db.searchMetricIDsByDateAndFiltersSlow(nil, globalIndexDate, tfss, 2e9, noDeadline)
+			metricIDs, err := db.searchMetricIDsByDateAndFiltersSlow(noDeadlineContext, nil, globalIndexDate, tfss, 2e9)
 			if err != nil {
 				b.Fatalf("unexpected error in searchMetricIDs: %s", err)
 			}
@@ -296,7 +296,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 		mnLocal.CopyFrom(&mn)
 		mnLocal.sortTags()
 		for pb.Next() {
-			is := db.getIndexSearch(noDeadline)
+			is := db.getIndexSearch()
 			for i := range recordsPerLoop {
 				metricNameLocal = mnLocal.Marshal(metricNameLocal[:0])
 				if !is.getTSIDByMetricName(&tsidLocal, metricNameLocal, date) {

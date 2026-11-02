@@ -174,7 +174,7 @@ func GetOrCreateSummaryExt(name string, window time.Duration, quantiles []float6
 }
 
 func isEqualQuantiles(a, b []float64) bool {
-	// Do not use relfect.DeepEqual, since it is slower than the direct comparison.
+	// Do not use reflect.DeepEqual, since it is slower than the direct comparison.
 	if len(a) != len(b) {
 		return false
 	}

@@ -662,6 +662,7 @@ func TestClusterIngestionProtocols(t *testing.T) {
 	vminsert := tc.MustStartVminsert("vminsert", []string{
 		"-storageNode=" + vmstorage.VminsertAddr(),
 	})
+	apptest.EnsureBlockingIngestion(t, vminsert, []*apptest.Vmstorage{vmstorage})
 	vmselect := tc.MustStartVmselect("vmselect", []string{
 		"-storageNode=" + vmstorage.VmselectAddr(),
 	})
@@ -1201,6 +1202,7 @@ func TestClusterCardinalityLimiter(t *testing.T) {
 	vminsertHourly := tc.MustStartVminsert("vminsert-hourly", []string{
 		"-storageNode=" + vmstorageHourly.VminsertAddr(),
 	})
+	apptest.EnsureBlockingIngestion(t, vminsertHourly, []*apptest.Vmstorage{vmstorageHourly})
 
 	vminsertHourly.PrometheusAPIV1ImportPrometheus(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
@@ -1237,6 +1239,7 @@ func TestClusterCardinalityLimiter(t *testing.T) {
 	vminsertDaily := tc.MustStartVminsert("vminsert-daily", []string{
 		"-storageNode=" + vmstorageDaily.VminsertAddr(),
 	})
+	apptest.EnsureBlockingIngestion(t, vminsertDaily, []*apptest.Vmstorage{vmstorageDaily})
 
 	vminsertDaily.PrometheusAPIV1ImportPrometheus(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
@@ -1274,6 +1277,7 @@ func TestClusterCardinalityLimiter(t *testing.T) {
 	vminsertUnlimited := tc.MustStartVminsert("vminsert-unlimited", []string{
 		"-storageNode=" + vmstorageUnlimited.VminsertAddr(),
 	})
+	apptest.EnsureBlockingIngestion(t, vminsertUnlimited, []*apptest.Vmstorage{vmstorageUnlimited})
 
 	metrics := make([]string, 0, 100)
 	for i := range 100 {

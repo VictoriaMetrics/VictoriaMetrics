@@ -1,6 +1,7 @@
 package vmstorage
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"math"
@@ -58,11 +59,11 @@ type VMStorageWithTenantID struct {
 // The method also overrides the data format of the data returned by the
 // iterator by prepending accountID and projectID bytes to the metric name and
 // the data block (a format used in vmcluster).
-func (vmst *VMStorageWithTenantID) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
+func (vmst *VMStorageWithTenantID) InitSearch(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery) (vmselectapi.BlockIterator, error) {
 	if !vmst.hasValidTenantID(sq) {
 		return emptyBI, nil
 	}
-	return vmst.vms.initSearch(qt, sq, vmst.marshalMetricBlock, deadline)
+	return vmst.vms.initSearch(ctx, qt, sq, vmst.marshalMetricBlock)
 }
 
 var emptyBI = &emptyBlockIterator{}
@@ -73,7 +74,7 @@ type emptyBlockIterator struct{}
 
 func (*emptyBlockIterator) MustClose() {}
 
-func (*emptyBlockIterator) NextBlock(dst []byte) ([]byte, bool) {
+func (*emptyBlockIterator) NextBlock(_ context.Context, dst []byte) ([]byte, bool) {
 	return dst, false
 }
 
@@ -114,12 +115,12 @@ func (vmst *VMStorageWithTenantID) marshalMetricBlock(dst []byte, src *storage.M
 //
 // Found metric names are prepended with accountID and projectID bytes (a format
 // used in vmcluster).
-func (vmst *VMStorageWithTenantID) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {
+func (vmst *VMStorageWithTenantID) SearchMetricNames(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery) ([]string, error) {
 	if !vmst.hasValidTenantID(sq) {
 		return nil, nil
 	}
 
-	metricNames, err := vmst.vms.SearchMetricNames(qt, sq, deadline)
+	metricNames, err := vmst.vms.SearchMetricNames(ctx, qt, sq)
 	if err != nil {
 		return nil, err
 	}
@@ -145,11 +146,11 @@ func (vmst *VMStorageWithTenantID) SearchMetricNames(qt *querytracer.Tracer, sq 
 // If the query is not multitenant or the query accountID and projectID do not
 // match the -accoutID and -projectID flag values, the method will return an
 // empty result.
-func (vmst *VMStorageWithTenantID) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
+func (vmst *VMStorageWithTenantID) LabelValues(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int) ([]string, error) {
 	if !vmst.hasValidTenantID(sq) {
 		return nil, nil
 	}
-	return vmst.vms.LabelValues(qt, sq, labelName, maxLabelValues, deadline)
+	return vmst.vms.LabelValues(ctx, qt, sq, labelName, maxLabelValues)
 }
 
 // TagValueSuffixes searches the storage for Graphite tag value suffixes. The
@@ -158,11 +159,11 @@ func (vmst *VMStorageWithTenantID) LabelValues(qt *querytracer.Tracer, sq *stora
 // If the query is not multitenant or the query accountID and projectID do not
 // match the -accoutID and -projectID flag values, the method will return an
 // empty result.
-func (vmst *VMStorageWithTenantID) TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxSuffixes int, deadline uint64) ([]string, error) {
+func (vmst *VMStorageWithTenantID) TagValueSuffixes(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxSuffixes int) ([]string, error) {
 	if !vmst.isValidTenantID(accountID, projectID) {
 		return nil, nil
 	}
-	return vmst.vms.TagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
+	return vmst.vms.TagValueSuffixes(ctx, qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes)
 }
 
 // LabelNames searches the storage for label names that match the query.
@@ -171,11 +172,11 @@ func (vmst *VMStorageWithTenantID) TagValueSuffixes(qt *querytracer.Tracer, acco
 // If the query is not multitenant or the query accountID and projectID do not
 // match the -accoutID and -projectID flag values, the method will return an
 // empty result.
-func (vmst *VMStorageWithTenantID) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
+func (vmst *VMStorageWithTenantID) LabelNames(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int) ([]string, error) {
 	if !vmst.hasValidTenantID(sq) {
 		return nil, nil
 	}
-	return vmst.vms.LabelNames(qt, sq, maxLabelNames, deadline)
+	return vmst.vms.LabelNames(ctx, qt, sq, maxLabelNames)
 }
 
 // SeriesCount returns the total number of metrics stored in the database.
@@ -188,16 +189,16 @@ func (vmst *VMStorageWithTenantID) LabelNames(qt *querytracer.Tracer, sq *storag
 //
 // If the query is not multitenant or the query accountID and projectID do not
 // match the -accoutID and -projectID flag values, the method will return 0.
-func (vmst *VMStorageWithTenantID) SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
+func (vmst *VMStorageWithTenantID) SeriesCount(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32) (uint64, error) {
 	if !vmst.isValidTenantID(accountID, projectID) {
 		return 0, nil
 	}
-	return vmst.vms.SeriesCount(qt, accountID, projectID, deadline)
+	return vmst.vms.SeriesCount(ctx, qt, accountID, projectID)
 }
 
 // Tenants returns just one tenant consisting of the -accountID and -projectID
 // flag values.
-func (vmst *VMStorageWithTenantID) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error) {
+func (vmst *VMStorageWithTenantID) Tenants(_ context.Context, qt *querytracer.Tracer, tr storage.TimeRange) ([]string, error) {
 	tenantID := fmt.Sprintf("%d:%d", vmst.accountID, vmst.projectID)
 	return []string{tenantID}, nil
 }
@@ -207,11 +208,11 @@ func (vmst *VMStorageWithTenantID) Tenants(qt *querytracer.Tracer, tr storage.Ti
 // If the query is not multitenant or the query accountID and projectID do not
 // match the -accoutID and -projectID flag values, the method will return empty
 // status.
-func (vmst *VMStorageWithTenantID) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
+func (vmst *VMStorageWithTenantID) TSDBStatus(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int) (*storage.TSDBStatus, error) {
 	if !vmst.hasValidTenantID(sq) {
 		return &storage.TSDBStatus{}, nil
 	}
-	return vmst.vms.TSDBStatus(qt, sq, focusLabel, topN, deadline)
+	return vmst.vms.TSDBStatus(ctx, qt, sq, focusLabel, topN)
 }
 
 // DeleteSeries marks as deleted metrics that match the search query.
@@ -220,17 +221,17 @@ func (vmst *VMStorageWithTenantID) TSDBStatus(qt *querytracer.Tracer, sq *storag
 // If the query is not multitenant or the query accountID and projectID do not
 // match the -accoutID and -projectID flag values, no metrics will be deleted
 // and the method will return 0.
-func (vmst *VMStorageWithTenantID) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (int, error) {
+func (vmst *VMStorageWithTenantID) DeleteSeries(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery) (int, error) {
 	if !vmst.hasValidTenantID(sq) {
 		return 0, nil
 	}
-	return vmst.vms.DeleteSeries(qt, sq, deadline)
+	return vmst.vms.DeleteSeries(ctx, qt, sq)
 }
 
 // RegisterMetricNames registers metric names in the index, the sample values
 // and timestamps are ignored.
-func (vmst *VMStorageWithTenantID) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline uint64) error {
-	return vmst.vms.RegisterMetricNames(qt, mrs, deadline)
+func (vmst *VMStorageWithTenantID) RegisterMetricNames(ctx context.Context, qt *querytracer.Tracer, mrs []storage.MetricRow) error {
+	return vmst.vms.RegisterMetricNames(ctx, qt, mrs)
 }
 
 // GetMetricNamesUsageStats retrieves the usage stats for metrics whose name
@@ -239,16 +240,16 @@ func (vmst *VMStorageWithTenantID) RegisterMetricNames(qt *querytracer.Tracer, m
 // If the request is not multitenant or the request accountID and projectID do
 // not match the -accoutID and -projectID flag values, no metrics will be
 // deleted and the method will return 0.
-func (vmst *VMStorageWithTenantID) GetMetricNamesUsageStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string, deadline uint64) (metricnamestats.StatsResult, error) {
+func (vmst *VMStorageWithTenantID) GetMetricNamesUsageStats(ctx context.Context, qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string) (metricnamestats.StatsResult, error) {
 	if !vmst.isValidTenantToken(tt) {
 		return metricnamestats.StatsResult{}, nil
 	}
-	return vmst.vms.GetMetricNamesUsageStats(qt, tt, limit, le, matchPattern, deadline)
+	return vmst.vms.GetMetricNamesUsageStats(ctx, qt, tt, limit, le, matchPattern)
 }
 
 // ResetMetricNamesUsageStats resets the metric name usage stats.
-func (vmst *VMStorageWithTenantID) ResetMetricNamesUsageStats(qt *querytracer.Tracer, deadline uint64) error {
-	return vmst.vms.ResetMetricNamesUsageStats(qt, deadline)
+func (vmst *VMStorageWithTenantID) ResetMetricNamesUsageStats(ctx context.Context, qt *querytracer.Tracer) error {
+	return vmst.vms.ResetMetricNamesUsageStats(ctx, qt)
 }
 
 // GetMetadataRecords retrieves the metadata for the metricName.
@@ -256,11 +257,11 @@ func (vmst *VMStorageWithTenantID) ResetMetricNamesUsageStats(qt *querytracer.Tr
 // If the request is not multitenant or the request accountID and projectID do
 // not match the -accoutID and -projectID flag values, no metrics will be
 // deleted and the method will return 0.
-func (vmst *VMStorageWithTenantID) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string, deadline uint64) ([]*metricsmetadata.Row, error) {
+func (vmst *VMStorageWithTenantID) GetMetadataRecords(ctx context.Context, qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string) ([]*metricsmetadata.Row, error) {
 	if !vmst.isValidTenantToken(tt) {
 		return nil, nil
 	}
-	return vmst.vms.GetMetadataRecords(qt, tt, limit, metricName, deadline)
+	return vmst.vms.GetMetadataRecords(ctx, qt, tt, limit, metricName)
 }
 
 // hasValidTenantID returns true if the search query is either multitenant or

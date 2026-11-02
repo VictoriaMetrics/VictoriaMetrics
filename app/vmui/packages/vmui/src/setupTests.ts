@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import "./constants/dayjsPlugins";
 
 Object.defineProperty(window, "matchMedia", {

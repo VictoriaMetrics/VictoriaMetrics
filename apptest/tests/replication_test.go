@@ -23,7 +23,8 @@ type clusterWithReplication struct {
 }
 
 func newClusterWithReplication(tc *apptest.TestCase, replicationFactor int) *clusterWithReplication {
-	tc.T().Helper()
+	t := tc.T()
+	t.Helper()
 
 	c := &clusterWithReplication{}
 
@@ -46,6 +47,7 @@ func newClusterWithReplication(tc *apptest.TestCase, replicationFactor int) *clu
 		"-storageNode=" + strings.Join(vminsertAddrs, ","),
 		fmt.Sprintf("-replicationFactor=%d", replicationFactor),
 	})
+	apptest.EnsureBlockingIngestion(t, c.vminsert, c.vmstorages)
 
 	// An instance of vmselect that knows nothing about data replication.
 	c.vmselect = tc.MustStartVmselect("vmselect", []string{
