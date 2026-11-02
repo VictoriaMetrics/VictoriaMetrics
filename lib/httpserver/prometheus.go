@@ -18,9 +18,6 @@ func InvalidParamError(err error) *ErrorWithStatusCode {
 // and sets HTTP status code to 422 Unprocessable Entity when code is not set,
 // see https://prometheus.io/docs/prometheus/latest/querying/api/#format-overview for more details.
 func SendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
-	errStr := err.Error()
-	logHTTPError(r, errStr)
-
 	w.Header().Set("Content-Type", "application/json")
 	statusCode := http.StatusUnprocessableEntity
 	var esc *ErrorWithStatusCode
