@@ -102,10 +102,10 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		return nil, fmt.Errorf("unable to listen vmselectAddr %s: %w", addr, err)
 	}
 	concurrencyLimitCh := make(chan struct{}, limits.MaxConcurrentRequests)
-	_ = metrics.NewGauge(`vm_vmselect_concurrent_requests_capacity`, func() float64 {
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_vmselect_concurrent_requests_capacity{addr=%q}`, addr), func() float64 {
 		return float64(cap(concurrencyLimitCh))
 	})
-	_ = metrics.NewGauge(`vm_vmselect_concurrent_requests_current`, func() float64 {
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_vmselect_concurrent_requests_current{addr=%q}`, addr), func() float64 {
 		return float64(len(concurrencyLimitCh))
 	})
 	s := &Server{
@@ -116,25 +116,25 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 
 		concurrencyLimitCh: concurrencyLimitCh,
 
-		concurrencyLimitReached: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_concurrent_requests_limit_reached_total{addr=%q}`, addr)),
-		concurrencyLimitTimeout: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_concurrent_requests_limit_timeout_total{addr=%q}`, addr)),
+		concurrencyLimitReached: metrics.GetOrCreateCounter(fmt.Sprintf(`vm_vmselect_concurrent_requests_limit_reached_total{addr=%q}`, addr)),
+		concurrencyLimitTimeout: metrics.GetOrCreateCounter(fmt.Sprintf(`vm_vmselect_concurrent_requests_limit_timeout_total{addr=%q}`, addr)),
 
-		vmselectConns:      metrics.NewCounter(fmt.Sprintf(`vm_vmselect_conns{addr=%q}`, addr)),
-		vmselectConnErrors: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_conn_errors_total{addr=%q}`, addr)),
+		vmselectConns:      metrics.GetOrCreateCounter(fmt.Sprintf(`vm_vmselect_conns{addr=%q}`, addr)),
+		vmselectConnErrors: metrics.GetOrCreateCounter(fmt.Sprintf(`vm_vmselect_conn_errors_total{addr=%q}`, addr)),
 
-		registerMetricNamesRequests: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="registerMetricNames",addr=%q}`, addr)),
-		deleteSeriesRequests:        metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="deleteSeries",addr=%q}`, addr)),
-		labelNamesRequests:          metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="labelNames",addr=%q}`, addr)),
-		labelValuesRequests:         metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="labelValues",addr=%q}`, addr)),
-		tagValueSuffixesRequests:    metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tagValueSuffixes",addr=%q}`, addr)),
-		seriesCountRequests:         metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="seriesCount",addr=%q}`, addr)),
-		tsdbStatusRequests:          metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tsdbStatus",addr=%q}`, addr)),
-		searchMetricNamesRequests:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="searchMetricNames",addr=%q}`, addr)),
-		searchRequests:              metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="search",addr=%q}`, addr)),
-		tenantsRequests:             metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tenants",addr=%q}`, addr)),
-		searchMetadataRequests:      metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="searchMetadata",addr=%q}`, addr)),
+		registerMetricNamesRequests: metrics.GetOrCreateCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="registerMetricNames",addr=%q}`, addr)),
+		deleteSeriesRequests:        metrics.GetOrCreateCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="deleteSeries",addr=%q}`, addr)),
+		labelNamesRequests:          metrics.GetOrCreateCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="labelNames",addr=%q}`, addr)),
+		labelValuesRequests:         metrics.GetOrCreateCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="labelValues",addr=%q}`, addr)),
+		tagValueSuffixesRequests:    metrics.GetOrCreateCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tagValueSuffixes",addr=%q}`, addr)),
+		seriesCountRequests:         metrics.GetOrCreateCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="seriesCount",addr=%q}`, addr)),
+		tsdbStatusRequests:          metrics.GetOrCreateCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tsdbStatus",addr=%q}`, addr)),
+		searchMetricNamesRequests:   metrics.GetOrCreateCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="searchMetricNames",addr=%q}`, addr)),
+		searchRequests:              metrics.GetOrCreateCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="search",addr=%q}`, addr)),
+		tenantsRequests:             metrics.GetOrCreateCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tenants",addr=%q}`, addr)),
+		searchMetadataRequests:      metrics.GetOrCreateCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="searchMetadata",addr=%q}`, addr)),
 
-		metricBlocksRead: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_blocks_read_total{addr=%q}`, addr)),
+		metricBlocksRead: metrics.GetOrCreateCounter(fmt.Sprintf(`vm_vmselect_metric_blocks_read_total{addr=%q}`, addr)),
 	}
 
 	s.connsMap.Init("vmselect")

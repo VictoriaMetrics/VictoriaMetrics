@@ -28,19 +28,19 @@ type connMetrics struct {
 }
 
 func (cm *connMetrics) init(ms *metrics.Set, group, name, addr string) {
-	cm.readCalls = ms.NewCounter(fmt.Sprintf(`%s_read_calls_total{name=%q, addr=%q}`, group, name, addr))
-	cm.readBytes = ms.NewCounter(fmt.Sprintf(`%s_read_bytes_total{name=%q, addr=%q}`, group, name, addr))
-	cm.readErrors = ms.NewCounter(fmt.Sprintf(`%s_errors_total{name=%q, addr=%q, type="read"}`, group, name, addr))
-	cm.readTimeouts = ms.NewCounter(fmt.Sprintf(`%s_read_timeouts_total{name=%q, addr=%q}`, group, name, addr))
+	cm.readCalls = ms.GetOrCreateCounter(fmt.Sprintf(`%s_read_calls_total{name=%q, addr=%q}`, group, name, addr))
+	cm.readBytes = ms.GetOrCreateCounter(fmt.Sprintf(`%s_read_bytes_total{name=%q, addr=%q}`, group, name, addr))
+	cm.readErrors = ms.GetOrCreateCounter(fmt.Sprintf(`%s_errors_total{name=%q, addr=%q, type="read"}`, group, name, addr))
+	cm.readTimeouts = ms.GetOrCreateCounter(fmt.Sprintf(`%s_read_timeouts_total{name=%q, addr=%q}`, group, name, addr))
 
-	cm.writeCalls = ms.NewCounter(fmt.Sprintf(`%s_write_calls_total{name=%q, addr=%q}`, group, name, addr))
-	cm.writtenBytes = ms.NewCounter(fmt.Sprintf(`%s_written_bytes_total{name=%q, addr=%q}`, group, name, addr))
-	cm.writeErrors = ms.NewCounter(fmt.Sprintf(`%s_errors_total{name=%q, addr=%q, type="write"}`, group, name, addr))
-	cm.writeTimeouts = ms.NewCounter(fmt.Sprintf(`%s_write_timeouts_total{name=%q, addr=%q}`, group, name, addr))
+	cm.writeCalls = ms.GetOrCreateCounter(fmt.Sprintf(`%s_write_calls_total{name=%q, addr=%q}`, group, name, addr))
+	cm.writtenBytes = ms.GetOrCreateCounter(fmt.Sprintf(`%s_written_bytes_total{name=%q, addr=%q}`, group, name, addr))
+	cm.writeErrors = ms.GetOrCreateCounter(fmt.Sprintf(`%s_errors_total{name=%q, addr=%q, type="write"}`, group, name, addr))
+	cm.writeTimeouts = ms.GetOrCreateCounter(fmt.Sprintf(`%s_write_timeouts_total{name=%q, addr=%q}`, group, name, addr))
 
-	cm.closeErrors = ms.NewCounter(fmt.Sprintf(`%s_errors_total{name=%q, addr=%q, type="close"}`, group, name, addr))
+	cm.closeErrors = ms.GetOrCreateCounter(fmt.Sprintf(`%s_errors_total{name=%q, addr=%q, type="close"}`, group, name, addr))
 
-	cm.conns = ms.NewGauge(fmt.Sprintf(`%s_conns{name=%q, addr=%q}`, group, name, addr), nil)
+	cm.conns = ms.GetOrCreateGauge(fmt.Sprintf(`%s_conns{name=%q, addr=%q}`, group, name, addr), nil)
 }
 
 type statConn struct {
