@@ -52,7 +52,7 @@ func TestSearchMetricNamesV3(t *testing.T) {
 			tf([]byte("label4"), []byte("value4"), true, true),
 		},
 	}
-	sq := storage.NewSearchQuery(accountID, projectID, start, end, tfss, maxMetrics)
+	sq := newSearchQuery(accountID, projectID, start, end, tfss, maxMetrics)
 
 	// Start the vmselect RPC server and connect to it.
 	api := &testSearchMetricNamesV3API{}
@@ -82,7 +82,7 @@ func TestSearchMetricNamesV3(t *testing.T) {
 		if gotErr := c.ReadString(); gotErr != wantErr {
 			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
 		}
-		wantSearchQuery := storage.NewSearchQuery(accountID, projectID, start, end, tfss, maxMetrics)
+		wantSearchQuery := newSearchQuery(accountID, projectID, start, end, tfss, maxMetrics)
 		wantSearchQuery.AccountID = accountID
 		wantSearchQuery.ProjectID = projectID
 		if diff := cmp.Diff(wantSearchQuery, api.gotSearchQuery); diff != "" {
@@ -156,7 +156,7 @@ func TestSearchMetricNamesV3ClosedConn(t *testing.T) {
 		timeoutSecs       = 1
 	)
 	tfss := [][]storage.TagFilter{{tf(nil, []byte("metric1"), false, false)}}
-	sq := storage.NewSearchQuery(12, 34, 56, 78, tfss, 90)
+	sq := newSearchQuery(12, 34, 56, 78, tfss, 90)
 
 	// Start the vmselect RPC server and connect to it.
 	api := &testSearchMetricNamesV3ClosedConnAPI{
@@ -319,4 +319,8 @@ func tf(key, value []byte, isNegative, isRegexp bool) storage.TagFilter {
 		IsNegative: isNegative,
 		IsRegexp:   isRegexp,
 	}
+}
+
+func newSearchQuery(accountID, projectID uint32, start, end int64, tfss [][]storage.TagFilter, maxMetrics int) *storage.SearchQuery {
+	return storage.NewSearchQuery(accountID, projectID, start, end, tfss, maxMetrics)
 }
