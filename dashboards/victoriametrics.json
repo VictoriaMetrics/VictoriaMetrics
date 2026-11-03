@@ -5364,7 +5364,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "description": "Shows the amount of data scheduled for [downsampling](https://docs.victoriametrics.com/#downsampling) or [retention filters](https://docs.victoriametrics.com/#retention-filters).\n\nApplying downsampling or retention filters happens in background. `vmstorage` schedules this process periodically when finds data partitions that satisfy configured retention or downsampling rules.\n\nThis process could consume additional CPU and Disk IO resources.",
+          "description": "Shows the amount of data scheduled for [downsampling](https://docs.victoriametrics.com/victoriametrics/#downsampling) or [retention filters](https://docs.victoriametrics.com/victoriametrics/#retention-filters).\n\nApplying downsampling or retention filters happens in background. `vmstorage` schedules this process periodically when finds data partitions that satisfy configured retention or downsampling rules.\n\nThis process could consume additional CPU and Disk IO resources.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5477,7 +5477,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "description": "Shows the estimated amount of time needed for re-processing of partitions [downsampling](https://docs.victoriametrics.com/#downsampling) or [retention filters](https://docs.victoriametrics.com/#retention-filters).\n\nApplying downsampling or retention filters happens in background. `vmstorage` schedules this process periodically when finds data partitions that satisfy configured retention or downsampling rules.\n\nThis process could consume additional CPU and Disk IO resources.",
+          "description": "Shows the estimated amount of time needed for re-processing of partitions [downsampling](https://docs.victoriametrics.com/victoriametrics/#downsampling) or [retention filters](https://docs.victoriametrics.com/victoriametrics/#retention-filters).\n\nApplying downsampling or retention filters happens in background. `vmstorage` schedules this process periodically when finds data partitions that satisfy configured retention or downsampling rules.\n\nThis process could consume additional CPU and Disk IO resources.",
           "fieldConfig": {
             "defaults": {
               "color": {
