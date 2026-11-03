@@ -1,10 +1,13 @@
 package netutil
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"testing"
+	"testing/synctest"
+	"time"
 )
 
 func TestIsUnixSocketDialError(t *testing.T) {
@@ -108,4 +111,54 @@ func TestIsTCPv4Addr(t *testing.T) {
 	f("1.2.3.4:5", true)
 	f("0.0.0.0:80", true)
 	f("1.2.3.4:65535", true)
+}
+
+func TestNewStatDialFuncWithTimeoutDeadline(t *testing.T) {
+	originalResolver := Resolver
+	Resolver = &statDialTestResolver{
+		resolver: originalResolver,
+		lookupSRV: func(ctx context.Context, _, _, _ string) (string, []*net.SRV, error) {
+			<-ctx.Done()
+			return "", nil, ctx.Err()
+		},
+	}
+	t.Cleanup(func() { Resolver = originalResolver })
+
+	for _, tc := range []struct {
+		name          string
+		timeout       time.Duration
+		parentTimeout time.Duration
+		want          time.Duration
+	}{
+		{"short", 5 * time.Second, 2 * time.Minute, 5 * time.Second},
+		{"above_default", time.Minute, 2 * time.Minute, time.Minute},
+		{"zero", 0, time.Minute, time.Minute},
+		{"negative", -time.Second, time.Minute, time.Minute},
+		{"earlier_parent", time.Minute, time.Second, time.Second},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(context.Background(), tc.parentTimeout)
+				defer cancel()
+				dial := NewStatDialFuncWithTimeout("test_dial_deadline", tc.timeout)
+				start := time.Now()
+				_, err := dial(ctx, "tcp", "srv+kubernetes.test:443")
+				if !errors.Is(err, context.DeadlineExceeded) {
+					t.Fatalf("unexpected error; got %v; want deadline exceeded", err)
+				}
+				if elapsed := time.Since(start); elapsed != tc.want {
+					t.Fatalf("unexpected timeout; got %s; want %s", elapsed, tc.want)
+				}
+			})
+		})
+	}
+}
+
+type statDialTestResolver struct {
+	resolver
+	lookupSRV func(context.Context, string, string, string) (string, []*net.SRV, error)
+}
+
+func (r *statDialTestResolver) LookupSRV(ctx context.Context, service, proto, name string) (string, []*net.SRV, error) {
+	return r.lookupSRV(ctx, service, proto, name)
 }

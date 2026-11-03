@@ -1,16 +1,116 @@
 package kubernetes
 
 import (
+	"bufio"
+	"context"
 	"encoding/json"
+	"errors"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
+
+// Use an in-memory connection so synctest can advance time while HTTP I/O is blocked.
+func newKubernetesTimeoutTestWatcher(t *testing.T, serve func(net.Conn)) *groupWatcher {
+	t.Helper()
+	clientConn, serverConn := net.Pipe()
+	t.Cleanup(func() {
+		clientConn.Close()
+		serverConn.Close()
+	})
+	go func() {
+		defer serverConn.Close()
+		if _, err := http.ReadRequest(bufio.NewReader(serverConn)); err != nil {
+			t.Errorf("read request: %v", err)
+			return
+		}
+		serve(serverConn)
+	}()
+	return &groupWatcher{
+		apiServer: "http://kubernetes.test",
+		ctx:       context.Background(),
+		client: &http.Client{Transport: &http.Transport{
+			DialContext: func(context.Context, string, string) (net.Conn, error) {
+				return clientConn, nil
+			},
+		}},
+		setHeaders:        func(*http.Request) error { return nil },
+		listTimeout:       30 * time.Second,
+		watchStartTimeout: 30 * time.Second,
+	}
+}
+
+func TestKubernetesListBodyTimeout(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		gw := newKubernetesTimeoutTestWatcher(t, func(conn net.Conn) {
+			io.WriteString(conn, "HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n{\"metadata\":")
+			io.Copy(io.Discard, conn) // Leave the body incomplete until the client disconnects.
+		})
+		var listErr error
+		uw := &urlWatcher{
+			gw:     gw,
+			apiURL: gw.apiServer,
+			parseObjectList: func(r io.Reader) (map[string]object, ListMeta, error) {
+				objects, metadata, err := parsePodList(r)
+				listErr = err
+				return objects, metadata, err
+			},
+		}
+		start := time.Now()
+		if resourceVersion := uw.reloadObjects(); resourceVersion != "" {
+			t.Fatalf("got resourceVersion %q; want empty after LIST timeout", resourceVersion)
+		}
+		if !errors.Is(listErr, context.DeadlineExceeded) {
+			t.Fatalf("got %v; want context.DeadlineExceeded", listErr)
+		}
+		if elapsed := time.Since(start); elapsed != gw.listTimeout {
+			t.Fatalf("LIST took %s; want %s", elapsed, gw.listTimeout)
+		}
+	})
+}
+
+func TestKubernetesWatchStartTimeout(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		gw := newKubernetesTimeoutTestWatcher(t, func(conn net.Conn) {
+			io.Copy(io.Discard, conn) // Never send response headers.
+		})
+		start := time.Now()
+		_, err := gw.doWatchRequest(gw.ctx, gw.apiServer+"?watch=1")
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("got %v; want context.DeadlineExceeded", err)
+		}
+		if elapsed := time.Since(start); elapsed != gw.watchStartTimeout {
+			t.Fatalf("WATCH startup took %s; want %s", elapsed, gw.watchStartTimeout)
+		}
+	})
+}
+
+func TestKubernetesWatchStreamOutlivesStartTimeout(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		gw := newKubernetesTimeoutTestWatcher(t, func(conn net.Conn) {
+			io.WriteString(conn, "HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\n")
+			time.Sleep(time.Minute) // Virtual time: the body arrives after the startup timeout.
+			io.WriteString(conn, "event\n")
+		})
+		resp, err := gw.doWatchRequest(gw.ctx, gw.apiServer+"?watch=1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
+		if err != nil || string(body) != "event\n" {
+			t.Fatalf("read WATCH stream: body=%q, err=%v", body, err)
+		}
+	})
+}
 
 func TestGetAPIPathsWithNamespaces(t *testing.T) {
 	f := func(role string, namespaces []string, selectors []Selector, expectedPaths []string) {

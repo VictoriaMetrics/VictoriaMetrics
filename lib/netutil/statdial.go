@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -20,6 +21,22 @@ func NewStatDialFuncWithDial(metricPrefix string, dialFunc func(ctx context.Cont
 // NewStatDialFunc returns dialer function that supports DNS SRV records and registers stats metrics for conns.
 func NewStatDialFunc(metricPrefix string) func(ctx context.Context, network, addr string) (net.Conn, error) {
 	return newStatDialFunc(metricPrefix, DialMaybeSRV)
+}
+
+// NewStatDialFuncWithTimeout returns a dialer function with connection metrics and DNS SRV support.
+// The timeout covers DNS resolution and TCP connection establishment, and does not use the netutil.Dialer timeout.
+// Non-positive values disable this timeout; context deadlines still apply.
+func NewStatDialFuncWithTimeout(metricPrefix string, timeout time.Duration) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	// Use the context to bound both SRV resolution and dialing, without a separate dialer timeout.
+	dialer := newDialer(0)
+	return newStatDialFunc(metricPrefix, func(ctx context.Context, network, addr string) (net.Conn, error) {
+		if timeout > 0 {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, timeout)
+			defer cancel()
+		}
+		return dialMaybeSRV(ctx, network, addr, dialer)
+	})
 }
 
 func newStatDialFunc(metricPrefix string, dialFunc func(ctx context.Context, network, addr string) (net.Conn, error)) func(ctx context.Context, network, addr string) (net.Conn, error) {

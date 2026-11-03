@@ -2,6 +2,7 @@ package httputil
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
@@ -18,8 +19,22 @@ import (
 // See https://www.google.com/search?q=http2+security+issues .
 // Also, http2 doesn't bring any advantages over http/1.1 when communicating with server backends.
 func NewTransport(enableHTTP2 bool, metricsPrefix string) *http.Transport {
-	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr := newTransport(enableHTTP2)
 	tr.DialContext = netutil.NewStatDialFunc(metricsPrefix)
+	return tr
+}
+
+// NewTransportWithDialTimeout returns a transport with the same settings as NewTransport,
+// but with a dedicated dialer whose timeout covers DNS resolution and TCP connection establishment.
+// Non-positive values disable the dial timeout; context deadlines still apply.
+func NewTransportWithDialTimeout(enableHTTP2 bool, dialTimeout time.Duration, metricsPrefix string) *http.Transport {
+	tr := newTransport(enableHTTP2)
+	tr.DialContext = netutil.NewStatDialFuncWithTimeout(metricsPrefix, dialTimeout)
+	return tr
+}
+
+func newTransport(enableHTTP2 bool) *http.Transport {
+	tr := http.DefaultTransport.(*http.Transport).Clone()
 	if !enableHTTP2 {
 		// Disable automatically enabled http2
 		tr.ForceAttemptHTTP2 = false
