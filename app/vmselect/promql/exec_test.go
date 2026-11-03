@@ -10757,6 +10757,9 @@ func TestExecError(t *testing.T) {
 	f(`rollup_rate(time()[5m], "foo")`)
 	f(`rollup_rate(time()[5m], "foo", "bar")`)
 	f(`rollup_candlestick(time(), "foo")`)
+
+	// check ValidateMaxPointsPerSeries after start/end aligment at alignStartEnd.
+	f(`count_over_time(time()[398984ms:7ms])`)
 }
 
 func testResultsEqual(t *testing.T, result, resultExpected []netstorage.Result) {
@@ -10894,10 +10897,6 @@ max_over_time(cpuIdle[1h:])`)
 	// instead of denying them.
 	f("sum(http_total) offset 1m")
 	f(`round(sum(sum_over_time(http_total[1m])) by (instance)) offset 1m`)
-
-	// check ValidateMaxPointsPerSeries after start/end aligment at alignStartEnd.
-	f(`count_over_time(time()[
-		398984ms:7ms])`)
 }
 
 func TestMetricsqlIsLikelyInvalid_True(t *testing.T) {
