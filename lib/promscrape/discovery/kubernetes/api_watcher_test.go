@@ -1,7 +1,9 @@
 package kubernetes
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -11,6 +13,67 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
+
+func receiveWithTimeout[T any](t *testing.T, ch <-chan T) T {
+	t.Helper()
+	select {
+	case result := <-ch:
+		return result
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for Kubernetes discovery")
+		var zero T
+		return zero
+	}
+}
+
+// A queued acquire must wake on cancellation and leave no limiter entry after the active requests finish.
+func TestKubernetesListLimiterCancelsQueuedRequest(t *testing.T) {
+	const apiServer = "https://limiter-cancellation.invalid"
+	t.Cleanup(func() { assertKubernetesListLimitReleased(t, apiServer) })
+	for i := 0; i < *listConcurrency; i++ {
+		if err := listLimiter.Acquire(context.Background(), apiServer); err != nil {
+			t.Fatalf("cannot acquire LIST slot: %v", err)
+		}
+		defer listLimiter.Release(apiServer)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	result := make(chan error, 1)
+	go func() {
+		err := listLimiter.Acquire(ctx, apiServer)
+		if err == nil {
+			listLimiter.Release(apiServer)
+		}
+		result <- err
+	}()
+	// Cancel only after the extra caller is queued behind the occupied slots.
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		listLimiter.mu.Lock()
+		queued := listLimiter.limits[apiServer].users == *listConcurrency+1
+		listLimiter.mu.Unlock()
+		if queued {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("timed out waiting for queued LIST")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	cancel()
+	if err := receiveWithTimeout(t, result); !errors.Is(err, context.Canceled) {
+		t.Fatalf("got %v; want context.Canceled", err)
+	}
+}
+
+func assertKubernetesListLimitReleased(t *testing.T, apiServer string) {
+	t.Helper()
+	listLimiter.mu.Lock()
+	defer listLimiter.mu.Unlock()
+	if _, ok := listLimiter.limits[apiServer]; ok {
+		t.Errorf("LIST semaphore for %q was not released", apiServer)
+	}
+}
 
 func TestGetAPIPathsWithNamespaces(t *testing.T) {
 	f := func(role string, namespaces []string, selectors []Selector, expectedPaths []string) {

@@ -29,6 +29,8 @@ import (
 )
 
 var (
+	listConcurrency = flag.Int("promscrape.kubernetes.listConcurrency", 4, "Maximum number of concurrent LIST requests per Kubernetes API server in this process. "+
+		"Must be greater than zero. Applies to initial discovery and subsequent relists; WATCH requests are not limited.")
 	apiServerTimeout      = flag.Duration("promscrape.kubernetes.apiServerTimeout", 30*time.Minute, "How frequently to reload the full state from Kubernetes API server")
 	attachNodeMetadataAll = flag.Bool("promscrape.kubernetes.attachNodeMetadataAll", false, "Whether to set attach_metadata.node=true for all the kubernetes_sd_configs at -promscrape.config . "+
 		"It is possible to set attach_metadata.node=false individually per each kubernetes_sd_configs . See https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs")
@@ -717,23 +719,11 @@ func (uw *urlWatcher) reloadObjects() string {
 	// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4855 .
 	delimiter := getQueryArgsDelimiter(apiURL)
 	requestURL := apiURL + delimiter + "resourceVersion=0&resourceVersionMatch=NotOlderThan"
-	resp, err := gw.doRequest(gw.ctx, requestURL)
+	objectsByKey, metadata, err := uw.getObjectList(requestURL)
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
 			logger.Errorf("cannot perform request to %q: %s", requestURL, err)
 		}
-		return ""
-	}
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-		logger.Errorf("unexpected status code for request to %q: %d; want %d; response: %q", requestURL, resp.StatusCode, http.StatusOK, body)
-		return ""
-	}
-	objectsByKey, metadata, err := uw.parseObjectList(resp.Body)
-	_ = resp.Body.Close()
-	if err != nil {
-		logger.Errorf("cannot parse objects from %q: %s", requestURL, err)
 		return ""
 	}
 
@@ -1102,4 +1092,72 @@ func getQueryArgsDelimiter(apiURL string) string {
 		return "&"
 	}
 	return "?"
+}
+
+type listConcurrencyLimit struct {
+	ch    chan struct{}
+	users int // Active and waiting LIST calls; protected by listRequestLimiter.mu.
+}
+
+type listRequestLimiter struct {
+	mu     sync.Mutex
+	limits map[string]*listConcurrencyLimit
+}
+
+var listLimiter = listRequestLimiter{limits: make(map[string]*listConcurrencyLimit)}
+
+// Acquire waits for a LIST slot. Each successful Acquire must be paired with Release.
+func (l *listRequestLimiter) Acquire(ctx context.Context, apiServer string) error {
+	l.mu.Lock()
+	limit := l.limits[apiServer]
+	if limit == nil {
+		limit = &listConcurrencyLimit{ch: make(chan struct{}, *listConcurrency)}
+		l.limits[apiServer] = limit
+	}
+	// Retain the semaphore before waiting so it cannot be removed while in use.
+	limit.users++
+	l.mu.Unlock()
+	select {
+	case limit.ch <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		l.mu.Lock()
+		l.releaseUserLocked(apiServer)
+		l.mu.Unlock()
+		return ctx.Err()
+	}
+}
+
+// Release frees a LIST slot and removes the semaphore when no callers remain.
+func (l *listRequestLimiter) Release(apiServer string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	<-l.limits[apiServer].ch
+	l.releaseUserLocked(apiServer)
+}
+
+func (l *listRequestLimiter) releaseUserLocked(apiServer string) {
+	limit := l.limits[apiServer]
+	limit.users--
+	if limit.users == 0 {
+		delete(l.limits, apiServer)
+	}
+}
+
+func (uw *urlWatcher) getObjectList(requestURL string) (map[string]object, ListMeta, error) {
+	gw := uw.gw
+	if err := listLimiter.Acquire(gw.ctx, gw.apiServer); err != nil {
+		return nil, ListMeta{}, err
+	}
+	defer listLimiter.Release(gw.apiServer)
+	resp, err := gw.doRequest(gw.ctx, requestURL)
+	if err != nil {
+		return nil, ListMeta{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, ListMeta{}, fmt.Errorf("unexpected status code: %d; want %d; response: %q", resp.StatusCode, http.StatusOK, body)
+	}
+	return uw.parseObjectList(resp.Body)
 }

@@ -10,6 +10,9 @@ import (
 )
 
 func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFunc) (*apiConfig, error) {
+	if *listConcurrency <= 0 {
+		return nil, fmt.Errorf("-promscrape.kubernetes.listConcurrency must be greater than zero; got %d", *listConcurrency)
+	}
 	role := sdc.role()
 	switch role {
 	case "node", "pod", "service", "endpoints", "endpointslice", "ingress":
