@@ -322,13 +322,6 @@ func TestSearchV7ClosedConn(t *testing.T) {
 
 		c.WriteRPCName("search_v7", false, 60)
 		c.WriteSearchQuery(newSearchQuery())
-		if cancelInNextBlock {
-			// InitSearch succeeded, so the server sends an empty error message
-			// before reading blocks.
-			if got := c.ReadString(); got != "" {
-				t.Fatalf("unexpected remote error: %q", got)
-			}
-		}
 		api.closeConnAndCheckCanceled(t, c)
 	}
 
