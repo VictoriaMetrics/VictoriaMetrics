@@ -74,6 +74,96 @@ func getTestScrapeWorksAsync(t *testing.T, sdc *SDConfig) <-chan []any {
 	return result
 }
 
+// The second v1 request receives its 404 after the first has enabled fallback.
+// Both requests must retry v1beta1, and later requests must start with v1beta1.
+func TestKubernetesConcurrentRequestsFallBackToV1Beta1(t *testing.T) {
+	for _, tc := range []struct {
+		apiGroup string
+		resource string
+	}{
+		{apiGroup: "networking.k8s.io", resource: "ingresses"},
+		{apiGroup: "discovery.k8s.io", resource: "endpointslices"},
+	} {
+		t.Run(tc.apiGroup, func(t *testing.T) {
+			v1 := "/apis/" + tc.apiGroup + "/v1/namespaces/"
+			beta := "/apis/" + tc.apiGroup + "/v1beta1/namespaces/"
+			secondStarted := make(chan struct{})
+			firstFallback := make(chan struct{})
+			var betaRequests atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case v1 + "a/" + tc.resource:
+					// Both requests must use v1 before either enables fallback.
+					select {
+					case <-secondStarted:
+					case <-r.Context().Done():
+						return
+					}
+				case v1 + "b/" + tc.resource:
+					close(secondStarted)
+					// Return the second 404 after the shared fallback flag is set.
+					select {
+					case <-firstFallback:
+					case <-r.Context().Done():
+						return
+					}
+				case beta + "a/" + tc.resource:
+					betaRequests.Add(1)
+					close(firstFallback)
+					fmt.Fprint(w, `{"metadata":{"resourceVersion":"7"},"items":[]}`)
+					return
+				case beta + "b/" + tc.resource:
+					betaRequests.Add(1)
+					fmt.Fprint(w, `{"metadata":{"resourceVersion":"7"},"items":[]}`)
+					return
+				case beta + "missing/" + tc.resource:
+					betaRequests.Add(1)
+				default:
+					t.Errorf("unexpected request path: %q", r.URL.Path)
+				}
+				http.NotFound(w, r)
+			}))
+			defer server.Close()
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			gw := &groupWatcher{
+				client:     server.Client(),
+				setHeaders: func(_ *http.Request) error { return nil },
+			}
+			statuses := make(chan int, 2)
+			for _, namespace := range []string{"a", "b"} {
+				go func() {
+					resp, err := gw.doRequest(ctx, server.URL+v1+namespace+"/"+tc.resource)
+					if err != nil {
+						t.Errorf("cannot LIST namespace %q: %v", namespace, err)
+						statuses <- 0
+						return
+					}
+					resp.Body.Close()
+					statuses <- resp.StatusCode
+				}()
+			}
+			for range 2 {
+				if status := receiveWithTimeout(t, statuses); status != http.StatusOK {
+					t.Errorf("LIST status = %d; want 200", status)
+				}
+			}
+			// Later requests must use the cached version, and a beta 404 must not retry.
+			resp, err := gw.doRequest(ctx, server.URL+v1+"missing/"+tc.resource)
+			if err != nil {
+				t.Fatalf("cannot LIST missing namespace: %v", err)
+			}
+			resp.Body.Close()
+			if resp.StatusCode != http.StatusNotFound {
+				t.Fatalf("missing namespace status = %d; want 404", resp.StatusCode)
+			}
+			if got := betaRequests.Load(); got != 3 {
+				t.Errorf("got %d beta requests; want 3", got)
+			}
+		})
+	}
+}
+
 // Finish the endpoint LIST while service and namespace LISTs remain blocked.
 // Neither direct collection nor another role's batch registration may expose targets before their metadata is available.
 func TestKubernetesTargetsWaitForMetadataDependencies(t *testing.T) {

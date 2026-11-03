@@ -576,11 +576,13 @@ func (gw *groupWatcher) doRequest(ctx context.Context, requestURL string) (*http
 		return nil, err
 	}
 	if resp.StatusCode == http.StatusNotFound {
-		if strings.Contains(requestURL, "/apis/networking.k8s.io/v1/") && !gw.useNetworkingV1Beta1.Load() {
+		// Retry based on the requested version, even if another request has already enabled fallback
+		// to avoid race condition when 2 requests are executed concurrently
+		if strings.Contains(requestURL, "/apis/networking.k8s.io/v1/") {
 			gw.useNetworkingV1Beta1.Store(true)
 			return gw.doRequest(ctx, requestURL)
 		}
-		if strings.Contains(requestURL, "/apis/discovery.k8s.io/v1/") && !gw.useDiscoveryV1Beta1.Load() {
+		if strings.Contains(requestURL, "/apis/discovery.k8s.io/v1/") {
 			gw.useDiscoveryV1Beta1.Store(true)
 			return gw.doRequest(ctx, requestURL)
 		}
