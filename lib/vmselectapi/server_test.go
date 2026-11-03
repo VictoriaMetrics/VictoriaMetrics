@@ -207,6 +207,7 @@ func TestSearchV7(t *testing.T) {
 	f := func(wantBlocks []string, wantErr string) {
 		t.Helper()
 
+		// Reset the API.
 		api.gotSearchQuery = nil
 		api.bi = &testBlockIterator{}
 		for _, b := range wantBlocks {
@@ -286,6 +287,7 @@ func TestLabelValuesV5(t *testing.T) {
 	f := func(wantLabelValues []string, wantErr string) {
 		t.Helper()
 
+		// Reset the API.
 		api.gotSearchQuery = nil
 		api.gotLabelName = ""
 		api.gotMaxLabelValues = 0
@@ -381,21 +383,29 @@ func TestTagValueSuffixesV4(t *testing.T) {
 	f := func(wantSuffixes []string, wantErr string) {
 		t.Helper()
 
-		*api = testTagValueSuffixesV4API{suffixes: wantSuffixes}
+		// Reset the API.
+		api.gotAccountID = 0
+		api.gotProjectID = 0
+		api.gotTimeRange = storage.TimeRange{}
+		api.gotTagKey = ""
+		api.gotTagValuePrefix = ""
+		api.gotDelimiter = 0
+		api.gotMaxSuffixes = 0
+		api.suffixes = wantSuffixes
+		api.err = nil
 		if wantErr != "" {
 			api.err = errors.New(wantErr)
 		}
 
 		const (
-			enableQueryTracer = false
-			accountID         = 12
-			projectID         = 34
-			minTimestamp      = 123456789
-			maxTimestamp      = 987654321
-			tagKey            = "key1"
-			tagValuePrefix    = "prefix."
-			delimiter         = '.'
-			maxSuffixes       = 100
+			accountID      = 12
+			projectID      = 34
+			minTimestamp   = 123456789
+			maxTimestamp   = 987654321
+			tagKey         = "key1"
+			tagValuePrefix = "prefix."
+			delimiter      = '.'
+			maxSuffixes    = 100
 		)
 
 		c.WriteRPCName("tagValueSuffixes_v4", false, 1)
@@ -410,21 +420,32 @@ func TestTagValueSuffixesV4(t *testing.T) {
 		if gotErr := c.ReadString(); gotErr != wantErr {
 			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
 		}
-		wantAPI := testTagValueSuffixesV4API{
-			gotAccountID:      accountID,
-			gotProjectID:      projectID,
-			gotTimeRange:      storage.TimeRange{MinTimestamp: minTimestamp, MaxTimestamp: maxTimestamp},
-			gotTagKey:         tagKey,
-			gotTagValuePrefix: tagValuePrefix,
-			gotDelimiter:      delimiter,
-			gotMaxSuffixes:    maxSuffixes,
+		if api.gotAccountID != accountID {
+			t.Fatalf("unexpected accountID: got %d, want %d", api.gotAccountID, accountID)
 		}
-		gotAPI := *api
-		gotAPI.suffixes = nil
-		gotAPI.err = nil
-		if diff := cmp.Diff(wantAPI, gotAPI, cmp.AllowUnexported(testTagValueSuffixesV4API{})); diff != "" {
-			t.Fatalf("unexpected API args (-want, +got):\n%s", diff)
+		if api.gotProjectID != projectID {
+			t.Fatalf("unexpected projectID: got %d, want %d", api.gotProjectID, projectID)
 		}
+		wantTimeRange := storage.TimeRange{
+			MinTimestamp: minTimestamp,
+			MaxTimestamp: maxTimestamp,
+		}
+		if api.gotTimeRange != wantTimeRange {
+			t.Fatalf("unexpected time range: got %v, want %v", api.gotTimeRange, wantTimeRange)
+		}
+		if api.gotTagKey != tagKey {
+			t.Fatalf("unexpected tagKey: got %q, want %q", api.gotTagKey, tagKey)
+		}
+		if api.gotTagValuePrefix != tagValuePrefix {
+			t.Fatalf("unexpected tagValuePrefix: got %q, want %q", api.gotTagValuePrefix, tagValuePrefix)
+		}
+		if api.gotDelimiter != delimiter {
+			t.Fatalf("unexpected delimiter: got %d, want %d", api.gotDelimiter, delimiter)
+		}
+		if api.gotMaxSuffixes != maxSuffixes {
+			t.Fatalf("unexpected maxSuffixes: got %d, want %d", api.gotMaxSuffixes, maxSuffixes)
+		}
+
 		if wantErr != "" {
 			c.ReadEmptyTrace()
 			return
@@ -556,7 +577,11 @@ func TestSeriesCountV4(t *testing.T) {
 	f := func(wantN uint64, wantErr string) {
 		t.Helper()
 
-		*api = testSeriesCountV4API{n: wantN}
+		// Reset the API.
+		api.gotAccountID = 0
+		api.gotProjectID = 0
+		api.n = wantN
+		api.err = nil
 		if wantErr != "" {
 			api.err = errors.New(wantErr)
 		}
@@ -731,7 +756,10 @@ func TestDeleteSeriesV5(t *testing.T) {
 	f := func(wantDeletedCount int, wantErr string) {
 		t.Helper()
 
-		*api = testDeleteSeriesV5API{deletedCount: wantDeletedCount}
+		// Reset the API.
+		api.gotSearchQuery = nil
+		api.deletedCount = wantDeletedCount
+		api.err = nil
 		if wantErr != "" {
 			api.err = errors.New(wantErr)
 		}
@@ -778,7 +806,6 @@ func (api *testRegisterMetricNamesV3API) RegisterMetricNames(_ context.Context, 
 
 func TestRegisterMetricNamesV3(t *testing.T) {
 	defer metrics.UnregisterAllMetrics()
-	const enableQueryTracer = false
 
 	api := &testRegisterMetricNamesV3API{}
 	s := startServer(t, api)
@@ -789,14 +816,13 @@ func TestRegisterMetricNamesV3(t *testing.T) {
 	f := func(mrs []storage.MetricRow, wantErr string) {
 		t.Helper()
 
-		*api = testRegisterMetricNamesV3API{}
+		api.gotMetricRows = nil
+		api.err = nil
 		if wantErr != "" {
 			api.err = errors.New(wantErr)
 		}
 
-		c.WriteString("registerMetricNames_v3")
-		c.WriteBool(enableQueryTracer)
-		c.WriteUint32(1)
+		c.WriteRPCName("registerMetricNames_v3", false, 1)
 		c.WriteUint64(uint64(len(mrs)))
 		for _, mr := range mrs {
 			c.WriteBytes(mr.MetricNameRaw)
@@ -836,8 +862,6 @@ func (api *testTenantsV1API) Tenants(_ context.Context, _ *querytracer.Tracer, t
 
 func TestTenantsV1(t *testing.T) {
 	defer metrics.UnregisterAllMetrics()
-	const enableQueryTracer = false
-	wantTimeRange := storage.TimeRange{MinTimestamp: 123456789, MaxTimestamp: 987654321}
 
 	api := &testTenantsV1API{}
 	s := startServer(t, api)
@@ -848,18 +872,27 @@ func TestTenantsV1(t *testing.T) {
 	f := func(wantTenants []string, wantErr string) {
 		t.Helper()
 
-		*api = testTenantsV1API{tenants: wantTenants}
+		api.gotTimeRange = storage.TimeRange{}
+		api.tenants = wantTenants
+		api.err = nil
 		if wantErr != "" {
 			api.err = errors.New(wantErr)
 		}
 
-		c.WriteString("tenants_v1")
-		c.WriteBool(enableQueryTracer)
-		c.WriteUint32(1)
-		c.WriteUint64(uint64(wantTimeRange.MinTimestamp))
-		c.WriteUint64(uint64(wantTimeRange.MaxTimestamp))
+		const (
+			minTimestamp = 123456789
+			maxTimestamp = 987654321
+		)
+
+		c.WriteRPCName("tenants_v1", false, 1)
+		c.WriteUint64(minTimestamp)
+		c.WriteUint64(maxTimestamp)
 		if gotErr := c.ReadString(); gotErr != wantErr {
 			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
+		}
+		wantTimeRange := storage.TimeRange{
+			MinTimestamp: minTimestamp,
+			MaxTimestamp: maxTimestamp,
 		}
 		if api.gotTimeRange != wantTimeRange {
 			t.Fatalf("unexpected time range: got %v, want %v", api.gotTimeRange, wantTimeRange)
@@ -912,12 +945,6 @@ func (api *testMetricNamesUsageStatsV1API) GetMetricNamesUsageStats(_ context.Co
 
 func TestMetricNamesUsageStatsV1(t *testing.T) {
 	defer metrics.UnregisterAllMetrics()
-	const (
-		enableQueryTracer = false
-		limit             = 100
-		le                = 5
-		matchPattern      = "m*"
-	)
 
 	api := &testMetricNamesUsageStatsV1API{}
 	s := startServer(t, api)
@@ -928,14 +955,23 @@ func TestMetricNamesUsageStatsV1(t *testing.T) {
 	f := func(tt *storage.TenantToken, wantResult metricnamestats.StatsResult, wantErr string) {
 		t.Helper()
 
-		*api = testMetricNamesUsageStatsV1API{result: wantResult}
+		api.gotTenantToken = nil
+		api.gotLimit = 0
+		api.gotLE = 0
+		api.gotMatchPattern = ""
+		api.result = wantResult
+		api.err = nil
 		if wantErr != "" {
 			api.err = errors.New(wantErr)
 		}
 
-		c.WriteString("metricNamesUsageStats_v1")
-		c.WriteBool(enableQueryTracer)
-		c.WriteUint32(1)
+		const (
+			limit        = 100
+			le           = 5
+			matchPattern = "m*"
+		)
+
+		c.WriteRPCName("metricNamesUsageStats_v1", false, 1)
 		c.WriteBool(tt != nil)
 		if tt != nil {
 			c.WriteUint32(tt.AccountID)
@@ -1009,7 +1045,6 @@ func (api *testResetMetricNamesStatsV1API) ResetMetricNamesUsageStats(_ context.
 
 func TestResetMetricNamesStatsV1(t *testing.T) {
 	defer metrics.UnregisterAllMetrics()
-	const enableQueryTracer = false
 
 	api := &testResetMetricNamesStatsV1API{}
 	s := startServer(t, api)
@@ -1018,9 +1053,7 @@ func TestResetMetricNamesStatsV1(t *testing.T) {
 	defer c.Close()
 
 	for i := range 3 {
-		c.WriteString("resetMetricNamesStats_v1")
-		c.WriteBool(enableQueryTracer)
-		c.WriteUint32(1)
+		c.WriteRPCName("resetMetricNamesStats_v1", false, 1)
 		c.ReadEmptyTrace()
 		if got, want := api.calls, i+1; got != want {
 			t.Fatalf("unexpected number of API calls: got %d, want %d", got, want)
@@ -1048,11 +1081,6 @@ func (api *testSearchMetadataV1API) GetMetadataRecords(_ context.Context, _ *que
 
 func TestSearchMetadataV1(t *testing.T) {
 	defer metrics.UnregisterAllMetrics()
-	const (
-		enableQueryTracer = false
-		limit             = 100
-		metricName        = "metric1"
-	)
 
 	api := &testSearchMetadataV1API{}
 	s := startServer(t, api)
@@ -1063,14 +1091,21 @@ func TestSearchMetadataV1(t *testing.T) {
 	f := func(tt *storage.TenantToken, wantRows []*metricsmetadata.Row, wantErr string) {
 		t.Helper()
 
-		*api = testSearchMetadataV1API{rows: wantRows}
+		api.gotTenantToken = nil
+		api.gotLimit = 0
+		api.gotMetricName = ""
+		api.rows = wantRows
+		api.err = nil
 		if wantErr != "" {
 			api.err = errors.New(wantErr)
 		}
 
-		c.WriteString("searchMetadata_v1")
-		c.WriteBool(enableQueryTracer)
-		c.WriteUint32(1)
+		const (
+			limit      = 100
+			metricName = "metric1"
+		)
+
+		c.WriteRPCName("searchMetadata_v1", false, 1)
 		c.WriteBool(tt != nil)
 		if tt != nil {
 			c.WriteUint32(tt.AccountID)
@@ -1133,19 +1168,22 @@ func TestSearchMetadataV1(t *testing.T) {
 	f(&storage.TenantToken{AccountID: 12, ProjectID: 34}, rows, "")
 }
 
+// testUnsupportedRPCAPI is a fake implementation of API used in
+// TestUnsupportedRPC().
+type testUnsupportedRPCAPI struct {
+	API
+}
+
 func TestUnsupportedRPC(t *testing.T) {
 	defer metrics.UnregisterAllMetrics()
-	const enableQueryTracer = false
 
-	s := startServer(t, &testSearchMetricNamesV3API{})
+	s := startServer(t, &testUnsupportedRPCAPI{})
 	defer s.MustStop()
 	c := newConn(t, s)
 	defer c.Close()
 
 	// The server closes the connection on unsupported rpcName.
-	c.WriteString("unsupported_v1")
-	c.WriteBool(enableQueryTracer)
-	c.WriteUint32(1)
+	c.WriteRPCName("unsupported_v1", false, 1)
 	if _, err := io.ReadFull(c.bc, make([]byte, 1)); err == nil {
 		t.Fatalf("expecting non-nil error when reading from conn closed by server")
 	}
