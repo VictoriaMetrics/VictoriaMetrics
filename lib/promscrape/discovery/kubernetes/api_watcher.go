@@ -71,6 +71,12 @@ type apiWatcher struct {
 
 	gw *groupWatcher
 
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	// watchers includes the role and its metadata dependencies. It is set before subscribing and then immutable.
+	watchers []*urlWatcher
+
 	// swosByURLWatcher contains per-urlWatcher maps of ScrapeWork objects for the given apiWatcher
 	swosByURLWatcher     map[*urlWatcher]map[string][]any
 	swosByURLWatcherLock sync.Mutex
@@ -98,11 +104,14 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 	}
 	proxyURL := sdc.ProxyURL.GetURL()
 	gw := getGroupWatcher(apiServer, ac, namespaces, selectors, attachNodeMetadata, attachNamespaceMetadata, proxyURL)
+	ctx, cancel := context.WithCancel(gw.ctx)
 	role := sdc.role()
 	aw := &apiWatcher{
 		role:             role,
 		swcFunc:          swcFunc,
 		gw:               gw,
+		ctx:              ctx,
+		cancel:           cancel,
 		swosByURLWatcher: make(map[*urlWatcher]map[string][]any),
 		swosCount:        metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_scrape_works{role=%q}`, role)),
 	}
@@ -110,9 +119,33 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 }
 
 func (aw *apiWatcher) mustStart() {
+	// Retain the group until this API watcher has subscribed to its URL watchers.
 	aw.gw.apiWatcherInflightStartCalls.Add(1)
-	aw.gw.startWatchersForRole(aw.role, aw)
-	aw.gw.apiWatcherInflightStartCalls.Add(-1)
+	defer aw.gw.apiWatcherInflightStartCalls.Add(-1)
+	aw.watchers = aw.gw.startWatchersForRole(aw.role)
+	// Queue subscriptions synchronously so target collection can register them in a batch.
+	// They remain pending until all initial dependency LIST attempts finish.
+	aw.gw.mu.Lock()
+	for _, uw := range aw.watchers {
+		if uw.role == aw.role {
+			uw.subscribeAPIWatcherLocked(aw)
+		}
+	}
+	aw.gw.mu.Unlock()
+}
+
+func (aw *apiWatcher) isInitializing() bool {
+	if aw.ctx.Err() != nil {
+		return false
+	}
+	for _, uw := range aw.watchers {
+		select {
+		case <-uw.initialListDone:
+		default:
+			return true
+		}
+	}
+	return false
 }
 
 func (aw *apiWatcher) updateSwosCount(multiplier int, swosByKey map[string][]any) {
@@ -125,6 +158,8 @@ func (aw *apiWatcher) updateSwosCount(multiplier int, swosByKey map[string][]any
 }
 
 func (aw *apiWatcher) mustStop() {
+	// Unblock target collection even if another subscriber still needs the shared watchers.
+	aw.cancel()
 	aw.gw.unsubscribeAPIWatcher(aw)
 	aw.swosByURLWatcherLock.Lock()
 	for _, swosByKey := range aw.swosByURLWatcher {
@@ -201,7 +236,14 @@ func getScrapeWorkObjectsForLabels(swcFunc ScrapeWorkConstructorFunc, labelss []
 }
 
 // getScrapeWorkObjects returns all the ScrapeWork objects for the given aw.
-func (aw *apiWatcher) getScrapeWorkObjects() []any {
+func (aw *apiWatcher) getScrapeWorkObjects() ([]any, error) {
+	for _, uw := range aw.watchers {
+		select {
+		case <-uw.initialListDone:
+		case <-aw.ctx.Done():
+			return nil, aw.ctx.Err()
+		}
+	}
 	aw.gw.registerPendingAPIWatchers()
 
 	swos := make([]any, 0, aw.swosCount.Get())
@@ -212,13 +254,16 @@ func (aw *apiWatcher) getScrapeWorkObjects() []any {
 		}
 	}
 	aw.swosByURLWatcherLock.Unlock()
-	return swos
+	if err := aw.ctx.Err(); err != nil {
+		return nil, err
+	}
+	return swos, nil
 }
 
 // groupWatcher watches for Kubernetes objects on the given apiServer with the given namespaces,
 // selectors, attachNodeMetadata and attachNamespaceMetadata using the given client.
 type groupWatcher struct {
-	// The number of in-flight apiWatcher.mustStart() calls for the given groupWatcher.
+	// The number of apiWatcher initializations in progress for the given groupWatcher.
 	// This field is used by groupWatchersCleaner() in order to determine when the given groupWatcher can be stopped.
 	apiWatcherInflightStartCalls atomic.Int32
 
@@ -372,7 +417,7 @@ func groupWatchersCleaner() {
 			}
 
 			if awsTotal == 0 && gw.apiWatcherInflightStartCalls.Load() == 0 {
-				// There are no API watchers subscribed to gw and there are no in-flight apiWatcher.mustStart() calls.
+				// There are no API watchers subscribed to gw and no API watchers still initializing.
 				// Stop all the urlWatcher instances at gw and drop gw from groupWatchers in this case,
 				// but do it only on the second iteration in order to reduce urlWatcher churn
 				// during scrape config reloads.
@@ -465,17 +510,19 @@ func (gw *groupWatcher) getObjectByRoleLocked(role, namespace, name string) obje
 	return nil
 }
 
-func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
+// startWatchersForRole starts or reuses watchers for role and its dependencies without waiting for LISTs.
+func (gw *groupWatcher) startWatchersForRole(role string) []*urlWatcher {
+	var watchers []*urlWatcher
 	if role == "endpoints" || role == "endpointslice" {
 		// endpoints and endpointslice watchers query pod and service objects. So start watchers for these roles as well.
-		gw.startWatchersForRole("pod", nil)
-		gw.startWatchersForRole("service", nil)
+		watchers = append(watchers, gw.startWatchersForRole("pod")...)
+		watchers = append(watchers, gw.startWatchersForRole("service")...)
 	}
 	if gw.attachNodeMetadata && (role == "pod" || role == "endpoints" || role == "endpointslice") {
-		gw.startWatchersForRole("node", nil)
+		watchers = append(watchers, gw.startWatchersForRole("node")...)
 	}
 	if gw.attachNamespaceMetadata && (role == "pod" || role == "service" || role == "endpoints" || role == "endpointslice" || role == "ingress") {
-		gw.startWatchersForRole("namespace", nil)
+		watchers = append(watchers, gw.startWatchersForRole("namespace")...)
 	}
 
 	paths := getAPIPathsWithNamespaces(role, gw.namespaces, gw.selectors)
@@ -488,12 +535,8 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 			uw = newURLWatcher(role, apiURL, gw)
 			gw.m[apiURL] = uw
 		}
-		if aw != nil {
-			uw.subscribeAPIWatcherLocked(aw)
-		}
 		gw.mu.Unlock()
 		if needStart {
-			uw.reloadObjects()
 			go uw.watchForUpdates()
 			needRecreate := role == "endpoints" || role == "endpointslice" ||
 				(gw.attachNodeMetadata && role == "pod") ||
@@ -506,7 +549,9 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 				go uw.recreateScrapeWorks()
 			}
 		}
+		watchers = append(watchers, uw)
 	}
+	return watchers
 }
 
 // doRequest performs http request to the given requestURL.
@@ -588,6 +633,10 @@ type urlWatcher struct {
 
 	resourceVersion string
 
+	// Closed after the first LIST attempt, including failures, to preserve the
+	// previous best-effort startup behavior. Only watchForUpdates closes it.
+	initialListDone chan struct{}
+
 	objectsCount          *metrics.Counter
 	objectsAdded          *metrics.Counter
 	objectsRemoved        *metrics.Counter
@@ -607,9 +656,10 @@ func newURLWatcher(role, apiURL string, gw *groupWatcher) *urlWatcher {
 		parseObject:     parseObject,
 		parseObjectList: parseObjectList,
 
-		awsPending:   make(map[*apiWatcher]struct{}),
-		aws:          make(map[*apiWatcher]struct{}),
-		objectsByKey: make(map[string]object),
+		awsPending:      make(map[*apiWatcher]struct{}),
+		aws:             make(map[*apiWatcher]struct{}),
+		objectsByKey:    make(map[string]object),
+		initialListDone: make(chan struct{}),
 
 		objectsCount:          metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects{role=%q}`, role)),
 		objectsAdded:          metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects_added_total{role=%q}`, role)),
@@ -647,6 +697,10 @@ func (uw *urlWatcher) recreateScrapeWorks() {
 }
 
 func (uw *urlWatcher) subscribeAPIWatcherLocked(aw *apiWatcher) {
+	// mustStop unsubscribes under the same group lock, so a stopped watcher cannot be subscribed again.
+	if aw.ctx.Err() != nil {
+		return
+	}
 	if _, ok := uw.aws[aw]; !ok {
 		if _, ok := uw.awsPending[aw]; !ok {
 			uw.awsPending[aw] = struct{}{}
@@ -659,14 +713,22 @@ func (uw *urlWatcher) registerPendingAPIWatchersLocked() {
 	if len(uw.awsPending) == 0 {
 		return
 	}
-	uw.recreateScrapeWorksLocked(uw.objectsByKey, uw.awsPending)
+	awsReady := make(map[*apiWatcher]struct{}, len(uw.awsPending))
 	for aw := range uw.awsPending {
-		uw.aws[aw] = struct{}{}
+		if !aw.isInitializing() {
+			awsReady[aw] = struct{}{}
+		}
 	}
-	awsPendingLen := len(uw.awsPending)
-	uw.awsPending = make(map[*apiWatcher]struct{})
-	metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_subscribers{role=%q,status="working"}`, uw.role)).Add(awsPendingLen)
-	metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_subscribers{role=%q,status="pending"}`, uw.role)).Add(-awsPendingLen)
+	if len(awsReady) == 0 {
+		return
+	}
+	uw.recreateScrapeWorksLocked(uw.objectsByKey, awsReady)
+	for aw := range awsReady {
+		uw.aws[aw] = struct{}{}
+		delete(uw.awsPending, aw)
+	}
+	metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_subscribers{role=%q,status="working"}`, uw.role)).Add(len(awsReady))
+	metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_subscribers{role=%q,status="pending"}`, uw.role)).Add(-len(awsReady))
 }
 
 func (uw *urlWatcher) recreateScrapeWorksLocked(objectsByKey map[string]object, awsMap map[*apiWatcher]struct{}) {
@@ -775,6 +837,9 @@ func (uw *urlWatcher) reloadObjects() string {
 //
 // See https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes
 func (uw *urlWatcher) watchForUpdates() {
+	uw.reloadObjects()
+	close(uw.initialListDone)
+
 	gw := uw.gw
 	stopCh := gw.ctx.Done()
 	bt := timeutil.NewBackoffTimer(time.Second, time.Second*30)
