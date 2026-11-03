@@ -41,3 +41,23 @@ func TestGetCPUQuotaV2(t *testing.T) {
 	// systemd slice
 	f("testdata/v2slice", "testdata/self/cgroupv2_slice", 2)
 }
+
+func TestGetCPUQuotaV1(t *testing.T) {
+	f := func(sysPrefix, cgroupPath string, expectedCPU float64) {
+		t.Helper()
+		got, err := getCPUQuotaV1(sysPrefix, cgroupPath)
+		if err != nil {
+			t.Fatalf("unexpected error: %s, sysPrefix: %s, cgroupPath: %s", err, sysPrefix, cgroupPath)
+		}
+		if got != expectedCPU {
+			t.Fatalf("unexpected result from getCPUQuotaV1(%s, %s), got %f, want %f", sysPrefix, cgroupPath, got, expectedCPU)
+		}
+	}
+	// docker
+	f("testdata/", "testdata/self/cgroup", -1)
+	f("testdata/cgroup", "testdata/self/cgroup", 0.00002)
+	f("testdata/", "testdata/none_existing_folder", -1)
+
+	// systemd slice
+	f("testdata/v1slice", "testdata/self/cgroupv1_slice", 2)
+}
