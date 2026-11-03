@@ -407,7 +407,7 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 
 	if r.Method == http.MethodOptions {
 		EnableCORS(w, r)
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 

@@ -173,8 +173,8 @@ func TestHandlerWrapperOptionsRequest(t *testing.T) {
 		res := w.Result()
 		_ = res.Body.Close()
 
-		if res.StatusCode != http.StatusNoContent {
-			t.Fatalf("unexpected status code; (-%d;+%d)", http.StatusNoContent, res.StatusCode)
+		if res.StatusCode != http.StatusOK {
+			t.Fatalf("unexpected status code; (-%d;+%d)", http.StatusOK, res.StatusCode)
 		}
 		if handlerCalled {
 			t.Fatalf("request handler must not be called for OPTIONS requests")
