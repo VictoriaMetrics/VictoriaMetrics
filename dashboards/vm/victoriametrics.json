@@ -5583,7 +5583,7 @@
               "refId": "B"
             }
           ],
-"title": "Partitions re-processing completion time",
+          "title": "Partitions re-processing completion time",
           "type": "timeseries"
         }
       ],
