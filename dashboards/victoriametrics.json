@@ -5426,7 +5426,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 88
+            "y": 145
           },
           "id": 161,
           "options": {
@@ -5539,7 +5539,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 88
+            "y": 145
           },
           "id": 162,
           "options": {
@@ -5582,7 +5582,7 @@
               "refId": "B"
             }
           ],
-"title": "Re-processing partitions completion time",
+"title": "Partitions re-processing completion time",
           "type": "timeseries"
         }
       ],

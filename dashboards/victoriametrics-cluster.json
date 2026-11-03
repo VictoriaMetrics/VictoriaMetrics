@@ -5167,7 +5167,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 90
+            "y": 289
           },
           "id": 162,
           "options": {
@@ -5210,7 +5210,7 @@
               "refId": "B"
             }
           ],
-          "title": "Re-processing partions completion time",
+          "title": "Partitions re-processing completion time",
           "type": "timeseries"
         },        {
           "datasource": {
@@ -5285,7 +5285,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 289
+            "y": 297
           },
           "id": 223,
           "options": {
@@ -5387,7 +5387,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 305
+            "y": 297
           },
           "id": 230,
           "options": {
