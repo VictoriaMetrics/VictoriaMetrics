@@ -37,27 +37,6 @@ func (api *testSearchMetricNamesV3API) SearchMetricNames(_ context.Context, _ *q
 
 func TestSearchMetricNamesV3(t *testing.T) {
 	defer metrics.UnregisterAllMetrics()
-	const (
-		enableQueryTracer = false
-		timeoutSecs       = 1
-		accountID         = 12
-		projectID         = 34
-		start             = 123456789
-		end               = 987654321
-		maxMetrics        = 1000000
-		maxBytesSize      = 64 * 1024
-	)
-	tfss := [][]storage.TagFilter{
-		{
-			tf(nil, []byte("metric1"), false, false),
-			tf([]byte("label2"), []byte("value2"), true, false),
-		},
-		{
-			tf(nil, []byte("metric3"), false, true),
-			tf([]byte("label4"), []byte("value4"), true, true),
-		},
-	}
-	sq := newSearchQuery(accountID, projectID, start, end, tfss, maxMetrics)
 
 	// Start the vmselect RPC server and connect to it.
 	api := &testSearchMetricNamesV3API{}
@@ -78,19 +57,16 @@ func TestSearchMetricNamesV3(t *testing.T) {
 			api.err = errors.New(wantErr)
 		}
 
+		sq := newSearchQuery()
+
 		// Make an RPC, read the resulting error message, and confirm the API on the server side
 		// was called the correct arguments.
-		c.WriteString("searchMetricNames_v3")
-		c.WriteBool(enableQueryTracer)
-		c.WriteUint32(timeoutSecs)
+		c.WriteRPCName("searchMetricNames_v3", false, 1)
 		c.WriteSearchQuery(sq)
 		if gotErr := c.ReadString(); gotErr != wantErr {
 			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
 		}
-		wantSearchQuery := newSearchQuery(accountID, projectID, start, end, tfss, maxMetrics)
-		wantSearchQuery.AccountID = accountID
-		wantSearchQuery.ProjectID = projectID
-		if diff := cmp.Diff(wantSearchQuery, api.gotSearchQuery); diff != "" {
+		if diff := cmp.Diff(sq, api.gotSearchQuery); diff != "" {
 			t.Fatalf("unexpected search query (-want, +got):\n%s", diff)
 		}
 
@@ -156,12 +132,6 @@ func (api *testSearchMetricNamesV3ClosedConnAPI) SearchMetricNames(ctx context.C
 
 func TestSearchMetricNamesV3ClosedConn(t *testing.T) {
 	defer metrics.UnregisterAllMetrics()
-	const (
-		enableQueryTracer = false
-		timeoutSecs       = 1
-	)
-	tfss := [][]storage.TagFilter{{tf(nil, []byte("metric1"), false, false)}}
-	sq := newSearchQuery(12, 34, 56, 78, tfss, 90)
 
 	// Start the vmselect RPC server and connect to it.
 	api := &testSearchMetricNamesV3ClosedConnAPI{
@@ -172,12 +142,12 @@ func TestSearchMetricNamesV3ClosedConn(t *testing.T) {
 	defer s.MustStop()
 	c := newConn(t, s)
 
+	sq := newSearchQuery()
+
 	// Make an RPC, wait until the server calls the API, and close the connection.
 	// was called the correct arguments. Closing the connection should trigger
-	// the API call cancelation.
-	c.WriteString("searchMetricNames_v3")
-	c.WriteBool(enableQueryTracer)
-	c.WriteUint32(timeoutSecs)
+	// the API call cancellation.
+	c.WriteRPCName("searchMetricNames_v3", false, 1)
 	c.WriteSearchQuery(sq)
 	<-api.called
 	c.Close()
@@ -227,25 +197,6 @@ func (api *testSearchV7API) InitSearch(_ context.Context, _ *querytracer.Tracer,
 
 func TestSearchV7(t *testing.T) {
 	defer metrics.UnregisterAllMetrics()
-	const (
-		enableQueryTracer = false
-		accountID         = 12
-		projectID         = 34
-		start             = 123456789
-		end               = 987654321
-		maxMetrics        = 1000000
-	)
-	tfss := [][]storage.TagFilter{
-		{
-			tf(nil, []byte("metric1"), false, false),
-			tf([]byte("label2"), []byte("value2"), true, false),
-		},
-		{
-			tf(nil, []byte("metric3"), false, true),
-			tf([]byte("label4"), []byte("value4"), true, true),
-		},
-	}
-	sq := newSearchQuery(accountID, projectID, start, end, tfss, maxMetrics)
 
 	api := &testSearchV7API{}
 	s := startServer(t, api)
@@ -266,17 +217,14 @@ func TestSearchV7(t *testing.T) {
 			api.err = errors.New(wantErr)
 		}
 
-		c.WriteString("search_v7")
-		c.WriteBool(enableQueryTracer)
-		c.WriteUint32(1)
+		sq := newSearchQuery()
+
+		c.WriteRPCName("search_v7", false, 1)
 		c.WriteSearchQuery(sq)
 		if gotErr := c.ReadString(); gotErr != wantErr {
 			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
 		}
-		wantSearchQuery := newSearchQuery(accountID, projectID, start, end, tfss, maxMetrics)
-		wantSearchQuery.AccountID = accountID
-		wantSearchQuery.ProjectID = projectID
-		if diff := cmp.Diff(wantSearchQuery, api.gotSearchQuery); diff != "" {
+		if diff := cmp.Diff(sq, api.gotSearchQuery); diff != "" {
 			t.Fatalf("unexpected search query (-want, +got):\n%s", diff)
 		}
 		if wantErr != "" {
@@ -328,27 +276,6 @@ func (api *testLabelValuesV5API) LabelValues(_ context.Context, _ *querytracer.T
 
 func TestLabelValuesV5(t *testing.T) {
 	defer metrics.UnregisterAllMetrics()
-	const (
-		enableQueryTracer = false
-		labelName         = "label1"
-		maxLabelValues    = 100
-		accountID         = 12
-		projectID         = 34
-		start             = 123456789
-		end               = 987654321
-		maxMetrics        = 1000000
-	)
-	tfss := [][]storage.TagFilter{
-		{
-			tf(nil, []byte("metric1"), false, false),
-			tf([]byte("label2"), []byte("value2"), true, false),
-		},
-		{
-			tf(nil, []byte("metric3"), false, true),
-			tf([]byte("label4"), []byte("value4"), true, true),
-		},
-	}
-	sq := newSearchQuery(accountID, projectID, start, end, tfss, maxMetrics)
 
 	api := &testLabelValuesV5API{}
 	s := startServer(t, api)
@@ -368,19 +295,20 @@ func TestLabelValuesV5(t *testing.T) {
 			api.err = errors.New(wantErr)
 		}
 
-		c.WriteString("labelValues_v5")
-		c.WriteBool(enableQueryTracer)
-		c.WriteUint32(1)
+		const (
+			labelName      = "label1"
+			maxLabelValues = 100
+		)
+		sq := newSearchQuery()
+
+		c.WriteRPCName("labelValues_v5", false, 1)
 		c.WriteString(labelName)
 		c.WriteSearchQuery(sq)
 		c.WriteUint32(maxLabelValues)
 		if gotErr := c.ReadString(); gotErr != wantErr {
 			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
 		}
-		wantSearchQuery := newSearchQuery(accountID, projectID, start, end, tfss, maxMetrics)
-		wantSearchQuery.AccountID = accountID
-		wantSearchQuery.ProjectID = projectID
-		if diff := cmp.Diff(wantSearchQuery, api.gotSearchQuery); diff != "" {
+		if diff := cmp.Diff(sq, api.gotSearchQuery); diff != "" {
 			t.Fatalf("unexpected search query (-want, +got):\n%s", diff)
 		}
 		if api.gotLabelName != labelName {
@@ -443,17 +371,6 @@ func (api *testTagValueSuffixesV4API) TagValueSuffixes(_ context.Context, _ *que
 
 func TestTagValueSuffixesV4(t *testing.T) {
 	defer metrics.UnregisterAllMetrics()
-	const (
-		enableQueryTracer = false
-		accountID         = 12
-		projectID         = 34
-		minTimestamp      = 123456789
-		maxTimestamp      = 987654321
-		tagKey            = "key1"
-		tagValuePrefix    = "prefix."
-		delimiter         = '.'
-		maxSuffixes       = 100
-	)
 
 	api := &testTagValueSuffixesV4API{}
 	s := startServer(t, api)
@@ -469,9 +386,19 @@ func TestTagValueSuffixesV4(t *testing.T) {
 			api.err = errors.New(wantErr)
 		}
 
-		c.WriteString("tagValueSuffixes_v4")
-		c.WriteBool(enableQueryTracer)
-		c.WriteUint32(1)
+		const (
+			enableQueryTracer = false
+			accountID         = 12
+			projectID         = 34
+			minTimestamp      = 123456789
+			maxTimestamp      = 987654321
+			tagKey            = "key1"
+			tagValuePrefix    = "prefix."
+			delimiter         = '.'
+			maxSuffixes       = 100
+		)
+
+		c.WriteRPCName("tagValueSuffixes_v4", false, 1)
 		c.WriteUint32(accountID)
 		c.WriteUint32(projectID)
 		c.WriteUint64(minTimestamp)
@@ -539,26 +466,6 @@ func (api *testLabelNamesV5API) LabelNames(_ context.Context, _ *querytracer.Tra
 
 func TestLabelNamesV5(t *testing.T) {
 	defer metrics.UnregisterAllMetrics()
-	const (
-		enableQueryTracer = false
-		maxLabelNames     = 100
-		accountID         = 12
-		projectID         = 34
-		start             = 123456789
-		end               = 987654321
-		maxMetrics        = 1000000
-	)
-	tfss := [][]storage.TagFilter{
-		{
-			tf(nil, []byte("metric1"), false, false),
-			tf([]byte("label2"), []byte("value2"), true, false),
-		},
-		{
-			tf(nil, []byte("metric3"), false, true),
-			tf([]byte("label4"), []byte("value4"), true, true),
-		},
-	}
-	sq := newSearchQuery(accountID, projectID, start, end, tfss, maxMetrics)
 
 	api := &testLabelNamesV5API{}
 	s := startServer(t, api)
@@ -577,18 +484,19 @@ func TestLabelNamesV5(t *testing.T) {
 			api.err = errors.New(wantErr)
 		}
 
-		c.WriteString("labelNames_v5")
-		c.WriteBool(enableQueryTracer)
-		c.WriteUint32(1)
+		const (
+			enableQueryTracer = false
+			maxLabelNames     = 100
+		)
+		sq := newSearchQuery()
+
+		c.WriteRPCName("labelNames_v5", false, 1)
 		c.WriteSearchQuery(sq)
 		c.WriteUint32(maxLabelNames)
 		if gotErr := c.ReadString(); gotErr != wantErr {
 			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
 		}
-		wantSearchQuery := newSearchQuery(accountID, projectID, start, end, tfss, maxMetrics)
-		wantSearchQuery.AccountID = accountID
-		wantSearchQuery.ProjectID = projectID
-		if diff := cmp.Diff(wantSearchQuery, api.gotSearchQuery); diff != "" {
+		if diff := cmp.Diff(sq, api.gotSearchQuery); diff != "" {
 			t.Fatalf("unexpected search query (-want, +got):\n%s", diff)
 		}
 		if api.gotMaxLabelNames != maxLabelNames {
@@ -638,11 +546,6 @@ func (api *testSeriesCountV4API) SeriesCount(_ context.Context, _ *querytracer.T
 
 func TestSeriesCountV4(t *testing.T) {
 	defer metrics.UnregisterAllMetrics()
-	const (
-		enableQueryTracer = false
-		accountID         = 12
-		projectID         = 34
-	)
 
 	api := &testSeriesCountV4API{}
 	s := startServer(t, api)
@@ -658,9 +561,12 @@ func TestSeriesCountV4(t *testing.T) {
 			api.err = errors.New(wantErr)
 		}
 
-		c.WriteString("seriesCount_v4")
-		c.WriteBool(enableQueryTracer)
-		c.WriteUint32(1)
+		const (
+			accountID = 12
+			projectID = 34
+		)
+
+		c.WriteRPCName("seriesCount_v4", false, 1)
 		c.WriteUint32(accountID)
 		c.WriteUint32(projectID)
 		if gotErr := c.ReadString(); gotErr != wantErr {
@@ -706,27 +612,6 @@ func (api *testTSDBStatusV6API) TSDBStatus(_ context.Context, _ *querytracer.Tra
 
 func TestTSDBStatusV6(t *testing.T) {
 	defer metrics.UnregisterAllMetrics()
-	const (
-		enableQueryTracer = false
-		focusLabel        = "label1"
-		topN              = 10
-		accountID         = 12
-		projectID         = 34
-		start             = 123456789
-		end               = 987654321
-		maxMetrics        = 1000000
-	)
-	tfss := [][]storage.TagFilter{
-		{
-			tf(nil, []byte("metric1"), false, false),
-			tf([]byte("label2"), []byte("value2"), true, false),
-		},
-		{
-			tf(nil, []byte("metric3"), false, true),
-			tf([]byte("label4"), []byte("value4"), true, true),
-		},
-	}
-	sq := newSearchQuery(accountID, projectID, start, end, tfss, maxMetrics)
 
 	api := &testTSDBStatusV6API{}
 	s := startServer(t, api)
@@ -756,19 +641,20 @@ func TestTSDBStatusV6(t *testing.T) {
 			api.err = errors.New(wantErr)
 		}
 
-		c.WriteString("tsdbStatus_v6")
-		c.WriteBool(enableQueryTracer)
-		c.WriteUint32(1)
+		const (
+			focusLabel = "label1"
+			topN       = 10
+		)
+		sq := newSearchQuery()
+
+		c.WriteRPCName("tsdbStatus_v6", false, 1)
 		c.WriteSearchQuery(sq)
 		c.WriteString(focusLabel)
 		c.WriteUint32(topN)
 		if gotErr := c.ReadString(); gotErr != wantErr {
 			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
 		}
-		wantSearchQuery := newSearchQuery(accountID, projectID, start, end, tfss, maxMetrics)
-		wantSearchQuery.AccountID = accountID
-		wantSearchQuery.ProjectID = projectID
-		if diff := cmp.Diff(wantSearchQuery, api.gotSearchQuery); diff != "" {
+		if diff := cmp.Diff(sq, api.gotSearchQuery); diff != "" {
 			t.Fatalf("unexpected search query (-want, +got):\n%s", diff)
 		}
 		if api.gotFocusLabel != focusLabel {
@@ -835,25 +721,6 @@ func (api *testDeleteSeriesV5API) DeleteSeries(_ context.Context, _ *querytracer
 
 func TestDeleteSeriesV5(t *testing.T) {
 	defer metrics.UnregisterAllMetrics()
-	const (
-		enableQueryTracer = false
-		accountID         = 12
-		projectID         = 34
-		start             = 123456789
-		end               = 987654321
-		maxMetrics        = 1000000
-	)
-	tfss := [][]storage.TagFilter{
-		{
-			tf(nil, []byte("metric1"), false, false),
-			tf([]byte("label2"), []byte("value2"), true, false),
-		},
-		{
-			tf(nil, []byte("metric3"), false, true),
-			tf([]byte("label4"), []byte("value4"), true, true),
-		},
-	}
-	sq := newSearchQuery(accountID, projectID, start, end, tfss, maxMetrics)
 
 	api := &testDeleteSeriesV5API{}
 	s := startServer(t, api)
@@ -869,17 +736,14 @@ func TestDeleteSeriesV5(t *testing.T) {
 			api.err = errors.New(wantErr)
 		}
 
-		c.WriteString("deleteSeries_v5")
-		c.WriteBool(enableQueryTracer)
-		c.WriteUint32(1)
+		sq := newSearchQuery()
+
+		c.WriteRPCName("deleteSeries_v5", false, 1)
 		c.WriteSearchQuery(sq)
 		if gotErr := c.ReadString(); gotErr != wantErr {
 			t.Fatalf("unexpected remote error: got %q, want %q", gotErr, wantErr)
 		}
-		wantSearchQuery := newSearchQuery(accountID, projectID, start, end, tfss, maxMetrics)
-		wantSearchQuery.AccountID = accountID
-		wantSearchQuery.ProjectID = projectID
-		if diff := cmp.Diff(wantSearchQuery, api.gotSearchQuery); diff != "" {
+		if diff := cmp.Diff(sq, api.gotSearchQuery); diff != "" {
 			t.Fatalf("unexpected search query (-want, +got):\n%s", diff)
 		}
 		if wantErr != "" {
@@ -1331,6 +1195,13 @@ func (c *conn) Close() {
 	}
 }
 
+func (c *conn) WriteRPCName(name string, enableQueryTracer bool, timeoutSecs uint32) {
+	c.t.Helper()
+	c.WriteString(name)
+	c.WriteBool(enableQueryTracer)
+	c.WriteUint32(timeoutSecs)
+}
+
 func (c *conn) WriteString(s string) {
 	c.t.Helper()
 	c.WriteBytes([]byte(s))
@@ -1473,6 +1344,30 @@ func (c *conn) ReadUint64() uint64 {
 	return encoding.UnmarshalUint64(buf)
 }
 
+func newSearchQuery() *storage.SearchQuery {
+	const (
+		start      = 123456789
+		end        = 987654321
+		maxMetrics = 1000000
+		accountID  = 12
+		projectID  = 34
+	)
+	tfss := [][]storage.TagFilter{
+		{
+			tf(nil, []byte("metric1"), false, false),
+			tf([]byte("label2"), []byte("value2"), true, false),
+		},
+		{
+			tf(nil, []byte("metric3"), false, true),
+			tf([]byte("label4"), []byte("value4"), true, true),
+		},
+	}
+	sq := storage.NewSearchQuery(accountID, projectID, start, end, tfss, maxMetrics)
+	sq.AccountID = accountID
+	sq.ProjectID = projectID
+	return sq
+}
+
 func tf(key, value []byte, isNegative, isRegexp bool) storage.TagFilter {
 	return storage.TagFilter{
 		Key:        key,
@@ -1480,8 +1375,4 @@ func tf(key, value []byte, isNegative, isRegexp bool) storage.TagFilter {
 		IsNegative: isNegative,
 		IsRegexp:   isRegexp,
 	}
-}
-
-func newSearchQuery(accountID, projectID uint32, start, end int64, tfss [][]storage.TagFilter, maxMetrics int) *storage.SearchQuery {
-	return storage.NewSearchQuery(accountID, projectID, start, end, tfss, maxMetrics)
 }
