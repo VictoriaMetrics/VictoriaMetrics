@@ -30,6 +30,15 @@ type testSearchMetricNamesV3API struct {
 	err            error
 }
 
+func (api *testSearchMetricNamesV3API) Reset(metricNames []string, err string) {
+	api.gotSearchQuery = nil
+	api.metricNames = metricNames
+	api.err = nil
+	if err != "" {
+		api.err = errors.New(err)
+	}
+}
+
 func (api *testSearchMetricNamesV3API) SearchMetricNames(_ context.Context, _ *querytracer.Tracer, sq *storage.SearchQuery) ([]string, error) {
 	api.gotSearchQuery = sq
 	return api.metricNames, api.err
@@ -49,13 +58,7 @@ func TestSearchMetricNamesV3(t *testing.T) {
 	f := func(wantMetricNames []string, wantErr string) {
 		t.Helper()
 
-		// Reset the API.
-		api.gotSearchQuery = nil
-		api.metricNames = wantMetricNames
-		api.err = nil
-		if wantErr != "" {
-			api.err = errors.New(wantErr)
-		}
+		api.Reset(wantMetricNames, wantErr)
 
 		sq := newSearchQuery()
 
@@ -187,6 +190,18 @@ type testSearchV7API struct {
 	err            error
 }
 
+func (api *testSearchV7API) Reset(blocks []string, err string) {
+	api.gotSearchQuery = nil
+	api.bi = &testBlockIterator{}
+	for _, b := range blocks {
+		api.bi.blocks = append(api.bi.blocks, []byte(b))
+	}
+	api.err = nil
+	if err != "" {
+		api.err = errors.New(err)
+	}
+}
+
 func (api *testSearchV7API) InitSearch(_ context.Context, _ *querytracer.Tracer, sq *storage.SearchQuery) (BlockIterator, error) {
 	api.gotSearchQuery = sq
 	if api.err != nil {
@@ -207,16 +222,7 @@ func TestSearchV7(t *testing.T) {
 	f := func(wantBlocks []string, wantErr string) {
 		t.Helper()
 
-		// Reset the API.
-		api.gotSearchQuery = nil
-		api.bi = &testBlockIterator{}
-		for _, b := range wantBlocks {
-			api.bi.blocks = append(api.bi.blocks, []byte(b))
-		}
-		api.err = nil
-		if wantErr != "" {
-			api.err = errors.New(wantErr)
-		}
+		api.Reset(wantBlocks, wantErr)
 
 		sq := newSearchQuery()
 
@@ -268,6 +274,17 @@ type testLabelValuesV5API struct {
 	err               error
 }
 
+func (api *testLabelValuesV5API) Reset(labelValues []string, err string) {
+	api.gotSearchQuery = nil
+	api.gotLabelName = ""
+	api.gotMaxLabelValues = 0
+	api.labelValues = labelValues
+	api.err = nil
+	if err != "" {
+		api.err = errors.New(err)
+	}
+}
+
 func (api *testLabelValuesV5API) LabelValues(_ context.Context, _ *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int) ([]string, error) {
 	api.gotSearchQuery = sq
 	api.gotLabelName = labelName
@@ -287,15 +304,7 @@ func TestLabelValuesV5(t *testing.T) {
 	f := func(wantLabelValues []string, wantErr string) {
 		t.Helper()
 
-		// Reset the API.
-		api.gotSearchQuery = nil
-		api.gotLabelName = ""
-		api.gotMaxLabelValues = 0
-		api.labelValues = wantLabelValues
-		api.err = nil
-		if wantErr != "" {
-			api.err = errors.New(wantErr)
-		}
+		api.Reset(wantLabelValues, wantErr)
 
 		const (
 			labelName      = "label1"
@@ -360,6 +369,21 @@ type testTagValueSuffixesV4API struct {
 	err               error
 }
 
+func (api *testTagValueSuffixesV4API) Reset(suffixes []string, err string) {
+	api.gotAccountID = 0
+	api.gotProjectID = 0
+	api.gotTimeRange = storage.TimeRange{}
+	api.gotTagKey = ""
+	api.gotTagValuePrefix = ""
+	api.gotDelimiter = 0
+	api.gotMaxSuffixes = 0
+	api.suffixes = suffixes
+	api.err = nil
+	if err != "" {
+		api.err = errors.New(err)
+	}
+}
+
 func (api *testTagValueSuffixesV4API) TagValueSuffixes(_ context.Context, _ *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxSuffixes int) ([]string, error) {
 	api.gotAccountID = accountID
 	api.gotProjectID = projectID
@@ -383,19 +407,7 @@ func TestTagValueSuffixesV4(t *testing.T) {
 	f := func(wantSuffixes []string, wantErr string) {
 		t.Helper()
 
-		// Reset the API.
-		api.gotAccountID = 0
-		api.gotProjectID = 0
-		api.gotTimeRange = storage.TimeRange{}
-		api.gotTagKey = ""
-		api.gotTagValuePrefix = ""
-		api.gotDelimiter = 0
-		api.gotMaxSuffixes = 0
-		api.suffixes = wantSuffixes
-		api.err = nil
-		if wantErr != "" {
-			api.err = errors.New(wantErr)
-		}
+		api.Reset(wantSuffixes, wantErr)
 
 		const (
 			accountID      = 12
@@ -479,6 +491,16 @@ type testLabelNamesV5API struct {
 	err              error
 }
 
+func (api *testLabelNamesV5API) Reset(labelNames []string, err string) {
+	api.gotSearchQuery = nil
+	api.gotMaxLabelNames = 0
+	api.labelNames = labelNames
+	api.err = nil
+	if err != "" {
+		api.err = errors.New(err)
+	}
+}
+
 func (api *testLabelNamesV5API) LabelNames(_ context.Context, _ *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int) ([]string, error) {
 	api.gotSearchQuery = sq
 	api.gotMaxLabelNames = maxLabelNames
@@ -497,13 +519,7 @@ func TestLabelNamesV5(t *testing.T) {
 	f := func(wantLabelNames []string, wantErr string) {
 		t.Helper()
 
-		api.gotSearchQuery = nil
-		api.gotMaxLabelNames = 0
-		api.labelNames = wantLabelNames
-		api.err = nil
-		if wantErr != "" {
-			api.err = errors.New(wantErr)
-		}
+		api.Reset(wantLabelNames, wantErr)
 
 		const (
 			enableQueryTracer = false
@@ -559,6 +575,16 @@ type testSeriesCountV4API struct {
 	err          error
 }
 
+func (api *testSeriesCountV4API) Reset(n uint64, err string) {
+	api.gotAccountID = 0
+	api.gotProjectID = 0
+	api.n = n
+	api.err = nil
+	if err != "" {
+		api.err = errors.New(err)
+	}
+}
+
 func (api *testSeriesCountV4API) SeriesCount(_ context.Context, _ *querytracer.Tracer, accountID, projectID uint32) (uint64, error) {
 	api.gotAccountID = accountID
 	api.gotProjectID = projectID
@@ -577,14 +603,7 @@ func TestSeriesCountV4(t *testing.T) {
 	f := func(wantN uint64, wantErr string) {
 		t.Helper()
 
-		// Reset the API.
-		api.gotAccountID = 0
-		api.gotProjectID = 0
-		api.n = wantN
-		api.err = nil
-		if wantErr != "" {
-			api.err = errors.New(wantErr)
-		}
+		api.Reset(wantN, wantErr)
 
 		const (
 			accountID = 12
@@ -628,6 +647,17 @@ type testTSDBStatusV6API struct {
 	err            error
 }
 
+func (api *testTSDBStatusV6API) Reset(status *storage.TSDBStatus, err string) {
+	api.gotSearchQuery = nil
+	api.gotFocusLabel = ""
+	api.gotTopN = 0
+	api.status = status
+	api.err = nil
+	if err != "" {
+		api.err = errors.New(err)
+	}
+}
+
 func (api *testTSDBStatusV6API) TSDBStatus(_ context.Context, _ *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int) (*storage.TSDBStatus, error) {
 	api.gotSearchQuery = sq
 	api.gotFocusLabel = focusLabel
@@ -657,14 +687,7 @@ func TestTSDBStatusV6(t *testing.T) {
 	f := func(wantStatus *storage.TSDBStatus, wantErr string) {
 		t.Helper()
 
-		api.gotSearchQuery = nil
-		api.gotFocusLabel = ""
-		api.gotTopN = 0
-		api.status = wantStatus
-		api.err = nil
-		if wantErr != "" {
-			api.err = errors.New(wantErr)
-		}
+		api.Reset(wantStatus, wantErr)
 
 		const (
 			focusLabel = "label1"
@@ -739,6 +762,15 @@ type testDeleteSeriesV5API struct {
 	err            error
 }
 
+func (api *testDeleteSeriesV5API) Reset(deletedCount int, err string) {
+	api.gotSearchQuery = nil
+	api.deletedCount = deletedCount
+	api.err = nil
+	if err != "" {
+		api.err = errors.New(err)
+	}
+}
+
 func (api *testDeleteSeriesV5API) DeleteSeries(_ context.Context, _ *querytracer.Tracer, sq *storage.SearchQuery) (int, error) {
 	api.gotSearchQuery = sq
 	return api.deletedCount, api.err
@@ -756,13 +788,7 @@ func TestDeleteSeriesV5(t *testing.T) {
 	f := func(wantDeletedCount int, wantErr string) {
 		t.Helper()
 
-		// Reset the API.
-		api.gotSearchQuery = nil
-		api.deletedCount = wantDeletedCount
-		api.err = nil
-		if wantErr != "" {
-			api.err = errors.New(wantErr)
-		}
+		api.Reset(wantDeletedCount, wantErr)
 
 		sq := newSearchQuery()
 
@@ -799,6 +825,14 @@ type testRegisterMetricNamesV3API struct {
 	err           error
 }
 
+func (api *testRegisterMetricNamesV3API) Reset(err string) {
+	api.gotMetricRows = nil
+	api.err = nil
+	if err != "" {
+		api.err = errors.New(err)
+	}
+}
+
 func (api *testRegisterMetricNamesV3API) RegisterMetricNames(_ context.Context, _ *querytracer.Tracer, mrs []storage.MetricRow) error {
 	api.gotMetricRows = mrs
 	return api.err
@@ -816,11 +850,7 @@ func TestRegisterMetricNamesV3(t *testing.T) {
 	f := func(mrs []storage.MetricRow, wantErr string) {
 		t.Helper()
 
-		api.gotMetricRows = nil
-		api.err = nil
-		if wantErr != "" {
-			api.err = errors.New(wantErr)
-		}
+		api.Reset(wantErr)
 
 		c.WriteRPCName("registerMetricNames_v3", false, 1)
 		c.WriteUint64(uint64(len(mrs)))
@@ -855,6 +885,15 @@ type testTenantsV1API struct {
 	err          error
 }
 
+func (api *testTenantsV1API) Reset(tenants []string, err string) {
+	api.gotTimeRange = storage.TimeRange{}
+	api.tenants = tenants
+	api.err = nil
+	if err != "" {
+		api.err = errors.New(err)
+	}
+}
+
 func (api *testTenantsV1API) Tenants(_ context.Context, _ *querytracer.Tracer, tr storage.TimeRange) ([]string, error) {
 	api.gotTimeRange = tr
 	return api.tenants, api.err
@@ -872,12 +911,7 @@ func TestTenantsV1(t *testing.T) {
 	f := func(wantTenants []string, wantErr string) {
 		t.Helper()
 
-		api.gotTimeRange = storage.TimeRange{}
-		api.tenants = wantTenants
-		api.err = nil
-		if wantErr != "" {
-			api.err = errors.New(wantErr)
-		}
+		api.Reset(wantTenants, wantErr)
 
 		const (
 			minTimestamp = 123456789
@@ -935,6 +969,18 @@ type testMetricNamesUsageStatsV1API struct {
 	err             error
 }
 
+func (api *testMetricNamesUsageStatsV1API) Reset(result metricnamestats.StatsResult, err string) {
+	api.gotTenantToken = nil
+	api.gotLimit = 0
+	api.gotLE = 0
+	api.gotMatchPattern = ""
+	api.result = result
+	api.err = nil
+	if err != "" {
+		api.err = errors.New(err)
+	}
+}
+
 func (api *testMetricNamesUsageStatsV1API) GetMetricNamesUsageStats(_ context.Context, _ *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string) (metricnamestats.StatsResult, error) {
 	api.gotTenantToken = tt
 	api.gotLimit = limit
@@ -955,15 +1001,7 @@ func TestMetricNamesUsageStatsV1(t *testing.T) {
 	f := func(tt *storage.TenantToken, wantResult metricnamestats.StatsResult, wantErr string) {
 		t.Helper()
 
-		api.gotTenantToken = nil
-		api.gotLimit = 0
-		api.gotLE = 0
-		api.gotMatchPattern = ""
-		api.result = wantResult
-		api.err = nil
-		if wantErr != "" {
-			api.err = errors.New(wantErr)
-		}
+		api.Reset(wantResult, wantErr)
 
 		const (
 			limit        = 100
@@ -1072,6 +1110,17 @@ type testSearchMetadataV1API struct {
 	err            error
 }
 
+func (api *testSearchMetadataV1API) Reset(rows []*metricsmetadata.Row, err string) {
+	api.gotTenantToken = nil
+	api.gotLimit = 0
+	api.gotMetricName = ""
+	api.rows = rows
+	api.err = nil
+	if err != "" {
+		api.err = errors.New(err)
+	}
+}
+
 func (api *testSearchMetadataV1API) GetMetadataRecords(_ context.Context, _ *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string) ([]*metricsmetadata.Row, error) {
 	api.gotTenantToken = tt
 	api.gotLimit = limit
@@ -1091,14 +1140,7 @@ func TestSearchMetadataV1(t *testing.T) {
 	f := func(tt *storage.TenantToken, wantRows []*metricsmetadata.Row, wantErr string) {
 		t.Helper()
 
-		api.gotTenantToken = nil
-		api.gotLimit = 0
-		api.gotMetricName = ""
-		api.rows = wantRows
-		api.err = nil
-		if wantErr != "" {
-			api.err = errors.New(wantErr)
-		}
+		api.Reset(wantRows, wantErr)
 
 		const (
 			limit      = 100
