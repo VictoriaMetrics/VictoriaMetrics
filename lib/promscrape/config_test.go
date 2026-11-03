@@ -2,8 +2,11 @@ package promscrape
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,6 +17,157 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
+
+// Pending jobs retain their previous targets while healthy WATCH updates and job removals take effect.
+// Once the blocked LIST finishes, new and changed jobs pick up their new targets.
+func TestKubernetesReloadSkipsInitializingJobs(t *testing.T) {
+	stopAPI := make(chan struct{})
+	events := make(chan string, 2)
+	healthyWatchStarted := make(chan struct{})
+	var healthyWatchOnce sync.Once
+	oldService := `{"metadata":{"name":"old","namespace":"default"},"spec":{"ports":[{"port":80}]}}`
+	newService := `{"metadata":{"name":"new","namespace":"default"},"spec":{"ports":[{"port":80}]}}`
+	healthy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("watch") == "" {
+			fmt.Fprintf(w, `{"metadata":{"resourceVersion":"7"},"items":[%s]}`, oldService)
+			return
+		}
+		healthyWatchOnce.Do(func() { close(healthyWatchStarted) })
+		for {
+			select {
+			case event := <-events:
+				fmt.Fprintln(w, event)
+				w.(http.Flusher).Flush()
+			case <-r.Context().Done():
+				return
+			case <-stopAPI:
+				return
+			}
+		}
+	}))
+	t.Cleanup(healthy.Close)
+	release := make(chan struct{})
+	listStarted := make(chan struct{})
+	slowWatchStarted := make(chan struct{})
+	var listOnce, slowWatchOnce sync.Once
+	slow := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("watch") != "" {
+			slowWatchOnce.Do(func() { close(slowWatchStarted) })
+			select {
+			case <-r.Context().Done():
+			case <-stopAPI:
+			}
+			return
+		}
+		listOnce.Do(func() { close(listStarted) })
+		select {
+		case <-release:
+			fmt.Fprintf(w, `{"metadata":{"resourceVersion":"7"},"items":[%s]}`, newService)
+		case <-r.Context().Done():
+		case <-stopAPI:
+		}
+	}))
+	t.Cleanup(slow.Close)
+	t.Cleanup(func() { close(stopAPI) })
+
+	job := func(name, server string) string {
+		return fmt.Sprintf("- job_name: %s\n  kubernetes_sd_configs:\n  - role: service\n    api_server: %s\n", name, server)
+	}
+	parse := func(jobs string) *Config {
+		t.Helper()
+		var cfg Config
+		if err := cfg.parseData([]byte("scrape_configs:\n"+jobs), "test-scrape.yaml"); err != nil {
+			t.Fatalf("cannot parse config: %v", err)
+		}
+		t.Cleanup(cfg.mustStop)
+		return &cfg
+	}
+	collect := func(cfg *Config, prev []*ScrapeWork) []*ScrapeWork {
+		t.Helper()
+		result := make(chan []*ScrapeWork, 1)
+		go func() {
+			sws := cfg.getKubernetesSDScrapeWork(prev)
+			result <- sws
+		}()
+		return waitForKubernetesScrapeTest(t, result)
+	}
+	urls := func(sws []*ScrapeWork) map[string]string {
+		result := make(map[string]string)
+		for _, sw := range sws {
+			result[sw.jobNameOriginal] = sw.ScrapeURL
+		}
+		return result
+	}
+	oldCfg := parse(job("healthy", healthy.URL) + job("changed", healthy.URL) + job("removed", healthy.URL))
+	oldCfg.mustStart()
+	waitForKubernetesScrapeTest(t, healthyWatchStarted)
+	prev := collect(oldCfg, nil)
+	if len(prev) != 3 {
+		t.Fatalf("got %d initial targets; want 3", len(prev))
+	}
+	// Put pending jobs first, so a blocking getter would prevent even collecting the healthy job.
+	newCfg := parse(job("new", slow.URL) + job("changed", slow.URL) + job("healthy", healthy.URL))
+	if !newCfg.mustRestart(oldCfg) {
+		t.Fatal("expected config reload")
+	}
+	waitForKubernetesScrapeTest(t, listStarted)
+	if !newCfg.ScrapeConfigs[0].kubernetesSDInitializing() {
+		t.Fatal("discovery did not report initializing while LIST was blocked")
+	}
+	// An empty result must not make the next collection wait for initial discovery again.
+	empty := collect(&Config{}, nil)
+	if empty == nil {
+		t.Fatal("empty collection must return a non-nil slice")
+	}
+	if got := collect(newCfg, empty); len(got) != 1 || got[0].jobNameOriginal != "healthy" {
+		t.Fatalf("got %d targets after an empty collection; want only the healthy job", len(got))
+	}
+	events <- fmt.Sprintf(`{"type":"DELETED","object":%s}`, oldService)
+	events <- fmt.Sprintf(`{"type":"ADDED","object":%s}`, newService)
+	const oldURL = "http://old.default.svc:80/metrics"
+	const newURL = "http://new.default.svc:80/metrics"
+	want := map[string]string{"healthy": newURL, "changed": oldURL}
+	var current []*ScrapeWork
+	waitForKubernetesScrapeCondition(t, func() bool {
+		current = collect(newCfg, prev)
+		return reflect.DeepEqual(urls(current), want)
+	})
+	// The changed job retains its old targets, the removed job disappears, and the healthy job refreshes.
+	if len(current) != 2 {
+		t.Fatalf("got %d targets while LIST was blocked; want 2", len(current))
+	}
+	// Finish discovery on the slow server and collect the new and changed jobs.
+	close(release)
+	waitForKubernetesScrapeTest(t, slowWatchStarted)
+	current = collect(newCfg, current)
+	want = map[string]string{"healthy": newURL, "changed": newURL, "new": newURL}
+	if got := urls(current); len(current) != 3 || !reflect.DeepEqual(got, want) {
+		t.Fatalf("targets after initialization: got %v; want %v", got, want)
+	}
+}
+
+func waitForKubernetesScrapeTest[T any](t *testing.T, ch <-chan T) T {
+	t.Helper()
+	select {
+	case result := <-ch:
+		return result
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for Kubernetes scrape discovery")
+		var zero T
+		return zero
+	}
+}
+
+func waitForKubernetesScrapeCondition(t *testing.T, condition func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for !condition() {
+		if time.Now().After(deadline) {
+			t.Fatal("timed out waiting for Kubernetes scrape discovery condition")
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
 
 func TestMergeLabels(t *testing.T) {
 	f := func(swc *scrapeWorkConfig, target string, extraLabelsMap, metaLabelsMap map[string]string, resultExpected string) {

@@ -73,6 +73,13 @@ type Selector struct {
 // ScrapeWorkConstructorFunc must construct ScrapeWork object for the given metaLabels.
 type ScrapeWorkConstructorFunc func(metaLabels *promutil.Labels) any
 
+// IsInitializing reports whether initial LIST attempts for this config or its metadata dependencies are pending.
+// It returns false on startup failure or cancellation; GetScrapeWorkObjects reports the error.
+// This function must be called after MustStart.
+func (sdc *SDConfig) IsInitializing() bool {
+	return sdc.cfg != nil && sdc.cfg.aw.isInitializing()
+}
+
 // GetScrapeWorkObjects returns ScrapeWork objects for the given sdc.
 //
 // This function must be called after MustStart call.
