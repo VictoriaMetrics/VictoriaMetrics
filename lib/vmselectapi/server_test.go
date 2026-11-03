@@ -148,8 +148,7 @@ func TestSearchMetricNamesV3ClosedConn(t *testing.T) {
 	sq := newSearchQuery()
 
 	// Make an RPC, wait until the server calls the API, and close the connection.
-	// was called the correct arguments. Closing the connection should trigger
-	// the API call cancellation.
+	// Closing the connection should trigger the API call cancellation.
 	c.WriteRPCName("searchMetricNames_v3", false, 1)
 	c.WriteSearchQuery(sq)
 	<-api.called
