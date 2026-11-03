@@ -27,9 +27,13 @@ type Deduplicator struct {
 	wg     sync.WaitGroup
 	stopCh chan struct{}
 
-	ms *metrics.Set
-	// flushAfterMsec is the max sample lag (in milliseconds) observed in the current flush interval.
+	// flushAfterMsec is the max lag (in milliseconds) of samples accepted in the current flush interval, plus 1ms.
+	// The extra 1ms keeps it above 0 even when the accepted samples have no lag, so 0 means no samples were accepted.
 	flushAfterMsec atomic.Int64
+	// droppedLagMsec is the max lag (in milliseconds) of samples dropped as too old in the current flush interval.
+	droppedLagMsec atomic.Int64
+
+	ms *metrics.Set
 }
 
 // NewDeduplicator returns new deduplicator, which deduplicates samples per each time series.
@@ -91,7 +95,8 @@ func (d *Deduplicator) Push(tss []prompb.TimeSeries) {
 	cs := d.cs.Load()
 	nowMsec := time.Now().UnixMilli()
 	minDeadline := d.minDeadline.Load()
-	var maxLagMsec int64
+	var maxLagMsec, maxDroppedLagMsec int64
+	hasAccepted := false
 
 	dropLabels := d.dropLabels
 	for _, ts := range tss {
@@ -109,10 +114,15 @@ func (d *Deduplicator) Push(tss []prompb.TimeSeries) {
 		buf = lc.Compress(buf, labels.Labels)
 		key := bytesutil.ToUnsafeString(buf[bufLen:])
 		for _, s := range ts.Samples {
+			lagMsec := nowMsec - s.Timestamp
 			if d.enableWindows && minDeadline > s.Timestamp {
 				d.da.droppedSamples.Inc()
+				maxDroppedLagMsec = max(maxDroppedLagMsec, lagMsec)
 				continue
-			} else if d.enableWindows && s.Timestamp <= cs.maxDeadline == cs.isGreen {
+			}
+			maxLagMsec = max(maxLagMsec, lagMsec)
+			hasAccepted = true
+			if d.enableWindows && s.Timestamp <= cs.maxDeadline == cs.isGreen {
 				ctx.green = append(ctx.green, pushSample{
 					key:       key,
 					value:     s.Value,
@@ -125,23 +135,15 @@ func (d *Deduplicator) Push(tss []prompb.TimeSeries) {
 					timestamp: s.Timestamp,
 				})
 			}
-			lagMsec := nowMsec - s.Timestamp
-			if lagMsec > maxLagMsec {
-				maxLagMsec = lagMsec
-			}
 		}
 	}
-
-	if d.enableWindows && maxLagMsec > 0 {
-		for {
-			old := d.flushAfterMsec.Load()
-			if maxLagMsec <= old {
-				break
-			}
-			if d.flushAfterMsec.CompareAndSwap(old, maxLagMsec) {
-				break
-			}
+	if d.enableWindows {
+		// Store flushAfterMsec before droppedLagMsec, getFlushDelay relies on this order.
+		if hasAccepted {
+			// Store the lag plus 1ms, so 0 always means no accepted samples, even if their lag is 0.
+			storeMaxInt64(&d.flushAfterMsec, maxLagMsec+1)
 		}
+		storeMaxInt64(&d.droppedLagMsec, maxDroppedLagMsec)
 	}
 
 	if len(ctx.blue) > 0 {
@@ -173,14 +175,7 @@ func (d *Deduplicator) runFlusher(pushFunc PushFunc) {
 			return
 		case <-t.C:
 			if d.enableWindows {
-				delay := time.Duration(d.flushAfterMsec.Swap(0)) * time.Millisecond
-				// Cap the delay at 90% of the flush interval, so the flush has some time left to finish before the next tick.
-				// Otherwise the flusher may skip the next interval and merge it into the following one.
-				// The delay may exceed the interval if the samples lag keeps growing, e.g. when the ingestion pipeline is overloaded.
-				// The uncapped delay would then grow with every flush and cause missing deduplication results,
-				// while the correctness of the produced results can't be guaranteed in this case anyway.
-				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11811
-				delay = min(delay, d.interval*9/10)
+				delay := getFlushDelay(&d.flushAfterMsec, &d.droppedLagMsec, d.interval)
 				time.Sleep(delay)
 			}
 			d.flush(pushFunc)

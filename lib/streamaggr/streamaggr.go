@@ -428,9 +428,11 @@ type aggregator struct {
 	// aggrOutputs contains aggregate states for the given outputs
 	aggrOutputs *aggrOutputs
 
-	// flushAfterMsec is the max sample lag (in milliseconds) observed in the current flush interval.
-	// It is used to properly delay the flush time while using aggregation windows.
+	// flushAfterMsec is the max lag (in milliseconds) of samples accepted in the current flush interval, plus 1ms.
+	// The extra 1ms keeps it above 0 even when the accepted samples have no lag, so 0 means no samples were accepted.
 	flushAfterMsec atomic.Int64
+	// droppedLagMsec is the max lag (in milliseconds) of samples dropped as too old in the current flush interval.
+	droppedLagMsec atomic.Int64
 
 	// suffix contains a suffix, which should be added to aggregate metric names
 	//
@@ -814,14 +816,7 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlu
 	for tickerWait(t) {
 		pf := pushFunc
 		if a.enableWindows {
-			delay := time.Duration(a.flushAfterMsec.Swap(0)) * time.Millisecond
-			// Cap the delay at 90% of the flush interval, so the flush has some time left to finish before the next tick.
-			// Otherwise the flusher may skip the next interval and merge it into the following one.
-			// The delay may exceed the interval if the samples lag keeps growing, e.g. when the ingestion pipeline is overloaded.
-			// The uncapped delay would then grow with every flush and cause missing aggregation results,
-			// while the correctness of the produced results can't be guaranteed in this case anyway.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11811
-			delay = min(delay, interval*9/10)
+			delay := getFlushDelay(&a.flushAfterMsec, &a.droppedLagMsec, interval)
 			time.Sleep(delay)
 		}
 
@@ -960,7 +955,8 @@ func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []uint32) {
 	enableWindows := a.enableWindows
 	cs := a.cs.Load()
 
-	var maxLagMsec int64
+	var maxLagMsec, maxDroppedLagMsec int64
+	hasAccepted := false
 	for idx, ts := range tss {
 		if !a.match.Match(ts.Labels) {
 			continue
@@ -998,15 +994,15 @@ func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []uint32) {
 				a.ignoredNaNSamples.Inc()
 				continue
 			}
+			lagMsec := nowMsec - s.Timestamp
 			if (ignoreOldSamples || enableWindows) && s.Timestamp < minDeadline {
 				// Skip old samples outside the current aggregation interval
 				a.ignoredOldSamples.Inc()
+				maxDroppedLagMsec = max(maxDroppedLagMsec, lagMsec)
 				continue
 			}
-			lagMsec := nowMsec - s.Timestamp
-			if lagMsec > maxLagMsec {
-				maxLagMsec = lagMsec
-			}
+			maxLagMsec = max(maxLagMsec, lagMsec)
+			hasAccepted = true
 			if enableWindows && s.Timestamp <= cs.maxDeadline == cs.isGreen {
 				ctx.green = append(ctx.green, pushSample{
 					key:       key,
@@ -1022,16 +1018,13 @@ func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []uint32) {
 			}
 		}
 	}
-	if enableWindows && maxLagMsec > 0 {
-		for {
-			old := a.flushAfterMsec.Load()
-			if maxLagMsec <= old {
-				break
-			}
-			if a.flushAfterMsec.CompareAndSwap(old, maxLagMsec) {
-				break
-			}
+	if enableWindows {
+		// Store flushAfterMsec before droppedLagMsec, getFlushDelay relies on this order.
+		if hasAccepted {
+			// Store the lag plus 1ms, so 0 always means no accepted samples, even if their lag is 0.
+			storeMaxInt64(&a.flushAfterMsec, maxLagMsec+1)
 		}
+		storeMaxInt64(&a.droppedLagMsec, maxDroppedLagMsec)
 	}
 	a.samplesLag.Update(float64(maxLagMsec) / 1_000)
 
@@ -1342,3 +1335,35 @@ func sortAndRemoveDuplicates(a []string) []string {
 }
 
 var bbPool bytesutil.ByteBufferPool
+
+// getFlushDelay returns how long to wait before flushing aggregation windows.
+//
+// The delay is the max lag of samples accepted during the interval.
+// If no samples were accepted, the max lag of samples dropped as too old is used instead,
+// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11866.
+//
+// The delay is capped at 90% of the interval, so the flush can finish before the next tick.
+// Without the cap, a growing lag (e.g. an overloaded ingestion pipeline) would push the delay
+// past the interval, making the flusher skip ticks and merge windows,
+// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11811
+func getFlushDelay(acceptedLagMsec, droppedLagMsec *atomic.Int64, interval time.Duration) time.Duration {
+	// Push stores acceptedLagMsec first and droppedLagMsec second, so read them in the reverse order.
+	// so if dropped lag of a concurrent Push is seen here, its accepted lag is seen too.
+	droppedMsec := droppedLagMsec.Swap(0)
+	// acceptedLagMsec is the max accepted lag plus 1ms, or 0 if no samples were accepted.
+	lagMsec := acceptedLagMsec.Swap(0) - 1
+	if lagMsec < 0 {
+		lagMsec = droppedMsec
+	}
+	delay := time.Duration(lagMsec) * time.Millisecond
+	return min(delay, interval*9/10)
+}
+
+func storeMaxInt64(v *atomic.Int64, n int64) {
+	for {
+		old := v.Load()
+		if n <= old || v.CompareAndSwap(old, n) {
+			return
+		}
+	}
+}
