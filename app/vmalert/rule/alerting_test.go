@@ -895,7 +895,7 @@ func TestGroup_Restore(t *testing.T) {
 	// one active alert with state restore
 	ts := time.Now().Truncate(time.Hour)
 	fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
-	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
+	fqr.Set(`ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}`,
 		stateMetric("foo", ts))
 	f(
 		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutil.NewDuration(time.Second)}},
@@ -912,7 +912,7 @@ func TestGroup_Restore(t *testing.T) {
 	fqr.Set("foo",
 		metricWithValueAndLabels(t, 0, "__name__", "foo", "env", "prod"),
 		metricWithValueAndLabels(t, 0, "__name__", "foo", "env", "dev"))
-	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
+	fqr.Set(`ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}`,
 		// only env=prod has state metric, so only it will have state restore
 		stateMetric("foo", ts, "env", "prod"))
 	f(
@@ -936,7 +936,7 @@ func TestGroup_Restore(t *testing.T) {
 	ts = time.Now().Truncate(time.Hour)
 	fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
 	fqr.Set("bar", metricWithValueAndLabels(t, 0, "__name__", "bar"))
-	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="bar"}[3600s])`,
+	fqr.Set(`ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="bar"}`,
 		stateMetric("bar", ts))
 	f(
 		[]config.Rule{
@@ -960,9 +960,9 @@ func TestGroup_Restore(t *testing.T) {
 	ts = time.Now().Truncate(time.Hour)
 	fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
 	fqr.Set("bar", metricWithValueAndLabels(t, 0, "__name__", "bar"))
-	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
+	fqr.Set(`ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}`,
 		stateMetric("foo", ts))
-	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="bar"}[3600s])`,
+	fqr.Set(`ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="bar"}`,
 		stateMetric("bar", ts))
 	f(
 		[]config.Rule{
@@ -985,7 +985,7 @@ func TestGroup_Restore(t *testing.T) {
 	// one active alert but wrong state restore
 	ts = time.Now().Truncate(time.Hour)
 	fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
-	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertname="bar",alertgroup="TestRestore"}[3600s])`,
+	fqr.Set(`ALERTS_FOR_STATE{alertname="bar",alertgroup="TestRestore"}`,
 		stateMetric("wrong alert", ts))
 	f(
 		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutil.NewDuration(time.Second)}},
@@ -1000,7 +1000,7 @@ func TestGroup_Restore(t *testing.T) {
 	// one active alert with labels
 	ts = time.Now().Truncate(time.Hour)
 	fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
-	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}[3600s])`,
+	fqr.Set(`ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}`,
 		stateMetric("foo", ts, "env", "dev"))
 	f(
 		[]config.Rule{{Alert: "foo", Expr: "foo", Labels: map[string]string{"env": "dev"}, For: promutil.NewDuration(time.Second)}},
@@ -1015,7 +1015,7 @@ func TestGroup_Restore(t *testing.T) {
 	// one active alert with restore labels mismatch
 	ts = time.Now().Truncate(time.Hour)
 	fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
-	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}[3600s])`,
+	fqr.Set(`ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}`,
 		stateMetric("foo", ts, "env", "dev", "team", "foo"))
 	f(
 		[]config.Rule{{Alert: "foo", Expr: "foo", Labels: map[string]string{"env": "dev"}, For: promutil.NewDuration(time.Second)}},
@@ -1029,7 +1029,7 @@ func TestGroup_Restore(t *testing.T) {
 
 	// two active alerts with dynamic labels and restore
 	ts = time.Now().Truncate(time.Hour)
-	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
+	fqr.Set(`ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}`,
 		stateMetric("foo", ts, "env", "dev"),
 		stateMetric("foo", ts.Add(time.Second), "env", "prod"))
 	fqr.Set("foo",

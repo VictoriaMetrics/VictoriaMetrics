@@ -1155,27 +1155,25 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	if len(idbts) == 1 {
 		// It is faster to process one indexDB without spawning goroutines.
 		idbt := idbts[0]
-		searchTR := s.adjustTimeRange(tr, idbt.idb.tr)
-		qtChild := qt.NewChild("search indexDB %s: timeRange=%v", idbt, &searchTR)
-		data[0], errs[0] = search(qtChild, idbt.idb, searchTR)
+		qtChild := qt.NewChild("search indexDB %s: timeRange=%v", idbt, &tr)
+		data[0], errs[0] = search(qtChild, idbt.idb, tr)
 		qtChild.Done()
 	} else {
 		qtSearch := qt.NewChild("search %d indexDBs in parallel", len(idbts))
 		var wg sync.WaitGroup
 		for i, idbt := range idbts {
-			searchTR := s.adjustTimeRange(tr, idbt.idb.tr)
-			qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idbt, &searchTR)
+			qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idbt, &tr)
 			wg.Go(func() {
 				// Intentionally repeat the same search code for each indexDB
 				// type so that profiles (cpu, mem, etc) could show how many
 				// resources have been consumed by each indexDB type.
 				switch idbt.t {
 				case indexDBTypePt:
-					data[i], errs[i] = search(qtChild, idbt.idb, searchTR)
+					data[i], errs[i] = search(qtChild, idbt.idb, tr)
 				case indexDBTypeLegacyPrev:
-					data[i], errs[i] = search(qtChild, idbt.idb, searchTR)
+					data[i], errs[i] = search(qtChild, idbt.idb, tr)
 				case indexDBTypeLegacyCurr:
-					data[i], errs[i] = search(qtChild, idbt.idb, searchTR)
+					data[i], errs[i] = search(qtChild, idbt.idb, tr)
 				}
 				qtChild.Done()
 			})
@@ -1369,7 +1367,7 @@ func (s *Storage) DeleteSeries(ctx context.Context, qt *querytracer.Tracer, tfss
 	if err != nil {
 		return 0, err
 	}
-	all.UnionMayOwn(legacyDMIs)
+	all.Union(legacyDMIs)
 
 	ptws := s.tb.GetAllPartitions(nil)
 	defer s.tb.PutPartitions(ptws)
@@ -1385,7 +1383,7 @@ func (s *Storage) DeleteSeries(ctx context.Context, qt *querytracer.Tracer, tfss
 			return 0, err
 		}
 		n := dmis.Len()
-		all.UnionMayOwn(dmis)
+		all.Union(dmis)
 		qt.Printf("deleted %d metricIDs from %s partition indexDB", n, idb.name)
 	}
 
@@ -1547,12 +1545,6 @@ func (s *Storage) GetTSDBStatus(ctx context.Context, qt *querytracer.Tracer, tfs
 		return &TSDBStatus{}, nil
 	}
 	defer s.tb.PutPartition(ptw)
-
-	if s.disablePerDayIndex {
-		// Use special date to instruct indexDB to search global index since
-		// per-day index is disabled.
-		date = globalIndexDate
-	}
 
 	var (
 		res *TSDBStatus
@@ -1718,25 +1710,6 @@ func putMetricRowsInsertCtx(ic *metricRowsInsertCtx) {
 var metricRowsInsertCtxPool sync.Pool
 
 const maxMetricRowsPerBlock = 8000
-
-// adjustTimeRange decides whether to use the time range as is or use
-// globalIndexTimeRange based on the -disablePerDayIndex flag value.
-func (s *Storage) adjustTimeRange(searchTR, idbTR TimeRange) TimeRange {
-	// If the per day index is disabled, unconditionally search global index.
-	if s.disablePerDayIndex {
-		return globalIndexTimeRange
-	}
-
-	tr := idbTR
-	if idbTR.contains(searchTR.MinTimestamp) {
-		tr.MinTimestamp = searchTR.MinTimestamp
-	}
-	if idbTR.contains(searchTR.MaxTimestamp) {
-		tr.MaxTimestamp = searchTR.MaxTimestamp
-	}
-
-	return tr
-}
 
 // RegisterMetricNames registers all the metric names from mrs in the indexdb, so they can be queried later.
 //
