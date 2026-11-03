@@ -720,6 +720,12 @@ Sometimes it is necessary to trigger merges for old partitions. For example, to 
 The user can **force** compaction on the specified per-month partition by sending a request to `/internal/force_merge?partition_prefix=YYYY_MM`,
 where `YYYY_MM` is the per-month partition name. For example, `http://victoriametrics:8428/internal/force_merge?partition_prefix=2020_08` would initiate a forced
 merge for the August 2020 partition. The call to `/internal/force_merge` returns immediately, while the corresponding forced merge continues running in the background.
+If `partition_prefix` is empty, then the forced merge runs for all the partitions.
+
+Every matching partition is merged again, even if it was merged before. The merge removes the data of
+[deleted time series](https://docs.victoriametrics.com/victoriametrics/#how-to-delete-time-series) and applies
+[deduplication](https://docs.victoriametrics.com/victoriametrics/#deduplication) if `-dedup.minScrapeInterval` is set.
+A partition is skipped if a background merge is running on it, or if there is not enough free disk space.
 
 Forced merges may require additional CPU, disk I/O, and storage space. It is unnecessary to run a forced merge under normal conditions,
 since VictoriaMetrics automatically performs [optimal merges in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
