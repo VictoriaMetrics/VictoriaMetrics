@@ -10897,6 +10897,7 @@ max_over_time(cpuIdle[1h:])`)
 	// instead of denying them.
 	f("sum(http_total) offset 1m")
 	f(`round(sum(sum_over_time(http_total[1m])) by (instance)) offset 1m`)
+
 }
 
 func TestMetricsqlIsLikelyInvalid_True(t *testing.T) {
