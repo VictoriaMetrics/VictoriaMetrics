@@ -10895,6 +10895,9 @@ max_over_time(cpuIdle[1h:])`)
 	f("sum(http_total) offset 1m")
 	f(`round(sum(sum_over_time(http_total[1m])) by (instance)) offset 1m`)
 
+	// check ValidateMaxPointsPerSeries after start/end aligment at alignStartEnd.
+	f(`count_over_time(time()[
+		398984ms:7ms])`)
 }
 
 func TestMetricsqlIsLikelyInvalid_True(t *testing.T) {
