@@ -580,10 +580,12 @@ func (gw *groupWatcher) doRequest(ctx context.Context, requestURL string) (*http
 		// to avoid race condition when 2 requests are executed concurrently
 		if strings.Contains(requestURL, "/apis/networking.k8s.io/v1/") {
 			gw.useNetworkingV1Beta1.Store(true)
+			_ = resp.Body.Close()
 			return gw.doRequest(ctx, requestURL)
 		}
 		if strings.Contains(requestURL, "/apis/discovery.k8s.io/v1/") {
 			gw.useDiscoveryV1Beta1.Store(true)
+			_ = resp.Body.Close()
 			return gw.doRequest(ctx, requestURL)
 		}
 	}
@@ -786,7 +788,7 @@ func (uw *urlWatcher) reloadObjects() string {
 	objectsByKey, metadata, err := uw.getObjectList(requestURL)
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
-			logger.Errorf("cannot perform request to %q: %s", requestURL, err)
+			logger.Errorf("cannot reload objects from %q: %s", requestURL, err)
 		}
 		return ""
 	}
