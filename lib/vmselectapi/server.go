@@ -558,6 +558,11 @@ func (s *Server) endConcurrentRequest() {
 }
 
 func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
+	if err := s.beginConcurrentRequest(ctx); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	defer s.endConcurrentRequest()
+
 	switch rpcName {
 	case "search_v7":
 		return s.processSearch(ctx)
@@ -618,10 +623,6 @@ func (s *Server) processRegisterMetricNames(ctx *vmselectRequestCtx) error {
 		mr.Timestamp = int64(n)
 	}
 
-	if err := s.beginConcurrentRequest(ctx); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
 	mustStartConnMonitor(rCtx)
@@ -645,10 +646,6 @@ func (s *Server) processDeleteSeries(ctx *vmselectRequestCtx) error {
 		return err
 	}
 
-	if err := s.beginConcurrentRequest(ctx); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
 	mustStartConnMonitor(rCtx)
@@ -681,10 +678,6 @@ func (s *Server) processLabelNames(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("cannot read maxLabelNames: %w", err)
 	}
 
-	if err := s.beginConcurrentRequest(ctx); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
 	mustStartConnMonitor(rCtx)
@@ -734,10 +727,6 @@ func (s *Server) processLabelValues(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("cannot read maxLabelValues: %w", err)
 	}
 
-	if err := s.beginConcurrentRequest(ctx); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
 	mustStartConnMonitor(rCtx)
@@ -798,10 +787,6 @@ func (s *Server) processTagValueSuffixes(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("cannot read maxTagValueSuffixes: %w", err)
 	}
 
-	if err := s.beginConcurrentRequest(ctx); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
 	mustStartConnMonitor(rCtx)
@@ -838,10 +823,6 @@ func (s *Server) processSeriesCount(ctx *vmselectRequestCtx) error {
 		return err
 	}
 
-	if err := s.beginConcurrentRequest(ctx); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
 	mustStartConnMonitor(rCtx)
@@ -879,10 +860,6 @@ func (s *Server) processTSDBStatus(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("cannot read topN: %w", err)
 	}
 
-	if err := s.beginConcurrentRequest(ctx); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
 	mustStartConnMonitor(rCtx)
@@ -910,10 +887,6 @@ func (s *Server) processTenants(ctx *vmselectRequestCtx) error {
 		return err
 	}
 
-	if err := s.beginConcurrentRequest(ctx); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
 	mustStartConnMonitor(rCtx)
@@ -995,10 +968,6 @@ func (s *Server) processSearchMetricNames(ctx *vmselectRequestCtx) error {
 		return err
 	}
 
-	if err := s.beginConcurrentRequest(ctx); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
 	mustStartConnMonitor(rCtx)
@@ -1034,10 +1003,7 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 	if err := ctx.readSearchQuery(); err != nil {
 		return err
 	}
-	if err := s.beginConcurrentRequest(ctx); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	defer s.endConcurrentRequest()
+
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
 	mustStartConnMonitor(rCtx)
@@ -1115,10 +1081,6 @@ func (s *Server) processMetricNamesUsageStats(ctx *vmselectRequestCtx) error {
 	}
 	matchPattern := string(ctx.dataBuf)
 
-	if err := s.beginConcurrentRequest(ctx); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
 	mustStartConnMonitor(rCtx)
@@ -1169,12 +1131,6 @@ func writeMetricNameStatRecords(ctx *vmselectRequestCtx, records []metricnamesta
 }
 
 func (s *Server) processResetMetricUsageStats(ctx *vmselectRequestCtx) error {
-
-	if err := s.beginConcurrentRequest(ctx); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	defer s.endConcurrentRequest()
-
 	// there is no need to monitor connection, because this operation is fast and operates
 	// with fire and forget logic
 	if err := s.api.ResetMetricNamesUsageStats(context.TODO(), ctx.qt); err != nil {
@@ -1215,10 +1171,6 @@ func (s *Server) processSearchMetadata(ctx *vmselectRequestCtx) error {
 	}
 	metricName := string(ctx.dataBuf)
 
-	if err := s.beginConcurrentRequest(ctx); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
 	mustStartConnMonitor(rCtx)
