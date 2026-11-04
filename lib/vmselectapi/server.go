@@ -1293,9 +1293,7 @@ func withRequestContext(rctx *vmselectRequestCtx) (context.Context, func()) {
 type connMonitor struct {
 	bc     *handshake.BufferedConn
 	cancel func()
-
-	stopped atomic.Bool
-	wg      sync.WaitGroup
+	wg     sync.WaitGroup
 }
 
 func (cm *connMonitor) watch() {
@@ -1304,6 +1302,8 @@ func (cm *connMonitor) watch() {
 	}
 
 	cm.wg.Go(func() {
+		defer cm.cancel()
+
 		// block on conn.Read
 		// it only closes if stop() called or client closes connection.
 		var buf [1]byte
@@ -1316,20 +1316,13 @@ func (cm *connMonitor) watch() {
 		if n > 0 {
 			logger.Warnf("connMonitor: unexpected non empty read from remote addr: %s", cm.bc.RemoteAddr())
 		}
-		if !cm.stopped.CompareAndSwap(false, true) {
-			return
-		}
-		cm.cancel()
 	})
 }
 
 func (cm *connMonitor) stop() {
-	if cm.stopped.CompareAndSwap(false, true) {
-		cm.cancel()
-		// unblock watcher with read timeout error
-		if err := cm.bc.Conn.SetReadDeadline(timeLongBefore); err != nil {
-			logger.Errorf("connMonitor: cannot set read deadline for the connection %q: %s", cm.bc.RemoteAddr(), err)
-		}
+	// unblock watcher with read timeout error
+	if err := cm.bc.Conn.SetReadDeadline(timeLongBefore); err != nil {
+		logger.Errorf("connMonitor: cannot set read deadline for the connection %q: %s", cm.bc.RemoteAddr(), err)
 	}
 	cm.wg.Wait()
 	// restore connection deadline to empty value
