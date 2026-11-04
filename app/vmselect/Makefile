@@ -109,6 +109,12 @@ vmselect-freebsd-amd64:
 vmselect-openbsd-amd64:
 	APP_NAME=vmselect CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
+vmselect-netbsd-amd64:
+	APP_NAME=vmselect CGO_ENABLED=0 GOOS=netbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmselect-solaris-amd64:
+	APP_NAME=vmselect CGO_ENABLED=0 GOOS=solaris GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
 vmselect-windows-amd64:
 	GOARCH=amd64 APP_NAME=vmselect $(MAKE) app-local-windows-goarch
 

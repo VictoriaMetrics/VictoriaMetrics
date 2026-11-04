@@ -82,6 +82,16 @@ vmcluster-openbsd-amd64: \
 	vmselect-openbsd-amd64 \
 	vmstorage-openbsd-amd64
 
+vmcluster-netbsd-amd64: \
+	vminsert-netbsd-amd64 \
+	vmselect-netbsd-amd64 \
+	vmstorage-netbsd-amd64
+
+vmcluster-solaris-amd64: \
+	vminsert-solaris-amd64 \
+	vmselect-solaris-amd64 \
+	vmstorage-solaris-amd64
+
 vmcluster-windows-amd64: \
 	vminsert-windows-amd64 \
 	vmselect-windows-amd64 \

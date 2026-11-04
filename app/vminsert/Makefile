@@ -105,6 +105,12 @@ vminsert-freebsd-amd64:
 vminsert-openbsd-amd64:
 	APP_NAME=vminsert CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
+vminsert-netbsd-amd64:
+	APP_NAME=vminsert CGO_ENABLED=0 GOOS=netbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vminsert-solaris-amd64:
+	APP_NAME=vminsert CGO_ENABLED=0 GOOS=solaris GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
 vminsert-windows-amd64:
 	GOARCH=amd64 APP_NAME=vminsert $(MAKE) app-local-windows-goarch
 

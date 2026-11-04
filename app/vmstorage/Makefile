@@ -109,6 +109,12 @@ vmstorage-freebsd-amd64:
 vmstorage-openbsd-amd64:
 	APP_NAME=vmstorage CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
+vmstorage-netbsd-amd64:
+	APP_NAME=vmstorage CGO_ENABLED=0 GOOS=netbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmstorage-solaris-amd64:
+	APP_NAME=vmstorage CGO_ENABLED=0 GOOS=solaris GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
 vmstorage-windows-amd64:
 	GOARCH=amd64 APP_NAME=vmstorage $(MAKE) app-local-windows-goarch
 
