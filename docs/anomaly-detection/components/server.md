@@ -85,7 +85,7 @@ server:
 
 Mount the PEM files into the vmanomaly process/container. The server certificate may include intermediate certificates and must match the hostname clients use. Omit `mtls_ca_file` for server-only TLS. With mTLS enabled, browsers, API clients, scrapers and MCP must present a certificate trusted by this CA. Configure the browser's client certificate and trust store before opening `https://<host>:8490/vmui/`; include any `path_prefix`.
 
-Set the certificate and key together. Invalid or unreadable files prevent startup. Do not configure the same TLS options through `uvicorn_config.ssl_*` alongside these fields. Restart after replacing certificate files. The built-in `--healthcheck` follows the server TLS configuration. TLS protects this listener; datasource and writer TLS remain configured on their respective components.
+Set the certificate and key together. Invalid or unreadable files prevent startup. Do not configure the same TLS options through `uvicorn_config.ssl_*` alongside these fields. Restart after replacing certificate files. The built-in [health check](https://docs.victoriametrics.com/anomaly-detection/quickstart/#container-health-checks) follows the server TLS configuration when supplied with `--config` or `VMANOMALY_HEALTHCHECK_CONFIG`; see the probe guidance for mTLS certificate requirements. TLS protects this listener; datasource and writer TLS remain configured on their respective components.
 
 #### MCP connecting to an HTTPS vmanomaly server
 
