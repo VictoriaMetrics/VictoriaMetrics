@@ -51,7 +51,7 @@ The workflow produces:
 
 - `vmanomaly.yaml`: queries, models, scheduling and reader/writer settings.
 - `alerts.yaml`: matching anomaly-score rules for [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/).
-- Optional deployment files for **Docker Compose**, **Helm** or **VM Operator**, with persistent state or ephemeral RAM, plus setup instructions. Helm output contains values for a specified chart version; Operator output contains a custom resource.
+- Optional deployment files for **Docker Compose**, **Helm** or **VM Operator**, plus setup instructions. Compose and Helm support persistent state or ephemeral RAM; generated VM Operator resources support persistent storage only. Helm output contains values for a specified chart version; Operator output contains a custom resource.
 
 Known deployment choices are included in one complete bundle. Otherwise, the base configuration and alerts remain downloadable while Copilot asks which deployment and storage option you want. Each file card supports preview, copy and download. Changed choices regenerate a complete matching bundle; use files from the same generation together.
 
