@@ -622,15 +622,13 @@ func (s *Server) processRegisterMetricNames(ctx *vmselectRequestCtx) error {
 		return ctx.writeErrorMessage(err)
 	}
 	defer s.endConcurrentRequest()
-
 	rCtx, cancel := withRequestContext(ctx)
+	defer cancel()
 
 	// Register metric names from mrs.
 	if err := s.api.RegisterMetricNames(rCtx, ctx.qt, mrs); err != nil {
-		cancel()
 		return ctx.writeErrorMessage(err)
 	}
-	cancel()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -650,16 +648,14 @@ func (s *Server) processDeleteSeries(ctx *vmselectRequestCtx) error {
 		return ctx.writeErrorMessage(err)
 	}
 	defer s.endConcurrentRequest()
-
 	rCtx, cancel := withRequestContext(ctx)
+	defer cancel()
 
 	// Execute the request.
 	deletedCount, err := s.api.DeleteSeries(rCtx, ctx.qt, &ctx.sq)
 	if err != nil {
-		cancel()
 		return ctx.writeErrorMessage(err)
 	}
-	cancel()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -687,16 +683,14 @@ func (s *Server) processLabelNames(ctx *vmselectRequestCtx) error {
 		return ctx.writeErrorMessage(err)
 	}
 	defer s.endConcurrentRequest()
-
 	rCtx, cancel := withRequestContext(ctx)
+	defer cancel()
 
 	// Execute the request
 	labelNames, err := s.api.LabelNames(rCtx, ctx.qt, &ctx.sq, maxLabelNames)
 	if err != nil {
-		cancel()
 		return ctx.writeErrorMessage(err)
 	}
-	cancel()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -741,16 +735,14 @@ func (s *Server) processLabelValues(ctx *vmselectRequestCtx) error {
 		return ctx.writeErrorMessage(err)
 	}
 	defer s.endConcurrentRequest()
-
 	rCtx, cancel := withRequestContext(ctx)
+	defer cancel()
 
 	// Execute the request
 	labelValues, err := s.api.LabelValues(rCtx, ctx.qt, &ctx.sq, labelName, maxLabelValues)
 	if err != nil {
-		cancel()
 		return ctx.writeErrorMessage(err)
 	}
-	cancel()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -806,16 +798,14 @@ func (s *Server) processTagValueSuffixes(ctx *vmselectRequestCtx) error {
 		return ctx.writeErrorMessage(err)
 	}
 	defer s.endConcurrentRequest()
-
 	rCtx, cancel := withRequestContext(ctx)
+	defer cancel()
 
 	// Execute the request
 	suffixes, err := s.api.TagValueSuffixes(rCtx, ctx.qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes)
 	if err != nil {
-		cancel()
 		return ctx.writeErrorMessage(err)
 	}
-	cancel()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -847,15 +837,14 @@ func (s *Server) processSeriesCount(ctx *vmselectRequestCtx) error {
 		return ctx.writeErrorMessage(err)
 	}
 	defer s.endConcurrentRequest()
-
 	rCtx, cancel := withRequestContext(ctx)
+	defer cancel()
+
 	// Execute the request
 	n, err := s.api.SeriesCount(rCtx, ctx.qt, accountID, projectID)
 	if err != nil {
-		cancel()
 		return ctx.writeErrorMessage(err)
 	}
-	cancel()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -888,16 +877,14 @@ func (s *Server) processTSDBStatus(ctx *vmselectRequestCtx) error {
 		return ctx.writeErrorMessage(err)
 	}
 	defer s.endConcurrentRequest()
-
 	rCtx, cancel := withRequestContext(ctx)
+	defer cancel()
 
 	// Execute the request
 	status, err := s.api.TSDBStatus(rCtx, ctx.qt, &ctx.sq, focusLabel, int(topN))
 	if err != nil {
-		cancel()
 		return ctx.writeErrorMessage(err)
 	}
-	cancel()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -920,16 +907,14 @@ func (s *Server) processTenants(ctx *vmselectRequestCtx) error {
 		return ctx.writeErrorMessage(err)
 	}
 	defer s.endConcurrentRequest()
-
 	rCtx, cancel := withRequestContext(ctx)
+	defer cancel()
 
 	// Execute the request
 	tenants, err := s.api.Tenants(rCtx, ctx.qt, tr)
 	if err != nil {
-		cancel()
 		return ctx.writeErrorMessage(err)
 	}
-	cancel()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -1006,16 +991,14 @@ func (s *Server) processSearchMetricNames(ctx *vmselectRequestCtx) error {
 		return ctx.writeErrorMessage(err)
 	}
 	defer s.endConcurrentRequest()
-
 	rCtx, cancel := withRequestContext(ctx)
+	defer cancel()
 
 	// Execute request.
 	metricNames, err := s.api.SearchMetricNames(rCtx, ctx.qt, &ctx.sq)
 	if err != nil {
-		cancel()
 		return ctx.writeErrorMessage(err)
 	}
-	cancel()
 	// Send empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -1046,24 +1029,21 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 		return ctx.writeErrorMessage(err)
 	}
 	defer s.endConcurrentRequest()
-
 	rCtx, cancel := withRequestContext(ctx)
+	defer cancel()
+
 	// Initiaialize the search.
 	bi, err := s.api.InitSearch(rCtx, ctx.qt, &ctx.sq)
 	if err != nil {
-		cancel()
 		return ctx.writeErrorMessage(err)
 	}
 	defer bi.MustClose()
 	// Send empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
-		cancel()
 		return fmt.Errorf("cannot send empty error message: %w", err)
 	}
 
 	sendBlocks := func() (int, error) {
-		defer cancel()
-
 		// Send found blocks to vmselect.
 		blocksRead := 0
 		var ok bool
@@ -1136,15 +1116,13 @@ func (s *Server) processMetricNamesUsageStats(ctx *vmselectRequestCtx) error {
 		return ctx.writeErrorMessage(err)
 	}
 	defer s.endConcurrentRequest()
-
 	rCtx, cancel := withRequestContext(ctx)
+	defer cancel()
 
 	result, err := s.api.GetMetricNamesUsageStats(rCtx, ctx.qt, at, limit, int(le), matchPattern)
 	if err != nil {
-		cancel()
 		return ctx.writeErrorMessage(err)
 	}
-	cancel()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -1237,19 +1215,18 @@ func (s *Server) processSearchMetadata(ctx *vmselectRequestCtx) error {
 		return ctx.writeErrorMessage(err)
 	}
 	defer s.endConcurrentRequest()
-
 	rCtx, cancel := withRequestContext(ctx)
+	defer cancel()
 
 	result, err := s.api.GetMetadataRecords(rCtx, ctx.qt, at, limit, metricName)
 	if err != nil {
-		cancel()
 		return ctx.writeErrorMessage(err)
 	}
-	cancel()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
 	}
+
 	if err := writeMetadataRows(ctx, result); err != nil {
 		return fmt.Errorf("cannot write metadata rows: %w", err)
 	}
