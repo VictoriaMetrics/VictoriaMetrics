@@ -63,7 +63,7 @@ Read each row as **source persisted state → target runtime**. The upgrade and 
 
 | Source state | Target runtime | Action and compatibility boundary |
 | --- | --- | --- |
-| v1.31.1 | v1.32.0 | Existing compatible state remains readable, including raw Temporal Envelope snapshots. Switching Envelope `model_version` requires a fresh fit. Refit models with previously corrupted trends and multivariate `auto` models that learned review/score metadata columns. |
+| v1.31.1 | v1.32.0 | Existing compatible state remains readable, including raw Temporal Envelope snapshots. Switching Envelope `model_version` requires a fresh fit. Refit models with previously affected trends and multivariate `auto` models that learned review/score metadata columns. |
 | v1.31.0 | v1.31.1 | Existing saved built-in model state remains compatible. No manual state migration or upgrade-only refit is required. |
 | v1.30.7 | v1.31.0 | Reuse compatible existing built-in state; no upgrade-only refit is required. New peer models have no state from older releases. |
 | v1.30.6 | v1.30.7 | Reuse compatible built-in state. |
