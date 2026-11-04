@@ -1025,7 +1025,7 @@ models:
 V2 learns and forecasts seasonal patterns in civil time, using the query timezone, including daylight-saving transitions. It retains the public Temporal Envelope configuration and query-policy interface. Check `GET /api/v1/model/schema?model_class=temporal_envelope` in the [interactive API reference](https://docs.victoriametrics.com/anomaly-detection/components/server/#interactive-api-reference) for supported settings, and tune the selected implementation rather than transferring parameters on the assumption of identical behavior.
 
 > [!WARNING]
-> Switching between v1 and v2 requires a fresh fit; their learned state is not interchangeable. Snapshots are compressed losslessly in v1.32.0, while older raw snapshots remain readable. Rolling back to v1.31.1 or earlier requires refitting Temporal Envelope models and removing every `model_version: v2` setting. See [state compatibility](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix).
+> Switching between v1 and v2 requires a fresh fit; their learned state is not interchangeable. Snapshots are compressed losslessly in v1.32.0, while older raw snapshots remain readable. Rolling back to v1.31.1 or earlier requires resetting persisted state, refitting models, and removing every `model_version: v2` setting. See [state compatibility](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix).
 
 ### Online MAD
 
