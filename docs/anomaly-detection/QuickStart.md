@@ -17,7 +17,7 @@ aliases:
 ---
 For a broader overview please visit the [navigation page](https://docs.victoriametrics.com/anomaly-detection/).
 
-For a configuration tailored to your metrics, try [dynamic presets](https://docs.victoriametrics.com/anomaly-detection/presets/#dynamic-presets) with AI Copilot.
+{{% available_from "v1.32.0" anomaly %}} For a configuration tailored to your metrics, try [dynamic presets](https://docs.victoriametrics.com/anomaly-detection/presets/#dynamic-presets) with AI Copilot.
 
 ## How to install and run vmanomaly
 
