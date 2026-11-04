@@ -1207,27 +1207,6 @@ func (api *testClosedConnAPI) waitCanceled(ctx context.Context) error {
 	return api.ctxErr
 }
 
-// closeConnAndCheckCanceled waits until the API is called, closes c
-// and verifies that the API call was canceled because of the closed conn.
-func (api *testClosedConnAPI) closeConnAndCheckCanceled(t *testing.T, c *conn) {
-	t.Helper()
-
-	select {
-	case <-api.called:
-	case <-time.After(5 * time.Second):
-		t.Fatalf("timed out while waiting for API call")
-	}
-	c.Close()
-	select {
-	case <-api.canceled:
-	case <-time.After(5 * time.Second):
-		t.Fatalf("API call wasn't canceled after closing conn")
-	}
-	if !errors.Is(api.ctxErr, context.Canceled) {
-		t.Fatalf("unexpected ctx error: got %v, want %v", api.ctxErr, context.Canceled)
-	}
-}
-
 func (api *testClosedConnAPI) InitSearch(ctx context.Context, _ *querytracer.Tracer, _ *storage.SearchQuery) (BlockIterator, error) {
 	if api.cancelInNextBlock {
 		return &testClosedConnBlockIterator{api: api}, nil
@@ -1301,6 +1280,27 @@ func (api *testClosedConnAPI) GetMetadataRecords(ctx context.Context, _ *querytr
 	return nil, api.waitCanceled(ctx)
 }
 
+// closeConnAndCheckCanceled waits until the API is called, closes c
+// and verifies that the API call was canceled because of the closed conn.
+func closeConnAndCheckCanceled(t *testing.T, api *testClosedConnAPI, c *conn) {
+	t.Helper()
+
+	select {
+	case <-api.called:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timed out while waiting for API call")
+	}
+	c.Close()
+	select {
+	case <-api.canceled:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("API call wasn't canceled after closing conn")
+	}
+	if !errors.Is(api.ctxErr, context.Canceled) {
+		t.Fatalf("unexpected ctx error: got %v, want %v", api.ctxErr, context.Canceled)
+	}
+}
+
 func TestClosedConn(t *testing.T) {
 	// f makes an RPC, waits until the server calls the API, and closes the connection.
 	// Closing the connection must trigger the API call cancellation.
@@ -1318,7 +1318,7 @@ func TestClosedConn(t *testing.T) {
 
 		c.WriteRPCName(rpcName, false, 60)
 		writeArgs(c)
-		api.closeConnAndCheckCanceled(t, c)
+		closeConnAndCheckCanceled(t, api, c)
 	}
 
 	f("searchMetricNames_v3", func(c *conn) {
@@ -1396,7 +1396,7 @@ func TestSearchV7ClosedConn(t *testing.T) {
 
 		c.WriteRPCName("search_v7", false, 60)
 		c.WriteSearchQuery(newSearchQuery())
-		api.closeConnAndCheckCanceled(t, c)
+		closeConnAndCheckCanceled(t, api, c)
 	}
 
 	f(false)
