@@ -1244,12 +1244,11 @@ func writeMetadataRows(ctx *vmselectRequestCtx, records []*metricsmetadata.Row) 
 	return nil
 }
 
-// withRequestContext creates a cancelable context
-// for a given vmselectRequestCtx.
+// withRequestContext creates a cancelable context rctx.
 // It starts monitoring whether the client closes or breaks the connection.
 //
-// The caller must stop the returned connMonitor via cm.stop() once request
-// processing is complete and before writing any response to the client.
+// The caller must stop the connection monitoring by calling the cancel()
+// callback returned by this function.
 func withRequestContext(rctx *vmselectRequestCtx) (context.Context, func()) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Unix(int64(rctx.deadline), 0))
 	cm := &connMonitor{
