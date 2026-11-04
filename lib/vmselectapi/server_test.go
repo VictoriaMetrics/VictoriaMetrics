@@ -111,51 +111,6 @@ func TestSearchMetricNamesV3(t *testing.T) {
 	f([]string{"m1", "m2", "m3"}, "")
 }
 
-// testSearchMetricNamesV3ClosedConnAPI is the fake implementation of the
-// vmselect API that is used in TestSearchMetricNamesV3ClosedConn().
-type testSearchMetricNamesV3ClosedConnAPI struct {
-	API
-	called   chan struct{}
-	canceled chan struct{}
-}
-
-func (api *testSearchMetricNamesV3ClosedConnAPI) SearchMetricNames(ctx context.Context, _ *querytracer.Tracer, _ *storage.SearchQuery) ([]string, error) {
-	close(api.called)
-
-	tt := time.NewTimer(time.Second)
-	defer tt.Stop()
-	select {
-	case <-ctx.Done():
-		close(api.canceled)
-	case <-tt.C:
-		panic("timed out while waiting for API call to be canceled")
-	}
-	return nil, ctx.Err()
-}
-
-func TestSearchMetricNamesV3ClosedConn(t *testing.T) {
-	defer metrics.UnregisterAllMetrics()
-
-	// Start the vmselect RPC server and connect to it.
-	api := &testSearchMetricNamesV3ClosedConnAPI{
-		called:   make(chan struct{}),
-		canceled: make(chan struct{}),
-	}
-	s := startServer(t, api)
-	defer s.MustStop()
-	c := newConn(t, s)
-
-	sq := newSearchQuery()
-
-	// Make an RPC, wait until the server calls the API, and close the connection.
-	// Closing the connection should trigger the API call cancellation.
-	c.WriteRPCName("searchMetricNames_v3", false, 1)
-	c.WriteSearchQuery(sq)
-	<-api.called
-	c.Close()
-	<-api.canceled
-}
-
 // testBlockIterator is the fake implementation of BlockIterator
 // that is used in TestSearchV7().
 type testBlockIterator struct {
@@ -1228,6 +1183,224 @@ func TestUnsupportedRPC(t *testing.T) {
 	if _, err := io.ReadFull(c.bc, make([]byte, 1)); err == nil {
 		t.Fatalf("expecting non-nil error when reading from conn closed by server")
 	}
+}
+
+// testClosedConnAPI is the fake implementation of the vmselect API
+// that is used in TestClosedConn().
+//
+// Every API call blocks until ctx is canceled.
+type testClosedConnAPI struct {
+	called   chan struct{}
+	canceled chan struct{}
+	ctxErr   error
+
+	// cancelInNextBlock makes InitSearch return a BlockIterator,
+	// which blocks in NextBlock instead of InitSearch.
+	cancelInNextBlock bool
+}
+
+func (api *testClosedConnAPI) waitCanceled(ctx context.Context) error {
+	close(api.called)
+	<-ctx.Done()
+	api.ctxErr = ctx.Err()
+	close(api.canceled)
+	return api.ctxErr
+}
+
+func (api *testClosedConnAPI) InitSearch(ctx context.Context, _ *querytracer.Tracer, _ *storage.SearchQuery) (BlockIterator, error) {
+	if api.cancelInNextBlock {
+		return &testClosedConnBlockIterator{api: api}, nil
+	}
+	return nil, api.waitCanceled(ctx)
+}
+
+// testClosedConnBlockIterator is the fake implementation of BlockIterator
+// that is used in TestSearchV7ClosedConn().
+type testClosedConnBlockIterator struct {
+	api *testClosedConnAPI
+	err error
+}
+
+func (bi *testClosedConnBlockIterator) NextBlock(ctx context.Context, dst []byte) ([]byte, bool) {
+	bi.err = bi.api.waitCanceled(ctx)
+	return dst, false
+}
+
+func (bi *testClosedConnBlockIterator) MustClose() {}
+
+func (bi *testClosedConnBlockIterator) Error() error {
+	return bi.err
+}
+
+func (api *testClosedConnAPI) SearchMetricNames(ctx context.Context, _ *querytracer.Tracer, _ *storage.SearchQuery) ([]string, error) {
+	return nil, api.waitCanceled(ctx)
+}
+
+func (api *testClosedConnAPI) LabelValues(ctx context.Context, _ *querytracer.Tracer, _ *storage.SearchQuery, _ string, _ int) ([]string, error) {
+	return nil, api.waitCanceled(ctx)
+}
+
+func (api *testClosedConnAPI) TagValueSuffixes(ctx context.Context, _ *querytracer.Tracer, _, _ uint32, _ storage.TimeRange, _, _ string, _ byte, _ int) ([]string, error) {
+	return nil, api.waitCanceled(ctx)
+}
+
+func (api *testClosedConnAPI) LabelNames(ctx context.Context, _ *querytracer.Tracer, _ *storage.SearchQuery, _ int) ([]string, error) {
+	return nil, api.waitCanceled(ctx)
+}
+
+func (api *testClosedConnAPI) SeriesCount(ctx context.Context, _ *querytracer.Tracer, _, _ uint32) (uint64, error) {
+	return 0, api.waitCanceled(ctx)
+}
+
+func (api *testClosedConnAPI) TSDBStatus(ctx context.Context, _ *querytracer.Tracer, _ *storage.SearchQuery, _ string, _ int) (*storage.TSDBStatus, error) {
+	return nil, api.waitCanceled(ctx)
+}
+
+func (api *testClosedConnAPI) DeleteSeries(ctx context.Context, _ *querytracer.Tracer, _ *storage.SearchQuery) (int, error) {
+	return 0, api.waitCanceled(ctx)
+}
+
+func (api *testClosedConnAPI) RegisterMetricNames(ctx context.Context, _ *querytracer.Tracer, _ []storage.MetricRow) error {
+	return api.waitCanceled(ctx)
+}
+
+func (api *testClosedConnAPI) Tenants(ctx context.Context, _ *querytracer.Tracer, _ storage.TimeRange) ([]string, error) {
+	return nil, api.waitCanceled(ctx)
+}
+
+func (api *testClosedConnAPI) GetMetricNamesUsageStats(ctx context.Context, _ *querytracer.Tracer, _ *storage.TenantToken, _, _ int, _ string) (metricnamestats.StatsResult, error) {
+	return metricnamestats.StatsResult{}, api.waitCanceled(ctx)
+}
+
+func (api *testClosedConnAPI) ResetMetricNamesUsageStats(ctx context.Context, _ *querytracer.Tracer) error {
+	return api.waitCanceled(ctx)
+}
+
+func (api *testClosedConnAPI) GetMetadataRecords(ctx context.Context, _ *querytracer.Tracer, _ *storage.TenantToken, _ int, _ string) ([]*metricsmetadata.Row, error) {
+	return nil, api.waitCanceled(ctx)
+}
+
+// closeConnAndCheckCanceled waits until the API is called, closes c
+// and verifies that the API call was canceled because of the closed conn.
+func closeConnAndCheckCanceled(t *testing.T, api *testClosedConnAPI, c *conn) {
+	t.Helper()
+
+	select {
+	case <-api.called:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timed out while waiting for API call")
+	}
+	c.Close()
+	select {
+	case <-api.canceled:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("API call wasn't canceled after closing conn")
+	}
+	if !errors.Is(api.ctxErr, context.Canceled) {
+		t.Fatalf("unexpected ctx error: got %v, want %v", api.ctxErr, context.Canceled)
+	}
+}
+
+func TestClosedConn(t *testing.T) {
+	// f makes an RPC, waits until the server calls the API, and closes the connection.
+	// Closing the connection must trigger the API call cancellation.
+	f := func(rpcName string, writeArgs func(c *conn)) {
+		t.Helper()
+		defer metrics.UnregisterAllMetrics()
+
+		api := &testClosedConnAPI{
+			called:   make(chan struct{}),
+			canceled: make(chan struct{}),
+		}
+		s := startServer(t, api)
+		defer s.MustStop()
+		c := newConn(t, s)
+
+		c.WriteRPCName(rpcName, false, 60)
+		writeArgs(c)
+		closeConnAndCheckCanceled(t, api, c)
+	}
+
+	f("searchMetricNames_v3", func(c *conn) {
+		c.WriteSearchQuery(newSearchQuery())
+	})
+	f("labelValues_v5", func(c *conn) {
+		c.WriteString("label")
+		c.WriteSearchQuery(newSearchQuery())
+		c.WriteUint32(10)
+	})
+	f("tagValueSuffixes_v4", func(c *conn) {
+		c.WriteUint32(1)
+		c.WriteUint32(2)
+		c.WriteUint64(0)
+		c.WriteUint64(1000)
+		c.WriteString("key")
+		c.WriteString("prefix")
+		c.WriteUint8('.')
+		c.WriteUint32(10)
+	})
+	f("labelNames_v5", func(c *conn) {
+		c.WriteSearchQuery(newSearchQuery())
+		c.WriteUint32(10)
+	})
+	f("seriesCount_v4", func(c *conn) {
+		c.WriteUint32(1)
+		c.WriteUint32(2)
+	})
+	f("tsdbStatus_v6", func(c *conn) {
+		c.WriteSearchQuery(newSearchQuery())
+		c.WriteString("label")
+		c.WriteUint32(10)
+	})
+	f("deleteSeries_v5", func(c *conn) {
+		c.WriteSearchQuery(newSearchQuery())
+	})
+	f("registerMetricNames_v3", func(c *conn) {
+		c.WriteUint64(1)
+		c.WriteBytes([]byte("m1"))
+		c.WriteUint64(123)
+	})
+	f("tenants_v1", func(c *conn) {
+		c.WriteUint64(0)
+		c.WriteUint64(1000)
+	})
+	f("metricNamesUsageStats_v1", func(c *conn) {
+		c.WriteBool(false)
+		c.WriteLimit(10)
+		c.WriteInt64(5)
+		c.WriteString("m*")
+	})
+	f("searchMetadata_v1", func(c *conn) {
+		c.WriteBool(false)
+		c.WriteLimit(10)
+		c.WriteString("m1")
+	})
+}
+
+func TestSearchV7ClosedConn(t *testing.T) {
+	// f makes a search RPC, waits until the server calls either InitSearch or
+	// BlockIterator.NextBlock, and closes the connection.
+	// Closing the connection must trigger the API call cancellation.
+	f := func(cancelInNextBlock bool) {
+		t.Helper()
+		defer metrics.UnregisterAllMetrics()
+
+		api := &testClosedConnAPI{
+			called:            make(chan struct{}),
+			canceled:          make(chan struct{}),
+			cancelInNextBlock: cancelInNextBlock,
+		}
+		s := startServer(t, api)
+		defer s.MustStop()
+		c := newConn(t, s)
+
+		c.WriteRPCName("search_v7", false, 60)
+		c.WriteSearchQuery(newSearchQuery())
+		closeConnAndCheckCanceled(t, api, c)
+	}
+
+	f(false)
+	f(true)
 }
 
 func startServer(t *testing.T, api API) *Server {
