@@ -624,6 +624,7 @@ func (s *Server) processRegisterMetricNames(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
+	mustStartConnMonitor(rCtx)
 
 	// Register metric names from mrs.
 	if err := s.api.RegisterMetricNames(rCtx, ctx.qt, mrs); err != nil {
@@ -650,6 +651,7 @@ func (s *Server) processDeleteSeries(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
+	mustStartConnMonitor(rCtx)
 
 	// Execute the request.
 	deletedCount, err := s.api.DeleteSeries(rCtx, ctx.qt, &ctx.sq)
@@ -685,6 +687,7 @@ func (s *Server) processLabelNames(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
+	mustStartConnMonitor(rCtx)
 
 	// Execute the request
 	labelNames, err := s.api.LabelNames(rCtx, ctx.qt, &ctx.sq, maxLabelNames)
@@ -737,6 +740,7 @@ func (s *Server) processLabelValues(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
+	mustStartConnMonitor(rCtx)
 
 	// Execute the request
 	labelValues, err := s.api.LabelValues(rCtx, ctx.qt, &ctx.sq, labelName, maxLabelValues)
@@ -800,6 +804,7 @@ func (s *Server) processTagValueSuffixes(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
+	mustStartConnMonitor(rCtx)
 
 	// Execute the request
 	suffixes, err := s.api.TagValueSuffixes(rCtx, ctx.qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes)
@@ -839,6 +844,7 @@ func (s *Server) processSeriesCount(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
+	mustStartConnMonitor(rCtx)
 
 	// Execute the request
 	n, err := s.api.SeriesCount(rCtx, ctx.qt, accountID, projectID)
@@ -879,6 +885,7 @@ func (s *Server) processTSDBStatus(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
+	mustStartConnMonitor(rCtx)
 
 	// Execute the request
 	status, err := s.api.TSDBStatus(rCtx, ctx.qt, &ctx.sq, focusLabel, int(topN))
@@ -909,6 +916,7 @@ func (s *Server) processTenants(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
+	mustStartConnMonitor(rCtx)
 
 	// Execute the request
 	tenants, err := s.api.Tenants(rCtx, ctx.qt, tr)
@@ -993,6 +1001,7 @@ func (s *Server) processSearchMetricNames(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
+	mustStartConnMonitor(rCtx)
 
 	// Execute request.
 	metricNames, err := s.api.SearchMetricNames(rCtx, ctx.qt, &ctx.sq)
@@ -1031,6 +1040,7 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
+	mustStartConnMonitor(rCtx)
 
 	// Initiaialize the search.
 	bi, err := s.api.InitSearch(rCtx, ctx.qt, &ctx.sq)
@@ -1111,6 +1121,7 @@ func (s *Server) processMetricNamesUsageStats(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
+	mustStartConnMonitor(rCtx)
 
 	result, err := s.api.GetMetricNamesUsageStats(rCtx, ctx.qt, at, limit, int(le), matchPattern)
 	if err != nil {
@@ -1210,6 +1221,7 @@ func (s *Server) processSearchMetadata(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 	rCtx, cancel := withRequestContext(ctx)
 	defer cancel()
+	mustStartConnMonitor(rCtx)
 
 	result, err := s.api.GetMetadataRecords(rCtx, ctx.qt, at, limit, metricName)
 	if err != nil {
@@ -1255,8 +1267,22 @@ func withRequestContext(rctx *vmselectRequestCtx) (context.Context, func()) {
 		bc:     rctx.bc,
 		cancel: cancel,
 	}
-	cm.watch()
+	ctx = context.WithValue(ctx, connMonitorKey, cm)
 	return ctx, cm.stop
+}
+
+var connMonitorKey = struct{ k string }{k: "connMonitor"}
+
+func mustStartConnMonitor(ctx context.Context) {
+	v := ctx.Value(connMonitorKey)
+	if v == nil {
+		logger.Panicf("BUG: ctx must contain a value for the connMonitorKey")
+	}
+	cm, ok := v.(*connMonitor)
+	if !ok {
+		logger.Panicf("BUG: invalid connMonitor type: %T", cm)
+	}
+	cm.start()
 }
 
 type connMonitor struct {
@@ -1265,7 +1291,7 @@ type connMonitor struct {
 	wg     sync.WaitGroup
 }
 
-func (cm *connMonitor) watch() {
+func (cm *connMonitor) start() {
 	if err := cm.bc.Conn.SetReadDeadline(time.Time{}); err != nil {
 		logger.Errorf("connMonitor: cannot set empty read deadline for the connection %q: %s", cm.bc.RemoteAddr(), err)
 	}

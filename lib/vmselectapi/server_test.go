@@ -1201,8 +1201,12 @@ type testClosedConnAPI struct {
 
 func (api *testClosedConnAPI) waitCanceled(ctx context.Context) error {
 	close(api.called)
-	<-ctx.Done()
-	api.ctxErr = ctx.Err()
+	select {
+	case <-ctx.Done():
+		api.ctxErr = ctx.Err()
+	case <-time.After(time.Second):
+		panic("timed out while waiting for API call")
+	}
 	close(api.canceled)
 	return api.ctxErr
 }
@@ -1284,18 +1288,9 @@ func (api *testClosedConnAPI) GetMetadataRecords(ctx context.Context, _ *querytr
 // and verifies that the API call was canceled because of the closed conn.
 func closeConnAndCheckCanceled(t *testing.T, api *testClosedConnAPI, c *conn) {
 	t.Helper()
-
-	select {
-	case <-api.called:
-	case <-time.After(5 * time.Second):
-		t.Fatalf("timed out while waiting for API call")
-	}
+	<-api.called
 	c.Close()
-	select {
-	case <-api.canceled:
-	case <-time.After(5 * time.Second):
-		t.Fatalf("API call wasn't canceled after closing conn")
-	}
+	<-api.canceled
 	if !errors.Is(api.ctxErr, context.Canceled) {
 		t.Fatalf("unexpected ctx error: got %v, want %v", api.ctxErr, context.Canceled)
 	}
@@ -1318,12 +1313,14 @@ func TestClosedConn(t *testing.T) {
 
 		c.WriteRPCName(rpcName, false, 60)
 		writeArgs(c)
+
 		closeConnAndCheckCanceled(t, api, c)
 	}
 
 	f("searchMetricNames_v3", func(c *conn) {
 		c.WriteSearchQuery(newSearchQuery())
 	})
+
 	f("labelValues_v5", func(c *conn) {
 		c.WriteString("label")
 		c.WriteSearchQuery(newSearchQuery())
