@@ -3143,7 +3143,7 @@ func (sn *storageNode) processSearchQueryOnConn(ctx context.Context, bc *handsha
 }
 
 func writeCancelRequestMarker(buf []byte, bc *handshake.BufferedConn) error {
-	buf = append(buf[:0], handshake.CancelRequestMarker)
+	buf = append(buf[:0], handshake.CancelRequestMarker...)
 	if err := writeBytes(bc, buf); err != nil {
 		return fmt.Errorf("cannot write request cancel marker: %w", err)
 	}

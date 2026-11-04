@@ -1200,10 +1200,10 @@ type testClosedConnAPI struct {
 }
 
 func (api *testClosedConnAPI) waitCanceled(ctx context.Context) error {
-	close(api.called)
+	api.called <- struct{}{}
 	<-ctx.Done()
 	api.ctxErr = ctx.Err()
-	close(api.canceled)
+	api.canceled <- struct{}{}
 	return api.ctxErr
 }
 
@@ -1401,6 +1401,55 @@ func TestSearchV7ClosedConn(t *testing.T) {
 
 	f(false)
 	f(true)
+}
+
+func TestSearchV7CancelRequestMarker(t *testing.T) {
+	defer metrics.UnregisterAllMetrics()
+
+	api := &testClosedConnAPI{
+		called:            make(chan struct{}),
+		canceled:          make(chan struct{}),
+		cancelInNextBlock: true,
+	}
+	s := startServer(t, api)
+	defer s.MustStop()
+
+	c := newConn(t, s)
+	defer c.Close()
+
+	sendSearchRequest := func() {
+		t.Helper()
+
+		c.WriteRPCName("search_v7", false, 60)
+		c.WriteSearchQuery(newSearchQuery())
+		c.WriteBytes([]byte(handshake.CancelRequestMarker))
+
+		select {
+		case <-api.called:
+		case <-time.After(5 * time.Second):
+			t.Fatalf("timed out while waiting for API call")
+		}
+		select {
+		case <-api.canceled:
+		case <-time.After(5 * time.Second):
+			t.Fatalf("API call wasn't canceled after closing conn")
+		}
+		if !errors.Is(api.ctxErr, context.Canceled) {
+			t.Fatalf("unexpected ctx error: got %v, want %v", api.ctxErr, context.Canceled)
+		}
+		// server buffers response writes, so read all it at the end of request at once.
+		if data := c.ReadBytes(); len(data) > 0 {
+			t.Fatalf("unexpected non-empty InitSearch response : %q", data)
+		}
+		if data := c.ReadBytes(); len(data) > 0 {
+			t.Fatalf("unexpected non-empty NextBlock response : %q", data)
+		}
+		c.ReadEmptyTrace()
+	}
+
+	sendSearchRequest()
+	sendSearchRequest()
+	sendSearchRequest()
 }
 
 func startServer(t *testing.T, api API) *Server {

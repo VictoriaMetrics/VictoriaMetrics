@@ -489,7 +489,7 @@ func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 		}
 		return fmt.Errorf("cannot read rpcName: %w", err)
 	}
-	if len(ctx.dataBuf) == 1 && ctx.dataBuf[0] == handshake.CancelRequestMarker {
+	if string(ctx.dataBuf) == handshake.CancelRequestMarker {
 		// request cancel marker from previous request.
 		return nil
 	}
@@ -1062,9 +1062,7 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 		}
 	}
 
-	if err := bi.Error(); err != nil {
-		return fmt.Errorf("search error: %w", err)
-	}
+	err = bi.Error()
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			ctx.qt.Printf("request canceled by client after sent %d blocks to vmselect", blocksRead)
@@ -1294,7 +1292,8 @@ func (cm *connMonitor) watch() {
 		// It covers multiple cases - if stop() called, client closes connection or client sends cancel marker.
 		//
 		// buf holds space for the marker written with app/vmselect/netstorage/writeBytes.
-		var buf [9]byte
+		const bufSize = len(handshake.CancelRequestMarker) + 8
+		var buf [bufSize]byte
 		n, err := io.ReadFull(cm.bc, buf[:])
 		if err != nil {
 			if errors.Is(err, os.ErrDeadlineExceeded) || errors.Is(err, io.EOF) {
@@ -1302,7 +1301,7 @@ func (cm *connMonitor) watch() {
 			}
 			logger.Errorf("connMonitor: unexpected Read error for the connection %q: %s", cm.bc.RemoteAddr(), err)
 		}
-		if n != 9 || buf[8] != handshake.CancelRequestMarker {
+		if n != bufSize || string(buf[8:]) != handshake.CancelRequestMarker {
 			logger.Warnf("connMonitor: unexpected non-empty read=%q from remote addr: %s", buf[:n], cm.bc.RemoteAddr())
 		}
 	})
