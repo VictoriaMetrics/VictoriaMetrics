@@ -2,10 +2,10 @@ package storage
 
 import (
 	"bytes"
-	"math"
 	"path/filepath"
 	"strconv"
 	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -78,7 +78,10 @@ func mustOpenLegacyIndexDB(path string, s *Storage) *legacyIndexDB {
 
 	tr := TimeRange{
 		MinTimestamp: 0,
-		MaxTimestamp: math.MaxInt64,
+		// Legacy indexDBs can store entries up to now+2d at most, since
+		// pre-v1.133.0 versions accepted timestamps up to 2d in the future
+		// (timezone shifts) while -futureRetention is not supported by them.
+		MaxTimestamp: time.Now().Add(2 * 24 * time.Hour).UnixMilli(),
 	}
 	idb := mustOpenIndexDB(id, tr, name, path, s, &s.isReadOnly, true)
 	legacyIDB := &legacyIndexDB{idb: idb}
@@ -86,26 +89,16 @@ func mustOpenLegacyIndexDB(path string, s *Storage) *legacyIndexDB {
 	return legacyIDB
 }
 
-func (db *indexDB) legacyContainsDate(date uint64) bool {
-	var tr TimeRange
-	if date == globalIndexDate {
-		tr = globalIndexTimeRange
-	} else {
-		tr.MinTimestamp = int64(date) * msecPerDay
-		tr.MaxTimestamp = int64(date+1)*msecPerDay - 1
-	}
-	return db.legacyContainsTimeRange(tr)
-}
-
 func (db *indexDB) legacyContainsTimeRange(tr TimeRange) bool {
-	if tr == globalIndexTimeRange {
-		return true
-	}
-
 	if !db.noRegisterNewSeries.Load() {
 		// indexDB could register new time series - it is not safe to cache minMissingTimestamp
+		//
+		// In practice, db.noRegisterNewSeries is always true for legacy
+		// indexDBs and always false for partition indexDBs.
 		return true
 	}
+
+	// At this point, we know it is a legacy indexDB.
 
 	// vmsingle does not have tenants and therefore has just one key.
 	// While vmstorage can potentially have many tenants and the actual

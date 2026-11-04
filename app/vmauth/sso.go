@@ -335,14 +335,14 @@ func setSSONoCacheHeaders(w http.ResponseWriter) {
 // Only GET and HEAD requests show the login page; other methods receive
 // a 401 so that the caller's request body is not silently discarded.
 //
-// If the request already carries auth tokens (e.g. from an SSO cookie) but
-// no user config matched, the page shows an "Access Denied" hint above the
-// login button so the user knows their identity was recognized but not authorized.
-func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
+// If denied is true (the request carries an SSO cookie, which doesn't match any user config),
+// the page shows an "Access Denied" hint above the login button so the user knows
+// their identity was recognized but not authorized.
+func processSSOLogin(w http.ResponseWriter, r *http.Request, ac *AuthConfig, denied bool) bool {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		return false
 	}
-	oidc := getSSOConfigForHost(authConfig.Load(), r.Host)
+	oidc := getSSOConfigForHost(ac, r.Host)
 	if oidc == nil {
 		return false
 	}
@@ -354,7 +354,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	authURL := getPathWithPrefix("/_vmauth/sso/start") + "?" + authParams.Encode()
 
 	setSSONoCacheHeaders(w)
-	if len(getAuthTokensFromRequest(r)) > 0 {
+	if denied {
 		// The user authenticated but no user config matched — authorization failure.
 		w.WriteHeader(http.StatusForbidden)
 		WriteSSOLoginPage(w, authURL, "Access Denied")
@@ -366,6 +366,23 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	// response.
 	w.WriteHeader(http.StatusUnauthorized)
 	WriteSSOLoginPage(w, authURL, "")
+	return true
+}
+
+// processSSOAccessDenied processes requests carrying only an SSO cookie, which doesn't match any user config.
+//
+// It shows the SSO login page if possible; otherwise the request is routed to unauthorized_user
+// or rejected with 401 Unauthorized.
+//
+// Requests with other auth tokens aren't processed here, so they remain subject to the brute-force slowdown.
+// Otherwise an arbitrary SSO cookie could be added to the request in order to bypass the slowdown.
+func processSSOAccessDenied(w http.ResponseWriter, r *http.Request, ac *AuthConfig, ats []string, ssoAt string) bool {
+	if len(ssoAt) == 0 || len(ats) > 0 {
+		return false
+	}
+	if !processSSOLogin(w, r, ac, true) {
+		handleInvalidAuthToken(w, r, []string{ssoAt})
+	}
 	return true
 }
 
@@ -570,16 +587,15 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, getPathWithPrefix(redirectURL), http.StatusFound)
 }
 
-// getSSOAuthTokensFromRequest extracts the SSO session cookie and returns it as
-// a Bearer auth token string compatible with the existing JWT pipeline.
-func getSSOAuthTokensFromRequest(ac *AuthConfig, r *http.Request) []string {
+// getSSOAuthTokenFromRequest extracts the SSO session cookie
+func getSSOAuthTokenFromRequest(ac *AuthConfig, r *http.Request) string {
 	if ac == nil || ac.SSO == nil {
-		return nil
+		return ""
 	}
 
 	c, err := r.Cookie(ssoCookieName)
-	if err != nil || c.Value == "" {
-		return nil
+	if err != nil {
+		return ""
 	}
-	return []string{"http_auth:Bearer " + c.Value}
+	return c.Value
 }

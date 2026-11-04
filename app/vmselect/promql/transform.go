@@ -1339,9 +1339,12 @@ func newTransformFuncRunning(rf func(a, b float64, idx int) float64) transformFu
 			}
 			prevValue := values[0]
 			values = values[1:]
+			// n is the number of non-NaN values already folded into prevValue.
+			n := 1
 			for i, v := range values {
 				if !math.IsNaN(v) {
-					prevValue = rf(prevValue, v, i+1)
+					prevValue = rf(prevValue, v, n)
+					n++
 				}
 				values[i] = prevValue
 			}
