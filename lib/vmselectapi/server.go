@@ -1282,18 +1282,12 @@ func writeMetadataRows(ctx *vmselectRequestCtx, records []*metricsmetadata.Row) 
 // processing is complete and before writing any response to the client.
 func withRequestContext(rctx *vmselectRequestCtx) (context.Context, *connMonitor) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Unix(int64(rctx.deadline), 0))
-	cm := startMonitorConn(cancel, rctx.bc)
-	return ctx, cm
-}
-
-func startMonitorConn(cancel func(), bc *handshake.BufferedConn) *connMonitor {
 	cm := &connMonitor{
-		bc:     bc,
+		bc:     rctx.bc,
 		cancel: cancel,
 	}
-
 	cm.watch()
-	return cm
+	return ctx, cm
 }
 
 type connMonitor struct {
