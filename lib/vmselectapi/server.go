@@ -1043,32 +1043,25 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("cannot send empty error message: %w", err)
 	}
 
-	sendBlocks := func() (int, error) {
-		// Send found blocks to vmselect.
-		blocksRead := 0
-		var ok bool
-		for {
-			ctx.dataBuf, ok = bi.NextBlock(rCtx, ctx.dataBuf[:0])
-			if !ok {
-				break
-			}
-			blocksRead++
-			s.metricBlocksRead.Inc()
-			if err := ctx.writeDataBufBytes(); err != nil {
-				return 0, fmt.Errorf("cannot send MetricBlock: %w", err)
-			}
+	// Send found blocks to vmselect.
+	blocksRead := 0
+	var ok bool
+	for {
+		ctx.dataBuf, ok = bi.NextBlock(rCtx, ctx.dataBuf[:0])
+		if !ok {
+			break
 		}
-
-		if err := bi.Error(); err != nil {
-			return 0, fmt.Errorf("search error: %w", err)
+		blocksRead++
+		s.metricBlocksRead.Inc()
+		if err := ctx.writeDataBufBytes(); err != nil {
+			return fmt.Errorf("cannot send MetricBlock: %w", err)
 		}
-		return blocksRead, nil
 	}
 
-	blocksRead, err := sendBlocks()
-	if err != nil {
-		return err
+	if err := bi.Error(); err != nil {
+		return fmt.Errorf("search error: %w", err)
 	}
+
 	ctx.qt.Printf("sent %d blocks to vmselect", blocksRead)
 
 	// Send 'end of response' marker
