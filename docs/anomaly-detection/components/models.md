@@ -908,6 +908,9 @@ The requested anomaly percentage is treated as an alert-volume constraint rather
 
 {{% available_from "v1.30.0" anomaly %}} Temporal Envelope is the preferred online model for complex operational and business metrics. It learns an evolving expected range from robust trend, calendar and holiday patterns, persistent level shifts, uncertainty, and optional future forecasts. The model adapts during inference while limiting the lasting influence of short-lived spikes.
 
+> [!TIP]
+> To evaluate improvements in trend and seasonal stability, consider the [experimental implementations](#experimental-temporal-envelope-implementations) below. Compare them with the default on representative data before adopting one.
+
 {{% available_from "v1.30.1" anomaly %}} When the fit window ends in a recently established level, the model initializes its adaptive state from that recent regime while preserving supported calendar structure. This improves the first periodic predictions after a level shift and reduces false seasonal oscillation without requiring additional configuration.
 
 > `TemporalEnvelopeModel` is [univariate](#univariate-models) and [online](#online-models). `TemporalEnvelopeMultivariateModel` also learns normal cross-series relationships as a [multivariate](#multivariate-models) model.
@@ -925,6 +928,7 @@ For simple profiles without strong trend or seasonality, prefer [Online MAD](#on
 {{% collapse name="Model-specific arguments" %}}
 
 - `class` (string) - `temporal_envelope` or the full class name `model.online.TemporalEnvelopeModel`.
+- `model_version` (`v1` or `v2`, default `v1`) {{% available_from "v1.32.0" anomaly %}} - selects the implementation for either Temporal Envelope class. See [experimental implementations](#experimental-temporal-envelope-implementations) before switching.
 - `quantiles` (list[float], default `[0.25, 0.75]`) - two ordered probabilities used as the base lower and upper residual boundaries. Values must be within `[0, 1]`.
 - `iqr_threshold` (float, default `2.0`) - primary data-derived interval-width control. Higher values widen the ordinary residual envelope and produce fewer detections. Values from `1` to `4` are a practical experimentation range.
 - `alpha` (float, default `0.005`) - **Trend Reactivity**. Higher values follow persistent level and trend changes faster; lower values produce steadier expectations. Values from `0.0025` to `0.02` are a practical experimentation range.
@@ -997,6 +1001,31 @@ For independent per-series detection, use `temporal_envelope`. Use `temporal_env
 {{% /collapse %}}
 
 </div>
+
+#### Experimental Temporal Envelope implementations
+
+> [!NOTE]
+> These opt-in research candidates let you evaluate improvements before they become the default. Behavior and state formats may evolve. V1 remains the default; compare detection quality and resource use on representative history before adopting another implementation. Switching implementations requires a fresh fit.
+
+##### V2
+
+{{% available_from "v1.32.0" anomaly %}} V2 targets more stable trend and calendar-seasonal learning, particularly around trend changes and seasonal transitions.
+
+Select `model_version: v2` with either `temporal_envelope` or `temporal_envelope_multivariate`:
+
+```yaml
+models:
+  seasonal:
+    class: temporal_envelope
+    model_version: v2
+    seasonalities: [hod_smooth, dow_smooth]
+# ...
+```
+
+V2 learns and forecasts seasonal patterns in civil time, using the query timezone, including daylight-saving transitions. It retains the public Temporal Envelope configuration and query-policy interface. Check `GET /api/v1/model/schema?model_class=temporal_envelope` in the [interactive API reference](https://docs.victoriametrics.com/anomaly-detection/components/server/#interactive-api-reference) for supported settings, and tune the selected implementation rather than transferring parameters on the assumption of identical behavior.
+
+> [!WARNING]
+> Switching between v1 and v2 requires a fresh fit; their learned state is not interchangeable. Snapshots are compressed losslessly in v1.32.0, while older raw snapshots remain readable. Rolling back to v1.31.1 or earlier requires refitting Temporal Envelope models and removing every `model_version: v2` setting. See [state compatibility](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix).
 
 ### Online MAD
 
@@ -1749,7 +1778,7 @@ See the [component configuration reference](https://docs.victoriametrics.com/ano
 Pull the `vmanomaly` image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.31.1
+docker pull victoriametrics/vmanomaly:v1.32.0
 ```
 
 Mount the module at `/vmanomaly/src/model/custom.py`, which matches the configured import path `model.custom.CustomModel`. Validate the complete configuration with `--dryRun` before starting the long-running service.
@@ -1759,7 +1788,7 @@ docker run --rm \
   -v "$PWD/license:/license:ro" \
   -v "$PWD/custom_model.py:/vmanomaly/src/model/custom.py:ro" \
   -v "$PWD/config.yaml:/config.yaml:ro" \
-  victoriametrics/vmanomaly:v1.31.1 \
+  victoriametrics/vmanomaly:v1.32.0 \
   /config.yaml \
   --licenseFile=/license \
   --dryRun
