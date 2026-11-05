@@ -39,9 +39,7 @@ type RecordingRule struct {
 	// during evaluations
 	state *ruleState
 
-	// lastEvaluation holds the labels of the series produced by the previous
-	// evaluation, keyed by stringifyLabels. The labels are kept as is, since
-	// the key can't be parsed back reliably when label values contain ',' or '='.
+	// lastEvaluation holds the labels of the series produced by the previous evaluation.
 	lastEvaluation map[string][]prompb.Label
 
 	metrics *recordingRuleMetrics
@@ -266,7 +264,11 @@ func (rr *RecordingRule) logDebugf(at time.Time, format string, args ...any) {
 // Label values are quoted, so values containing ',' or '=' can't make
 // two different label sets produce the same key.
 func stringifyLabels(labels []prompb.Label) string {
-	var b []byte
+	var bufSize int
+	for _, l := range labels {
+		bufSize += len(l.Name) + len(l.Value) + 4
+	}
+	b := make([]byte, 0, bufSize)
 	for i, l := range labels {
 		b = append(b, l.Name...)
 		b = append(b, '=')
