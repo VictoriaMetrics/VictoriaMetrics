@@ -3,6 +3,7 @@ package vmselectapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"testing"
@@ -1401,6 +1402,100 @@ func TestSearchV7ClosedConn(t *testing.T) {
 
 	f(false)
 	f(true)
+}
+
+// testSearchV7CancelBlockIterator is the fake implementation of BlockIterator
+// that is used in TestSearchV7Cancel().
+type testSearchV7CancelBlockIterator struct {
+	blockIdx int
+	canceled bool
+	closed   bool
+	timeout  *time.Timer
+}
+
+func (bi *testSearchV7CancelBlockIterator) NextBlock(ctx context.Context, dst []byte) ([]byte, bool) {
+	select {
+	case <-ctx.Done():
+		bi.canceled = true
+		return dst, false
+	case <-bi.timeout.C:
+		return dst, false
+	default:
+		nextBlock := []byte(fmt.Sprintf("block-%09d", bi.blockIdx))
+		bi.blockIdx++
+		dst = append(dst, nextBlock...)
+		return dst, true
+	}
+}
+
+func (bi *testSearchV7CancelBlockIterator) MustClose() {
+	bi.timeout.Stop()
+	bi.closed = true
+}
+
+func (bi *testSearchV7CancelBlockIterator) Error() error {
+	return nil
+}
+
+// testSearchV7CancelAPI is the fake implementation of the vmselect API
+// that is used in TestSearchV7Cancel().
+type testSearchV7CancelAPI struct {
+	API
+	bi *testSearchV7CancelBlockIterator
+}
+
+func (api *testSearchV7CancelAPI) InitSearch(_ context.Context, _ *querytracer.Tracer, sq *storage.SearchQuery) (BlockIterator, error) {
+	api.bi = &testSearchV7CancelBlockIterator{
+		timeout: time.NewTimer(1 * time.Second),
+	}
+	return api.bi, nil
+}
+
+func TestSearchV7Cancel(t *testing.T) {
+	defer metrics.UnregisterAllMetrics()
+
+	api := &testSearchV7CancelAPI{}
+	s := startServer(t, api)
+	defer s.MustStop()
+	c := newConn(t, s)
+	defer c.Close()
+
+	search := func() {
+		t.Helper()
+
+		sq := newSearchQuery()
+		c.WriteRPCName("search_v7", false, 2)
+		c.WriteSearchQuery(sq)
+		if gotErr := c.ReadString(); gotErr != "" {
+			t.Fatalf("unexpected remote error: got %q, want empty", gotErr)
+		}
+
+		// Read several blocks, then send a request cancellation marker and
+		// drain the rest of blocks the server was able to write to the
+		// connection before it received the marker.
+		_ = c.ReadString()
+		_ = c.ReadString()
+		_ = c.ReadString()
+		_ = c.ReadString()
+		c.WriteString(handshake.CancelRequestMarker)
+		for c.ReadString() != "" {
+		}
+		c.ReadEmptyTrace()
+
+		if !api.bi.canceled {
+			t.Fatalf("block iterator was expected to be canceled but it wasn't")
+		}
+		if !api.bi.closed {
+			t.Fatalf("block iterator must be closed")
+		}
+	}
+
+	// Repeat the search with canceling several times to ensure that connection
+	// is reused.
+	search()
+	search()
+	search()
+	search()
 }
 
 func startServer(t *testing.T, api API) *Server {
