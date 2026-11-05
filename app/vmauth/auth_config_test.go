@@ -1208,3 +1208,18 @@ func mustNewHeader(s string) *Header {
 	}
 	return &h
 }
+
+func TestParseAuthConfigNilHeaders(t *testing.T) {
+	for _, field := range []string{"headers", "response_headers"} {
+		t.Run(field, func(t *testing.T) {
+			data := []byte("users:\n- username: test\n  url_prefix: http://localhost:8428\n  " + field + ":\n  - null\n")
+			ac, err := parseAuthConfig(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := parseAuthConfigUsers(ac); err == nil {
+				t.Fatal("expected error for null header")
+			}
+		})
+	}
+}
