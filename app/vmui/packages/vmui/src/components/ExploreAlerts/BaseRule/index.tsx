@@ -102,7 +102,12 @@ const BaseRule = ({ item, group }: BaseRuleProps) => {
             <tr>
               <td>Last error</td>
               <td>
-                <Alert variant="error">{item.lastError}</Alert>
+                <Alert
+                  variant="error"
+                  title="Rule evaluation failed"
+                >
+                  {item.lastError}
+                </Alert>
               </td>
             </tr>
           )}

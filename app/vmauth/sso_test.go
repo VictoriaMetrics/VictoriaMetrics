@@ -95,6 +95,86 @@ sso:
 	f("localhost:8427", true, "http://localhost:8427/_vmauth/sso/callback")
 }
 
+func TestSSOConfigGetAuthenticationURL(t *testing.T) {
+	f := func(authorizationEndpoint, authParams, expectedURL string) {
+		t.Helper()
+		s := fmt.Sprintf(`
+sso:
+- src_host: ".*"
+  oidc:
+    issuer: https://idp.example.com
+    client_id: my-client
+    client_secret: my-secret
+    cookie_secret: "0123456789abcdef"
+    scopes: ["openid", "email"]
+    auth_params: %s
+`, authParams)
+		ac, err := parseAuthConfig([]byte(s))
+		if err != nil {
+			t.Fatalf("cannot parse auth config: %s", err)
+		}
+		if err := normalizeSSOConfigs(ac.SSO); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		got, err := ac.SSO[0].OIDC.getAuthenticationURL(authorizationEndpoint, "https://example.com/_vmauth/sso/callback", "theNonce", "theState")
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if got != expectedURL {
+			t.Fatalf("unexpected authentication URL;\ngot\n%q\nwant\n%q", got, expectedURL)
+		}
+	}
+
+	// no auth params
+	f("https://idp.example.com/auth", "null", "https://idp.example.com/auth?client_id=my-client&nonce=theNonce&redirect_uri=https%3A%2F%2Fexample.com%2F_vmauth%2Fsso%2Fcallback&response_type=code&scope=openid+email&state=theState")
+
+	// custom auth params
+	f("https://idp.example.com/auth", `{hd: "example.com", prompt: "select account"}`, "https://idp.example.com/auth?client_id=my-client&hd=example.com&nonce=theNonce&prompt=select+account&redirect_uri=https%3A%2F%2Fexample.com%2F_vmauth%2Fsso%2Fcallback&response_type=code&scope=openid+email&state=theState")
+
+	// query params of the authorization endpoint are retained
+	f("https://idp.example.com/auth?tenant=foo", `{hd: "example.com"}`, "https://idp.example.com/auth?client_id=my-client&hd=example.com&nonce=theNonce&redirect_uri=https%3A%2F%2Fexample.com%2F_vmauth%2Fsso%2Fcallback&response_type=code&scope=openid+email&state=theState&tenant=foo")
+
+	// builtin params in the authorization endpoint are overridden
+	f("https://idp.example.com/auth?state=evil&client_id=evil", "null", "https://idp.example.com/auth?client_id=my-client&nonce=theNonce&redirect_uri=https%3A%2F%2Fexample.com%2F_vmauth%2Fsso%2Fcallback&response_type=code&scope=openid+email&state=theState")
+}
+
+func TestSSOConfigGetAuthenticationURLBuiltinParamsOverride(t *testing.T) {
+	// normalize rejects builtin params in auth_params; make sure they cannot override builtin values even if it is bypassed
+	authParams := map[string]string{"hd": "example.com"}
+	for _, k := range reservedAuthParams {
+		authParams[k] = "evil"
+	}
+	c := &ssoOIDCConfig{
+		ClientID:   "my-client",
+		Scopes:     []string{"openid"},
+		AuthParams: authParams,
+	}
+	got, err := c.getAuthenticationURL("https://idp.example.com/auth", "https://example.com/_vmauth/sso/callback", "theNonce", "theState")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	expectedURL := "https://idp.example.com/auth?client_id=my-client&hd=example.com&nonce=theNonce&redirect_uri=https%3A%2F%2Fexample.com%2F_vmauth%2Fsso%2Fcallback&response_type=code&scope=openid&state=theState"
+	if got != expectedURL {
+		t.Fatalf("unexpected authentication URL;\ngot\n%q\nwant\n%q", got, expectedURL)
+	}
+}
+
+func TestSSOConfigGetAuthenticationURLFailure(t *testing.T) {
+	f := func(authorizationEndpoint string) {
+		t.Helper()
+		c := &ssoOIDCConfig{ClientID: "my-client"}
+		if _, err := c.getAuthenticationURL(authorizationEndpoint, "https://example.com/_vmauth/sso/callback", "theNonce", "theState"); err == nil {
+			t.Fatalf("expecting non-nil error for authorization endpoint %q", authorizationEndpoint)
+		}
+	}
+
+	// invalid URL
+	f("https://idp.example.com/auth\x7f")
+
+	// query cannot be parsed without dropping parameters
+	f("https://idp.example.com/auth?tenant=foo;bar")
+}
+
 func TestSSOConfigGetRedirectURL(t *testing.T) {
 	f := func(defaultRedirectURL, redirect, expectedURL string) {
 		t.Helper()
@@ -466,6 +546,34 @@ sso:
   oidc:
     issuer: ftp://bad
 `, `sso.1: oidc.issuer must have http or https scheme`)
+
+	// auth_params with empty key
+	f(`
+sso:
+- src_host: "example.com"
+  oidc:
+    issuer: https://idp.example.com
+    client_id: my-client
+    client_secret: my-secret
+    cookie_secret: "0123456789abcdef"
+    auth_params:
+      "": foo
+`, `sso.0: oidc.auth_params must not contain empty keys`)
+
+	// auth_params overriding builtin parameters
+	for _, k := range reservedAuthParams {
+		f(fmt.Sprintf(`
+sso:
+- src_host: "example.com"
+  oidc:
+    issuer: https://idp.example.com
+    client_id: my-client
+    client_secret: my-secret
+    cookie_secret: "0123456789abcdef"
+    auth_params:
+      %s: foo
+`, k), fmt.Sprintf(`sso.0: oidc.auth_params must not override %q; it is set by vmauth`, k))
+	}
 }
 
 func TestSignVerifyCSRFCookie(t *testing.T) {

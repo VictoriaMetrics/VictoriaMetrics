@@ -1,7 +1,7 @@
 import { FC, useState, useRef, useMemo } from "preact/compat";
 import { useAppDispatch, useAppState } from "../../../../state/common/StateContext";
 import { useTimeDispatch } from "../../../../state/time/TimeStateContext";
-import { ArrowDownIcon, StorageIcon } from "../../../Main/Icons";
+import { ArrowDownIcon, RefreshIcon, StorageIcon } from "../../../Main/Icons";
 import Button from "../../../Main/Button/Button";
 import "./style.scss";
 import classNames from "classnames";
@@ -12,14 +12,19 @@ import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import TextField from "../../../Main/TextField/TextField";
 import { replaceTenantId } from "../../../../utils/tenants";
 import useBoolean from "../../../../hooks/useBoolean";
+import { useFetchAccountIds } from "./hooks/useFetchAccountIds";
+import Alert from "../../../Main/Alert/Alert";
 
-const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
+const TenantsConfiguration: FC = () => {
   const appModeEnable = getAppModeEnable();
   const { isMobile } = useDeviceDetect();
 
   const { tenantId, serverUrl } = useAppState();
   const dispatch = useAppDispatch();
   const timeDispatch = useTimeDispatch();
+
+  const { accountIds, fetchAccountIds, cancelFetchAccountIds, isLoading, error } = useFetchAccountIds();
+  const showResults = !isLoading && !error;
 
   const [search, setSearch] = useState("");
   const optionsButtonRef = useRef<HTMLDivElement>(null);
@@ -35,29 +40,38 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
     try {
       const regexp = new RegExp(search, "i");
       const found = accountIds.filter((item) => regexp.test(item));
-      return found.sort((a,b) => (a.match(regexp)?.index || 0) - (b.match(regexp)?.index || 0));
+      return found.sort((a, b) => (a.match(regexp)?.index || 0) - (b.match(regexp)?.index || 0));
     } catch (e) {
       return [];
     }
   }, [search, accountIds]);
 
-  const showTenantSelector = useMemo(() => {
-    const emptyAccountIds = !accountIds.length;
-    const onlyDefaultTenant = accountIds.length === 1 && accountIds[0] === "0:0";
-    return !emptyAccountIds && !onlyDefaultTenant;
-  }, [accountIds]);
-
-  const createHandlerChange = (value: string) => () => {
-    if (serverUrl) {
-      const updateServerUrl = replaceTenantId(serverUrl, value);
-      if (updateServerUrl === serverUrl) return;
-      dispatch({ type: "SET_SERVER", payload: updateServerUrl });
-      timeDispatch({ type: "RUN_QUERY" });
-    }
+  const handleClose = () => {
+    cancelFetchAccountIds();
     handleCloseOptions();
   };
 
-  if (!showTenantSelector) return null;
+  const createHandlerChange = (value: string) => () => {
+    const updateServerUrl = replaceTenantId(serverUrl, value);
+    if (updateServerUrl === serverUrl) return;
+
+    dispatch({ type: "SET_SERVER", payload: updateServerUrl });
+    timeDispatch({ type: "RUN_QUERY" });
+    handleClose();
+  };
+
+  const handleToggleOptions = () => {
+    if (openOptions) {
+      handleClose();
+      return;
+    }
+
+    setSearch("");
+    void fetchAccountIds();
+    toggleOpenOptions();
+  };
+
+  if (!tenantId) return null;
 
   return (
     <div className="vm-tenant-input">
@@ -66,7 +80,7 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
           {isMobile ? (
             <div
               className="vm-mobile-option"
-              onClick={toggleOpenOptions}
+              onClick={handleToggleOptions}
             >
               <span className="vm-mobile-option__icon"><StorageIcon/></span>
               <div className="vm-mobile-option-text">
@@ -92,7 +106,7 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
                   <ArrowDownIcon/>
                 </div>
               )}
-              onClick={toggleOpenOptions}
+              onClick={handleToggleOptions}
             >
               {tenantId}
             </Button>
@@ -102,7 +116,7 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
       <Popper
         open={openOptions}
         placement="bottom-right"
-        onClose={handleCloseOptions}
+        onClose={handleClose}
         buttonRef={optionsButtonRef}
         title={isMobile ? "Define Tenant ID" : undefined}
       >
@@ -112,16 +126,30 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
             "vm-list vm-tenant-input-list_mobile": isMobile,
           })}
         >
-          <div className="vm-tenant-input-list__search">
-            <TextField
-              autofocus
-              label="Search"
-              value={search}
-              onChange={setSearch}
-              type="search"
-            />
-          </div>
-          {accountIdsFiltered.map(id => (
+          {isLoading && <div className="vm-tenant-input-list__loader"><RefreshIcon/><span>Loading...</span></div>}
+          {error && <div className="vm-tenant-input-list__search"><Alert variant="error">{error}</Alert></div>}
+          {showResults && accountIds.length > 5 && (
+            <div className="vm-tenant-input-list__search">
+              <TextField
+                autofocus
+                value={search}
+                onChange={setSearch}
+                type="search"
+                placeholder="Search tenant ID"
+              />
+            </div>
+          )}
+          {showResults && !accountIds.length && (
+            <div className="vm-tenant-input-list__empty">
+              {"No tenants found\nin the selected time range"}
+            </div>
+          )}
+          {showResults && accountIds.length > 0 && !accountIdsFiltered.length && (
+            <div className="vm-tenant-input-list__empty">
+              {"No matching tenants"}
+            </div>
+          )}
+          {showResults && accountIdsFiltered.map(id => (
             <div
               className={classNames({
                 "vm-list-item": true,

@@ -27,7 +27,10 @@ const WarningLimitSeries: FC<Props> = ({ warning, query, onChange }) => {
   }, [showAllSeries]);
 
   return (
-    <Alert variant="warning">
+    <Alert
+      variant="warning"
+      title="Series limit reached"
+    >
       <div
         className={classNames({
           "vm-custom-panel__warning": true,

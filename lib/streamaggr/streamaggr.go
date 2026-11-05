@@ -815,6 +815,13 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlu
 		pf := pushFunc
 		if a.enableWindows {
 			delay := time.Duration(a.flushAfterMsec.Swap(0)) * time.Millisecond
+			// Cap the delay at 90% of the flush interval, so the flush has some time left to finish before the next tick.
+			// Otherwise the flusher may skip the next interval and merge it into the following one.
+			// The delay may exceed the interval if the samples lag keeps growing, e.g. when the ingestion pipeline is overloaded.
+			// The uncapped delay would then grow with every flush and cause missing aggregation results,
+			// while the correctness of the produced results can't be guaranteed in this case anyway.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11811
+			delay = min(delay, interval*9/10)
 			time.Sleep(delay)
 		}
 
@@ -1035,14 +1042,18 @@ func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []uint32) {
 		pushSamples = a.da.pushSamples
 	}
 
-	if len(ctx.blue) > 0 {
-		a.matchedSamples.Add(len(ctx.blue))
-		pushSamples(ctx.blue, deleteDeadlineMsec, false)
+	// Push the current window first, so outputs with state shared between windows get samples in timestamp order.
+	current, next := ctx.blue, ctx.green
+	if cs.isGreen {
+		current, next = ctx.green, ctx.blue
 	}
-
-	if len(ctx.green) > 0 {
-		a.matchedSamples.Add(len(ctx.green))
-		pushSamples(ctx.green, deleteDeadlineMsec, true)
+	if len(current) > 0 {
+		a.matchedSamples.Add(len(current))
+		pushSamples(current, deleteDeadlineMsec, cs.isGreen)
+	}
+	if len(next) > 0 {
+		a.matchedSamples.Add(len(next))
+		pushSamples(next, deleteDeadlineMsec, !cs.isGreen)
 	}
 }
 

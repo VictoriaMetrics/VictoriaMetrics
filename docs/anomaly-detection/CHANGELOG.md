@@ -20,6 +20,42 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
 {{% collapse name="2026" open=true %}}
 
+## v1.32.0
+Released: 2026-11-04
+
+- UI: Updated from v1.10.0 to [v1.11.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v1110). See the UI changelog for guided tours, result downloads and usability improvements.
+- FEATURE: Added [dynamic presets](https://docs.victoriametrics.com/anomaly-detection/presets/#dynamic-presets) to discover signals and prepare downloadable anomaly-detection and deployment configurations with AI assistance.
+- FEATURE: Serve the UI and API over [HTTPS or mutual TLS](https://docs.victoriametrics.com/anomaly-detection/components/server/#tls-and-mutual-tls) without a reverse proxy.
+- FEATURE: Added opt-in [Temporal Envelope v2](https://docs.victoriametrics.com/anomaly-detection/components/models/#experimental-temporal-envelope-implementations), a research candidate aimed at steadier trend and seasonal learning. V1 remains the default.
+- IMPROVEMENT: Improved [deployment sizing](https://docs.victoriametrics.com/anomaly-detection/components/server/#deployment-sizing) accuracy for CPU, RAM and disk estimates.
+- IMPROVEMENT: Reduced data-preparation overhead before model fitting when reading large, uncompressed responses from a VictoriaMetrics datasource.
+- IMPROVEMENT: Compress Temporal Envelope snapshots losslessly while retaining support for older snapshots. See [migration guidance](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix) before switching model versions or rolling back.
+- FEATURE: Added a lightweight `--healthcheck` command and default container health checks, including HTTPS configurations.
+- BUGFIX: Improved [autotune](https://docs.victoriametrics.com/anomaly-detection/components/server/#time-series-analysis-and-autotune-api) quality evaluation and historical replay, keeping training and validation data separate and preserving fixed model settings and query policies. Insufficient history now produces clearer errors, and disabling gap interpolation preserves missing observations.
+- BUGFIX: Excluded review labels and prior anomaly scores from model inputs. Refit persisted multivariate `auto` models that learned these metadata columns; see [migration guidance](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix).
+- BUGFIX: Corrected online-model state resets on refit and prevented Temporal Envelope forecast spikes caused by nearly duplicate timestamps; refit models with previously affected trends.
+- BUGFIX: Restored the [preset asset pages](https://docs.victoriametrics.com/anomaly-detection/presets/) served at `http://<host>:<port>/presets/` and improved their file previews.
+- SECURITY: Update certificate trust bundles following the [emSign CA security incident](https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576).
+
+## v1.31.1
+Released: 2026-10-15
+
+- BUGFIX: Schedule data reads for [peer-group models](https://docs.victoriametrics.com/anomaly-detection/components/models/#peer-group-models) using the [periodic scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler), preventing the first fit from waiting indefinitely for data.
+
+## v1.31.0
+Released: 2026-10-09
+
+- UI: Updated from v1.9.2 to [v1.10.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v1100). Added a [Tune workflow](https://docs.victoriametrics.com/anomaly-detection/ui/#tune-a-model) for supervised tuning with marked anomalies or unsupervised tuning with an expected anomaly rate. Review suggested parameters and apply them directly; this is the preferred UI workflow over the `auto` model option, which is planned for removal from the selector. Also added peer-group investigation with searchable groups, affected-peer activity and theme-aware charts. See the full UI changelog for details.
+- FEATURE: Added [peer-group outlier detection](https://docs.victoriametrics.com/anomaly-detection/components/models/#peer-outlier). The online `peer_outlier` model learns an asymmetric accepted range for comparable entities, supports changing membership and missing peers, and scores each peer separately. It supports [AutoTuned models and shared tuning](https://docs.victoriametrics.com/anomaly-detection/components/models/#autotuned), including supervised per-peer labels, while keeping query populations isolated. It is also supported in [deployment sizing](https://docs.victoriametrics.com/anomaly-detection/components/server/#deployment-sizing) for fixed, equal-size peer groups; these estimates are experimental, so allow extra headroom and validate with your workload.
+- FEATURE: Added [deployment sizing](https://docs.victoriametrics.com/anomaly-detection/components/server/#deployment-sizing) APIs for CPU, peak RAM, disk and output estimates, plus inference-only capacity estimates for a resource budget. Results include assumptions and extrapolation warnings; validate estimates with representative workloads.
+- IMPROVEMENT: Increased inference throughput by up to 25% in tested workloads, depending on the models and workload configuration.
+- IMPROVEMENT: Updated the [anomaly-score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#grafana-dashboard) with sample-weighted statistics, consistent filters and univariate/multivariate forecast-disagreement trends.
+- BUGFIX: Prevented duplicate-label inference failures in [`std`](https://docs.victoriametrics.com/anomaly-detection/components/models/#seasonal-trend-decomposition) when buffered history overlaps new observations, including after restoring state. Preserved alignment for repeated, reordered and gapped inference timestamps.
+- BUGFIX: Kept [backtesting](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) inference intervals contiguous when query sampling is finer than inference cadence, including ranges not aligned with fit cadence.
+- BUGFIX: Preserved client certificates when datasource proxies use a custom TLS CA bundle.
+- BUGFIX: Preserved non-optimized model settings during [tuning and replay](https://docs.victoriametrics.com/anomaly-detection/components/models/#shared-asynchronous-autotune-workflow), with explicit per-query business policies taking precedence.
+- SECURITY: Removed SUID/SGID permission bits from the standard runtime image to reduce attack surface. Removed the unused PyCryptodome dependency from both image variants, eliminating bundled private-key test fixtures that could trigger false-positive scanner alerts.
+
 ## v1.30.7
 Released: 2026-09-24
 

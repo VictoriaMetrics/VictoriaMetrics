@@ -77,13 +77,13 @@ func (eps *EndpointSlice) getTargetLabels(gw *groupWatcher) []*promutil.Labels {
 			addr := discoveryutil.JoinHostPort(p.Status.PodIP, cp.ContainerPort)
 			m := promutil.GetLabels()
 			m.Add("__address__", addr)
-			p.appendCommonLabels(m, gw)
+			p.appendTargetRefLabels(m, gw)
 			p.appendContainerLabels(m, c, &cp, isInit)
 
 			// Prometheus sets endpoints_name and namespace labels for all endpoints
 			// Even if port is not matching service port.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4154
-			p.appendEndpointSliceLabels(m, eps)
+			p.appendEndpointSliceLabels(m, gw, eps)
 			if svc != nil {
 				svc.appendCommonLabels(m, gw)
 			}
@@ -129,7 +129,8 @@ func getEndpointSliceLabelsForAddressAndPort(gw *groupWatcher, podPortsSeen map[
 	if _, ok := podPortsSeen[p]; !ok {
 		podPortsSeen[p] = []int{}
 	}
-	p.appendCommonLabels(m, gw)
+	appendNamespaceLabels(m, gw, eps.Metadata.Namespace)
+	p.appendTargetRefLabels(m, gw)
 	for _, c := range p.Spec.Containers {
 		for _, cp := range c.Ports {
 			if cp.ContainerPort == epp.Port {

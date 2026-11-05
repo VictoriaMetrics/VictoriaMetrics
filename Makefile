@@ -17,7 +17,7 @@ EXTRA_GO_BUILD_TAGS ?=
 GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TAG)-$(BUILDINFO_TAG)'
 TAR_OWNERSHIP ?= --owner=1000 --group=1000
 
-GOLANGCI_LINT_VERSION := 2.13.2
+GOLANGCI_LINT_VERSION := 2.14.0
 
 .PHONY: $(MAKECMDGOALS)
 
@@ -169,6 +169,24 @@ vmutils-openbsd-amd64: \
 	vmbackup-openbsd-amd64 \
 	vmrestore-openbsd-amd64 \
 	vmctl-openbsd-amd64
+
+vmutils-netbsd-amd64: \
+	vmagent-netbsd-amd64 \
+	vmalert-netbsd-amd64 \
+	vmalert-tool-netbsd-amd64 \
+	vmauth-netbsd-amd64 \
+	vmbackup-netbsd-amd64 \
+	vmrestore-netbsd-amd64 \
+	vmctl-netbsd-amd64
+
+vmutils-solaris-amd64: \
+	vmagent-solaris-amd64 \
+	vmalert-solaris-amd64 \
+	vmalert-tool-solaris-amd64 \
+	vmauth-solaris-amd64 \
+	vmbackup-solaris-amd64 \
+	vmrestore-solaris-amd64 \
+	vmctl-solaris-amd64
 
 vmutils-windows-amd64: \
 	vmagent-windows-amd64 \

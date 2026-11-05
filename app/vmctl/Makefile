@@ -102,6 +102,12 @@ vmctl-freebsd-amd64:
 vmctl-openbsd-amd64:
 	APP_NAME=vmctl CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
+vmctl-netbsd-amd64:
+	APP_NAME=vmctl CGO_ENABLED=0 GOOS=netbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmctl-solaris-amd64:
+	APP_NAME=vmctl CGO_ENABLED=0 GOOS=solaris GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
 vmctl-windows-amd64:
 	GOARCH=amd64 APP_NAME=vmctl $(MAKE) app-local-windows-goarch
 
