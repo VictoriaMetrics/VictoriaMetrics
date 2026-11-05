@@ -45,6 +45,9 @@ victoria-metrics-openbsd-amd64-prod:
 victoria-metrics-windows-amd64-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker-windows-amd64
 
+victoria-metrics-windows-arm64-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-windows-arm64
+
 package-victoria-metrics:
 	APP_NAME=victoria-metrics $(MAKE) package-via-docker
 
@@ -117,6 +120,9 @@ victoria-metrics-solaris-amd64:
 
 victoria-metrics-windows-amd64:
 	GOARCH=amd64 APP_NAME=victoria-metrics $(MAKE) app-local-windows-goarch
+
+victoria-metrics-windows-arm64:
+	GOARCH=arm64 APP_NAME=victoria-metrics $(MAKE) app-local-windows-goarch
 
 victoria-metrics-pure:
 	APP_NAME=victoria-metrics $(MAKE) app-local-pure

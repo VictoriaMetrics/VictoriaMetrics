@@ -203,6 +203,11 @@ app-via-docker-windows-amd64:
 	DOCKER_OPTS='--env CGO_ENABLED=0 --env GOOS=windows --env GOARCH=amd64' \
 	$(MAKE) app-via-docker-windows
 
+app-via-docker-windows-arm64:
+	APP_SUFFIX='-arm64' \
+	DOCKER_OPTS='--env CGO_ENABLED=0 --env GOOS=windows --env GOARCH=arm64' \
+	$(MAKE) app-via-docker-windows
+
 package-via-docker-goarch:
 	APP_SUFFIX='-$(GOARCH)' \
 	DOCKER_OPTS='--env CGO_ENABLED=$(CGO_ENABLED) --env GOOS=linux --env GOARCH=$(GOARCH) $(foreach v,$(EXTRA_DOCKER_ENVS),--env $(v))' \
