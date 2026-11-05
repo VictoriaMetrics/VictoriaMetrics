@@ -45,6 +45,9 @@ vmalert-tool-openbsd-amd64-prod:
 vmalert-tool-windows-amd64-prod:
 	APP_NAME=vmalert-tool $(MAKE) app-via-docker-windows-amd64
 
+vmalert-tool-windows-arm64-prod:
+	APP_NAME=vmalert-tool $(MAKE) app-via-docker-windows-arm64
+
 package-vmalert-tool:
 	APP_NAME=vmalert-tool $(MAKE) package-via-docker
 
@@ -110,6 +113,9 @@ vmalert-tool-solaris-amd64:
 
 vmalert-tool-windows-amd64:
 	GOARCH=amd64 APP_NAME=vmalert-tool $(MAKE) app-local-windows-goarch
+
+vmalert-tool-windows-arm64:
+	GOARCH=arm64 APP_NAME=vmalert-tool $(MAKE) app-local-windows-goarch
 
 vmalert-tool-pure:
 	APP_NAME=vmalert-tool $(MAKE) app-local-pure

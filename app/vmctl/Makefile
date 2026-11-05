@@ -45,6 +45,9 @@ vmctl-openbsd-amd64-prod:
 vmctl-windows-amd64-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-windows-amd64
 
+vmctl-windows-arm64-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-windows-arm64
+
 package-vmctl:
 	APP_NAME=vmctl $(MAKE) package-via-docker
 
@@ -110,6 +113,9 @@ vmctl-solaris-amd64:
 
 vmctl-windows-amd64:
 	GOARCH=amd64 APP_NAME=vmctl $(MAKE) app-local-windows-goarch
+
+vmctl-windows-arm64:
+	GOARCH=arm64 APP_NAME=vmctl $(MAKE) app-local-windows-goarch
 
 vmctl-pure:
 	APP_NAME=vmctl $(MAKE) app-local-pure
