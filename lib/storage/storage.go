@@ -583,6 +583,7 @@ type Metrics struct {
 	TimestampsBlocksMerged uint64
 	TimestampsBytesSaved   uint64
 
+	TSIDCacheMode         uint64
 	TSIDCacheSize         uint64
 	TSIDCacheSizeBytes    uint64
 	TSIDCacheSizeMaxBytes uint64
@@ -590,6 +591,7 @@ type Metrics struct {
 	TSIDCacheMisses       uint64
 	TSIDCacheCollisions   uint64
 
+	MetricIDCacheMode         uint64
 	MetricIDCacheSize         uint64
 	MetricIDCacheSizeBytes    uint64
 	MetricIDCacheSizeMaxBytes uint64
@@ -597,6 +599,7 @@ type Metrics struct {
 	MetricIDCacheMisses       uint64
 	MetricIDCacheCollisions   uint64
 
+	MetricNameCacheMode         uint64
 	MetricNameCacheSize         uint64
 	MetricNameCacheSizeBytes    uint64
 	MetricNameCacheSizeMaxBytes uint64
@@ -664,6 +667,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	var cs fastcache.Stats
 	s.tsidCache.UpdateStats(&cs)
+	m.TSIDCacheMode = s.tsidCache.Mode()
 	m.TSIDCacheSize += cs.EntriesCount
 	m.TSIDCacheSizeBytes += cs.BytesSize
 	m.TSIDCacheSizeMaxBytes += cs.MaxBytesSize
@@ -673,6 +677,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	cs.Reset()
 	s.metricIDCache.UpdateStats(&cs)
+	m.MetricIDCacheMode = s.metricIDCache.Mode()
 	m.MetricIDCacheSize += cs.EntriesCount
 	m.MetricIDCacheSizeBytes += cs.BytesSize
 	m.MetricIDCacheSizeMaxBytes += cs.MaxBytesSize
@@ -682,6 +687,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	cs.Reset()
 	s.metricNameCache.UpdateStats(&cs)
+	m.MetricNameCacheMode = s.metricNameCache.Mode()
 	m.MetricNameCacheSize += cs.EntriesCount
 	m.MetricNameCacheSizeBytes += cs.BytesSize
 	m.MetricNameCacheSizeMaxBytes += cs.MaxBytesSize
