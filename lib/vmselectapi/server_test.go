@@ -3,6 +3,7 @@ package vmselectapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"testing"
@@ -1200,10 +1201,10 @@ type testClosedConnAPI struct {
 }
 
 func (api *testClosedConnAPI) waitCanceled(ctx context.Context) error {
-	api.called <- struct{}{}
+	close(api.called)
 	<-ctx.Done()
 	api.ctxErr = ctx.Err()
-	api.canceled <- struct{}{}
+	close(api.canceled)
 	return api.ctxErr
 }
 
@@ -1403,53 +1404,98 @@ func TestSearchV7ClosedConn(t *testing.T) {
 	f(true)
 }
 
-func TestSearchV7CancelRequestMarker(t *testing.T) {
+// testSearchV7CancelBlockIterator is the fake implementation of BlockIterator
+// that is used in TestSearchV7Cancel().
+type testSearchV7CancelBlockIterator struct {
+	blockIdx int
+	canceled bool
+	closed   bool
+	timeout  *time.Timer
+}
+
+func (bi *testSearchV7CancelBlockIterator) NextBlock(ctx context.Context, dst []byte) ([]byte, bool) {
+	select {
+	case <-ctx.Done():
+		bi.canceled = true
+		return dst, false
+	case <-bi.timeout.C:
+		return dst, false
+	default:
+		nextBlock := []byte(fmt.Sprintf("block-%09d", bi.blockIdx))
+		bi.blockIdx++
+		dst = append(dst, nextBlock...)
+		return dst, true
+	}
+}
+
+func (bi *testSearchV7CancelBlockIterator) MustClose() {
+	bi.timeout.Stop()
+	bi.closed = true
+}
+
+func (bi *testSearchV7CancelBlockIterator) Error() error {
+	return nil
+}
+
+// testSearchV7CancelAPI is the fake implementation of the vmselect API
+// that is used in TestSearchV7Cancel().
+type testSearchV7CancelAPI struct {
+	API
+	bi *testSearchV7CancelBlockIterator
+}
+
+func (api *testSearchV7CancelAPI) InitSearch(_ context.Context, _ *querytracer.Tracer, sq *storage.SearchQuery) (BlockIterator, error) {
+	api.bi = &testSearchV7CancelBlockIterator{
+		timeout: time.NewTimer(1 * time.Second),
+	}
+	return api.bi, nil
+}
+
+func TestSearchV7Cancel(t *testing.T) {
 	defer metrics.UnregisterAllMetrics()
 
-	api := &testClosedConnAPI{
-		called:            make(chan struct{}),
-		canceled:          make(chan struct{}),
-		cancelInNextBlock: true,
-	}
+	api := &testSearchV7CancelAPI{}
 	s := startServer(t, api)
 	defer s.MustStop()
-
 	c := newConn(t, s)
 	defer c.Close()
 
-	sendSearchRequest := func() {
+	search := func() {
 		t.Helper()
 
-		c.WriteRPCName("search_v7", false, 60)
-		c.WriteSearchQuery(newSearchQuery())
-		c.WriteBytes([]byte(handshake.CancelRequestMarker))
+		sq := newSearchQuery()
+		c.WriteRPCName("search_v7", false, 2)
+		c.WriteSearchQuery(sq)
+		if gotErr := c.ReadString(); gotErr != "" {
+			t.Fatalf("unexpected remote error: got %q, want empty", gotErr)
+		}
 
-		select {
-		case <-api.called:
-		case <-time.After(5 * time.Second):
-			t.Fatalf("timed out while waiting for API call")
-		}
-		select {
-		case <-api.canceled:
-		case <-time.After(5 * time.Second):
-			t.Fatalf("API call wasn't canceled after closing conn")
-		}
-		if !errors.Is(api.ctxErr, context.Canceled) {
-			t.Fatalf("unexpected ctx error: got %v, want %v", api.ctxErr, context.Canceled)
-		}
-		// server buffers response writes, so read all it at the end of request at once.
-		if data := c.ReadBytes(); len(data) > 0 {
-			t.Fatalf("unexpected non-empty InitSearch response : %q", data)
-		}
-		if data := c.ReadBytes(); len(data) > 0 {
-			t.Fatalf("unexpected non-empty NextBlock response : %q", data)
+		// Read several blocks, then send a request cancellation marker and
+		// drain the rest of blocks the server was able to write to the
+		// connection before it received the marker.
+		_ = c.ReadString()
+		_ = c.ReadString()
+		_ = c.ReadString()
+		_ = c.ReadString()
+		c.WriteString(handshake.CancelRequestMarker)
+		for c.ReadString() != "" {
 		}
 		c.ReadEmptyTrace()
+
+		if !api.bi.canceled {
+			t.Fatalf("block iterator was expected to be canceled but it wasn't")
+		}
+		if !api.bi.closed {
+			t.Fatalf("block iterator must be closed")
+		}
 	}
 
-	sendSearchRequest()
-	sendSearchRequest()
-	sendSearchRequest()
+	// Repeat the search with canceling several times to ensure that connection
+	// is reused.
+	search()
+	search()
+	search()
+	search()
 }
 
 func startServer(t *testing.T, api API) *Server {
