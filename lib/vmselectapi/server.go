@@ -489,6 +489,10 @@ func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 		}
 		return fmt.Errorf("cannot read rpcName: %w", err)
 	}
+	if string(ctx.dataBuf) == handshake.CancelRequestMarker {
+		// Cancel request marker written to the connection from previous RPC request.
+		return nil
+	}
 	rpcName := string(ctx.dataBuf)
 
 	// Limit the time required for reading request args.
@@ -1057,9 +1061,19 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 			return fmt.Errorf("cannot send MetricBlock: %w", err)
 		}
 	}
-
-	if err := bi.Error(); err != nil {
-		return fmt.Errorf("search error: %w", err)
+	if err := rCtx.Err(); err != nil {
+		if errors.Is(err, context.Canceled) {
+			ctx.qt.Printf("request canceled by client after %d blocks sent to vmselect", blocksRead)
+			// Send 'end of response' marker.
+			if err := ctx.writeString(""); err != nil {
+				return fmt.Errorf("cannot send 'end of response' marker")
+			}
+			return nil
+		}
+		return err
+	}
+	if err = bi.Error(); err != nil {
+		return err
 	}
 
 	ctx.qt.Printf("sent %d blocks to vmselect", blocksRead)
@@ -1266,36 +1280,43 @@ type connMonitor struct {
 }
 
 func (cm *connMonitor) watch() {
-	if err := cm.bc.Conn.SetReadDeadline(time.Time{}); err != nil {
+	// reset the read deadline on bufferedConn, since it may already have buffered data from the connection.
+	if err := cm.bc.SetReadDeadline(time.Time{}); err != nil {
 		logger.Errorf("connMonitor: cannot set empty read deadline for the connection %q: %s", cm.bc.RemoteAddr(), err)
 	}
 
 	cm.wg.Go(func() {
 		defer cm.cancel()
 
-		// block on conn.Read
-		// it only closes if stop() called or client closes connection.
-		var buf [1]byte
-		n, err := cm.bc.Conn.Read(buf[:])
+		// Block on reading from client connection. This covers multiple cases:
+		// 1. Server calls stop() once an RPC is processed, or
+		// 2. Client closes connection, or
+		// 3. Client sends cancel marker.
+		//
+		// buf holds space for the marker written with app/vmselect/netstorage/writeBytes
+		const bufSize = len(handshake.CancelRequestMarker) + 8
+		var buf [bufSize]byte
+		n, err := io.ReadFull(cm.bc, buf[:])
 		if err != nil {
-			if !errors.Is(err, os.ErrDeadlineExceeded) && !errors.Is(err, io.EOF) {
-				logger.Errorf("connMonitor: unexpected Read error for the connection %q: %s", cm.bc.RemoteAddr(), err)
+			if errors.Is(err, os.ErrDeadlineExceeded) || errors.Is(err, io.EOF) {
+				return
 			}
+			logger.Errorf("connMonitor: unexpected Read error for the connection %q: %s", cm.bc.RemoteAddr(), err)
 		}
-		if n > 0 {
-			logger.Warnf("connMonitor: unexpected non empty read from remote addr: %s", cm.bc.RemoteAddr())
+		if n != bufSize || string(buf[8:]) != handshake.CancelRequestMarker {
+			logger.Warnf("connMonitor: unexpected non-empty read=%q from remote addr: %s", buf[:n], cm.bc.RemoteAddr())
 		}
 	})
 }
 
 func (cm *connMonitor) stop() {
-	// unblock watcher with read timeout error
+	// Unblock watcher with read timeout error.
 	if err := cm.bc.Conn.SetReadDeadline(timeLongBefore); err != nil {
 		logger.Errorf("connMonitor: cannot set read deadline for the connection %q: %s", cm.bc.RemoteAddr(), err)
 	}
 	cm.wg.Wait()
-	// restore connection deadline to empty value
-	if err := cm.bc.Conn.SetReadDeadline(time.Time{}); err != nil {
+	// Restore connection deadline changed earlier in this method.
+	if err := cm.bc.SetReadDeadline(time.Time{}); err != nil {
 		logger.Errorf("connMonitor: cannot set empty read deadline for the connection %q: %s", cm.bc.RemoteAddr(), err)
 	}
 }
