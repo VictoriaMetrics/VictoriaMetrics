@@ -235,7 +235,7 @@ func TestAggregatorsEqual(t *testing.T) {
 	f(`
 - outputs: [total]
   interval: 5m
-  flush_on_shutdown: true  
+  flush_on_shutdown: true
 `, `
 - outputs: [total]
   interval: 5m
@@ -280,4 +280,26 @@ func appendClonedTimeseries(dst, src []prompb.TimeSeries) []prompb.TimeSeries {
 		})
 	}
 	return dst
+}
+
+func TestLoadFromDataNullConfig(t *testing.T) {
+	tests := []struct {
+		name   string
+		config string
+	}{
+		{"null rule", "- null\n"},
+		{"null rule after valid rule", "- interval: 1m\n  outputs: [count_samples]\n- null\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a, err := LoadFromData([]byte(tt.config), func([]prompb.TimeSeries) {}, nil, "test")
+			if a != nil {
+				a.MustStop()
+				t.Fatal("expected nil aggregators")
+			}
+			if err == nil || !strings.Contains(err.Error(), "missing aggregation config") {
+				t.Fatalf("unexpected error: %v; want missing aggregation config", err)
+			}
+		})
+	}
 }
