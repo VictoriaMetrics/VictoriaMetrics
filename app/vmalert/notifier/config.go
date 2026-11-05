@@ -149,6 +149,9 @@ func parseConfig(path string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	if cfg == nil {
+		return nil, fmt.Errorf("empty notifier config")
+	}
 	if len(cfg.XXX) > 0 {
 		var keys []string
 		for k := range cfg.XXX {

@@ -38,3 +38,10 @@ func TestParseConfig_Failure(t *testing.T) {
 	f("testdata/consul.bad.yaml", "failed to parse alert_relabel_configs in consul_sd_config")
 	f("testdata/dns.bad.yaml", "failed to parse alert relabeling config")
 }
+
+func TestParseConfigNull(t *testing.T) {
+	_, err := parseConfig("testdata/null.yaml")
+	if err == nil || !strings.Contains(err.Error(), "empty notifier config") {
+		t.Fatalf("expected empty notifier config error; got %v", err)
+	}
+}
