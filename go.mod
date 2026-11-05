@@ -39,6 +39,7 @@ require (
 	golang.org/x/sys v0.49.0
 	google.golang.org/api v0.301.0
 	gopkg.in/yaml.v2 v2.4.0
+	sigs.k8s.io/randfill v1.0.0
 )
 
 require (
@@ -181,7 +182,6 @@ require (
 	k8s.io/kube-openapi v0.0.0-20261007072838-e2e80c32a35f // indirect
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3 // indirect
 	sigs.k8s.io/json v0.0.0-20260909141634-11ed52e25bc5 // indirect
-	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
