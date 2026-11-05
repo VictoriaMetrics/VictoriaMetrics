@@ -536,6 +536,17 @@ benchmark-pure:
 	CGO_ENABLED=0 go test -run=NO_TESTS -bench=. ./lib/...
 	CGO_ENABLED=0 go test -run=NO_TESTS -bench=. ./app/...
 
+# Set FUZZ_PACKAGE=./app/vmauth to fuzz one package; otherwise discover all fuzz tests.
+FUZZ_PACKAGES = $(or $(FUZZ_PACKAGE),$(sort $(patsubst %/,%,$(dir $(shell grep -rl --include='*_test.go' --exclude-dir=.git --exclude-dir=.delta --exclude-dir=vendor '^func Fuzz' .)))))
+FUZZ_TIME ?= 10s
+
+fuzz:
+	@set -e; for pkg in $(FUZZ_PACKAGES); do \
+		for target in $$(go test -list '^Fuzz' "$$pkg" | grep '^Fuzz'); do \
+			go test "$$pkg" -run '^$$' -fuzz "^$$target$$" -fuzztime $(FUZZ_TIME) -parallel 2; \
+		done; \
+	done
+
 vendor-update:
 	go get -u ./lib/...
 	go get -u ./app/...
