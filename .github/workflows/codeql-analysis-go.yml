@@ -59,7 +59,7 @@ jobs:
           languages: go
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@cdf488f595d80d6e07e03d4674febd5ab45fa938  # v4.37.9
+        uses: github/codeql-action/autobuild@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee  # v4.39.0
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938  # v4.37.9
