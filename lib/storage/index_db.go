@@ -198,6 +198,7 @@ type IndexDBMetrics struct {
 	TagFiltersToMetricIDsCacheMisses       uint64
 	TagFiltersToMetricIDsCacheResets       uint64
 
+	LoopsPerDateTagFilterCacheMode         uint64
 	LoopsPerDateTagFilterCacheSize         uint64
 	LoopsPerDateTagFilterCacheSizeBytes    uint64
 	LoopsPerDateTagFilterCacheSizeMaxBytes uint64
@@ -267,6 +268,7 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	var cs fastcache.Stats
 	db.loopsPerDateTagFilterCache.UpdateStats(&cs)
 	if cs.BytesSize > m.LoopsPerDateTagFilterCacheSizeBytes {
+		m.LoopsPerDateTagFilterCacheMode = db.loopsPerDateTagFilterCache.Mode()
 		m.LoopsPerDateTagFilterCacheSize = cs.EntriesCount
 		m.LoopsPerDateTagFilterCacheSizeBytes = cs.BytesSize
 		m.LoopsPerDateTagFilterCacheSizeMaxBytes = cs.MaxBytesSize

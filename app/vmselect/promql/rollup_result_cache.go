@@ -177,6 +177,9 @@ func InitRollupResultCache(cachePath string) {
 	metrics.GetOrCreateGauge(`vm_cache_misses_total{type="promql/rollupResult"}`, func() float64 {
 		return float64(fcs().Misses)
 	})
+	metrics.GetOrCreateGauge(`vm_cache_mode{type="promql/rollupResult"}`, func() float64 {
+		return float64(c.Mode())
+	})
 
 	rollupResultCacheV = &rollupResultCache{
 		c: c,
