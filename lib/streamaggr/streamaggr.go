@@ -462,6 +462,10 @@ type aggrPushFunc func([]pushSample, int64, bool)
 //
 // The returned aggregator must be stopped when no longer needed by calling MustStop().
 func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set, opts *Options, alias string, aggrID int) (*aggregator, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("missing aggregation config")
+	}
+
 	// check cfg.Interval
 	if cfg.Interval == "" {
 		return nil, fmt.Errorf("missing `interval` option")
