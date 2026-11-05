@@ -26,6 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: all VictoriaMetrics components: add new metric `process_cgroup_cpu_throttled_seconds_total` which exposes CPU throttling. See [#10430](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10430).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): support `authentication_method: WorkloadIdentity` in [azure_sd_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#azure_sd_configs). It allows discovering Azure VMs from Kubernetes clusters with [workload identity federation](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation) without a static client secret. See [#11558](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11558). Thanks to @banlor for contribution.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add a new flag `-remoteWrite.queuePath`, which allows configuring [persistent-queue](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence) path for each `-remoteWrite.url` independently. See [#11662](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11662).
 
