@@ -474,6 +474,11 @@ func (c *Cache) storeCurrStatsBeforeRotationLocked(curr *fastcache.Cache) {
 	curr.UpdateStats(&c.prevStatsAtRotation)
 }
 
+// Mode returns the current cache mode: 0 for split, 1 for switching, and 2 for whole.
+func (c *Cache) Mode() uint64 {
+	return uint64(c.mode.Load())
+}
+
 // UpdateStats updates fcs with cache stats.
 func (c *Cache) UpdateStats(fcs *fastcache.Stats) {
 	c.mu.Lock()

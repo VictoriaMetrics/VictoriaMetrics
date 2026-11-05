@@ -355,13 +355,13 @@ docker run -i -t --rm \
     -e "VM_LICENSE_FILE=/.secret/license" \
     -e "VMANOMALY_MEMBERS_COUNT=2" \
     -e "VMANOMALY_MEMBER_NUM=0" \
-    -e "VMANOMALY_REPLICATION_FACTOR=1"
+    -e "VMANOMALY_REPLICATION_FACTOR=1" \
     -e "VMANOMALY_SPLIT_BY=COMPLETE" \
     -v "$PWD/global_config.yaml":/global_config.yaml \
     -v "$PWD/.secret/license":/.secret/license \
     -p 8080:8080 \
     -p 8490:8490 \
-    vmanomaly:v1.21.0 \
+    victoriametrics/vmanomaly:v1.32.0 \
     /global_config.yaml \
     --loggerLevel=INFO
 ```
@@ -378,18 +378,9 @@ The following example demonstrates how to deploy `vmanomaly` with **two shards**
 services:
   # other services ...
   vmanomaly-1:
-    image: victoriametrics/vmanomaly:v1.21.0
+    image: victoriametrics/vmanomaly:v1.32.0
     user: "1000:1000"
     restart: always
-    healthcheck:
-      test:
-        - "CMD"
-        - "curl"
-        - "-f"
-        - "http://127.0.0.1:8490/health"
-      interval: 30s
-      timeout: 10s
-      retries: 5
     volumes:
       - ./vmanomaly-config:/config
     command:
@@ -402,18 +393,9 @@ services:
       VMANOMALY_SPLIT_BY: "COMPLETE"
 
   vmanomaly-2:
-    image: victoriametrics/vmanomaly:v1.21.0
+    image: victoriametrics/vmanomaly:v1.32.0
     user: "1000:1000"
     restart: always
-    healthcheck:
-      test:
-        - "CMD"
-        - "curl"
-        - "-f"
-        - "http://127.0.0.1:8490/health"
-      interval: 30s
-      timeout: 10s
-      retries: 5
     volumes:
       - ./vmanomaly-config:/config
     command:
@@ -425,6 +407,8 @@ services:
       VMANOMALY_REPLICATION_FACTOR: 1
       VMANOMALY_SPLIT_BY: "COMPLETE"
 ```
+
+The v1.32.0 image supplies a built-in health check; these services inherit it without requiring `curl` inside the container.
 
 ### Helm Charts
 
