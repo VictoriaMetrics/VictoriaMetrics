@@ -1311,7 +1311,7 @@ func (cm *connMonitor) watch() {
 
 func (cm *connMonitor) stop() {
 	// Unblock watcher with read timeout error.
-	if err := cm.bc.SetReadDeadline(timeLongBefore); err != nil {
+	if err := cm.bc.Conn.SetReadDeadline(timeLongBefore); err != nil {
 		logger.Errorf("connMonitor: cannot set read deadline for the connection %q: %s", cm.bc.RemoteAddr(), err)
 	}
 	cm.wg.Wait()
