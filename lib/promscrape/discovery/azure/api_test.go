@@ -60,7 +60,7 @@ func TestGetRefreshTokenFuncWorkloadIdentity(t *testing.T) {
 	}
 
 	// The token file must be read on every refresh, since Kubernetes rotates it.
-	f("assertion-1\n", "/some-tenant/oauth2/v2.0/token some-client assertion-1")
+	f("assertion-1\n", "/some-tenant/oauth2/v2.0/token some-client assertion-1\n")
 	f("assertion-2", "/some-tenant/oauth2/v2.0/token some-client assertion-2")
 }
 

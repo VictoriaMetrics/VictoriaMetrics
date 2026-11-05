@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
@@ -245,16 +244,16 @@ func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloud
 		tokenAPIPath = "/" + tenantID + "/oauth2/v2.0/token"
 		tokenEndpoint = env.ActiveDirectoryEndpoint
 		modifyRequest = func(request *http.Request) {
-			// The token file is rotated by Kubernetes, so it must be read before every token request.
-			assertion, err := fscore.ReadPasswordFromFileOrHTTP(tokenFile)
+			// tokenFile could be rotated, so read it at each refreshToken.
+			assertion, err := os.ReadFile(tokenFile)
 			if err != nil {
-				logger.Errorf("cannot read federated token from AZURE_FEDERATED_TOKEN_FILE: %s", err)
+				logger.Errorf("azure_sd_configs: cannot read federated token from AZURE_FEDERATED_TOKEN_FILE: %s", err)
 			}
 			q := url.Values{
 				"grant_type":            []string{"client_credentials"},
 				"client_id":             []string{clientID},
 				"client_assertion_type": []string{"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
-				"client_assertion":      []string{assertion},
+				"client_assertion":      []string{string(assertion)},
 				"scope":                 []string{env.ResourceManagerEndpoint + "/.default"},
 			}
 			request.Body = io.NopCloser(strings.NewReader(q.Encode()))
