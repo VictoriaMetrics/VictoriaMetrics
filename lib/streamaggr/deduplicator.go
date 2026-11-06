@@ -122,7 +122,10 @@ func (d *Deduplicator) Push(tss []prompb.TimeSeries) {
 			}
 			maxLagMsec = max(maxLagMsec, lagMsec)
 			hasAccepted = true
-			if d.enableWindows && s.Timestamp <= cs.maxDeadline == cs.isGreen {
+			// Aggregation windows use two buffers, which swap roles on every flush.
+			// If cs.isGreen, green collects the current window and blue collects the next one; otherwise the reverse.
+			inCurrentWindow := s.Timestamp <= cs.maxDeadline
+			if d.enableWindows && inCurrentWindow == cs.isGreen {
 				ctx.green = append(ctx.green, pushSample{
 					key:       key,
 					value:     s.Value,
@@ -138,7 +141,7 @@ func (d *Deduplicator) Push(tss []prompb.TimeSeries) {
 		}
 	}
 	if d.enableWindows {
-		// Store flushAfterMsec before droppedLagMsec, getFlushDelay relies on this order.
+		// Store flushAfterMsec before droppedLagMsec, takeFlushDelay relies on this order.
 		if hasAccepted {
 			// Store the lag plus 1ms, so 0 always means no accepted samples, even if their lag is 0.
 			storeMaxInt64(&d.flushAfterMsec, maxLagMsec+1)
@@ -175,7 +178,7 @@ func (d *Deduplicator) runFlusher(pushFunc PushFunc) {
 			return
 		case <-t.C:
 			if d.enableWindows {
-				delay := getFlushDelay(&d.flushAfterMsec, &d.droppedLagMsec, d.interval)
+				delay := takeFlushDelay(&d.flushAfterMsec, &d.droppedLagMsec, d.interval)
 				time.Sleep(delay)
 			}
 			d.flush(pushFunc)

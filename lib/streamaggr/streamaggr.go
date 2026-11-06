@@ -444,8 +444,9 @@ type aggregator struct {
 	wg     sync.WaitGroup
 	stopCh chan struct{}
 
-	flushDuration *metrics.Histogram
-	samplesLag    *metrics.Histogram
+	flushDuration        *metrics.Histogram
+	samplesLag           *metrics.Histogram
+	ignoredOldSamplesLag *metrics.Summary
 
 	flushTimeouts     *metrics.Counter
 	ignoredOldSamples *metrics.Counter
@@ -654,8 +655,9 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 
 		stopCh: make(chan struct{}),
 
-		flushDuration: ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_flush_duration_seconds{%s}`, metricLabels)),
-		samplesLag:    ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_samples_lag_seconds{%s}`, metricLabels)),
+		flushDuration:        ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_flush_duration_seconds{%s}`, metricLabels)),
+		samplesLag:           ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_samples_lag_seconds{%s}`, metricLabels)),
+		ignoredOldSamplesLag: ms.NewSummary(fmt.Sprintf(`vm_streamaggr_ignored_samples_lag_seconds{reason="too_old",%s}`, metricLabels)),
 
 		matchedSamples:    ms.NewCounter(fmt.Sprintf(`vm_streamaggr_matched_samples_total{%s}`, metricLabels)),
 		flushTimeouts:     ms.NewCounter(fmt.Sprintf(`vm_streamaggr_flush_timeouts_total{%s}`, metricLabels)),
@@ -816,7 +818,7 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlu
 	for tickerWait(t) {
 		pf := pushFunc
 		if a.enableWindows {
-			delay := getFlushDelay(&a.flushAfterMsec, &a.droppedLagMsec, interval)
+			delay := takeFlushDelay(&a.flushAfterMsec, &a.droppedLagMsec, interval)
 			time.Sleep(delay)
 		}
 
@@ -1003,7 +1005,10 @@ func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []uint32) {
 			}
 			maxLagMsec = max(maxLagMsec, lagMsec)
 			hasAccepted = true
-			if enableWindows && s.Timestamp <= cs.maxDeadline == cs.isGreen {
+			// Aggregation windows use two buffers, which swap roles on every flush.
+			// If cs.isGreen, green collects the current window and blue collects the next one; otherwise the reverse.
+			inCurrentWindow := s.Timestamp <= cs.maxDeadline
+			if enableWindows && inCurrentWindow == cs.isGreen {
 				ctx.green = append(ctx.green, pushSample{
 					key:       key,
 					value:     s.Value,
@@ -1019,14 +1024,22 @@ func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []uint32) {
 		}
 	}
 	if enableWindows {
-		// Store flushAfterMsec before droppedLagMsec, getFlushDelay relies on this order.
+		// Store flushAfterMsec before droppedLagMsec, takeFlushDelay relies on this order.
 		if hasAccepted {
 			// Store the lag plus 1ms, so 0 always means no accepted samples, even if their lag is 0.
 			storeMaxInt64(&a.flushAfterMsec, maxLagMsec+1)
 		}
 		storeMaxInt64(&a.droppedLagMsec, maxDroppedLagMsec)
 	}
-	a.samplesLag.Update(float64(maxLagMsec) / 1_000)
+
+	// Update the lag only for accepted samples, otherwise it would report 0s lag
+	// when all samples are dropped as too old which is a false 0.
+	if hasAccepted {
+		a.samplesLag.Update(float64(maxLagMsec) / 1_000)
+	}
+	if maxDroppedLagMsec > 0 {
+		a.ignoredOldSamplesLag.Update(float64(maxDroppedLagMsec) / 1_000)
+	}
 
 	ctx.buf = buf
 
@@ -1336,7 +1349,8 @@ func sortAndRemoveDuplicates(a []string) []string {
 
 var bbPool bytesutil.ByteBufferPool
 
-// getFlushDelay returns how long to wait before flushing aggregation windows.
+// takeFlushDelay returns how long to wait before flushing aggregation windows.
+// It resets stored lags to 0 after reading, should be called once per flush.
 //
 // The delay is the max lag of samples accepted during the interval.
 // If no samples were accepted, the max lag of samples dropped as too old is used instead,
@@ -1346,9 +1360,9 @@ var bbPool bytesutil.ByteBufferPool
 // Without the cap, a growing lag (e.g. an overloaded ingestion pipeline) would push the delay
 // past the interval, making the flusher skip ticks and merge windows,
 // see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11811
-func getFlushDelay(acceptedLagMsec, droppedLagMsec *atomic.Int64, interval time.Duration) time.Duration {
-	// Push stores acceptedLagMsec first and droppedLagMsec second, so read them in the reverse order.
-	// so if dropped lag of a concurrent Push is seen here, its accepted lag is seen too.
+func takeFlushDelay(acceptedLagMsec, droppedLagMsec *atomic.Int64, interval time.Duration) time.Duration {
+	// Push stores acceptedLagMsec first and droppedLagMsec second, so read them in the reverse order:
+	// if the dropped lag of a concurrent Push is seen here, its accepted lag is seen too.
 	droppedMsec := droppedLagMsec.Swap(0)
 	// acceptedLagMsec is the max accepted lag plus 1ms, or 0 if no samples were accepted.
 	lagMsec := acceptedLagMsec.Swap(0) - 1
@@ -1359,6 +1373,9 @@ func getFlushDelay(acceptedLagMsec, droppedLagMsec *atomic.Int64, interval time.
 	return min(delay, interval*9/10)
 }
 
+// storeMaxInt64 atomically sets v to n if n is bigger than the current value of v.
+// The loop returns without writing if v >= n,
+// and retries when another goroutine changed v between Load and CompareAndSwap.
 func storeMaxInt64(v *atomic.Int64, n int64) {
 	for {
 		old := v.Load()
