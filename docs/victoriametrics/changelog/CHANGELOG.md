@@ -27,7 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): prevent spikes in `rate_sum` and `rate_avg` outputs with `enable_windows: true` when out-of-order samples arrive around the aggregation window boundary. Previously, an out-of-order sample could be treated as a counter reset, causing large spike in the result. See [#11810](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11810).
-* BUGFIX: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards): update the `Ingestion rate` panels of the [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/) dashboard to account for samples ingested directly into `vmstorage` via the remote write protocol with `-enableIngestionAPI` enabled. Previously, these panels counted only samples received from `vminsert`. See [#11809](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11809).
+* BUGFIX: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards): update the `Ingestion rate` panels of the [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/) dashboard to account for samples ingested directly into `vmstorage` via the remote write protocol with `-enableIngestionAPI` enabled. Previously, these panels counted only samples received from `vminsert`. See [#11809](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11809). Thanks to @sarankumar1325 for contribution.
 
 ## [v1.155.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.155.0)
 
