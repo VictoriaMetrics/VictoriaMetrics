@@ -457,7 +457,12 @@ func recordRequestError(r *http.Request, err error, counter *metrics.Counter) {
 		return
 	}
 	counter.Inc()
-	httpserver.LogHTTPError(r, err.Error())
+	var logThrottler *logger.LogThrottler
+	var esc *httpserver.ErrorWithStatusCode
+	if errors.As(err, &esc) {
+		logThrottler = esc.LogThrottler
+	}
+	httpserver.LogHTTPError(r, err.Error(), logThrottler)
 }
 
 func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path string) bool {

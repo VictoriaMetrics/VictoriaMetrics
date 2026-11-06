@@ -734,16 +734,22 @@ func (rwa *responseWriterWithAbort) abort() {
 // Errorf writes a formatted error message to w and to logger.
 func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...any) {
 	errStr := fmt.Sprintf(format, args...)
-	LogHTTPError(r, errStr)
 
 	err := errors.New(errStr)
+	var logThrottler *logger.LogThrottler
 	var esc *ErrorWithStatusCode
 	for _, arg := range args {
 		if argErr, ok := arg.(error); ok && errors.As(argErr, &esc) {
-			err = &ErrorWithStatusCode{Err: err, StatusCode: esc.StatusCode}
+			err = &ErrorWithStatusCode{
+				Err:          err,
+				StatusCode:   esc.StatusCode,
+				LogThrottler: esc.LogThrottler,
+			}
+			logThrottler = esc.LogThrottler
 			break
 		}
 	}
+	LogHTTPError(r, errStr, logThrottler)
 	SendError(w, err)
 }
 
@@ -772,10 +778,16 @@ func SendError(w http.ResponseWriter, err error) {
 }
 
 // LogHTTPError logs the errStr with the client remote address and the request URI obtained from r.
-func LogHTTPError(r *http.Request, errStr string) {
+//
+// If logThrottler is non-nil, logging is throttled via it instead.
+func LogHTTPError(r *http.Request, errStr string, logThrottler *logger.LogThrottler) {
 	remoteAddr := GetQuotedRemoteAddr(r)
 	requestURI := GetRequestURI(r)
 	errStr = fmt.Sprintf("remoteAddr: %s; requestURI: %s; %s", remoteAddr, requestURI, errStr)
+	if logThrottler != nil {
+		logThrottler.Warnf("%s", errStr)
+		return
+	}
 	logger.WarnfSkipframes(2, "%s", errStr)
 }
 
@@ -785,6 +797,9 @@ func LogHTTPError(r *http.Request, errStr string) {
 type ErrorWithStatusCode struct {
 	Err        error
 	StatusCode int
+
+	// LogThrottler, if non-nil, throttles logging of this error.
+	LogThrottler *logger.LogThrottler
 }
 
 // Unwrap returns e.Err.

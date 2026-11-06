@@ -1,13 +1,17 @@
 package httpserver
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 func TestGetQuotedRemoteAddr(t *testing.T) {
@@ -253,6 +257,35 @@ func TestHandlerWrapperDisableServerHostnameHeader(t *testing.T) {
 
 	if got := w.Header().Get("X-Server-Hostname"); got != "" {
 		t.Fatalf("unexpected X-Server-Hostname header; got %q; want empty value", got)
+	}
+}
+
+func TestErrorfWithLogThrottler(t *testing.T) {
+	var buf bytes.Buffer
+	logger.SetOutputForTests(&buf)
+	defer logger.ResetOutputForTest()
+
+	r := httptest.NewRequest(http.MethodPost, "/write", nil)
+	srcErr := &ErrorWithStatusCode{
+		Err:          fmt.Errorf("too busy"),
+		StatusCode:   http.StatusServiceUnavailable,
+		LogThrottler: logger.WithThrottler(fmt.Sprintf("test_TestErrorfWithLogThrottler_%d", time.Now().UnixNano()), 5*time.Second),
+	}
+
+	Errorf(httptest.NewRecorder(), r, "%s", srcErr)
+	time.Sleep(10 * time.Millisecond)
+	buf.Reset()
+
+	for range 3 {
+		w := httptest.NewRecorder()
+		Errorf(w, r, "%s", srcErr)
+		if w.Code != http.StatusServiceUnavailable {
+			t.Fatalf("unexpected status code; got %d; want %d", w.Code, http.StatusServiceUnavailable)
+		}
+	}
+
+	if n := strings.Count(buf.String(), "too busy"); n != 1 {
+		t.Fatalf("unexpected number of logged messages; got %d; want 1; log output:\n%s", n, buf.String())
 	}
 }
 

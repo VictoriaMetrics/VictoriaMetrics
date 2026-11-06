@@ -12,9 +12,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 )
+
+var insertConcurrencyLimitTimeoutLogger = logger.WithThrottler("insertConcurrencyLimitTimeout", 5*time.Second)
 
 var (
 	maxConcurrentInserts = flagutil.NewIntWithDynamicDefault("maxConcurrentInserts", 2*cgroup.AvailableCPUs(), "2x CPU cores",
@@ -129,7 +132,8 @@ func IncConcurrency() error {
 				"Possible solutions: to reduce workload; to increase compute resources at the server; "+
 				"to increase -insert.maxQueueDuration; to increase -maxConcurrentInserts",
 				maxQueueDuration.Seconds(), *maxConcurrentInserts),
-			StatusCode: http.StatusServiceUnavailable,
+			StatusCode:   http.StatusServiceUnavailable,
+			LogThrottler: insertConcurrencyLimitTimeoutLogger,
 		}
 	}
 }
