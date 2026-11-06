@@ -246,6 +246,16 @@ func TestAlert_toPromLabels(t *testing.T) {
 		nil,
 	)
 
+	origSanitizeLabelNames := *sanitizeLabelNames
+	t.Cleanup(func() { *sanitizeLabelNames = origSanitizeLabelNames })
+	*sanitizeLabelNames = false
+	fn(
+		map[string]string{"foo.bar": "baz", "service!name": "qux"},
+		[]prompb.Label{{Name: "foo.bar", Value: "baz"}, {Name: "service!name", Value: "qux"}},
+		nil,
+	)
+	*sanitizeLabelNames = true
+
 	pcs, err := promrelabel.ParseRelabelConfigsData([]byte(`
 - target_label: "foo"
   replacement: "aaa"
