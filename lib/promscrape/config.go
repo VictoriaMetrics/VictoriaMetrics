@@ -730,12 +730,28 @@ func (cfg *Config) getHTTPDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	return cfg.getScrapeWorkGeneric(visitConfigs, "http_sd_config", prev)
 }
 
+func (sc *ScrapeConfig) kubernetesSDInitializing() bool {
+	for i := range sc.KubernetesSDConfigs {
+		if sc.KubernetesSDConfigs[i].IsInitializing() {
+			return true
+		}
+	}
+	return false
+}
+
 // getKubernetesSDScrapeWork returns `kubernetes_sd_configs` ScrapeWork from cfg.
+// A nil prev marks the first collection, which waits for initial discovery.
+// Later collections preserve previous targets for jobs that are still initializing.
 func (cfg *Config) getKubernetesSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	const discoveryType = "kubernetes_sd_config"
 	swsPrevByJob := getSWSByJob(prev)
 	dst := make([]*ScrapeWork, 0, len(prev))
 	for _, sc := range cfg.ScrapeConfigs {
+		if prev != nil && sc.kubernetesSDInitializing() {
+			// Keep this job's targets while it initializes without delaying other jobs.
+			dst = append(dst, swsPrevByJob[sc.swc.jobName]...)
+			continue
+		}
 		dstLen := len(dst)
 		ok := true
 		for j := range sc.KubernetesSDConfigs {
