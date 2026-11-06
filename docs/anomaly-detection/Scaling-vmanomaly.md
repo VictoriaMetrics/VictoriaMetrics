@@ -408,7 +408,7 @@ services:
       VMANOMALY_SPLIT_BY: "COMPLETE"
 ```
 
-The v1.32.0 image supplies a built-in health check; these services inherit it without requiring `curl` inside the container.
+The v1.32.0 image supplies a built-in health check; these services inherit it without requiring `curl` inside the container. For custom ports, path prefixes or TLS, configure the probe target as described in [container health checks](https://docs.victoriametrics.com/anomaly-detection/quickstart/#container-health-checks).
 
 ### Helm Charts
 

@@ -73,7 +73,43 @@ options:
 
 {{% available_from "v1.29.5" anomaly %}} When `--watch` is enabled, config changes are detected by fixed-interval content polling instead of filesystem event delivery. The polling frequency is controlled by `-configCheckInterval` (default: `30s`). The same option can also be passed as `--configCheckInterval`, `--config.check.interval`, `--config-check-interval`, `--config_check_interval`, or in key-value form such as `configCheckInterval=30s`.
 
+> [!NOTE]
+> For the separate `--healthcheck` mode and its options, see [container health checks](#container-health-checks).
+
 You can specify these options when running `vmanomaly` to fine-tune logging levels or handle licensing configurations, as per your requirements.
+
+### Container health checks
+
+{{% available_from "v1.32.0" anomaly %}} Standard and DHI container images include a lightweight `--healthcheck` command. Put it first; it checks the running service without starting another instance or loading models. Exit code `0` means the endpoint returned HTTP `200`; failures return `1`. This is a liveness check, not a check of datasource connectivity, model readiness or detection quality.
+
+```sh
+# Check the default local listener on port 8490.
+docker exec <container> /vmanomaly/.venv/bin/python -m src.vmanomaly --healthcheck
+
+# Follow the server address, port, path prefix and TLS settings in mounted config.
+docker exec <container> /vmanomaly/.venv/bin/python -m src.vmanomaly --healthcheck --config /config/vmanomaly.yaml
+```
+
+Probe options are separate from the service arguments above:
+
+| Option | Environment default | Purpose |
+| --- | --- | --- |
+| `--config PATH` | `VMANOMALY_HEALTHCHECK_CONFIG` | Read the `server` settings from a config file or directory. Repeat the flag in service merge order for multiple paths; the environment variable accepts one path. |
+| `--url URL` | `VMANOMALY_HEALTHCHECK_URL` | Explicit HTTP(S) endpoint, overriding config discovery. |
+| `--timeout SECONDS` | `VMANOMALY_HEALTHCHECK_TIMEOUT` | Socket timeout; defaults to `3` seconds. |
+
+CLI options take precedence over their environment defaults. With neither URL nor config supplied, the probe uses loopback port `8490` and `/health`. The image checks every `30s`, with a `5s` command timeout, `60s` startup allowance and `3` retries. Docker Compose inherits these defaults; override its `healthcheck` timing for slower startup. Kubernetes uses its own configured probes rather than the image's Docker health check.
+
+For a custom listener or [TLS configuration](https://docs.victoriametrics.com/anomaly-detection/components/server/#tls-and-mutual-tls), point the inherited probe at the same mounted configuration as the service:
+
+```yaml
+# Inside a Docker Compose service; the file must already be mounted.
+environment:
+  VMANOMALY_HEALTHCHECK_CONFIG: /config/vmanomaly.yaml
+```
+
+> [!NOTE]
+> Config-based HTTPS probes check local liveness without verifying the server certificate or hostname. With mTLS, they present the configured server certificate, which must also be accepted for client authentication by `mtls_ca_file`. An explicit HTTPS `--url` uses certificate and hostname verification and does not load client credentials from `--config`.
 
 ### Licensing
 
