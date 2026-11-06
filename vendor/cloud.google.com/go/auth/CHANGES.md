@@ -1,5 +1,20 @@
 # Changes
 
+## [0.24.3](https://github.com/googleapis/google-cloud-go/compare/auth/v0.24.2...auth/v0.24.3) (2026-11-05)
+
+
+### Bug Fixes
+
+* **auth:** Strip -fips suffix from AWS service name in SigV4 signer ([#20805](https://github.com/googleapis/google-cloud-go/issues/20805)) ([7a1474c](https://github.com/googleapis/google-cloud-go/commit/7a1474c2200c170f8f087212567ac72e49be2378))
+
+## [0.24.2](https://github.com/googleapis/google-cloud-go/compare/auth/v0.24.1...auth/v0.24.2) (2026-10-28)
+
+
+### Bug Fixes
+
+* Adds additional validation for REST RPC requests ([#20753](https://github.com/googleapis/google-cloud-go/issues/20753)) ([7827181](https://github.com/googleapis/google-cloud-go/commit/7827181e7cb653fb69645c538b162b2c7490b0bb))
+* **auth/grpctransport:** Use storage-direct authority for Interconnect ([#20738](https://github.com/googleapis/google-cloud-go/issues/20738)) ([232cbe4](https://github.com/googleapis/google-cloud-go/commit/232cbe4bf444d2b697c456012cc703bff81006a3))
+
 ## [0.24.1](https://github.com/googleapis/google-cloud-go/compare/auth/v0.24.0...auth/v0.24.1) (2026-10-08)
 
 

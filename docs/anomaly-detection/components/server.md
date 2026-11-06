@@ -20,7 +20,7 @@ Server component of VictoriaMetrics Anomaly Detection (`vmanomaly`) is responsib
 
 ### Parameters
 
-`addr`, `port`, `path_prefix`, `uvicorn_config`, `ui_default_state`, `ui_allowed_models`, and `max_concurrent_tasks` parameters can be set in the `server` section of the vmanomaly configuration file. Below is the description of each parameter:
+`addr`, `port`, `path_prefix`, `uvicorn_config`, `ui_default_state`, `ui_allowed_models`, `max_concurrent_tasks` and the TLS parameters below can be set in the `server` section of the vmanomaly configuration file. Below is the description of each parameter:
 
 - `addr`: IP address of the query server to listen on. Default is `0.0.0.0`.
 - `port`: Port of the query server to listen on. Default is `8490`.
@@ -30,6 +30,9 @@ Server component of VictoriaMetrics Anomaly Detection (`vmanomaly`) is responsib
 - `max_concurrent_tasks`: Maximum number of concurrent anomaly detection tasks processed by the backend. Positive integer. All tasks above the limit will be cancelled if the limit is exceeded. Defaults to `2`.
 - `uvicorn_config`: Uvicorn configuration dictionary. Default is `{"log_level": "warning"}`. See [Uvicorn server settings](https://www.uvicorn.org/settings/) for details.
 - {{% available_from "v1.29.2" anomaly %}} `use_reader_connection_settings`: If set to `true`, UI will use connection settings (e.g. credentials, TLS, etc.) from the [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) configuration when connecting to data sources. This allows UI to connect to data sources with the same settings without requiring having `vmauth` in front of both UI and data sources.
+
+- {{% available_from "v1.32.0" anomaly %}} `tls_cert_file` and `tls_key_file`: PEM server certificate and private-key paths; set both to enable HTTPS for the UI and API.
+- {{% available_from "v1.32.0" anomaly %}} `mtls_ca_file`: PEM CA bundle used to verify required client certificates. Requires the server certificate and key. See [TLS and mutual TLS](#tls-and-mutual-tls).
 
 ### Example Configuration
 
@@ -67,6 +70,40 @@ After starting the `vmanomaly` server with the above configuration, UI can be ac
 
 Rest API endpoints (e.g. `/metrics`) can be accessed at `<vmanomaly-host>:8490/vmanomaly/metrics` (e.g. `http://localhost:8490/vmanomaly/metrics`).
 
+### TLS and mutual TLS
+
+{{% available_from "v1.32.0" anomaly %}} The server can serve the UI and API over HTTPS directly:
+
+```yaml
+server:
+  port: 8490
+  tls_cert_file: /certs/server.crt
+  tls_key_file: /certs/server.key
+  # Optional: require a trusted client certificate on every connection.
+  mtls_ca_file: /certs/client-ca.crt
+```
+
+Mount the PEM files into the vmanomaly process/container. The server certificate may include intermediate certificates and must match the hostname clients use. Omit `mtls_ca_file` for server-only TLS. With mTLS enabled, browsers, API clients, scrapers and MCP must present a certificate trusted by this CA. Configure the browser's client certificate and trust store before opening `https://<host>:8490/vmui/`; include any `path_prefix`.
+
+Set the certificate and key together. Invalid or unreadable files prevent startup. Do not configure the same TLS options through `uvicorn_config.ssl_*` alongside these fields. Restart after replacing certificate files. The built-in `--healthcheck` follows the server TLS configuration. TLS protects this listener; datasource and writer TLS remain configured on their respective components.
+
+#### MCP connecting to an HTTPS vmanomaly server
+
+In a compatible [mcp-vmanomaly](https://github.com/VictoriaMetrics/mcp-vmanomaly#connecting-to-vmanomaly-over-https) process, configure the **MCP → vmanomaly** connection:
+
+```bash
+export VMANOMALY_ENDPOINT=https://vmanomaly.example.com:8490
+export VMANOMALY_TLS_CA_FILE=/certs/server-ca.crt
+# Required only when vmanomaly requires client certificates:
+export VMANOMALY_TLS_CERT_FILE=/certs/mcp-client.crt
+export VMANOMALY_TLS_KEY_FILE=/certs/mcp-client.key
+```
+
+Publicly trusted server certificates use system trust roots; a custom CA is added to those roots. `VMANOMALY_TLS_CA_CERT` accepts PEM content instead of a mounted CA file; do not set both. Mount client certificate/key files in the MCP container and restart MCP after rotating them. Keep certificate verification enabled.
+
+> [!NOTE]
+> These variables do not enable HTTPS on the MCP listener or configure the **Copilot → MCP** connection. Keep the MCP listener on a trusted private network or protect it with an authenticated TLS reverse proxy; see the MCP server's [deployment guidance](https://github.com/VictoriaMetrics/mcp-vmanomaly#security).
+
 ### Interactive API reference
 
 Open `/docs` on your running vmanomaly server to inspect generated request and response schemas and try API calls. For a local instance without a path prefix, use [http://localhost:8490/docs](http://localhost:8490/docs). With the example configuration above, use `http://localhost:8490/vmanomaly/docs`. Replace the host, port and optional prefix to match your deployment. ReDoc is available at `/redoc`, and the OpenAPI schema at `/openapi.json`, under the same prefix.
@@ -83,6 +120,8 @@ Estimate deployment resources {{% available_from "v1.31.0" anomaly %}} before ru
 Use the [interactive API reference](#interactive-api-reference) for request schemas. For a forward estimate, provide the model, series or group count, data frequency, inference cadence and storage mode. Fit history (also called training history) is the amount of past data used to train a model, expressed by `fit.window_seconds`. The separate optional `fit.fit_every_seconds` sets how often to repeat training. Online models default to one initial fit when this interval is omitted. Initial fit duration is advisory for online models, but peak memory and disk requirements still matter.
 
 Estimates combine shipped calibration profiles with bounded live calibration when supported. Results describe assumptions, margins, feasibility and extrapolation. They are not performance guarantees: validate with your data, hardware, datasource and writer. Treat reverse-sizing alternatives as separate scenarios, not additive capacity. Protect these endpoints with the same access controls as other server APIs.
+
+{{% available_from "v1.32.0" anomaly %}} CPU, RAM and disk estimates have improved accuracy. Estimates remain experimental and should be checked against a representative workload.
 
 For experimental `peer_outlier` sizing, use `topology: wide`: `entity_count` counts pools and `channels_per_entity` counts peers per pool. Supported estimates cover equal-size fixed pools of 3–10,000 peers, meeting `min_peer_count` (default 5), with complete observations and unchanged membership. Omit the workload's `retention` field: peer sizing does not estimate resources retained for inactive groups after membership changes. This is a sizing limitation, not a restriction on the model's support for changing populations. Use one query per workload and separate workloads for different queries or pool widths; omit `model_params.groupby` because the declared pools are already grouped. Preserve the requested width, including populations above 64 peers. Reverse sizing returns pool-model capacity and input-series counts separately. Peer estimates are less calibrated than regular profiles: allow extra headroom and validate with your workload. Size a concrete tuned model, not the `auto` search itself; tuning costs are not included.
 

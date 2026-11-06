@@ -10757,6 +10757,9 @@ func TestExecError(t *testing.T) {
 	f(`rollup_rate(time()[5m], "foo")`)
 	f(`rollup_rate(time()[5m], "foo", "bar")`)
 	f(`rollup_candlestick(time(), "foo")`)
+
+	// check ValidateMaxPointsPerSeries after start/end aligment at alignStartEnd.
+	f(`count_over_time(time()[398984ms:7ms])`)
 }
 
 func testResultsEqual(t *testing.T, result, resultExpected []netstorage.Result) {

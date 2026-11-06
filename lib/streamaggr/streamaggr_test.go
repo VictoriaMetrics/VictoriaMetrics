@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
@@ -280,4 +281,47 @@ func appendClonedTimeseries(dst, src []prompb.TimeSeries) []prompb.TimeSeries {
 		})
 	}
 	return dst
+}
+
+func TestFlushLag(t *testing.T) {
+	type push struct {
+		hasAccepted     bool
+		acceptedLagMsec int64
+		droppedLagMsec  int64
+	}
+	const interval = 10 * time.Second
+	f := func(pushes []push, delayExpected time.Duration) {
+		t.Helper()
+		var fl flushLag
+		for _, p := range pushes {
+			fl.update(p.hasAccepted, p.acceptedLagMsec, p.droppedLagMsec)
+		}
+		if delay := fl.takeFlushDelay(interval); delay != delayExpected {
+			t.Fatalf("unexpected delay; got %s; want %s", delay, delayExpected)
+		}
+		// The lags must be reset after takeFlushDelay.
+		if delay := fl.takeFlushDelay(interval); delay != 0 {
+			t.Fatalf("unexpected delay after reset; got %s; want 0s", delay)
+		}
+	}
+
+	// no pushes
+	f(nil, 0)
+
+	// nothing accepted or dropped
+	f([]push{{}}, 0)
+
+	// the max accepted lag is used
+	f([]push{{true, 1000, 0}, {true, 3000, 0}, {true, 2000, 0}}, 3*time.Second)
+
+	// accepted lag wins over dropped lag
+	f([]push{{true, 1000, 0}, {false, 0, 5000}}, time.Second)
+	f([]push{{false, 0, 5000}, {true, 0, 0}}, 0)
+
+	// dropped lag is used if no samples were accepted
+	f([]push{{false, 0, 4000}, {false, 0, 6000}}, 6*time.Second)
+
+	// the delay is capped at 90% of the interval
+	f([]push{{true, 15000, 0}}, 9*time.Second)
+	f([]push{{false, 0, 15000}}, 9*time.Second)
 }
