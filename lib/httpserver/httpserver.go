@@ -734,13 +734,18 @@ func (rwa *responseWriterWithAbort) abort() {
 // Errorf writes a formatted error message to w and to logger.
 func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...any) {
 	errStr := fmt.Sprintf(format, args...)
+
 	LogHTTPError(r, errStr)
 
 	err := errors.New(errStr)
 	var esc *ErrorWithStatusCode
 	for _, arg := range args {
 		if argErr, ok := arg.(error); ok && errors.As(argErr, &esc) {
-			err = &ErrorWithStatusCode{Err: err, StatusCode: esc.StatusCode}
+			err = &ErrorWithStatusCode{
+				Err:               err,
+				StatusCode:        esc.StatusCode,
+				RetryAfterSeconds: esc.RetryAfterSeconds,
+			}
 			break
 		}
 	}
@@ -752,9 +757,11 @@ func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...any) 
 func SendError(w http.ResponseWriter, err error) {
 	errStr := err.Error()
 	statusCode := http.StatusBadRequest
+	retryAfterSeconds := 0
 	var esc *ErrorWithStatusCode
 	if errors.As(err, &esc) {
 		statusCode = esc.StatusCode
+		retryAfterSeconds = esc.RetryAfterSeconds
 	}
 
 	if rwa, ok := w.(*responseWriterWithAbort); ok && rwa.sentHeaders {
@@ -767,6 +774,9 @@ func SendError(w http.ResponseWriter, err error) {
 		fmt.Fprintf(w, "\n%s\n", errStrEscaped)
 		rwa.abort()
 		return
+	}
+	if retryAfterSeconds > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(retryAfterSeconds))
 	}
 	http.Error(w, errStr, statusCode)
 }
@@ -785,6 +795,9 @@ func LogHTTPError(r *http.Request, errStr string) {
 type ErrorWithStatusCode struct {
 	Err        error
 	StatusCode int
+
+	// RetryAfterSeconds, if positive, is sent as the Retry-After header.
+	RetryAfterSeconds int
 }
 
 // Unwrap returns e.Err.

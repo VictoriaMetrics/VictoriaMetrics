@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): send a `Retry-After` header when an insert is rejected due to `-maxConcurrentInserts`/`-insert.maxQueueDuration`, so clients such as Telegraf know how long to wait before retrying. `Retry-After` is jittered so rejected clients don't retry all at once. See [#11887](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11887).
+
 ## [v1.156.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.156.0)
 
 Release candidate

@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -254,6 +255,34 @@ func TestHandlerWrapperDisableServerHostnameHeader(t *testing.T) {
 	if got := w.Header().Get("X-Server-Hostname"); got != "" {
 		t.Fatalf("unexpected X-Server-Hostname header; got %q; want empty value", got)
 	}
+}
+
+func TestErrorfRetryAfterHeader(t *testing.T) {
+	f := func(err error, expectedRetryAfter string, expectedStatusCode int) {
+		t.Helper()
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/write", nil)
+		Errorf(w, r, "%s", err)
+		if got := w.Header().Get("Retry-After"); got != expectedRetryAfter {
+			t.Fatalf("unexpected Retry-After header; got %q; want %q", got, expectedRetryAfter)
+		}
+		if w.Code != expectedStatusCode {
+			t.Fatalf("unexpected status code; got %d; want %d", w.Code, expectedStatusCode)
+		}
+	}
+
+	f(&ErrorWithStatusCode{
+		Err:               fmt.Errorf("too busy"),
+		StatusCode:        http.StatusServiceUnavailable,
+		RetryAfterSeconds: 15,
+	}, "15", http.StatusServiceUnavailable)
+
+	f(&ErrorWithStatusCode{
+		Err:        fmt.Errorf("bad request"),
+		StatusCode: http.StatusBadRequest,
+	}, "", http.StatusBadRequest)
+
+	f(fmt.Errorf("plain error"), "", http.StatusBadRequest)
 }
 
 func TestIsProtectedByAuthFlag(t *testing.T) {

@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/valyala/fastrand"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -129,7 +131,8 @@ func IncConcurrency() error {
 				"Possible solutions: to reduce workload; to increase compute resources at the server; "+
 				"to increase -insert.maxQueueDuration; to increase -maxConcurrentInserts",
 				maxQueueDuration.Seconds(), *maxConcurrentInserts),
-			StatusCode: http.StatusServiceUnavailable,
+			StatusCode:        http.StatusServiceUnavailable,
+			RetryAfterSeconds: retryAfterSeconds(*maxQueueDuration),
 		}
 	}
 }
@@ -137,6 +140,14 @@ func IncConcurrency() error {
 // DecConcurrency returns the token obtained via IncConcurrency(), so other goroutines could obtain it.
 func DecConcurrency() {
 	<-concurrencyLimitCh
+}
+
+func retryAfterSeconds(d time.Duration) int {
+	base := int((d + time.Second - 1) / time.Second)
+	if base <= 0 {
+		return base
+	}
+	return base + int(fastrand.Uint32n(uint32(base+1)))
 }
 
 var (
