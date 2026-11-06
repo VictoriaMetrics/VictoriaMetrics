@@ -529,6 +529,11 @@ func (vms *VMStorage) writeStorageMetrics(w io.Writer) {
 
 	metrics.WriteCounterUint64(w, `vm_missing_metric_names_for_metric_id_total`, idbm.MissingMetricNamesForMetricID)
 
+	metrics.WriteGaugeUint64(w, `vm_cache_mode{type="storage/tsid"}`, m.TSIDCacheMode)
+	metrics.WriteGaugeUint64(w, `vm_cache_mode{type="storage/metricIDs"}`, m.MetricIDCacheMode)
+	metrics.WriteGaugeUint64(w, `vm_cache_mode{type="storage/metricName"}`, m.MetricNameCacheMode)
+	metrics.WriteGaugeUint64(w, `vm_cache_mode{type="indexdb/tagFiltersLoops"}`, idbm.LoopsPerDateTagFilterCacheMode)
+
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/indexBlocks"}`, tm.IndexBlocksCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/tsid"}`, m.TSIDCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/metricIDs"}`, m.MetricIDCacheSize)

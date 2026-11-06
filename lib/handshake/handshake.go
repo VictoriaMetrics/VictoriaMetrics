@@ -317,3 +317,6 @@ func readData(c net.Conn, dataLen int) ([]byte, error) {
 	}
 	return data, nil
 }
+
+// CancelRequestMarker is sent by vmselect to vmstorage for terminating query request execution.
+const CancelRequestMarker = "cancelRequestMarker"
