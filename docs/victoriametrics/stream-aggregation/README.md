@@ -449,6 +449,8 @@ outside the current [aggregation interval](https://docs.victoriametrics.com/vict
 - To enable [deduplication](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication).
 
 The dropped old samples can be tracked with the `vm_streamaggr_ignored_samples_total{reason="too_old"}` and `vm_streamaggr_dedup_dropped_samples_total` metrics.
+To find out the actual lag of the dropped samples, check the `vm_streamaggr_ignored_samples_lag_seconds{reason="too_old"}` metric.
+If the drops are unexpected, reduce the lag by fixing the delivery pipeline, or increase the aggregation interval to tolerate a higher lag.
 
 ## Ignore aggregation intervals on start
 
@@ -693,7 +695,7 @@ Counter-specific outputs skip samples with timestamps older than the last accept
 
 ## Data delay and staleness {#staleness}
 
-Stream aggregation processes input samples in a streaming manner and flushes results once per specified `interval`. Because of this, aggregation results can be heavily affected by data delays (see `vm_streamaggr_samples_lag_seconds_bucket` metric).
+Stream aggregation processes input samples in a streaming manner and flushes results once per specified `interval`. Because of this, aggregation results can be heavily affected by data delays (see `vm_streamaggr_samples_lag_seconds_bucket` metric for accepted samples and `vm_streamaggr_ignored_samples_lag_seconds{reason="too_old"}` metric for dropped samples).
 
 In particular:
 1. Stream aggregation won't produce results if input samples are delayed for multiple aggregation intervals, causing gaps in the output.

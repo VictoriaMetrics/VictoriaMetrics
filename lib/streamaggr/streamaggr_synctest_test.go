@@ -11,7 +11,14 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
+	"github.com/VictoriaMetrics/metrics"
 )
+
+func init() {
+	// Create the first summary outside of synctest so the global goroutine it starts doesn't belong to any synctest.
+	// Otherwise, the test would panic with "blocked goroutines remain" when it ends.
+	_ = metrics.NewSet().NewSummary("streamaggr_synctest_seconds")
+}
 
 func TestAggregatorsSuccess(t *testing.T) {
 	f := func(inputMetrics []string, interval time.Duration, outputMetricsExpected, config, matchIdxsStrExpected string) {
