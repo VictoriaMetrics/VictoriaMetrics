@@ -100,7 +100,7 @@ scrape_configs:
     # See https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options
 ```
 
-`authentication_method: WorkloadIdentity` {{% available_from "#" %}} exchanges a Kubernetes service account token
+`authentication_method: WorkloadIdentity` {{% available_from "v1.156.0" %}} exchanges a Kubernetes service account token
 for an Azure access token, so no client secret is needed. The tenant ID, client ID and token file path are read from
 `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_FEDERATED_TOKEN_FILE` env vars. The token file is read before every token refresh.
 [Azure Workload Identity](https://azure.github.io/azure-workload-identity/docs/) sets these env vars in the pod.
