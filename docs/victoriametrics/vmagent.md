@@ -1090,7 +1090,7 @@ from the position and the value of every `-remoteWrite.url`. So adding, removing
 changes the directory names, and pending data in the old directories is no longer sent: it is dropped as a dangling queue on the next start,
 unless `-remoteWrite.keepDanglingQueues` is set.
 If you plan to modify `-remoteWrite.url` flags often, consider setting the persistent queue directory
-for each `-remoteWrite.url` manually via `-remoteWrite.queuePath`{{% available_from "#" %}} command-line flag.
+for each `-remoteWrite.url` manually via `-remoteWrite.queuePath`{{% available_from "v1.156.0" %}} command-line flag.
 
 `-remoteWrite.queuePath` must be set once per `-remoteWrite.url`; the n-th `-remoteWrite.queuePath` is used by the n-th `-remoteWrite.url`.
 For example:
