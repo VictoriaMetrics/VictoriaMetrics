@@ -221,6 +221,8 @@ See [vmalert annotation templating](https://docs.victoriametrics.com/victoriamet
 - **Improve detection quality** - describe what's wrong ("too many false positives", "missing spikes") and Copilot reads the config, searches the docs, and proposes a validated configuration change to fix the issue.
 - **Get config suggestions inline** - suggestions appear as interactive cards with an explanation and a YAML diff; click **Apply** to write the change directly to your current settings, or **Decline** to keep the conversation going.
 - {{< available_from "v1.30.0" anomaly >}} **Profile and tune the real query** - with [mcp-vmanomaly](#mcp-tools-server) connected, Copilot can inspect bounded time-series characteristics, recommend an online model, start an asynchronous autotune task, and apply its validated query and model suggestions.
+- {{< available_from "v1.32.0" anomaly >}} **Discover available signals** — inspect metric names, labels and bounded series metadata in the selected datasource and tenant before choosing queries. Discovery respects the configured scope and reports truncated results.
+- {{< available_from "v1.32.0" anomaly >}} **Build a [dynamic preset](https://docs.victoriametrics.com/anomaly-detection/presets/#dynamic-presets)** — prepare configuration, matching alert rules and optional Compose, Helm or VM Operator files, with resource estimates and explicit draft requirements.
 
 ### How it works
 
@@ -228,6 +230,8 @@ Copilot appears as a **chat popup** anchored to the bottom-right corner of the p
 
 > [!TIP] Copilot is context-aware
 > It reads your active model, scheduler, and anomaly settings from the UI automatically, so you don't need to paste your config manually. {{< available_from "v1.29.2" anomaly >}} It also can read and modify full UI settings, such as data source URL, query parameters, scheduler settings, and more, to provide better suggestions.
+
+Completed tool activity between chat messages is grouped in a collapsible **Tool activity** section. Approvals and generated file cards stay visible. Downloadable YAML has a syntax-highlighted preview; review draft requirements and validation warnings before using it.
 
 ### Configuration
 
@@ -328,6 +332,8 @@ See [AI Copilot metrics](https://docs.victoriametrics.com/anomaly-detection/comp
 
 See [AI Copilot metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#ai-copilot-metrics) to inspect context growth, provider-reported usage and budget refusals.
 
+{{< available_from "v1.32.0" anomaly >}} Preset analysis also has per-request tool budgets, including failed attempts. When analysis cannot finish, Copilot can return drafts with quality marked unverified. Context-budget failures are not automatically retried; start a new conversation when requested.
+
 ### MCP tools server
 
 Connects Copilot to [mcp-vmanomaly](https://github.com/VictoriaMetrics/mcp-vmanomaly) for full tool access (built-in docs, models configuration and validation, alerts recommendation, service healthchecks, etc.). Full [tools list](https://github.com/VictoriaMetrics/mcp-vmanomaly?tab=readme-ov-file#toolset):
@@ -340,6 +346,8 @@ For example:
 ```bash
 export VMANOMALY_MCP_SERVER_URL=http://localhost:8081/mcp
 ```
+
+For HTTPS access to VMUI/API and MCP client certificates, see [TLS and mutual TLS](https://docs.victoriametrics.com/anomaly-detection/components/server/#tls-and-mutual-tls). The MCP-to-vmanomaly connection is configured separately from `VMANOMALY_MCP_SERVER_URL`.
 
 Use `localhost` only when the vmanomaly process can reach the MCP server on its own loopback interface (for example, both running on the host). If vmanomaly runs in a separate Docker container, use a reachable container or host address instead.
 
@@ -365,10 +373,14 @@ docker run -it --rm \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
-  victoriametrics/vmanomaly:v1.31.1 \
+  victoriametrics/vmanomaly:v1.32.0 \
   vmanomaly_config.yaml
 ```
 
+
+## Guided tours
+
+{{< available_from "v1.32.0" anomaly >}} Use **Take a tour** in the header to explore the UI with built-in demo data, without connecting a datasource. **Get started** walks through queries, model settings and detection; **Tune a model with marks** demonstrates marking a missed anomaly and reviewing a tuned candidate. Tours start only when selected and restore your previous workspace when they end. Demo data is for exploration, not a production datasource.
 
 ## UI Navigation
 
@@ -714,7 +726,7 @@ Once satisfied with the results, do the following.
 
 If the **results** do not look good, the model hyperparameters and domain knowledge settings can be further finetuned in the Model Panel, and anomaly detection can be [rerun on the queried](#detect-anomalies) data until satisfactory results are achieved.
 
-If the **results** look good, but should be shared with others first, timeseries can be downloaded as files by hitting the respective button in the Model Panel. See also [configuration sharing](#configuration-sharing) section for details.
+If the **results** look good, but should be shared with others first, {{< available_from "v1.32.0" anomaly >}} use **More → Download results** to export query or anomaly results as JSON. Choose the current range and, when needed, privacy replacements that stay consistent within the loaded results. See also [configuration sharing](#configuration-sharing) section for details.
 
 If the **results** look good and the **model configuration should be deployed in production jobs of anomaly detection**, the equivalent configuration in production-ready YAML format can be obtained by accessing the "YAML" Tab in the model configuration section and hitting the "Show Config" button to access (model-only or full) configuration to download/copy as a YAML file.
 
@@ -763,6 +775,17 @@ In multivariate results, **Channels outside expected range** is a diagnostic vie
 <div class="collapse-group mb-3">
 
 {{% collapse name="Release history" %}}
+
+### v1.11.0
+Released: 2026-11-04
+
+Recommended vmanomaly version: [v1.32.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1320)
+
+- FEATURE: Added [dynamic preset downloads](https://docs.victoriametrics.com/anomaly-detection/presets/#dynamic-presets) in Copilot, with YAML previews, draft requirements and validation warnings. Tool activity is collapsed between messages while approvals and files remain visible.
+- FEATURE: Added guided tours for getting started and tuning with marked anomalies, using a built-in demo datasource. Tours restore the previous workspace when they end.
+- FEATURE: Download query and anomaly results as JSON, with current-range selection and optional consistent privacy replacements.
+- IMPROVEMENT: Added resizable query editors, searchable multi-select model options and query-alias chips with expressions available on hover or focus. Shared URLs preserve configurator visibility.
+- BUGFIX: Improved query controls, chat progress and peer-history hover details; [AI Copilot](#ai-assistance) no longer automatically retries requests that exceed its conversation context limit.
 
 ### v1.10.0
 Released: 2026-10-09

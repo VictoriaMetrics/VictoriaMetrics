@@ -1006,10 +1006,18 @@ Cluster version of VictoriaMetrics:
 curl 'http://<vmselect>:8481/admin/tenants'
 ```
 
-The optional `start` and `end` query args can be used to return only tenants with ingested data in the given time range:
+By default, only tenants with data ingested during the current day (UTC) are returned.
+Use the `start` and `end` query args to return tenants with ingested data on the given time range.
+Both args should be set together:
 
 ```sh
 curl 'http://<vmselect>:8481/admin/tenants?start=-1d&end=now'
+```
+
+To get all the tenants, set a time range that covers the whole `-retentionPeriod`. For example, for `-retentionPeriod=1y`:
+
+```sh
+curl 'http://<vmselect>:8481/admin/tenants?start=-1y&end=now'
 ```
 
 Additional information:

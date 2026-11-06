@@ -17,6 +17,8 @@ aliases:
 ---
 For a broader overview please visit the [navigation page](https://docs.victoriametrics.com/anomaly-detection/).
 
+{{% available_from "v1.32.0" anomaly %}} For a configuration tailored to your metrics, try [dynamic presets](https://docs.victoriametrics.com/anomaly-detection/presets/#dynamic-presets) with AI Copilot.
+
 ## How to install and run vmanomaly
 
 > To run `vmanomaly`, you need to have VictoriaMetrics Enterprise license. You can get a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/).
@@ -71,7 +73,43 @@ options:
 
 {{% available_from "v1.29.5" anomaly %}} When `--watch` is enabled, config changes are detected by fixed-interval content polling instead of filesystem event delivery. The polling frequency is controlled by `-configCheckInterval` (default: `30s`). The same option can also be passed as `--configCheckInterval`, `--config.check.interval`, `--config-check-interval`, `--config_check_interval`, or in key-value form such as `configCheckInterval=30s`.
 
+> [!NOTE]
+> For the separate `--healthcheck` mode and its options, see [container health checks](#container-health-checks).
+
 You can specify these options when running `vmanomaly` to fine-tune logging levels or handle licensing configurations, as per your requirements.
+
+### Container health checks
+
+{{% available_from "v1.32.0" anomaly %}} Standard and DHI container images include a lightweight `--healthcheck` command. Put it first; it checks the running service without starting another instance or loading models. Exit code `0` means the endpoint returned HTTP `200`; failures return `1`. This is a liveness check, not a check of datasource connectivity, model readiness or detection quality.
+
+```sh
+# Check the default local listener on port 8490.
+docker exec <container> /vmanomaly/.venv/bin/python -m src.vmanomaly --healthcheck
+
+# Follow the server address, port, path prefix and TLS settings in mounted config.
+docker exec <container> /vmanomaly/.venv/bin/python -m src.vmanomaly --healthcheck --config /config/vmanomaly.yaml
+```
+
+Probe options are separate from the service arguments above:
+
+| Option | Environment default | Purpose |
+| --- | --- | --- |
+| `--config PATH` | `VMANOMALY_HEALTHCHECK_CONFIG` | Read the `server` settings from a config file or directory. Repeat the flag in service merge order for multiple paths; the environment variable accepts one path. |
+| `--url URL` | `VMANOMALY_HEALTHCHECK_URL` | Explicit HTTP(S) endpoint, overriding config discovery. |
+| `--timeout SECONDS` | `VMANOMALY_HEALTHCHECK_TIMEOUT` | Socket timeout; defaults to `3` seconds. |
+
+CLI options take precedence over their environment defaults. With neither URL nor config supplied, the probe uses loopback port `8490` and `/health`. The image checks every `30s`, with a `5s` command timeout, `60s` startup allowance and `3` retries. Docker Compose inherits these defaults; override its `healthcheck` timing for slower startup. Kubernetes uses its own configured probes rather than the image's Docker health check.
+
+For a custom listener or [TLS configuration](https://docs.victoriametrics.com/anomaly-detection/components/server/#tls-and-mutual-tls), point the inherited probe at the same mounted configuration as the service:
+
+```yaml
+# Inside a Docker Compose service; the file must already be mounted.
+environment:
+  VMANOMALY_HEALTHCHECK_CONFIG: /config/vmanomaly.yaml
+```
+
+> [!NOTE]
+> Config-based HTTPS probes check local liveness without verifying the server certificate or hostname. With mTLS, they present the configured server certificate, which must also be accepted for client authentication by `mtls_ca_file`. An explicit HTTPS `--url` uses certificate and hostname verification and does not load client credentials from `--config`.
 
 ### Licensing
 
@@ -138,13 +176,13 @@ groups:
 {{% available_from "v1.30.6" anomaly %}} An experimental [Docker Hardened Images](https://www.docker.com/products/hardened-images/)-based variant is available on Docker Hub and Quay for `linux/amd64` and `linux/arm64`:
 
 ```text
-victoriametrics/vmanomaly:v1.31.1-dhi
-victoriametrics/vmanomaly:v1.31.1-enterprise-dhi
-quay.io/victoriametrics/vmanomaly:v1.31.1-dhi
-quay.io/victoriametrics/vmanomaly:v1.31.1-enterprise-dhi
+victoriametrics/vmanomaly:v1.32.0-dhi
+victoriametrics/vmanomaly:v1.32.0-enterprise-dhi
+quay.io/victoriametrics/vmanomaly:v1.32.0-dhi
+quay.io/victoriametrics/vmanomaly:v1.32.0-enterprise-dhi
 ```
 
-These are aliases of the same application image and have the same license requirements. The `-enterprise-dhi` ordering supports Helm's `image.variant: dhi` when enterprise mode is enabled, `image.tag` is empty, and the chart appVersion matches the desired release. With an older chart, set `image.tag: v1.31.1-enterprise-dhi` explicitly. Standard `v1.31.1`, `v1.31.1-enterprise` and `latest` tags retain their existing base image.
+These are aliases of the same application image and have the same license requirements. The `-enterprise-dhi` ordering supports Helm's `image.variant: dhi` when enterprise mode is enabled, `image.tag` is empty, and the chart appVersion matches the desired release. With an older chart, set `image.tag: v1.32.0-enterprise-dhi` explicitly. Standard `v1.32.0`, `v1.32.0-enterprise` and `latest` tags retain their existing base image.
 
 > [!WARNING]
 > The hardened image runs as a non-root user and contains no runtime shell or package manager. Ensure mounted configuration and license files are readable and state directories are writable by the container user; shell-based entrypoint overrides and `docker exec ... sh` are unavailable.
@@ -158,7 +196,7 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.31.1
+docker pull victoriametrics/vmanomaly:v1.32.0
 ```
 
 2. Create the license file with your license key.
@@ -178,7 +216,7 @@ docker run -it \
     -v ./license:/license \
     -v ./config.yaml:/config.yaml \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.31.1 \
+    victoriametrics/vmanomaly:v1.32.0 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -195,7 +233,7 @@ docker run -it \
     -e VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data \
     -e VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.31.1 \
+    victoriametrics/vmanomaly:v1.32.0 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -208,7 +246,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.31.1
+    image: victoriametrics/vmanomaly:v1.32.0
     # ...
     restart: always
     volumes:

@@ -108,6 +108,12 @@ vmauth-freebsd-amd64:
 vmauth-openbsd-amd64:
 	APP_NAME=vmauth CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
+vmauth-netbsd-amd64:
+	APP_NAME=vmauth CGO_ENABLED=0 GOOS=netbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmauth-solaris-amd64:
+	APP_NAME=vmauth CGO_ENABLED=0 GOOS=solaris GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
 vmauth-windows-amd64:
 	GOARCH=amd64 APP_NAME=vmauth $(MAKE) app-local-windows-goarch
 
