@@ -736,7 +736,7 @@ func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...any) 
 	errStr := fmt.Sprintf(format, args...)
 	LogHTTPError(r, errStr)
 
-	var err error = errors.New(errStr)
+	err := errors.New(errStr)
 	var esc *ErrorWithStatusCode
 	for _, arg := range args {
 		if argErr, ok := arg.(error); ok && errors.As(argErr, &esc) {
