@@ -115,6 +115,19 @@ For the second case, use the official [`vmagent` Grafana dashboard](https://graf
    Note that the maximum parallelism for the topic is limited to the number of partitions, so the total number of consumers should not exceed this value.
    Any consumers exceeding this limit will be in an idle state.
 
+### Partition distribution
+
+A Kafka topic is divided into partitions, each containing an ordered sequence of messages.
+Within a consumer group, each partition is assigned to one consumer at a time, while a consumer can handle multiple partitions.
+
+A rebalance redistributes partition assignments among consumers in the group to keep partitions more evenly distributed when consumers join or leave, or the topic's partition count changes.
+
+The following metrics help monitor consumer health and partition distribution:
+
+* `vmagent_kafka_consumer_rebalance_events_total` counts partition assignment and revocation events for each consumer.
+  Ideally this counter should be stable, the frequent increment indicates consumer frequent restarts, connectivity issues, or slow message processing.
+* `vmagent_kafka_consumer_assigned_partitions` shows the number of partitions currently assigned to each consumer.
+  Compare consumers of the same topic and group: persistently uneven counts may indicate unbalanced assignment or unhealthy consumers.
 
 ### Consumer command-line flags 
 

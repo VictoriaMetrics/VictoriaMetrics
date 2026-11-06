@@ -69,7 +69,7 @@ scrape_configs:
     #
     # environment: "..."
 
-    # authentication_method is an optional authentication method, either OAuth or ManagedIdentity.
+    # authentication_method is an optional authentication method, either OAuth, ManagedIdentity or WorkloadIdentity.
     # See https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview
     # By default OAuth is used.
     #
@@ -99,6 +99,11 @@ scrape_configs:
     # Additional HTTP API client options can be specified here.
     # See https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options
 ```
+
+`authentication_method: WorkloadIdentity` {{% available_from "#" %}} exchanges a Kubernetes service account token
+for an Azure access token, so no client secret is needed. The tenant ID, client ID and token file path are read from
+`AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_FEDERATED_TOKEN_FILE` env vars. The token file is read before every token refresh.
+[Azure Workload Identity](https://azure.github.io/azure-workload-identity/docs/) sets these env vars in the pod.
 
 Each discovered target has an [`__address__`](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) label set
 to `<private_ip>:<port>`, where `<private_ip>` is the machine's private IP and the `<port>` is the `port`
