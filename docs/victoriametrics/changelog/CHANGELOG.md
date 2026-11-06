@@ -26,6 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.156.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.156.0)
+
+Release candidate
+
 * FEATURE: all VictoriaMetrics [Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) components: run with the `-eula` command-line flag to accept [ESA](https://victoriametrics.com/legal/esa/). License keys are no longer verified. The `-license`, `-licenseFile`, `-licenseFile.reloadInterval` and `-license.forceOffline` flags are deprecated and are treated as `-eula`, so existing setups keep working. See [Running VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/#running-victoriametrics-enterprise).
 * FEATURE: all VictoriaMetrics components: add new metric `process_cgroup_cpu_throttled_seconds_total` which exposes CPU throttling. See [#10430](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10430).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): support `authentication_method: WorkloadIdentity` in [azure_sd_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#azure_sd_configs). It allows discovering Azure VMs from Kubernetes clusters with [workload identity federation](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation) without a static client secret. See [#11558](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11558). Thanks to @banlor for contribution.
