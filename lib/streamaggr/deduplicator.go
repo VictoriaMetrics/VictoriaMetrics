@@ -27,11 +27,8 @@ type Deduplicator struct {
 	wg     sync.WaitGroup
 	stopCh chan struct{}
 
-	// flushAfterMsec is the max lag (in milliseconds) of samples accepted in the current flush interval, plus 1ms.
-	// The extra 1ms keeps it above 0 even when the accepted samples have no lag, so 0 means no samples were accepted.
-	flushAfterMsec atomic.Int64
-	// droppedLagMsec is the max lag (in milliseconds) of samples dropped as too old in the current flush interval.
-	droppedLagMsec atomic.Int64
+	// flushLag tracks the max lag of samples pushed since the previous flush tick.
+	flushLag flushLag
 
 	ms *metrics.Set
 }
@@ -141,12 +138,9 @@ func (d *Deduplicator) Push(tss []prompb.TimeSeries) {
 		}
 	}
 	if d.enableWindows {
-		// Store flushAfterMsec before droppedLagMsec, takeFlushDelay relies on this order.
-		if hasAccepted {
-			// Store the lag plus 1ms, so 0 always means no accepted samples, even if their lag is 0.
-			storeMaxInt64(&d.flushAfterMsec, maxLagMsec+1)
-		}
-		storeMaxInt64(&d.droppedLagMsec, maxDroppedLagMsec)
+		// Update the lag before pushing samples: if this batch has the biggest lag since the last flush tick,
+		// a concurrent flush then waits this lag for the samples that follow.
+		d.flushLag.update(hasAccepted, maxLagMsec, maxDroppedLagMsec)
 	}
 
 	if len(ctx.blue) > 0 {
@@ -178,7 +172,7 @@ func (d *Deduplicator) runFlusher(pushFunc PushFunc) {
 			return
 		case <-t.C:
 			if d.enableWindows {
-				delay := takeFlushDelay(&d.flushAfterMsec, &d.droppedLagMsec, d.interval)
+				delay := d.flushLag.takeFlushDelay(d.interval)
 				time.Sleep(delay)
 			}
 			d.flush(pushFunc)

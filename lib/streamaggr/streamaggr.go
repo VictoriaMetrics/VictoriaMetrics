@@ -428,11 +428,8 @@ type aggregator struct {
 	// aggrOutputs contains aggregate states for the given outputs
 	aggrOutputs *aggrOutputs
 
-	// flushAfterMsec is the max lag (in milliseconds) of samples accepted in the current flush interval, plus 1ms.
-	// The extra 1ms keeps it above 0 even when the accepted samples have no lag, so 0 means no samples were accepted.
-	flushAfterMsec atomic.Int64
-	// droppedLagMsec is the max lag (in milliseconds) of samples dropped as too old in the current flush interval.
-	droppedLagMsec atomic.Int64
+	// flushLag tracks the max lag of samples pushed since the previous flush tick.
+	flushLag flushLag
 
 	// suffix contains a suffix, which should be added to aggregate metric names
 	//
@@ -818,7 +815,7 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlu
 	for tickerWait(t) {
 		pf := pushFunc
 		if a.enableWindows {
-			delay := takeFlushDelay(&a.flushAfterMsec, &a.droppedLagMsec, interval)
+			delay := a.flushLag.takeFlushDelay(interval)
 			time.Sleep(delay)
 		}
 
@@ -1024,12 +1021,9 @@ func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []uint32) {
 		}
 	}
 	if enableWindows {
-		// Store flushAfterMsec before droppedLagMsec, takeFlushDelay relies on this order.
-		if hasAccepted {
-			// Store the lag plus 1ms, so 0 always means no accepted samples, even if their lag is 0.
-			storeMaxInt64(&a.flushAfterMsec, maxLagMsec+1)
-		}
-		storeMaxInt64(&a.droppedLagMsec, maxDroppedLagMsec)
+		// Update the lag before pushing samples: if this batch has the biggest lag since the last flush tick,
+		// a concurrent flush then waits this lag for the samples that follow.
+		a.flushLag.update(hasAccepted, maxLagMsec, maxDroppedLagMsec)
 	}
 
 	// Update the lag only for accepted samples, otherwise it would report 0s lag
@@ -1349,38 +1343,54 @@ func sortAndRemoveDuplicates(a []string) []string {
 
 var bbPool bytesutil.ByteBufferPool
 
-// takeFlushDelay returns how long to wait before flushing aggregation windows.
-// It resets stored lags to 0 after reading, should be called once per flush.
+// flushLag tracks the max lag of samples pushed since the previous flush tick.
+type flushLag struct {
+	mu sync.Mutex
+
+	// hasAccepted is set if at least one sample was accepted.
+	hasAccepted bool
+	// acceptedLagMsec is the max lag (in milliseconds) of accepted samples.
+	acceptedLagMsec int64
+	// droppedLagMsec is the max lag (in milliseconds) of samples dropped as too old.
+	droppedLagMsec int64
+}
+
+// update records the max lags of samples accepted and dropped by a Push call.
+func (fl *flushLag) update(hasAccepted bool, acceptedLagMsec, droppedLagMsec int64) {
+	if !hasAccepted && droppedLagMsec <= 0 {
+		return
+	}
+	fl.mu.Lock()
+	if hasAccepted {
+		fl.hasAccepted = true
+		fl.acceptedLagMsec = max(fl.acceptedLagMsec, acceptedLagMsec)
+	}
+	fl.droppedLagMsec = max(fl.droppedLagMsec, droppedLagMsec)
+	fl.mu.Unlock()
+}
+
+// takeFlushDelay returns how long to wait before flushing the aggregation window, so late samples can still get into it.
+// It resets the stored lags after reading them, must be called once per flush tick.
 //
-// The delay is the max lag of samples accepted during the interval.
-// If no samples were accepted, the max lag of samples dropped as too old is used instead,
+// The delay is the max lag of samples accepted since the previous tick.
+// If no samples were accepted, the max lag of dropped samples is used instead,
 // see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11866.
 //
 // The delay is capped at 90% of the interval, so the flush can finish before the next tick.
 // Without the cap, a growing lag (e.g. an overloaded ingestion pipeline) would push the delay
 // past the interval, making the flusher skip ticks and merge windows,
 // see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11811
-func takeFlushDelay(acceptedLagMsec, droppedLagMsec *atomic.Int64, interval time.Duration) time.Duration {
-	// Push stores acceptedLagMsec first and droppedLagMsec second, so read them in the reverse order:
-	// if the dropped lag of a concurrent Push is seen here, its accepted lag is seen too.
-	droppedMsec := droppedLagMsec.Swap(0)
-	// acceptedLagMsec is the max accepted lag plus 1ms, or 0 if no samples were accepted.
-	lagMsec := acceptedLagMsec.Swap(0) - 1
-	if lagMsec < 0 {
-		lagMsec = droppedMsec
+func (fl *flushLag) takeFlushDelay(interval time.Duration) time.Duration {
+	fl.mu.Lock()
+	lagMsec := fl.droppedLagMsec
+	if fl.hasAccepted {
+		lagMsec = fl.acceptedLagMsec
 	}
+	fl.hasAccepted = false
+	fl.acceptedLagMsec = 0
+	fl.droppedLagMsec = 0
+	fl.mu.Unlock()
+
 	delay := time.Duration(lagMsec) * time.Millisecond
 	return min(delay, interval*9/10)
-}
-
-// storeMaxInt64 atomically sets v to n if n is bigger than the current value of v.
-// The loop returns without writing if v >= n,
-// and retries when another goroutine changed v between Load and CompareAndSwap.
-func storeMaxInt64(v *atomic.Int64, n int64) {
-	for {
-		old := v.Load()
-		if n <= old || v.CompareAndSwap(old, n) {
-			return
-		}
-	}
 }
