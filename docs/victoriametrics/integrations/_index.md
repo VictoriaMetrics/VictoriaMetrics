@@ -27,6 +27,7 @@ VictoriaMetrics integrates with many popular monitoring solutions as remote stor
 * [Zabbix Connector](https://docs.victoriametrics.com/victoriametrics/integrations/zabbixconnector/) (write)
 * [Bindplane](https://docs.victoriametrics.com/victoriametrics/integrations/bindplane/) (write)
 * [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) (write)
+* [Nightingale](https://docs.victoriametrics.com/victoriametrics/integrations/nightingale/) (read, write)
 
 If you think that community will benefit from new integrations, open a [feature request on GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
 
