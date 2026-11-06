@@ -5,7 +5,12 @@ import (
 )
 
 // The Soundex encoding. It is a phonetic algorithm that considers how the words sound in English. Soundex maps a string to a 4-byte code consisting of the first letter of the original string and three numbers. Strings that sound similar should map to the same code.
+// An empty string has no Soundex code and returns an empty string.
 func Soundex(s string) string {
+	if len(s) == 0 {
+		return ""
+	}
+
 	b := strings.Builder{}
 	b.Grow(4)
 
