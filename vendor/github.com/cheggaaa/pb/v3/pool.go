@@ -41,14 +41,41 @@ type Pool struct {
 }
 
 // Add progress bars.
+// A bar that is already started stops writing on its own and is no longer
+// IsStarted; the pool renders it from now on.
 func (p *Pool) Add(pbs ...*ProgressBar) {
-	p.m.Lock()
-	defer p.m.Unlock()
 	for _, bar := range pbs {
 		bar.Set(Static, true)
-		bar.Start()
-		p.bars = append(p.bars, bar)
+		if !bar.stopWriter() {
+			bar.Start()
+		}
 	}
+	p.m.Lock()
+	defer p.m.Unlock()
+	p.bars = append(p.bars, pbs...)
+}
+
+// visibleBars returns the bars to draw, the last rows of them when rows > 0.
+// Finished CleanOnFinish bars are hidden; they stay in the pool so that a
+// restarted bar shows up again. finished reports whether every bar is finished.
+func (p *Pool) visibleBars(rows int) (bars []*ProgressBar, finished bool) {
+	finished = true
+	bars = make([]*ProgressBar, 0, len(p.bars))
+	for _, bar := range p.bars {
+		if bar.IsFinished() {
+			if bar.GetBool(CleanOnFinish) {
+				continue
+			}
+		} else {
+			finished = false
+		}
+		bars = append(bars, bar)
+	}
+	if rows > 0 && len(bars) > rows {
+		// we need to hide bars that overflow terminal height
+		bars = bars[len(bars)-rows:]
+	}
+	return
 }
 
 func (p *Pool) Start() (err error) {
