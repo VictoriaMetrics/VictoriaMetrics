@@ -498,6 +498,13 @@ again:
 		_ = resp.Body.Close()
 		c.packetsDropped.Inc()
 		return true
+	case 413:
+		// The block is too large for the remote storage to accept. Retrying the same
+		// block will never succeed, so drop it instead of retrying forever.
+		logBlockRejected(block, c.sanitizedURL, resp)
+		_ = resp.Body.Close()
+		c.packetsDropped.Inc()
+		return true
 	}
 
 	// Unexpected status code returned
