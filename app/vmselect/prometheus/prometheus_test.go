@@ -217,6 +217,8 @@ func TestGetMaxLookbackSuccess(t *testing.T) {
 	f("http://localhost?lookback_delta=1m", 60_000)
 	f("http://localhost?lookback_delta=30", 30_000)
 	f("http://localhost?max_lookback=2m&lookback_delta=1m", 120_000)
+	f("http://localhost?max_lookback=undefined&lookback_delta=1m", 60_000)
+	f("http://localhost?lookback_delta=undefined", 0)
 }
 
 func TestGetMaxLookbackFailure(t *testing.T) {

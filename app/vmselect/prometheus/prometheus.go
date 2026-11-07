@@ -1140,7 +1140,7 @@ func getMaxLookback(r *http.Request) (int64, error) {
 	// lookback_delta is the Prometheus name for max_lookback.
 	// max_lookback takes precedence if both args are set.
 	argKey := "max_lookback"
-	if r.FormValue(argKey) == "" && r.FormValue("lookback_delta") != "" {
+	if v := r.FormValue(argKey); v == "" || v == "undefined" {
 		argKey = "lookback_delta"
 	}
 	maxLookback, err := httputil.GetDuration(r, argKey, d)
