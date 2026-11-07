@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): accept the Prometheus `lookback_delta` query arg as an alias of `max_lookback` in `/api/v1/query`, `/api/v1/query_range` and `/federate`. `max_lookback` takes precedence if both are set. See [#11710](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11710).
+
 ## [v1.156.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.156.0)
 
 Release candidate
