@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -52,10 +53,21 @@ func TestRequestHandlerSlowQueryLogIncludesWaitDuration(t *testing.T) {
 	if !strings.Contains(logOutput, "totalDuration=") {
 		t.Fatalf("expected totalDuration in slow query log line, got: %q", logOutput)
 	}
-	if !strings.Contains(logOutput, "waitDuration=") {
+	const waitPrefix = "waitDuration="
+	waitIdx := strings.Index(logOutput, waitPrefix)
+	if waitIdx < 0 {
 		t.Fatalf("expected waitDuration in slow query log line, got: %q", logOutput)
 	}
-	if strings.Contains(logOutput, "waitDuration=0.000 seconds") {
-		t.Fatalf("expected non-zero waitDuration in slow query log line when request waited in queue, got: %q", logOutput)
+	waitRest := logOutput[waitIdx+len(waitPrefix):]
+	waitFields := strings.Fields(waitRest)
+	if len(waitFields) == 0 {
+		t.Fatalf("expected numeric value after waitDuration= in slow query log line, got: %q", logOutput)
+	}
+	waitSec, err := strconv.ParseFloat(waitFields[0], 64)
+	if err != nil {
+		t.Fatalf("cannot parse waitDuration=%q as float: %v (log: %q)", waitFields[0], err, logOutput)
+	}
+	if waitSec < 0.05 {
+		t.Fatalf("expected waitDuration >= 0.05 seconds when request waited ~60ms in queue, got %.3f seconds (log: %q)", waitSec, logOutput)
 	}
 }
