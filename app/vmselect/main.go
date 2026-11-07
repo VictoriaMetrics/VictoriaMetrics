@@ -160,14 +160,14 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	if *logSlowQueryDuration > 0 {
-		actualStartTime := time.Now()
+		waitDuration := time.Since(startTime)
 		defer func() {
-			d := time.Since(actualStartTime)
+			d := time.Since(startTime)
 			if d >= *logSlowQueryDuration {
 				remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 				requestURI := httpserver.GetRequestURI(r)
-				logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds; requestURI: %q",
-					*logSlowQueryDuration, remoteAddr, d.Seconds(), requestURI)
+				logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, totalDuration=%.3f seconds, waitDuration=%.3f seconds; requestURI: %q",
+					*logSlowQueryDuration, remoteAddr, d.Seconds(), waitDuration.Seconds(), requestURI)
 				slowQueries.Inc()
 			}
 		}()

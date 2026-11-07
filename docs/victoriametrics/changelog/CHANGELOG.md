@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): add `waitDuration` to the slow query log line emitted according to `-search.logSlowQueryDuration`, so it is easy to tell whether a slow query spent its time waiting for a free concurrency slot or actually executing. See [#11814](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11814).
+
 ## [v1.156.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.156.0)
 
 Release candidate
