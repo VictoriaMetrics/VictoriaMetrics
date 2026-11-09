@@ -140,7 +140,7 @@ Requests to make for tenant 1:0: 28 / 28 [████████████�
 ## Resuming migration
 
 vmctl tracks finished requests in a state file, so an interrupted migration can be resumed.
-Run the same command again with flags unchanged, and **vmctl will continue migration from the last finished request**.
+Run the same command again with flags unchanged, and **vmctl will continue migration skipping the already finished requests**.
 
 > Note: resuming migration doesn't guarantee exactly-once delivery: it is recommended to configure `-dedup.minScrapeInterval=1ms` on destination side.
 
@@ -153,7 +153,7 @@ and vmctl starts a new migration.
 
 > Note: migration can't be resumed with `--vm-native-disable-per-metric-migration`, since vmctl doesn't split the migration into retryable per-metric requests in this mode.
 
-If no params were changed and previous state file exists, then vmctl will continue migration from the last finished request
+If no params were changed and previous state file exists, then vmctl will skip the already finished requests
 and print the following message:
 ```sh
 Resuming migration: <int> requests done; state is stored at <path>
