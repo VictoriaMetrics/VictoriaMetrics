@@ -22,6 +22,31 @@ type Unit struct {
 	TR         storage.TimeRange
 }
 
+// String returns u representation in the state file.
+func (u *Unit) String() string {
+	tenant := u.Tenant
+	if tenant == "" {
+		tenant = "-"
+	}
+	return fmt.Sprintf("%s %d %d %s", tenant, u.TR.MinTimestamp, u.TR.MaxTimestamp, u.MetricName)
+}
+
+// expected valid line:
+// <tenant> <start> <end> <metric>
+// 0:0 1788220800000 1792673981569 go_info
+// See u.String() method
+func isValidStateLine(line string) bool {
+	a := strings.SplitN(line, " ", 4)
+	if len(a) != 4 || a[0] == "" || a[3] == "" {
+		return false
+	}
+	if _, err := strconv.ParseInt(a[1], 10, 64); err != nil {
+		return false
+	}
+	_, err := strconv.ParseInt(a[2], 10, 64)
+	return err == nil
+}
+
 // State tracks finished units of work in an append-only file.
 //
 // The first line of the file is the migration params in JSON.
@@ -29,16 +54,18 @@ type Unit struct {
 // The state file is verbose, but human-readable. Append-only structure makes it easy to maintain.
 type State struct {
 	path string
+	// done is updated only on Load, so it doesn't need protection
 	done map[string]struct{}
 
+	// mu protects f from concurrent append operations
 	mu sync.Mutex
 	f  *os.File
 }
 
 // Load loads the state from the path and opens it for appending finished units.
 //
-// params must be JSON-serializable. They identify the migration and are stored in the first line of the file.
-// If the file doesn't exist, Load creates it. If the file has different params, Load returns an error.
+// params must be JSON-serializable. They identify the migration task and are stored in the first line of the file.
+// If the file doesn't exist, Load creates it. If the file exists but has different params, Load returns an error.
 // The path must identify the migration, so different migrations don't share the state.
 //
 // The returned state must be closed with Close when no longer needed.
@@ -66,12 +93,14 @@ func Load(path string, params any) (*State, error) {
 		}
 		return st, nil
 	}
-	// State is append-only file. If \n is missing it means vmctl was killed ungracefully.
-	// Restore state from the last written \n char and discard the rest.
+
+	// State is append-only file where each append operation is terminated with \n.
+	// If \n is missing, it means vmctl didn't finish the previous operation gracefully.
+	// Such unfinished lines must be skipped. Restore state from the last written \n char and discard the rest.
 	n := bytes.LastIndexByte(data, '\n') + 1
 	firstLine, lines, _ := bytes.Cut(data[:n], []byte{'\n'})
 	if !bytes.Equal(firstLine, header) {
-		return nil, fmt.Errorf("unexpected header in state file %q; got %q; want %q; remove the file to start the migration over", path, firstLine, header)
+		return nil, fmt.Errorf("unexpected header in state file %q; got %q; want %q; remove the file to start the migration over; see https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/#resuming-migration for details", path, firstLine, header)
 	}
 	// Remove the incomplete last line, so the next appended line isn't glued to it.
 	if n < len(data) {
@@ -125,42 +154,18 @@ func (st *State) Close() {
 
 // IsDone returns true if u is marked as finished.
 func (st *State) IsDone(u *Unit) bool {
-	_, ok := st.done[u.StateLine()]
+	_, ok := st.done[u.String()]
 	return ok
 }
 
 // MarkDone appends u to the state file.
 // It doesn't update in-memory state, so IsDone will not get the change.
-// We don't update st.done because it is not needed - IsDone is called before MarkDone is called.
+// The IsDone is checked only during Load call and is never checked after.
 func (st *State) MarkDone(u *Unit) error {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	if _, err := st.f.WriteString(u.StateLine() + "\n"); err != nil {
+	if _, err := st.f.WriteString(u.String() + "\n"); err != nil {
 		return fmt.Errorf("cannot write to state file %q: %w", st.path, err)
 	}
 	return nil
-}
-
-// StateLine returns u representation in the state file.
-func (u *Unit) StateLine() string {
-	tenant := u.Tenant
-	if tenant == "" {
-		tenant = "-"
-	}
-	return fmt.Sprintf("%s %d %d %s", tenant, u.TR.MinTimestamp, u.TR.MaxTimestamp, u.MetricName)
-}
-
-// expected valid line:
-// <tenant> <start> <end> <metric>
-// 0:0 1788220800000 1792673981569 go_info
-func isValidStateLine(line string) bool {
-	a := strings.SplitN(line, " ", 4)
-	if len(a) != 4 || a[0] == "" || a[3] == "" {
-		return false
-	}
-	if _, err := strconv.ParseInt(a[1], 10, 64); err != nil {
-		return false
-	}
-	_, err := strconv.ParseInt(a[2], 10, 64)
-	return err == nil
 }

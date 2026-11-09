@@ -41,7 +41,7 @@ func TestState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot read state file: %s", err)
 	}
-	want := `{"srcAddr":"http://src","dstExtraLabels":["b=2","a=1"]}` + "\n" + u1.StateLine() + "\n" + u2.StateLine() + "\n"
+	want := `{"srcAddr":"http://src","dstExtraLabels":["b=2","a=1"]}` + "\n" + u1.String() + "\n" + u2.String() + "\n"
 	if string(data) != want {
 		t.Fatalf("unexpected state file contents\ngot\n%s\nwant\n%s", data, want)
 	}
@@ -52,7 +52,7 @@ func TestState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot open state file: %s", err)
 	}
-	if _, err := f.WriteString(u4.StateLine()); err != nil {
+	if _, err := f.WriteString(u4.String()); err != nil {
 		t.Fatalf("cannot write to state file: %s", err)
 	}
 	_ = f.Close()
