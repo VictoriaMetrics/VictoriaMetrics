@@ -100,7 +100,7 @@ func Load(path string, params any) (*State, error) {
 	n := bytes.LastIndexByte(data, '\n') + 1
 	firstLine, lines, _ := bytes.Cut(data[:n], []byte{'\n'})
 	if !bytes.Equal(firstLine, header) {
-		return nil, fmt.Errorf("unexpected header in state file %q; got %q; want %q; remove the file to start the migration over; see https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/#resuming-migration for details", path, firstLine, header)
+		return nil, fmt.Errorf("unexpected header in state file %q; got %q; want %q; remove the file to start the migration over", path, firstLine, header)
 	}
 	// Remove the incomplete last line, so the next appended line isn't glued to it.
 	if n < len(data) {

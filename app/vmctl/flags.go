@@ -70,7 +70,7 @@ const stateDir = "state-dir"
 var stateFlags = []cli.Flag{
 	&cli.StringFlag{
 		Name:  stateDir,
-		Usage: "Directory for migration state files, which allow resuming interrupted migrations when per-metric migration is enabled. The current working directory is used if empty. Supported only in vm-native mode.",
+		Usage: "Directory for migration state files, which allow resuming interrupted migrations when per-metric migration is enabled. The current working directory is used if empty. Supported only in vm-native mode - see https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/#resuming-migration",
 	},
 }
 
@@ -808,7 +808,7 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  vmNativeDisablePerMetricMigration,
-			Usage: "Defines whether to disable per-metric migration and migrate all data via one connection. In this mode, vmctl makes less export/import requests, but can't provide a progress bar or retry failed requests.",
+			Usage: "Defines whether to disable per-metric migration and migrate all data via one connection. In this mode, vmctl makes less export/import requests, but can't provide a progress bar, retry failed requests, or resume the migration state (https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/#resuming-migration).",
 			Value: false,
 		},
 		&cli.BoolFlag{
