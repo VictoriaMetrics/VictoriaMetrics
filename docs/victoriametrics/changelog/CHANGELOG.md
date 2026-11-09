@@ -28,7 +28,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## [v1.156.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.156.0)
 
-Release candidate
+Released at 2026-11-09
 
 * FEATURE: all VictoriaMetrics [Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) components: run with the `-eula` command-line flag to accept [ESA](https://victoriametrics.com/legal/esa/). License keys are no longer verified. The `-license`, `-licenseFile`, `-licenseFile.reloadInterval` and `-license.forceOffline` flags are deprecated and are treated as `-eula`, so existing setups keep working. See [Running VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/#running-victoriametrics-enterprise).
 * FEATURE: all VictoriaMetrics components: add new metric `process_cgroup_cpu_throttled_seconds_total` which exposes CPU throttling. See [#10430](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10430).

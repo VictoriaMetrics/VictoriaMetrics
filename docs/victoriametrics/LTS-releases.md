@@ -28,5 +28,5 @@ to [the latest available releases](https://docs.victoriametrics.com/victoriametr
 
 ## Currently supported LTS release lines
 
-- v1.148.x - the latest one is [v1.148.8 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.148.8)
-- v1.136.x - the latest one is [v1.136.22 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.22)
+- v1.148.x - the latest one is [v1.148.9 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.148.9)
+- v1.136.x - the latest one is [v1.136.23 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.23)
