@@ -144,7 +144,7 @@ Run the same command again with flags unchanged, and **vmctl will continue migra
 
 > Note: resuming migration doesn't guarantee exactly-once delivery: it is recommended to configure `-dedup.minScrapeInterval=1ms` on destination side.
 
-The migration state is stored in file `vmctl-vm-native-<key>.state` is the directory set via `--state-dir` (uses current directory if `--state-dir` isn't set).
+The migration state is stored in a file `vmctl-vm-native-<key>.state` in the directory set via `--state-dir` (uses the current directory if `--state-dir` isn't set).
 The directory is created if it doesn't exist. The `<key>` is generated based on the source and destination addresses, filters, time range, step interval,
 `--vm-intercluster`, extra labels and headers. All these params are stored on the first line of the state file. 
 A run with any of these params changed starts a new migration with a new state file. For example, a changed
