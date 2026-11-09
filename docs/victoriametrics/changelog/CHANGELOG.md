@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [dashboards/cluster](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/): add CPU quota throttling to the `CPU pressure` panel. The panel now shows CPU quota throttling alongside CPU pressure to help diagnose CPU bottlenecks. See [#10430](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10430).
+
 ## [v1.156.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.156.0)
 
 Release candidate
