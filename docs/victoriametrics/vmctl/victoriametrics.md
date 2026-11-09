@@ -140,26 +140,38 @@ Requests to make for tenant 1:0: 28 / 28 [████████████�
 ## Resuming migration
 
 vmctl tracks finished requests in a state file, so an interrupted migration can be resumed.
-Run the same command again with flags unchanged, and vmctl skips the requests finished before the interruption.
+Run the same command again with flags unchanged, and **vmctl will continue migration from the last finished request**.
 
-The state file `vmctl-vm-native-<key>.state` is stored in the directory set via `--state-dir`.
-The current working directory is used if `--state-dir` isn't set. The directory is created if it doesn't exist.
-The key depends on the source and destination addresses, filters, time range, step interval,
-`--vm-intercluster`, extra labels and headers. A run with any of these flags changed starts a new migration with a new state file.
-For example, a changed `AccountID` or `ProjectID` header in `--vm-native-src-headers` or `--vm-native-dst-headers` starts a new migration.
+> Note: resuming migration doesn't guarantee exactly-once delivery: it is recommended to configure `-dedup.minScrapeInterval=1ms` on destination side.
+
+The migration state is stored in file `vmctl-vm-native-<key>.state` is the directory set via `--state-dir` (uses current directory if `--state-dir` isn't set).
+The directory is created if it doesn't exist. The `<key>` is generated based on the source and destination addresses, filters, time range, step interval,
+`--vm-intercluster`, extra labels and headers. All these params are stored on the first line of the state file. 
+A run with any of these params changed starts a new migration with a new state file. For example, a changed
+`AccountID` or `ProjectID` header in `--vm-native-src-headers` or `--vm-native-dst-headers` will generate a new `<key>`
+and vmctl starts a new migration. 
+
+> Note: migration can't be resumed with `--vm-native-disable-per-metric-migration`, since vmctl doesn't split the migration into retryable per-metric requests in this mode.
+
+If no params were changed and previous state file exists, then vmctl will continue migration from the last finished request
+and print the following message:
+```sh
+Resuming migration: <int> requests done; state is stored at <path>
+```
 
 > Note: If you're using some advanced routing to destination or source using basic auth or other params, then state file
 > might not be aware of such params and it won't start a new migration if these params were changed.
-> You can check which params identify the migration key in the first line of the state file.
 
-The state file is human-readable. Its first line contains the migration flags in JSON.
-Headers are stored as hashes, since they may contain secrets.
-Every next line is a finished request: `<tenant> <start ms> <end ms> <metric name>`. The tenant is `-` without `--vm-intercluster`.
+The state file is human-readable. Its first line contains the migration params in JSON.
+Headers are stored as hashes, since they may contain sensitive data.
+Every next line is a finished request: `<tenant> <start ms> <end ms> <metric name>`. 
+If you migrate data from a single-node VictoriaMetrics installation or without `--vm-intercluster` flag, then the tenant is `-`.
 
 When all the requests are finished, vmctl keeps the state file, and repeated runs have nothing to migrate.
 Remove the state file to start the migration over.
 
-> The state isn't tracked with `--vm-native-disable-per-metric-migration`, since vmctl doesn't split the migration into retryable per-metric requests in this mode.
+If you manually changed the header in the state file or if it was corrupted, then migration could fail with `unexpected header in state file` error.
+In this case, remove the state file and try again.
 
 ## Configuration
 
