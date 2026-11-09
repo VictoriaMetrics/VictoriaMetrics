@@ -48,7 +48,7 @@ Url = "http://<victoriametrics-addr>:8428/api/v1/write"
 # Url = "http://<vminsert-addr>:8480/insert/<tenant>/prometheus/api/v1/write"
 ```
 
-Note that the datasource `URL` points to vmselect, while `Pushgw.Writers` points to vminsert.
+Note that the datasource `URL` for clustered version of VictoriaMetrics points to vmselect, while `Pushgw.Writers` points to vminsert. See more about VictoriaMetrics URL format [here](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format).
 See [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) for the meaning of `<tenant>`.
 
 To store results of Nightingale recording rules in VictoriaMetrics, set `Remote Write URL` in the datasource form
