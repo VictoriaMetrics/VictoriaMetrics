@@ -134,30 +134,80 @@ so no other components are needed.
 
    It exposes host metrics at [http://localhost:9100/metrics](http://localhost:9100/metrics).
 
-1. Create a `scrape.yaml` file with the following contents:
+
+1. Create a scrape configuration file named `scrape.yaml` in your `vm-quick-start` directory:
 
    ```yaml
    scrape_configs:
    - job_name: node-exporter
      scrape_interval: 10s
      static_configs:
-     - targets:
-       - localhost:9100
+  	 - targets:
+      - localhost:9100
    ```
 
-1. Stop VictoriaMetrics with `Ctrl+C` and start it again with the `-promscrape.config` command-line flag pointing to this file:
+1. Restart VictoriaMetrics with the scrape configuration applied:
 
-   ```sh
-   ./victoria-metrics-prod -selfScrapeInterval=10s -promscrape.config=scrape.yaml
-   ```
+   * **Using the VictoriaMetrics Binary:**
+     
+     Stop VictoriaMetrics with `Ctrl+C` and start it again with the `-promscrape.config` command-line flag pointing to this file:
+     
+     ```bash
+     ./victoria-metrics-prod \
+       -promscrape.config=scrape.yaml \
+       -selfScrapeInterval=10s
+     ```
 
-Check [http://localhost:8428/targets](http://localhost:8428/targets) - the `node-exporter` target should have `state: up`.
+   * **Using Docker:**
+     Stop and remove the previous test container, then run with the mounted config file:
+     
+     ```bash
+     docker stop victoriametrics && docker rm victoriametrics
+
+     docker run -d \
+       --name victoriametrics \
+       -p 8428:8428 \
+       -v $(pwd)/victoria-metrics-data:/victoria-metrics-data \
+       -v $(pwd)/scrape.yaml:/etc/victoria-metrics/scrape.yaml:ro \
+       victoriametrics/victoria-metrics:latest \
+       -promscrape.config=/etc/victoria-metrics/scrape.yaml \
+       -selfScrapeInterval=10s
+     ```
+
+   * **Using Docker Compose:**
+     Update `docker-compose.yml`:
+     
+     ```yaml
+     version: '3.8'
+     services:
+       victoriametrics:
+         image: victoriametrics/victoria-metrics:latest
+         container_name: victoriametrics
+         ports:
+           - "8428:8428"
+         volumes:
+           - ./victoria-metrics-data:/victoria-metrics-data
+           - ./scrape.yaml:/etc/victoria-metrics/scrape.yaml:ro
+         command:
+           - "-promscrape.config=/etc/victoria-metrics/scrape.yaml"
+           - "-selfScrapeInterval=10s"
+         restart: unless-stopped
+     ```
+     Apply changes:
+     
+     ```bash
+     docker compose up -d
+     ```
+
+1. Read metrics in VictoriaMetrics
+   
+   Check [http://localhost:8428/targets](http://localhost:8428/targets) - the `node-exporter` target should have `state: up`.
 The target shows up as `state: down` until the first scrape happens, which can take some seconds -
 just reload the page a bit later.
 Now query host metrics in [vmui](http://localhost:8428/vmui). For example:
 
-* `node_memory_MemAvailable_bytes` - available memory on your machine;
-* `100 - avg(rate(node_cpu_seconds_total{mode="idle"})) * 100` - overall CPU usage in percent.
+	* `node_memory_MemAvailable_bytes` - available memory on your machine;
+	* `100 - avg(rate(node_cpu_seconds_total{mode="idle"})) * 100` - overall CPU usage in percent.
 
 See [scrape config examples](https://docs.victoriametrics.com/victoriametrics/scrape_config_examples/) for more advanced scrape configurations.
 
