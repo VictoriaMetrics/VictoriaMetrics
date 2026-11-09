@@ -26,6 +26,9 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* Enhancement: [docs/Quick-Start](https://docs.victoriametrics.com/victoriametrics/quick-start): add docker and compose for those that started with docker container or compose. [Section 4 here in Try-it-locally](https://docs.victoriametrics.com/victoriametrics/quick-start/#try-it-locally).
+
+
 ## [v1.156.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.156.0)
 
 Released at 2026-11-09
