@@ -238,6 +238,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Optional OAuth2 tokenURL to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -notifier.sanitizeLabelNames
+     Whether to replace characters outside [a-zA-Z0-9_:] in alert label names with underscores before sending alerts to notifiers. Set it to false only if all notifiers support UTF-8 label names, e.g. Alertmanager >= v0.27.0 not running in classic-mode. (default true)
   -notifier.sendTimeout array
      Timeout when sending alerts to the corresponding -notifier.url (default 10s)
      Supports array of values separated by comma or specified via multiple flags.
