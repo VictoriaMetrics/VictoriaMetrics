@@ -49,7 +49,9 @@ func getRateAggrStateValue() *rateAggrStateValue {
 
 // rateAggrSharedValue calculates output=rate_avg and rate_sum, e.g. the average per-second increase rate for counter metrics.
 type rateAggrSharedValue struct {
-	value          float64
+	value float64
+	// timestamp of value, shared between blue and green to detect out of order samples
+	timestamp      int64
 	deleteDeadline int64
 
 	// prevTimestamp is the timestamp of the last registered sample in the previous aggregation interval
@@ -73,6 +75,7 @@ func (v *rateAggrSharedValue) getState(isGreen bool) *rateAggrStateValue {
 
 func (v *rateAggrSharedValue) reset() {
 	v.value = 0
+	v.timestamp = 0
 	v.deleteDeadline = 0
 	v.prevTimestamp = 0
 	if v.blue != nil {
@@ -108,8 +111,9 @@ func (av *rateAggrValue) pushSample(c aggrConfig, sample *pushSample, key string
 	}
 	if ok {
 		state = sv.getState(av.isGreen)
-		if sample.timestamp < state.timestamp || sample.timestamp < sv.prevTimestamp {
-			// Skip out of order sample
+		if sample.timestamp < sv.timestamp || (sample.timestamp == sv.timestamp && sample.value < sv.value) {
+			// Skip out of order sample or a duplicate with lower value
+			ac.counterOutOfOrderSamples.Inc()
 			return
 		}
 		if sample.value >= sv.value {
@@ -128,6 +132,7 @@ func (av *rateAggrValue) pushSample(c aggrConfig, sample *pushSample, key string
 	}
 	sv.value = sample.value
 	sv.deleteDeadline = deleteDeadline
+	sv.timestamp = sample.timestamp
 	state.timestamp = sample.timestamp
 }
 
@@ -183,12 +188,14 @@ func newRateAggrConfig(ms *metrics.Set, metricLabels string, isAvg bool) aggrCon
 		isAvg: isAvg,
 	}
 	cfg.counterResetsTotal = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_counter_resets_total{%s}`, metricLabels))
+	cfg.counterOutOfOrderSamples = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_counter_dropped_samples_total{reason="out_of_order",%s}`, metricLabels))
 	return &cfg
 }
 
 type rateAggrConfig struct {
-	isAvg              bool
-	counterResetsTotal *metrics.Counter
+	isAvg                    bool
+	counterResetsTotal       *metrics.Counter
+	counterOutOfOrderSamples *metrics.Counter
 }
 
 func (*rateAggrConfig) getValue(s any) aggrValue {

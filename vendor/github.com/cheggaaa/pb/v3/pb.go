@@ -21,7 +21,7 @@ import (
 )
 
 // Version of ProgressBar library
-const Version = "3.2.1"
+const Version = "3.3.0"
 
 const unicodeProgressBarEnv = "UNICODE_PROGRESS_BAR"
 
@@ -94,6 +94,7 @@ type ProgressBar struct {
 	maxWidth       int
 	mu             sync.RWMutex
 	rm             sync.Mutex
+	wm             sync.Mutex // one Finish or stopWriter at a time
 	vars           map[interface{}]interface{}
 	elements       map[string]Element
 	output         io.Writer
@@ -104,8 +105,7 @@ type ProgressBar struct {
 	tmpl           *template.Template
 	state          *State
 	buf            *bytes.Buffer
-	ticker         *time.Ticker
-	finish         chan struct{}
+	finish         chan bool
 	finished       bool
 	configured     bool
 	err            error
@@ -175,21 +175,27 @@ func (pb *ProgressBar) Start() *ProgressBar {
 	if st, ok := pb.vars[Static].(bool); ok && st {
 		return pb
 	}
-	pb.finish = make(chan struct{})
-	pb.ticker = time.NewTicker(pb.refreshRate)
-	go pb.writer(pb.finish)
+	pb.finish = make(chan bool)
+	go pb.writer(pb.finish, time.NewTicker(pb.refreshRate))
 	return pb
 }
 
-func (pb *ProgressBar) writer(finish chan struct{}) {
+// writer redraws the bar on every tick until a value arrives on finish:
+// true draws the final state, false wipes the line. It replies on finish
+// once it is done.
+func (pb *ProgressBar) writer(finish chan bool, ticker *time.Ticker) {
 	for {
 		select {
-		case <-pb.ticker.C:
+		case <-ticker.C:
 			pb.write(false)
-		case <-finish:
-			pb.ticker.Stop()
-			pb.write(true)
-			finish <- struct{}{}
+		case final := <-finish:
+			ticker.Stop()
+			if final {
+				pb.write(true)
+			} else {
+				pb.wipe()
+			}
+			finish <- true
 			return
 		}
 	}
@@ -218,18 +224,34 @@ func (pb *ProgressBar) write(finish bool) {
 		result = ret + result
 		if finish && ret == "\r" {
 			if pb.GetBool(CleanOnFinish) {
-				// "Wipe out" progress bar by overwriting one line with blanks
-				result = "\r" + color.New(color.Reset).Sprint(strings.Repeat(" ", width)) + "\r"
+				result = wipeLine(width)
 			} else {
 				result += "\n"
 			}
 		}
 	}
+	pb.emit(result)
+}
+
+// wipe blanks the bar's line when the bar redraws in place
+func (pb *ProgressBar) wipe() {
+	if ret, ok := pb.Get(ReturnSymbol).(string); !ok || ret != "\r" {
+		return
+	}
+	pb.emit(wipeLine(pb.Width()))
+}
+
+func (pb *ProgressBar) emit(result string) {
 	if pb.GetBool(Color) {
 		pb.coutput.Write([]byte(result))
 	} else {
 		pb.nocoutput.Write([]byte(result))
 	}
+}
+
+// wipeLine overwrites one line of the given width with blanks
+func wipeLine(width int) string {
+	return "\r" + color.New(color.Reset).Sprint(strings.Repeat(" ", width)) + "\r"
 }
 
 // Total return current total bar value
@@ -385,22 +407,43 @@ func (pb *ProgressBar) Format(v int64) string {
 
 // Finish stops the bar
 func (pb *ProgressBar) Finish() *ProgressBar {
+	pb.wm.Lock()
+	defer pb.wm.Unlock()
 	pb.mu.Lock()
 	if pb.finished {
 		pb.mu.Unlock()
 		return pb
 	}
-	finishChan := pb.finish
 	pb.finished = true
 	pb.mu.Unlock()
-	if finishChan != nil {
-		finishChan <- struct{}{}
-		<-finishChan
-		pb.mu.Lock()
-		pb.finish = nil
-		pb.mu.Unlock()
-	}
+	pb.stopWriterLocked(true)
 	return pb
+}
+
+// stopWriter stops the bar's own writer and wipes its line without
+// finishing the bar. It reports whether a writer was stopped.
+func (pb *ProgressBar) stopWriter() bool {
+	pb.wm.Lock()
+	defer pb.wm.Unlock()
+	return pb.stopWriterLocked(false)
+}
+
+// stopWriterLocked tells the writer to draw the final state (final) or to
+// wipe its line, waits for it to exit and reports whether one was running.
+// The bar stays IsStarted until the writer is gone. The caller holds wm.
+func (pb *ProgressBar) stopWriterLocked(final bool) bool {
+	pb.mu.RLock()
+	finishChan := pb.finish
+	pb.mu.RUnlock()
+	if finishChan == nil {
+		return false
+	}
+	finishChan <- final
+	<-finishChan
+	pb.mu.Lock()
+	pb.finish = nil
+	pb.mu.Unlock()
+	return true
 }
 
 // IsStarted indicates progress bar state
@@ -436,6 +479,15 @@ func (pb *ProgressBar) SetTemplate(tmpl ProgressBarTemplate) *ProgressBar {
 func (pb *ProgressBar) NewProxyReader(r io.Reader) *Reader {
 	pb.Set(Bytes, true)
 	return &Reader{r, pb}
+}
+
+// NewProxyReadSeeker wraps an io.ReadSeeker and enables byte units.
+// Wrapping does not seek or change the current bar value. For a reader already
+// positioned away from the start, initialize the bar with that position first.
+// Seeks can make speed and remaining-time estimates inaccurate.
+func (pb *ProgressBar) NewProxyReadSeeker(r io.ReadSeeker) *ReadSeeker {
+	pb.Set(Bytes, true)
+	return &ReadSeeker{r, pb}
 }
 
 // NewProxyWriter creates a wrapper for given writer, but with progress handle

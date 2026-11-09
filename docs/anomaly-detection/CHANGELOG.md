@@ -20,6 +20,23 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
 {{% collapse name="2026" open=true %}}
 
+## v1.32.0
+Released: 2026-11-04
+
+- UI: Updated from v1.10.0 to [v1.11.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v1110). See the UI changelog for guided tours, result downloads and usability improvements.
+- FEATURE: Added [dynamic presets](https://docs.victoriametrics.com/anomaly-detection/presets/#dynamic-presets) to discover signals and prepare downloadable anomaly-detection and deployment configurations with AI assistance.
+- FEATURE: Serve the UI and API over [HTTPS or mutual TLS](https://docs.victoriametrics.com/anomaly-detection/components/server/#tls-and-mutual-tls) without a reverse proxy.
+- FEATURE: Added opt-in [Temporal Envelope v2](https://docs.victoriametrics.com/anomaly-detection/components/models/#experimental-temporal-envelope-implementations), a research candidate aimed at steadier trend and seasonal learning. V1 remains the default.
+- IMPROVEMENT: Improved [deployment sizing](https://docs.victoriametrics.com/anomaly-detection/components/server/#deployment-sizing) accuracy for CPU, RAM and disk estimates.
+- IMPROVEMENT: Reduced data-preparation overhead before model fitting when reading large, uncompressed responses from a VictoriaMetrics datasource.
+- IMPROVEMENT: Compress Temporal Envelope snapshots losslessly while retaining support for older snapshots. See [migration guidance](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix) before switching model versions or rolling back.
+- FEATURE: Added a lightweight `--healthcheck` command and default container health checks, including HTTPS configurations.
+- BUGFIX: Improved [autotune](https://docs.victoriametrics.com/anomaly-detection/components/server/#time-series-analysis-and-autotune-api) quality evaluation and historical replay, keeping training and validation data separate and preserving fixed model settings and query policies. Insufficient history now produces clearer errors, and disabling gap interpolation preserves missing observations.
+- BUGFIX: Excluded review labels and prior anomaly scores from model inputs. Refit persisted multivariate `auto` models that learned these metadata columns; see [migration guidance](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix).
+- BUGFIX: Corrected online-model state resets on refit and prevented Temporal Envelope forecast spikes caused by nearly duplicate timestamps; refit models with previously affected trends.
+- BUGFIX: Restored the [preset asset pages](https://docs.victoriametrics.com/anomaly-detection/presets/) served at `http://<host>:<port>/presets/` and improved their file previews.
+- SECURITY: Update certificate trust bundles following the [emSign CA security incident](https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576).
+
 ## v1.31.1
 Released: 2026-10-15
 

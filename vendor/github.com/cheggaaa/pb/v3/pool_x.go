@@ -14,24 +14,26 @@ import (
 func (p *Pool) print(first bool) bool {
 	p.m.Lock()
 	defer p.m.Unlock()
-	var out string
-	if !first {
-		out = fmt.Sprintf("\033[%dA", p.lastBarsCount)
-	}
-	isFinished := true
-	bars := p.bars
 	rows, cols, err := termutil.TerminalSize()
 	if err != nil {
 		cols = defaultBarWidth
 	}
-	if rows > 0 && len(bars) > rows {
-		// we need to hide bars that overflow terminal height
-		bars = bars[len(bars)-rows:]
+	out, isFinished := p.render(first, rows, cols)
+	if p.Output != nil {
+		fmt.Fprint(p.Output, out)
+	} else {
+		fmt.Fprint(os.Stderr, out)
 	}
+	return isFinished
+}
+
+// render builds a frame for a terminal of the given size
+func (p *Pool) render(first bool, rows, cols int) (out string, isFinished bool) {
+	if !first && p.lastBarsCount > 0 {
+		out = fmt.Sprintf("\033[%dA", p.lastBarsCount)
+	}
+	bars, isFinished := p.visibleBars(rows)
 	for _, bar := range bars {
-		if !bar.IsFinished() {
-			isFinished = false
-		}
 		bar.SetWidth(cols)
 		result := bar.String()
 		if r := cols - CellCount(result); r > 0 {
@@ -39,11 +41,10 @@ func (p *Pool) print(first bool) bool {
 		}
 		out += fmt.Sprintf("\r%s\n", result)
 	}
-	if p.Output != nil {
-		fmt.Fprint(p.Output, out)
-	} else {
-		fmt.Fprint(os.Stderr, out)
+	if !first && len(bars) < p.lastBarsCount {
+		// erase the lines of the bars that left the frame
+		out += "\r\033[J"
 	}
 	p.lastBarsCount = len(bars)
-	return isFinished
+	return
 }
