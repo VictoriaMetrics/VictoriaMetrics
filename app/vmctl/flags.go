@@ -14,7 +14,6 @@ const (
 	globalSilent             = "s"
 	globalVerbose            = "verbose"
 	globalDisableProgressBar = "disable-progress-bar"
-	globalStateDir           = "state-dir"
 
 	globalPushMetricsURL         = "pushmetrics.url"
 	globalPushMetricsInterval    = "pushmetrics.interval"
@@ -39,10 +38,6 @@ var (
 			Name:  globalDisableProgressBar,
 			Value: false,
 			Usage: "Whether to disable progress bar during the import.",
-		},
-		&cli.StringFlag{
-			Name:  globalStateDir,
-			Usage: "Directory for migration state files, which allow resuming interrupted migrations when per-metric migration is enabled. The current working directory is used if empty. Supported only in vm-native mode.",
 		},
 		&cli.StringSliceFlag{
 			Name:  globalPushMetricsURL,
@@ -69,6 +64,15 @@ var (
 		},
 	}
 )
+
+const stateDir = "state-dir"
+
+var stateFlags = []cli.Flag{
+	&cli.StringFlag{
+		Name:  stateDir,
+		Usage: "Directory for migration state files, which allow resuming interrupted migrations when per-metric migration is enabled. The current working directory is used if empty. Supported only in vm-native mode.",
+	},
+}
 
 const (
 	vmAddr               = "vm-addr"
