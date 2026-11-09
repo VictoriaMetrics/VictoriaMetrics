@@ -47,7 +47,7 @@ type vmNativeProcessor struct {
 	// stateDir is the directory for the migration state file. The current working directory is used if empty.
 	stateDir string
 	// srcHeaders and dstHeaders are --vm-native-src-headers and --vm-native-dst-headers values.
-	// They identify the migration, since headers may select the tenant to read from or write to.
+	// Headers help to identify the migration params as they could carry tenant info or other params that are involved in routing.
 	srcHeaders string
 	dstHeaders string
 }
@@ -137,7 +137,7 @@ type nativeStateParams struct {
 	InterCluster      bool     `json:"interCluster"`
 	SrcExtraLabels    []string `json:"srcExtraLabels"`
 	DstExtraLabels    []string `json:"dstExtraLabels"`
-	// SrcHeadersHash and DstHeadersHash are hashes of the headers, since headers may contain secrets.
+	// SrcHeadersHash and DstHeadersHash are hashes of the headers, since headers may contain sensetive info.
 	SrcHeadersHash string `json:"srcHeadersHash"`
 	DstHeadersHash string `json:"dstHeadersHash"`
 }
