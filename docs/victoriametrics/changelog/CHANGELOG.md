@@ -26,7 +26,9 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): allow resuming interrupted migrations in [vm-native mode](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/). vmctl tracks finished requests in a state file in the `--state-dir` directory (the current working directory by default), and a repeated run with the same flags continues the progress. `--vm-native-filter-time-end` is now required, so resumed runs migrate the same time range. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/#resuming-migration).
+**Update Note 1:** `vmctl` in [vm-native](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/) mode: `--vm-native-filter-time-end` is now a required parameter. See [#11830](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11830) for details.
+
+* FEATURE: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): allow resuming interrupted migrations in [vm-native mode](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/). vmctl tracks finished requests in a state file in the `--state-dir` directory (the current working directory by default), and a repeated run with the same flags continues the progress. `--vm-native-filter-time-end` is now required, so resumed runs migrate the same time range. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/#resuming-migration). See [issue #11763](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11763) and [change #11830](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11830) for details.
 
 ## [v1.156.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.156.0)
 
