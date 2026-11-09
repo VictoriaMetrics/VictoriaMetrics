@@ -25,6 +25,8 @@ since VictoriaMetrics supports [Prometheus querying API](https://docs.victoriame
 1. Fill the `URL` field:
    * single-node VictoriaMetrics: `http://<victoriametrics-addr>:8428/`
    * cluster VictoriaMetrics: `http://<vmselect-addr>:8481/select/<tenant>/prometheus/`
+   * cluster VictoriaMetrics with [multitenancy via headers](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers):
+     `http://<vmselect-addr>:8481/select/prometheus/`, and add `AccountID` (and optionally `ProjectID`) to the datasource `Headers`
 1. Set `Time series database type` to `VictoriaMetrics`. This makes Nightingale use
    VictoriaMetrics-specific endpoints for dashboard variables and for deleting series.
 1. Click `Save & test`.
@@ -46,12 +48,18 @@ Configure the writer in Nightingale's `config.toml`:
 Url = "http://<victoriametrics-addr>:8428/api/v1/write"
 # cluster VictoriaMetrics
 # Url = "http://<vminsert-addr>:8480/insert/<tenant>/prometheus/api/v1/write"
+# cluster VictoriaMetrics with multitenancy via headers
+# Url = "http://<vminsert-addr>:8480/insert/prometheus/api/v1/write"
+# Headers = ["AccountID", "<account-id>", "ProjectID", "<project-id>"]
 ```
 
 Note that the datasource `URL` for clustered version of VictoriaMetrics points to vmselect, while `Pushgw.Writers` points to vminsert. See more about VictoriaMetrics URL format [here](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format).
 See [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) for the meaning of `<tenant>`.
+[Multitenancy via headers](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers)
+is available starting from v1.143.0 and must be enabled on vminsert and vmselect via `-enableMultitenancyViaHeaders` command-line flag
+(enabled by default starting from v1.150.0). If `AccountID` and `ProjectID` headers are missing, tenant `0:0` is used.
 
 To store results of Nightingale recording rules in VictoriaMetrics, set `Remote Write URL` in the datasource form
-to the same write endpoint as above.
+to the same write endpoint as above. The datasource `Headers` are sent with these writes as well.
 
 For VictoriaLogs with Nightingale integration, check [this page](https://docs.victoriametrics.com/victorialogs/integrations/nightingale/).
