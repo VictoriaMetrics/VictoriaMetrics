@@ -199,9 +199,11 @@ The best applications of this mode are:
 
 {{< available_from "v1.30.7" anomaly >}} Add an `investigation_url` annotation to a [vmalert rule](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules) to open the persisted results, configured model and absolute incident window in VMUI. Opening the link does not rerun detection.
 
+This template uses the writer's default [metrics formatting](https://docs.victoriametrics.com/anomaly-detection/components/writer/#metrics-formatting): `__name__: "$VAR"` and `for: "$QUERY_KEY"`. The output label `for` carries the reader query key; the alert rule's `for` field specifies its pending duration. Preserve the query key without a prefix so the link can resolve the configured query.
+
 ```yaml
 annotations:
-  # available from v1.30.7; use the public URL, including any proxy path prefix
+  # available from v1.30.7
   investigation_url: 'https://vmanomaly.example.com/api/v1/incident/open?model={{ $labels.model_alias | queryEscape }}&scheduler={{ $labels.scheduler_alias | queryEscape }}&preset={{ $labels.preset | queryEscape }}&query_key={{ index $labels "for" | queryEscape }}&at={{ $activeAt.Unix }}&before=2m&after=30s'
 ```
 

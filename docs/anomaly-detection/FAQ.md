@@ -364,7 +364,7 @@ writer:
     for: $QUERY_KEY
 ```
 
-Then, respective alerts can be configured in [`vmalert`](https://docs.victoriametrics.com/victoriametrics/vmalert/) to notify disk exhaustion risks, e.g. if the forecasted disk usage exceeds 90% in the next 3 days:
+Then, respective alerts can be configured in [`vmalert`](https://docs.victoriametrics.com/victoriametrics/vmalert/) to notify disk exhaustion risks. Here, `for="disk_usage_perc_1d"` selects the query key written by [metrics formatting](https://docs.victoriametrics.com/anomaly-detection/components/writer/#metrics-formatting); `for: 24h` is the alert's pending duration:
 
 ```yaml
 groups:
@@ -377,8 +377,8 @@ groups:
     labels:
       severity: critical
     annotations:
-      summary: "Disk usage is forecasted to exceed 90% in the next 3 days"
-      description: "Disk usage is forecasted to exceed 90% in the next 3 days for instance {{ $labels.instance }}. Forecasted value: {{ $value }}."
+      summary: "Disk usage is forecasted to exceed 90% in the next 7 days"
+      description: "Disk usage is forecasted to exceed 90% in the next 7 days for instance {{ $labels.instance }}. Forecasted value: {{ $value }}."
   - alert: DiskUsageCritical
     expr: |
       yhat_3d{for="disk_usage_perc_1d"} > 0.95
@@ -397,7 +397,9 @@ While `vmanomaly` detects anomalies and produces scores, it *does not directly g
 
 Once anomaly scores are written back to VictoriaMetrics, use [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expressions in [vmalert alerting rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules) to evaluate them. A common starting point is `anomaly_score > 1`.
 
-{{% available_from "v1.30.7" anomaly %}} Add an `investigation_url` annotation to [open a firing alert in VMUI](https://docs.victoriametrics.com/anomaly-detection/ui/#investigate-a-firing-alert), with its persisted outputs, configured model and absolute time window. The UI guide includes a screenshot walkthrough and authentication requirements. Opening this link does not rerun detection:
+{{% available_from "v1.30.7" anomaly %}} Add an `investigation_url` annotation to [open a firing alert in VMUI](https://docs.victoriametrics.com/anomaly-detection/ui/#investigate-a-firing-alert), with its persisted outputs, configured model and absolute time window. The UI guide includes a screenshot walkthrough and authentication requirements. Opening this link does not rerun detection.
+
+Investigation links require a shared VictoriaMetrics reader/writer URL and tenant, with default [writer metrics formatting](https://docs.victoriametrics.com/anomaly-detection/components/writer/#metrics-formatting): `__name__: "$VAR"` and `for: "$QUERY_KEY"`. The output label `for` holds the query key without a prefix; the rule's `for: 5m` is the pending duration.
 
 ```yaml
 groups:
@@ -405,15 +407,15 @@ groups:
   interval: 60s
   rules:
   - alert: HighAnomalyScore
-    expr: anomaly_score > 1  # preserve the emitted model, scheduler, preset and for labels
-    for: 5m  # adjust to your needs based on data frequency and alerting policies
+    expr: anomaly_score > 1
+    for: 5m  # adjust the pending duration
     labels:
       severity: warning
     annotations:
       summary: High anomaly score detected.
       description: Anomaly score exceeded threshold ({{ $value }}) for more than
         {{ $for }} for query {{ index $labels "for" }}.
-      # available from v1.30.7; replace the public URL, including any proxy path prefix
+      # available from v1.30.7
       investigation_url: 'https://vmanomaly.example.com/api/v1/incident/open?model={{ $labels.model_alias | queryEscape }}&scheduler={{ $labels.scheduler_alias | queryEscape }}&preset={{ $labels.preset | queryEscape }}&query_key={{ index $labels "for" | queryEscape }}&at={{ $activeAt.Unix }}&before=1h&after=10m&step=1m'
 ```
 
