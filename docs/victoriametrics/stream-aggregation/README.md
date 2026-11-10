@@ -673,7 +673,11 @@ immediately at its end, but after a delay equal to the max lag of the samples re
 Aggregation windows are intended for samples delayed by less than the aggregation `interval` (or `dedup_interval` for deduplication),
 so the flush delay is capped at 90% of the interval. Samples for already flushed intervals are dropped
 (see `vm_streamaggr_ignored_samples_total{reason="too_old"}` and `vm_streamaggr_dedup_dropped_samples_total` metrics).
-If samples are constantly delayed by more than the interval, then increase the `interval` or perform stream aggregation closer to the data source.
+The delay also leaves less time for the flush itself: if the delay and the flush together take longer than the interval,
+the next interval is skipped and samples will be flushed together at the next upcoming one
+(see `vm_streamaggr_flush_skipped_total` and `vm_streamaggr_dedup_flush_skipped_total` metrics).
+If samples are constantly delayed by more than the interval or intervals are often skipped, then increase the `interval`
+or perform stream aggregation closer to the data source.
 See also [data delay and staleness](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#staleness).
 
 This mode doubles the memory used for the aggregation state, since two states (for the current and previous intervals) are stored per series simultaneously. Aggregation windows can be enabled via

@@ -21,6 +21,7 @@ type dedupAggr struct {
 	shards         []dedupAggrShard
 	flushDuration  *metrics.Histogram
 	flushTimeouts  *metrics.Counter
+	flushSkipped   *metrics.Counter
 	droppedSamples *metrics.Counter
 }
 
@@ -61,6 +62,7 @@ func newDedupAggr(ms *metrics.Set, metricLabels string) *dedupAggr {
 
 	d.flushDuration = ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_dedup_flush_duration_seconds{%s}`, metricLabels))
 	d.flushTimeouts = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_dedup_flush_timeouts_total{%s}`, metricLabels))
+	d.flushSkipped = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_dedup_flush_skipped_total{%s}`, metricLabels))
 	d.droppedSamples = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_dedup_dropped_samples_total{%s}`, metricLabels))
 	return &d
 }

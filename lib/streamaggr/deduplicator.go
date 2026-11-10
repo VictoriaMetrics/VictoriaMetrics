@@ -170,7 +170,12 @@ func (d *Deduplicator) runFlusher(pushFunc PushFunc) {
 		select {
 		case <-d.stopCh:
 			return
-		case <-t.C:
+		case ct := <-t.C:
+			// check if the current tick is stale and should be ignored,
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11904.
+			if isStaleTick(ct, d.cs.Load().maxDeadline, d.interval) {
+				continue
+			}
 			if d.enableWindows {
 				delay := d.flushLag.takeFlushDelay(d.interval)
 				time.Sleep(delay)
@@ -222,8 +227,11 @@ func (d *Deduplicator) flush(pushFunc PushFunc) {
 			"possible solutions: increase dedupInterval; reduce samples' ingestion rate", d.interval, duration.Seconds())
 	}
 	deadlineTime = deadlineTime.Add(d.interval)
+	// If the flush delay and the flush took longer than the interval, the next flush time has already passed.
+	// Skip the passed flush times, and their samples will be flushed together at the next upcoming one.
 	for time.Now().After(deadlineTime) {
 		deadlineTime = deadlineTime.Add(d.interval)
+		d.da.flushSkipped.Inc()
 	}
 	cs.maxDeadline = deadlineTime.UnixMilli()
 	if d.enableWindows {
