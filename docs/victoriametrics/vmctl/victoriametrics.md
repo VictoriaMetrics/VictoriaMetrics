@@ -139,7 +139,7 @@ Requests to make for tenant 1:0: 28 / 28 [████████████�
 
 ## Resuming migration
 
-vmctl tracks finished requests in a state file, so an interrupted migration can be resumed.
+vmctl tracks finished requests in a state file, so an interrupted migration can be resumed {{% available_from "#" %}}.
 Run the same command again with flags unchanged, and **vmctl will continue migration skipping the already finished requests**.
 
 > Note: resuming migration doesn't guarantee exactly-once delivery: it is recommended to configure `-dedup.minScrapeInterval=1ms` on destination side.
