@@ -197,10 +197,11 @@ The best applications of this mode are:
 
 ## Investigate a firing alert
 
-{{< available_from "v1.30.7" anomaly >}} Add an `investigation_url` annotation to a vmalert rule to open the persisted results, configured model and absolute incident window in VMUI. Opening the link does not rerun detection.
+{{< available_from "v1.30.7" anomaly >}} Add an `investigation_url` annotation to a [vmalert rule](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules) to open the persisted results, configured model and absolute incident window in VMUI. Opening the link does not rerun detection.
 
 ```yaml
 annotations:
+  # available from v1.30.7; use the public URL, including any proxy path prefix
   investigation_url: 'https://vmanomaly.example.com/api/v1/incident/open?model={{ $labels.model_alias | queryEscape }}&scheduler={{ $labels.scheduler_alias | queryEscape }}&preset={{ $labels.preset | queryEscape }}&query_key={{ index $labels "for" | queryEscape }}&at={{ $activeAt.Unix }}&before=2m&after=30s'
 ```
 
@@ -210,6 +211,32 @@ Use the public vmanomaly URL, including any `path_prefix`, and preserve the emit
 > Protect VMUI and both `/api/v1/incident/` endpoints behind the same authenticated gateway. Labels filter results; they do not grant access. If the datasource requires reader credentials, configure [`server.use_reader_connection_settings`](https://docs.victoriametrics.com/anomaly-detection/components/server/#parameters) or supported request authentication. Authorized UI users can then query with those reader permissions.
 
 See [vmalert annotation templating](https://docs.victoriametrics.com/victoriametrics/vmalert/#templating) for template syntax. The annotation can coexist with the [vmalert Source link](https://docs.victoriametrics.com/victoriametrics/vmalert/#link-to-alert-source).
+
+{{% collapse name="See an example: investigate a traffic drop" %}}
+
+This example uses a synthetic traffic drop and a real vmalert alerting rule with `anomaly_score > 1` and `for: 1m`. Opening the investigation link reads stored outputs; it does not run anomaly detection.
+
+**1. Open the investigation link from the firing alert.** The orange boxes highlight the annotation and the clickable Source link configured for this dedicated demo.
+
+![A firing traffic-drop alert in vmalert, with its state, investigation annotation and Source link highlighted.](/anomaly-detection/ui-alert-01-firing-alert.webp)
+{loading="lazy" decoding="async"}
+
+**2. Inspect the stored outputs and incident window.** VMUI loads `y`, `yhat`, `yhat_lower`, `yhat_upper` and `anomaly_score`. The original input query is available but hidden. This link uses `before=1d&after=10m&step=1m`, showing one day before the alert became active and ten minutes after.
+
+![Light-theme VMUI with the recorded-output query and time range highlighted above aligned traffic, prediction, bounds and anomaly-score series.](/anomaly-detection/ui-alert-02-incident-overview.webp)
+{loading="lazy" decoding="async"}
+
+**3. Zoom in on the drop.** The same stored outputs, with the lead-in narrowed to two hours, show traffic falling below the lower bound. The dashed red line marks the synthetic drop's onset, which precedes the alert's active time in this example.
+
+![A closer VMUI chart with a labeled dashed red line at the contextual traffic drop.](/anomaly-detection/ui-alert-03-incident-detail.webp)
+{loading="lazy" decoding="async"}
+
+*The traffic, predictions and scores are synthetic. Alert evaluation and UI queries are real; the colored highlights and incident-start line are editorial annotations. Select an image to enlarge it.*
+
+> [!NOTE]
+> Annotation values may appear as plain text in the vmalert UI. This dedicated demo configures `-external.url` and `-external.alert.source` so its Source link matches the investigation annotation. That override applies to the entire vmalert instance and also changes the `generatorURL` sent to Alertmanager. Keep the separate annotation and preserve existing production Grafana or VMUI Source destinations unless you deliberately reconfigure them.
+
+{{% /collapse %}}
 
 ## AI Assistance
 
@@ -733,6 +760,8 @@ If the **results** look good and the **model configuration should be deployed in
 ![vmanomaly-ui-open-config-menu](vmanomaly-ui-open-config-menu.webp)
 
 {{< available_from "v1.28.0" anomaly >}} **Example alerting rules are generated** based on the current UI configuration. Hit the "Example Alert" button in the Model Panel to access and copy/download an example of parametrized [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) alerting rule snippet in YAML format to finetune and use in production alerting setup.
+
+For a production rule, add an [`investigation_url` annotation](#investigate-a-firing-alert) using the deployed model, scheduler, preset and query identities and the public vmanomaly URL. Keep these labels intact when adapting the generated expression.
 
 ![vmanomaly-ui-example-alert-btn](vmanomaly-ui-example-alert-btn.webp)
 
