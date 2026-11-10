@@ -1,0 +1,122 @@
+rule_files:
+  - rule-deps.yaml
+
+evaluation_interval: 1m
+
+tests:
+  # Asserting on the end of a recording rule chain must still evaluate every
+  # group feeding it.
+  - interval: 1m
+    name: "recording rule chain"
+    input_series:
+      - series: "raw_input"
+        values: "10x5"
+    alert_rule_test:
+      - eval_time: 2m
+        groupname: chainTop
+        alertname: ChainAlert
+        exp_alerts:
+          - exp_labels: {}
+    metricsql_expr_test:
+      - expr: dep:level1
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dep:level1'
+            value: 10
+      - expr: dep:level2
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dep:level2'
+            value: 20
+
+  # Asserting on a group reading ALERTS must evaluate the group defining the
+  # alert too, even though no rule records the ALERTS series.
+  - interval: 1m
+    name: "dependency through ALERTS"
+    input_series:
+      - series: "raw_input"
+        values: "10x5"
+    metricsql_expr_test:
+      - expr: dep:firing_chain_alerts
+        eval_time: 3m
+        exp_samples:
+          - labels: 'dep:firing_chain_alerts'
+            value: 1
+
+  # A selector without a metric name may read any recorded series, so the groups
+  # recording them are evaluated too and the selector sees their output.
+  - interval: 1m
+    name: "selector without a metric name"
+    input_series:
+      - series: "raw_input"
+        values: "10x5"
+    metricsql_expr_test:
+      - expr: dep:dynamic
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dep:dynamic'
+            value: 1
+
+  # A regexp on __name__ is resolved against the recorded metric names, so the
+  # groups recording the matching metrics are evaluated.
+  - interval: 1m
+    name: "selector using a metric name regexp"
+    input_series:
+      - series: "raw_input"
+        values: "10x5"
+    metricsql_expr_test:
+      - expr: dep:regexp
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dep:regexp'
+            value: 2
+
+  # A query in an alert annotation reads another group's series, so the group
+  # recording it is evaluated too.
+  - interval: 1m
+    name: "alert annotation reading another group"
+    input_series:
+      - series: "raw_input"
+        values: "10x5"
+    alert_rule_test:
+      - eval_time: 2m
+        groupname: templated
+        alertname: TemplatedAlert
+        exp_alerts:
+          - exp_labels: {}
+            exp_annotations:
+              level2: "20"
+
+  # A test expression reading the alert series directly pulls in the group
+  # defining the alert.
+  - interval: 1m
+    name: "test reading the alert series"
+    input_series:
+      - series: "raw_input"
+        values: "10x5"
+    metricsql_expr_test:
+      - expr: count(ALERTS{alertname="ChainAlert"})
+        eval_time: 2m
+        exp_samples:
+          - labels: '{}'
+            value: 1
+
+  # The same alert name in two groups: both must fire.
+  - interval: 1m
+    name: "alert name shared by two groups"
+    input_series:
+      - series: "raw_input"
+        values: "10x5"
+      - series: "other_input"
+        values: "10x5"
+    alert_rule_test:
+      - eval_time: 2m
+        groupname: sharedNameOne
+        alertname: SharedDepAlert
+        exp_alerts:
+          - exp_labels: {}
+      - eval_time: 2m
+        groupname: sharedNameTwo
+        alertname: SharedDepAlert
+        exp_alerts:
+          - exp_labels: {}
