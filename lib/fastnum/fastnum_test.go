@@ -2,11 +2,12 @@ package fastnum
 
 import (
 	"fmt"
+	"math"
 	"testing"
 )
 
 func TestIsInt64Zeros(t *testing.T) {
-	for _, n := range []int{0, 1, 10, 100, 1000, 1e4, 1e5, 8*1024 + 1} {
+	for _, n := range []int{0, 1, 10, 15, 16, 17, 100, 1000, 1023, 1024, 1025, 1e4, 1e5, 8*1024 - 1, 8 * 1024, 8*1024 + 1} {
 		t.Run(fmt.Sprintf("%d_items", n), func(t *testing.T) {
 			a := make([]int64, n)
 			if !IsInt64Zeros(a) {
@@ -23,7 +24,7 @@ func TestIsInt64Zeros(t *testing.T) {
 }
 
 func TestIsInt64Ones(t *testing.T) {
-	for _, n := range []int{0, 1, 10, 100, 1000, 1e4, 1e5, 8*1024 + 1} {
+	for _, n := range []int{0, 1, 10, 15, 16, 17, 100, 1000, 1023, 1024, 1025, 1e4, 1e5, 8*1024 - 1, 8 * 1024, 8*1024 + 1} {
 		t.Run(fmt.Sprintf("%d_items", n), func(t *testing.T) {
 			a := make([]int64, n)
 			for i := range n {
@@ -43,7 +44,7 @@ func TestIsInt64Ones(t *testing.T) {
 }
 
 func TestIsFloat64Zeros(t *testing.T) {
-	for _, n := range []int{0, 1, 10, 100, 1000, 1e4, 1e5, 8*1024 + 1} {
+	for _, n := range []int{0, 1, 10, 15, 16, 17, 100, 1000, 1023, 1024, 1025, 1e4, 1e5, 8*1024 - 1, 8 * 1024, 8*1024 + 1} {
 		t.Run(fmt.Sprintf("%d_items", n), func(t *testing.T) {
 			a := make([]float64, n)
 			if !IsFloat64Zeros(a) {
@@ -60,7 +61,7 @@ func TestIsFloat64Zeros(t *testing.T) {
 }
 
 func TestIsFloat64Ones(t *testing.T) {
-	for _, n := range []int{0, 1, 10, 100, 1000, 1e4, 1e5, 8*1024 + 1} {
+	for _, n := range []int{0, 1, 10, 15, 16, 17, 100, 1000, 1023, 1024, 1025, 1e4, 1e5, 8*1024 - 1, 8 * 1024, 8*1024 + 1} {
 		t.Run(fmt.Sprintf("%d_items", n), func(t *testing.T) {
 			a := make([]float64, n)
 			for i := range n {
@@ -80,7 +81,7 @@ func TestIsFloat64Ones(t *testing.T) {
 }
 
 func TestAppendInt64Zeros(t *testing.T) {
-	for _, n := range []int{0, 1, 10, 100, 1000, 1e4, 1e5, 8*1024 + 1} {
+	for _, n := range []int{0, 1, 10, 15, 16, 17, 100, 1000, 1023, 1024, 1025, 1e4, 1e5, 8*1024 - 1, 8 * 1024, 8*1024 + 1} {
 		t.Run(fmt.Sprintf("%d_items", n), func(t *testing.T) {
 			a := AppendInt64Zeros(nil, n)
 			if len(a) != n {
@@ -108,7 +109,7 @@ func TestAppendInt64Zeros(t *testing.T) {
 }
 
 func TestAppendInt64Ones(t *testing.T) {
-	for _, n := range []int{0, 1, 10, 100, 1000, 1e4, 1e5, 8*1024 + 1} {
+	for _, n := range []int{0, 1, 10, 15, 16, 17, 100, 1000, 1023, 1024, 1025, 1e4, 1e5, 8*1024 - 1, 8 * 1024, 8*1024 + 1} {
 		t.Run(fmt.Sprintf("%d_items", n), func(t *testing.T) {
 			a := AppendInt64Ones(nil, n)
 			if len(a) != n {
@@ -136,7 +137,7 @@ func TestAppendInt64Ones(t *testing.T) {
 }
 
 func TestAppendFloat64Zeros(t *testing.T) {
-	for _, n := range []int{0, 1, 10, 100, 1000, 1e4, 1e5, 8*1024 + 1} {
+	for _, n := range []int{0, 1, 10, 15, 16, 17, 100, 1000, 1023, 1024, 1025, 1e4, 1e5, 8*1024 - 1, 8 * 1024, 8*1024 + 1} {
 		t.Run(fmt.Sprintf("%d_items", n), func(t *testing.T) {
 			a := AppendFloat64Zeros(nil, n)
 			if len(a) != n {
@@ -164,7 +165,7 @@ func TestAppendFloat64Zeros(t *testing.T) {
 }
 
 func TestAppendFloat64Ones(t *testing.T) {
-	for _, n := range []int{0, 1, 10, 100, 1000, 1e4, 1e5, 8*1024 + 1} {
+	for _, n := range []int{0, 1, 10, 15, 16, 17, 100, 1000, 1023, 1024, 1025, 1e4, 1e5, 8*1024 - 1, 8 * 1024, 8*1024 + 1} {
 		t.Run(fmt.Sprintf("%d_items", n), func(t *testing.T) {
 			a := AppendFloat64Ones(nil, n)
 			if len(a) != n {
@@ -188,5 +189,36 @@ func TestAppendFloat64Ones(t *testing.T) {
 				t.Fatalf("IsFloat64Ones for prefixed a must return true")
 			}
 		})
+	}
+}
+
+func TestAppendNonPositiveItems(t *testing.T) {
+	for _, n := range []int{-100, -1, 0} {
+		t.Run(fmt.Sprintf("%d_items", n), func(t *testing.T) {
+			for _, f := range []func([]int64, int) []int64{AppendInt64Zeros, AppendInt64Ones} {
+				dst := []int64{1, 2, 3}
+				got := f(dst, n)
+				if len(got) != 3 || got[0] != 1 || got[1] != 2 || got[2] != 3 {
+					t.Fatalf("unexpected result for int64: %v", got)
+				}
+			}
+			for _, f := range []func([]float64, int) []float64{AppendFloat64Zeros, AppendFloat64Ones} {
+				dst := []float64{1, 2, 3}
+				got := f(dst, n)
+				if len(got) != 3 || got[0] != 1 || got[1] != 2 || got[2] != 3 {
+					t.Fatalf("unexpected result for float64: %v", got)
+				}
+			}
+		})
+	}
+}
+
+func TestIsFloat64ZerosNegativeZero(t *testing.T) {
+	for _, n := range []int{1, 16, 17, 1024, 1025} {
+		a := make([]float64, n)
+		a[n-1] = math.Float64frombits(1 << 63)
+		if IsFloat64Zeros(a) {
+			t.Fatalf("IsFloat64Zeros must reject negative zero at %d items", n)
+		}
 	}
 }
