@@ -79,7 +79,7 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 	// The state isn't tracked without per-metric requests, since there is no distinct metric names to track.
 	var st *migrationstate.State
 	if !p.disablePerMetricRequests {
-		st, err = p.loadState()
+		st, err = p.loadState(start, end)
 		if err != nil {
 			return err
 		}
@@ -143,13 +143,15 @@ type nativeStateParams struct {
 }
 
 // loadState loads the state of the migration, so the interrupted migration can be resumed.
-func (p *vmNativeProcessor) loadState() (*migrationstate.State, error) {
+func (p *vmNativeProcessor) loadState(start, end time.Time) (*migrationstate.State, error) {
 	params := nativeStateParams{
-		SrcAddr:           p.src.Addr,
-		DstAddr:           p.dst.Addr,
-		FilterMatch:       p.filter.Match,
-		FilterTimeStart:   p.filter.TimeStart,
-		FilterTimeEnd:     p.filter.TimeEnd,
+		SrcAddr:     p.src.Addr,
+		DstAddr:     p.dst.Addr,
+		FilterMatch: p.filter.Match,
+		// use already parsed start and end time, because p.filter.TimeStart and p.filter.TimeEnd
+		// could contain relative values (now, -3h, etc.)
+		FilterTimeStart:   start.String(),
+		FilterTimeEnd:     end.String(),
 		StepInterval:      p.filter.Chunk,
 		FilterTimeReverse: p.filter.TimeReverse,
 		InterCluster:      p.interCluster,
