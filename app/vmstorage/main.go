@@ -261,6 +261,8 @@ func main() {
 
 	go httpserver.Serve(listenAddrs, vmStorage.requestHandler, httpserver.ServeOptions{UseProxyProtocol: useProxyProtocol})
 
+	go func() { GenerateData(vmStorage, retentionPeriod.Duration()) }()
+
 	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
