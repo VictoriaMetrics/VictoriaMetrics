@@ -17,7 +17,7 @@ import (
 )
 
 var maxGraphiteSeries = flag.Int("search.maxGraphiteSeries", 300e3, "The maximum number of unique time series that can be processed by each storage node for a request to the Graphite /render or /tags/findSeries API. "+
-	"The effective limitation will be capped by the explicitly set corresponding value `-search.maxUniqueTimeseries` on vmstorage or vmsingle side. "+
+	"The effective limitation will be capped by the explicitly set corresponding value `-search.maxUniqueTimeseries` on vmstorage or vmsingle side for the Graphite /render API. "+
 	"See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#render-api")
 
 var maxGraphitePathExpressionLen = flag.Int("search.maxGraphitePathExpressionLen", 1024, "The maximum length of pathExpression field in Graphite series. "+
