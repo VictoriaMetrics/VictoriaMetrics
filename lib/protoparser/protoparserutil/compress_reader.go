@@ -3,6 +3,7 @@ package protoparserutil
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"sync"
 
 	"github.com/klauspost/compress/gzip"
@@ -14,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/snappy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ioutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
@@ -90,7 +92,10 @@ func readUncompressedData(r io.Reader, maxDataSize *flagutil.Bytes, decompress f
 			return fmt.Errorf("cannot decompress data: %w", err)
 		}
 		if int64(len(dbb.B)) > maxDataSize.N {
-			return fmt.Errorf("too big decompressed data size exceeding -%s=%d bytes", maxDataSize.Name, maxDataSize.N)
+			return &httpserver.ErrorWithStatusCode{
+				Err:        fmt.Errorf("too big decompressed data size exceeding -%s=%d bytes", maxDataSize.Name, maxDataSize.N),
+				StatusCode: http.StatusRequestEntityTooLarge,
+			}
 		}
 
 		return callback(dbb.B)
@@ -111,7 +116,11 @@ func readFull(r io.Reader, maxDataSize *flagutil.Bytes, callback func(data []byt
 	}
 
 	if int64(cb.Len()) > maxDataSize.N {
-		return fmt.Errorf("too big data size exceeding -%s=%d bytes", maxDataSize.Name, maxDataSize.N)
+		chunkedbuffer.Put(cb)
+		return &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf("too big data size exceeding -%s=%d bytes", maxDataSize.Name, maxDataSize.N),
+			StatusCode: http.StatusRequestEntityTooLarge,
+		}
 	}
 
 	// The data is read to cb.
