@@ -73,6 +73,9 @@ var (
 	headerDisableServerHostname = flag.Bool("http.header.disableServerHostname", false, "Whether to disable 'X-Server-Hostname' header in HTTP responses")
 
 	disableCORS = flag.Bool("http.disableCORS", false, `Disable CORS for all origins (*)`)
+
+	logRequestHeaders = flagutil.NewArrayString("http.logRequestHeaders", "Optional list of HTTP request headers to log in error logs for incoming requests. "+
+		"For example, -http.logRequestHeaders=traceparent adds the 'headers.traceparent' field to these logs")
 )
 
 var (
@@ -646,6 +649,19 @@ func GetQuotedRemoteAddr(r *http.Request) string {
 	return stringsutil.JSONString(remoteAddr)
 }
 
+// GetRequestLogPrefix returns the `remoteAddr: ...; requestURI: ...` prefix for log messages about r.
+//
+// The prefix also contains a `headers.<name>: ...` field per every r header listed in -http.logRequestHeaders.
+func GetRequestLogPrefix(r *http.Request) string {
+	prefix := "remoteAddr: " + GetQuotedRemoteAddr(r)
+	for _, name := range *logRequestHeaders {
+		if values := r.Header.Values(name); len(values) > 0 {
+			prefix += "; headers." + name + ": " + stringsutil.JSONString(strings.Join(values, ", "))
+		}
+	}
+	return prefix + "; requestURI: " + GetRequestURI(r)
+}
+
 type responseWriterWithAbort struct {
 	http.ResponseWriter
 
@@ -771,12 +787,9 @@ func SendError(w http.ResponseWriter, err error) {
 	http.Error(w, errStr, statusCode)
 }
 
-// LogHTTPError logs the errStr with the client remote address and the request URI obtained from r.
+// LogHTTPError logs the errStr with the GetRequestLogPrefix(r) prefix.
 func LogHTTPError(r *http.Request, errStr string) {
-	remoteAddr := GetQuotedRemoteAddr(r)
-	requestURI := GetRequestURI(r)
-	errStr = fmt.Sprintf("remoteAddr: %s; requestURI: %s; %s", remoteAddr, requestURI, errStr)
-	logger.WarnfSkipframes(2, "%s", errStr)
+	logger.WarnfSkipframes(2, "%s; %s", GetRequestLogPrefix(r), errStr)
 }
 
 // ErrorWithStatusCode is error with HTTP status code.

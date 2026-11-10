@@ -39,6 +39,51 @@ func TestGetQuotedRemoteAddr(t *testing.T) {
 	f("1.2\n\"3.4", "foo\nb\"ar", `"1.2\n\"3.4, X-Forwarded-For: foo\nb\"ar"`)
 }
 
+func TestGetRequestLogPrefix(t *testing.T) {
+	origHeaders := *logRequestHeaders
+	defer func() {
+		*logRequestHeaders = origHeaders
+	}()
+
+	f := func(logHeaders []string, header http.Header, expected string) {
+		t.Helper()
+
+		*logRequestHeaders = logHeaders
+		req := &http.Request{
+			RemoteAddr: "1.2.3.4",
+			RequestURI: "/foo?bar=baz",
+			Header:     header,
+		}
+		if got := GetRequestLogPrefix(req); got != expected {
+			t.Fatalf("unexpected prefix;\ngot\n%s\nwant\n%s", got, expected)
+		}
+	}
+
+	traceparent := "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+
+	// the flag isn't set
+	f(nil, http.Header{"Traceparent": {traceparent}}, `remoteAddr: "1.2.3.4"; requestURI: /foo?bar=baz`)
+
+	// header is configured, but missing in the request
+	f([]string{"traceparent"}, http.Header{}, `remoteAddr: "1.2.3.4"; requestURI: /foo?bar=baz`)
+
+	// header names are matched case-insensitively;
+	// every header is logged as a distinct field in the configured order and is kept out of remoteAddr
+	f([]string{"X-Auth-User", "traceparent"}, http.Header{
+		"X-Forwarded-For": {"5.6.7.8"},
+		"Traceparent":     {traceparent},
+		"X-Auth-User":     {"foo"},
+	}, `remoteAddr: "1.2.3.4, X-Forwarded-For: 5.6.7.8"; headers.X-Auth-User: "foo"; headers.traceparent: "`+traceparent+`"; requestURI: /foo?bar=baz`)
+
+	// multiple values of the same header are joined
+	f([]string{"X-Auth-User"}, http.Header{"X-Auth-User": {"foo", "bar"}},
+		`remoteAddr: "1.2.3.4"; headers.X-Auth-User: "foo, bar"; requestURI: /foo?bar=baz`)
+
+	// untrusted header values are quoted
+	f([]string{"X-Auth-User"}, http.Header{"X-Auth-User": {"fo\"o\nbar"}},
+		`remoteAddr: "1.2.3.4"; headers.X-Auth-User: "fo\"o\nbar"; requestURI: /foo?bar=baz`)
+}
+
 func TestBasicAuthMetrics(t *testing.T) {
 	origUsername := *httpAuthUsername
 	origPasswd := httpAuthPassword.Get()

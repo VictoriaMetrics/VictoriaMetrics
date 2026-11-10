@@ -581,9 +581,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		}
 
 		// Retry the request at another backend
-		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-		requestURI := httpserver.GetRequestURI(r)
-		logger.Warnf("remoteAddr: %s; requestURI: %s; request to %s failed: %s, retrying the request at another backend", remoteAddr, requestURI, targetURL, err)
+		logger.Warnf("%s; request to %s failed: %s, retrying the request at another backend", httpserver.GetRequestLogPrefix(r), targetURL, err)
 		return false, false
 	}
 	if slices.Contains(retryStatusCodes, res.StatusCode) {
@@ -603,10 +601,8 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 
 		// Retry requests at other backends if it matches retryStatusCodes.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4893
-		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-		requestURI := httpserver.GetRequestURI(r)
-		logger.Warnf("remoteAddr: %s; requestURI: %s; request to %s failed, retrying the request at another backend because response status code=%d belongs to retry_status_codes=%d",
-			remoteAddr, requestURI, targetURL, res.StatusCode, retryStatusCodes)
+		logger.Warnf("%s; request to %s failed, retrying the request at another backend because response status code=%d belongs to retry_status_codes=%d",
+			httpserver.GetRequestLogPrefix(r), targetURL, res.StatusCode, retryStatusCodes)
 		return false, false
 	}
 	removeHopHeaders(res.Header)
@@ -623,9 +619,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	}
 
 	if err != nil && !netutil.IsTrivialNetworkError(err) {
-		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-		requestURI := httpserver.GetRequestURI(r)
-		logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying response body from %s: %s", remoteAddr, requestURI, targetURL, err)
+		logger.Warnf("%s; error when proxying response body from %s: %s", httpserver.GetRequestLogPrefix(r), targetURL, err)
 		ui.requestErrors.Inc()
 		return true, false
 	}
