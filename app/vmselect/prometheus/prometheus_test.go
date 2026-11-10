@@ -197,6 +197,45 @@ func TestAdjustLastPoints(t *testing.T) {
 	})
 }
 
+func TestGetMaxLookbackSuccess(t *testing.T) {
+	f := func(url string, expectedLookback int64) {
+		t.Helper()
+		r, err := http.NewRequest(http.MethodGet, url, nil)
+		if err != nil {
+			t.Fatalf("unexpected error in NewRequest(%q): %s", url, err)
+		}
+		lookback, err := getMaxLookback(r)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if lookback != expectedLookback {
+			t.Fatalf("unexpected lookback got %d; want %d", lookback, expectedLookback)
+		}
+	}
+	f("http://localhost", 0)
+	f("http://localhost?max_lookback=2m", 120_000)
+	f("http://localhost?lookback_delta=1m", 60_000)
+	f("http://localhost?lookback_delta=30", 30_000)
+	f("http://localhost?max_lookback=2m&lookback_delta=1m", 120_000)
+	f("http://localhost?max_lookback=undefined&lookback_delta=1m", 60_000)
+	f("http://localhost?lookback_delta=undefined", 0)
+}
+
+func TestGetMaxLookbackFailure(t *testing.T) {
+	f := func(url string) {
+		t.Helper()
+		r, err := http.NewRequest(http.MethodGet, url, nil)
+		if err != nil {
+			t.Fatalf("unexpected error in NewRequest(%q): %s", url, err)
+		}
+		if _, err := getMaxLookback(r); err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+	}
+	f("http://localhost?lookback_delta=foo")
+	f("http://localhost?lookback_delta=-1m")
+}
+
 func TestGetLatencyOffsetMillisecondsSuccess(t *testing.T) {
 	f := func(url string, expectedOffset int64) {
 		t.Helper()
