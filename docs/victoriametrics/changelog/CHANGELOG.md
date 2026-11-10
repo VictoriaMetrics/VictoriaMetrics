@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): use the aligned scrape time as the timestamp of samples and staleness markers for targets with `scrape_align_interval` or `scrape_offset`. Previously, `vmagent` instances scraping the same target in [cluster mode](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets) with `-promscrape.cluster.replicationFactor` could store samples with timestamps a few milliseconds apart, so [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) could keep `up=0` and staleness markers from the instance that failed the scrape instead of the values from the instance that succeeded. See [#10196](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10196).
+
 ## [v1.156.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.156.0)
 
 Released at 2026-11-09
