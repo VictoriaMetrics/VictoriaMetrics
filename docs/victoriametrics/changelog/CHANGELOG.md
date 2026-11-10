@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: all VictoriaMetrics components: add `-http.logRequestHeaders` command-line flag for logging the given HTTP request headers as `headers.<name>` fields in error logs for incoming requests. See [#11895](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11895).
+
 ## [v1.156.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.156.0)
 
 Released at 2026-11-09
