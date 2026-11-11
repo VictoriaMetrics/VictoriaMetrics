@@ -716,8 +716,16 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, dat
 		if err != nil {
 			return fmt.Errorf("cannot search by exact tag filter: %w", err)
 		}
-		if !reflect.DeepEqual(tsidsCached, tsidsFound) {
-			return fmt.Errorf("unexpected tsids returned; got\n%+v; want\n%+v", tsidsCached, tsidsFound)
+		if isConcurrent {
+			// Concurrent workers may register and flush series with the same name
+			// between the two searches, so the cached result may contain more tsids.
+			if !testHasTSID(tsidsCached, tsid) {
+				return fmt.Errorf("tsids is missing in cached exact tsidsFound\ntsid=%+v\ntsidsFound=%+v\ntfs=%s\nmn=%s\ni=%d", tsid, tsidsCached, tfs, mn, i)
+			}
+		} else {
+			if !reflect.DeepEqual(tsidsCached, tsidsFound) {
+				return fmt.Errorf("unexpected tsids returned; got\n%+v; want\n%+v", tsidsCached, tsidsFound)
+			}
 		}
 
 		// Add negative filter for zeroing search results.
