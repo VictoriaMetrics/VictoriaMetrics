@@ -98,6 +98,14 @@ var vmuiFiles embed.FS
 
 var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 
+func userLogField(r *http.Request) string {
+	user := r.Header.Get(httpserver.VMAuthUserHeader)
+	if user == "" {
+		return ""
+	}
+	return fmt.Sprintf(", user=%q", user)
+}
+
 // RequestHandler handles remote read API requests
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := strings.ReplaceAll(r.URL.Path, "//", "/")
@@ -140,8 +148,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			timerpool.Put(t)
 			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 			requestURI := httpserver.GetRequestURI(r)
-			logger.Infof("client has canceled the request after %.3f seconds: remoteAddr=%s, requestURI: %q",
-				time.Since(startTime).Seconds(), remoteAddr, requestURI)
+			logger.Infof("client has canceled the request after %.3f seconds: remoteAddr=%s, requestURI: %q%s",
+				time.Since(startTime).Seconds(), remoteAddr, requestURI, userLogField(r))
 			return true
 		case <-t.C:
 			timerpool.Put(t)
@@ -166,8 +174,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			if d >= *logSlowQueryDuration {
 				remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 				requestURI := httpserver.GetRequestURI(r)
-				logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds; requestURI: %q",
-					*logSlowQueryDuration, remoteAddr, d.Seconds(), requestURI)
+				logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds; requestURI: %q%s",
+					*logSlowQueryDuration, remoteAddr, d.Seconds(), requestURI, userLogField(r))
 				slowQueries.Inc()
 			}
 		}()

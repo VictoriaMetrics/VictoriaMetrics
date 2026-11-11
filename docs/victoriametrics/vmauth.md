@@ -284,6 +284,8 @@ users:
 
 JWT authentication cannot be combined with other auth methods (`bearer_token`, `username`, `password`) in the same `users` config.
 
+`vmauth` sends the name of the user to the backend in the [`X-VictoriaMetrics-User` header](#user-http-header){{% available_from "#" %}}.
+
 
 #### OIDC Discovery
 
@@ -1264,7 +1266,56 @@ unauthorized_user:
   - "Server:"
 ```
 
-See also [`Host` header docs](#host-http-header).
+See also [`Host` header docs](#host-http-header) and [`X-VictoriaMetrics-User` header docs](#user-http-header).
+
+## User HTTP header
+
+`vmauth` sets the `X-VictoriaMetrics-User` HTTP header{{% available_from "#" %}} in requests to the backend.
+The header contains the name of the user who sent the request:
+
+- For [JWT](#jwt-token-auth-proxy) users, the value of the `sub` claim of the token. The `user_claim` option in the `jwt` section selects another string claim,
+  for example `email` or `preferred_username`. It accepts nested claims such as `user.login`, with the same syntax as [`match_claims`](#jwt-claim-matching).
+  If the token does not have the claim, `vmauth` uses the `name` option.
+- For all other users, the value of the `name` option.
+
+`vmauth` does not send the header if the user has no such name. To see `username`, `bearer_token` and `auth_token` users in backend logs, set `name` for them.
+
+```yaml
+users:
+- jwt:
+    oidc:
+      issuer: "https://your-identity-provider.example.com"
+    user_claim: email
+  url_prefix: "http://victoria-metrics:8428/"
+```
+
+VictoriaMetrics components print the header value as the `user` field in log messages about failed HTTP requests{{% available_from "#" %}}.
+The backend needs no configuration for this:
+
+```text
+warn  VictoriaMetrics/app/vmselect/main.go:621  remoteAddr: "127.0.0.1:51208, X-Forwarded-For: 10.0.0.1"; user: "alice@example.com"; requestURI: /api/v1/query_range; missing `query` arg
+```
+
+[Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` also print the `user` field
+in the slow query message (`-search.logSlowQueryDuration`) and in the message about a request that the client canceled in the queue.
+
+`vmauth` removes the `X-VictoriaMetrics-User` header that the client sends, so a client cannot send a false user name through `vmauth`.
+The user name in backend logs can still be false in two cases:
+
+- A client connects to the backend directly, without `vmauth`. This client can set any header value.
+- The `jwt` section has `skip_verify: true`. With this option, `vmauth` does not verify the token signature, so the client can put any user name into the token claim.
+
+The [`headers`](#modifying-http-headers) option removes the header from requests to the backend, for example if the backend is not a VictoriaMetrics component:
+
+```yaml
+users:
+- name: "team-a"
+  username: "foo"
+  password: "bar"
+  url_prefix: "http://backend:1234/"
+  headers:
+  - "X-VictoriaMetrics-User:"
+```
 
 ## Host HTTP header
 
@@ -1524,7 +1575,8 @@ Access logs contain limited information to prevent exposing sensitive data. See 
 ```
 
 The printed log starts with `access_log` prefix and is followed with `request_host`, `request_uri`, `status_code`, `remote_addr`,
-`user_agent`, `referer`, `duration_ms` and `username` fields in [logfmt](https://brandur.org/logfmt) format. Such logs can be later
+`user_agent`, `referer`, `duration_ms` and `username` fields in [logfmt](https://brandur.org/logfmt) format.
+The `user` field{{% available_from "#" %}} follows them if the user has a name for the [`X-VictoriaMetrics-User` header](#user-http-header). Such logs can be later
 analyzed in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 ```logsql
 access_log | extract 'access_log <access_log>' | unpack_logfmt from access_log

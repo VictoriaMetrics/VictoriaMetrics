@@ -202,6 +202,9 @@ func processEmptyAuthRequest(w http.ResponseWriter, r *http.Request, ac *AuthCon
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	// Ignore value set by client
+	r.Header.Del(httpserver.VMAuthUserHeader)
+
 	if r.URL.Path == "/_vmauth/sso/start" {
 		processSSOStart(w, r)
 		return true
@@ -310,6 +313,9 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tk
 	userName := ui.name()
 	if userName == "" {
 		userName = "unauthorized"
+	}
+	if readableName := ui.readableName(tkn); readableName != "" {
+		r.Header.Set(httpserver.VMAuthUserHeader, readableName)
 	}
 
 	if ui.AccessLog != nil {
