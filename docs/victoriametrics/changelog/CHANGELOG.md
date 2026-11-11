@@ -30,6 +30,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * FEATURE: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): allow resuming interrupted migrations in [vm-native mode](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/). vmctl tracks finished requests in a state file in the `--state-dir` directory (the current working directory by default), and a repeated run with the same flags continues the progress. `--vm-native-filter-time-end` is now required, so resumed runs migrate the same time range. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/#resuming-migration). See [issue #11763](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11763) and [change #11830](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11830) for details.
 
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): apply the per-user concurrency limit before the global limit and before buffering the request body. Previously requests above the user limit occupied global slots and request buffers while waiting, so a single user could exhaust the `-maxConcurrentRequests` slots and the memory of `vmauth`. Requests from slow clients now count against the user limit while their body is being buffered, while previously they did not count until buffering was finished. See [concurrency limiting](https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting).
+
 ## [v1.156.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.156.0)
 
 Released at 2026-11-09

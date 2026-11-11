@@ -321,6 +321,13 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tk
 		}()
 	}
 
+	// Acquire concurrency limit for the given user.
+	if err := ui.beginConcurrencyLimit(ctx); err != nil {
+		handleConcurrencyLimitError(w, r, err)
+		return
+	}
+	defer ui.endConcurrencyLimit()
+
 	// Acquire global concurrency limit.
 	if err := beginConcurrencyLimit(ctx); err != nil {
 		handleConcurrencyLimitError(w, r, err)
@@ -350,13 +357,6 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tk
 	if err := rc.SetReadDeadline(time.Time{}); err != nil {
 		logger.Panicf("BUG: cannot reset read deadline: %s", err)
 	}
-
-	// Acquire concurrency limit for the given user.
-	if err := ui.beginConcurrencyLimit(ctx); err != nil {
-		handleConcurrencyLimitError(w, r, err)
-		return
-	}
-	defer ui.endConcurrencyLimit()
 
 	// Process the request.
 	processRequest(w, r, ui, tkn, userName)

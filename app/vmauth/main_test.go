@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -2276,5 +2277,62 @@ users:
 					tc.size, attempts, tc.expectedAttempts)
 			}
 		}
+	}
+}
+
+func TestUserLimitDoesNotHoldGlobalSlots(t *testing.T) {
+	defaultMaxQueueDuration := *maxQueueDuration
+	defer func() {
+		*maxQueueDuration = defaultMaxQueueDuration
+	}()
+	*maxQueueDuration = 2 * time.Second
+
+	const waitingRequests = 5
+
+	backendStarted := make(chan struct{}, waitingRequests+1)
+	backendRelease := make(chan struct{})
+	backSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		backendStarted <- struct{}{}
+		<-backendRelease
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer backSrv.Close()
+
+	cfgStr := `
+users:
+- bearer_token: foo
+  max_concurrent_requests: 1
+  url_prefix: {BACKEND}/`
+	cfgStr = strings.ReplaceAll(cfgStr, "{BACKEND}", backSrv.URL)
+	defer setAuthConfig(t, cfgStr)()
+
+	var wg sync.WaitGroup
+	sendRequest := func() {
+		wg.Go(func() {
+			r := httptest.NewRequest(http.MethodGet, "http://some-host.com/api/v1/query", nil)
+			r.Header.Set("Authorization", "Bearer foo")
+			w := &fakeResponseWriter{}
+			requestHandlerWithInternalRoutes(w, r)
+		})
+	}
+	defer func() {
+		close(backendRelease)
+		wg.Wait()
+	}()
+
+	concurrencyLimitOnce.Do(concurrencyLimitInit)
+	globalSlotsBefore := len(concurrencyLimitCh)
+
+	sendRequest()
+	<-backendStarted
+
+	for i := 0; i < waitingRequests; i++ {
+		sendRequest()
+	}
+	time.Sleep(200 * time.Millisecond)
+
+	globalSlotsExpected := globalSlotsBefore + 1
+	if n := len(concurrencyLimitCh); n != globalSlotsExpected {
+		t.Fatalf("requests waiting for the user limit must not occupy global slots; got %d occupied slots; want %d", n, globalSlotsExpected)
 	}
 }
