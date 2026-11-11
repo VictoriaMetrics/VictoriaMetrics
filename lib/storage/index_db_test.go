@@ -40,8 +40,12 @@ func TestTagFiltersToMetricIDsCache(t *testing.T) {
 		key := []byte("key")
 		wantSet := &uint64set.Set{}
 		wantSet.AddMulti(want)
-		idb.putMetricIDsToTagFiltersCache(nil, wantSet, key)
-		gotSet, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
+		_, cacheResets, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
+		if ok {
+			t.Fatalf("unexpected metricIDs found in empty cache")
+		}
+		idb.putMetricIDsToTagFiltersCache(nil, wantSet, key, cacheResets)
+		gotSet, _, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
 		if !ok {
 			t.Fatalf("expected metricIDs to be found in cache but they weren't: %v", want)
 		}
@@ -68,8 +72,12 @@ func TestTagFiltersToMetricIDsCache_EmptyMetricIDList(t *testing.T) {
 	defer s.tb.PutPartition(ptw)
 
 	key := []byte("key")
-	idb.putMetricIDsToTagFiltersCache(nil, nil, key)
-	got, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
+	_, cacheResets, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
+	if ok {
+		t.Fatalf("unexpected metricID list found in empty cache")
+	}
+	idb.putMetricIDsToTagFiltersCache(nil, nil, key, cacheResets)
+	got, _, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
 	if !ok {
 		t.Fatalf("expected empty metricID list to be found in cache but it wasn't")
 	}

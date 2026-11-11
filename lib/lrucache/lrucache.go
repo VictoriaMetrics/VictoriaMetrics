@@ -153,10 +153,36 @@ func (c *Cache) GetEntry(k string) Entry {
 }
 
 // PutEntry puts the given Entry e under the given key k into c.
+//
+// Use PutEntryIfNotReset() instead if e is calculated from the data,
+// which resets c on every change. Otherwise e calculated before Reset()
+// may be stored after it.
 func (c *Cache) PutEntry(k string, e Entry) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	c.putEntryLocked(k, e)
+}
+
+// PutEntryIfNotReset puts the given Entry e under the given key k into c
+// unless c has been reset since the caller obtained resets via Resets().
+//
+// Use it when e is calculated from the data, which resets c on every change.
+// Obtain resets before reading the data. This guarantees that c doesn't keep
+// e calculated from the data, which has been changed in the meantime.
+func (c *Cache) PutEntryIfNotReset(k string, e Entry, resets uint64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Reset() increments c.resets before acquiring c.mu. So a concurrent Reset()
+	// either is noticed here or removes e after c.mu is released.
+	if c.resets.Load() != resets {
+		return
+	}
+	c.putEntryLocked(k, e)
+}
+
+func (c *Cache) putEntryLocked(k string, e Entry) {
 	ce := c.m[k]
 	if ce != nil {
 		// The entry has been already registered by concurrent goroutine.
