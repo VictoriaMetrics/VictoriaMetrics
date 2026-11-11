@@ -1121,6 +1121,9 @@ func TestLogRequest(t *testing.T) {
 
 	ui.AccessLog.Headers = []string{"AccountID", "Non-Existing-Header", "Empty-Value-Header"}
 	f("foo", 404, 10*time.Millisecond, `access_log request_host="localhost:8080" request_uri="" status_code=404 remote_addr="" user_agent="" referer="" duration_ms=10 username="foo" headers.AccountID="2"`)
+
+	req.Header.Set("X-VictoriaMetrics-User", "team-a")
+	f("foo", 404, 10*time.Millisecond, `access_log request_host="localhost:8080" request_uri="" status_code=404 remote_addr="" user_agent="" referer="" duration_ms=10 username="foo" user="team-a" headers.AccountID="2"`)
 }
 
 func TestGetFirstAvailableBackend(t *testing.T) {

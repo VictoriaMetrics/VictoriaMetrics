@@ -615,6 +615,108 @@ X-Forwarded-For: 12.34.56.78, 42.2.3.84`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 }
 
+func TestRequestHandlerUserHeader(t *testing.T) {
+	jt := newTokenTester(t)
+
+	f := func(cfgStr string, requestHeaders map[string]string, userExpected string) {
+		t.Helper()
+
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintf(w, "user=%q", r.Header.Values("X-VictoriaMetrics-User"))
+		}))
+		defer ts.Close()
+
+		cfgStr = strings.ReplaceAll(cfgStr, "{BACKEND}", ts.URL)
+		defer setAuthConfig(t, cfgStr)()
+
+		r := httptest.NewRequest(http.MethodGet, "http://some-host.com/abc", nil)
+		for k, v := range requestHeaders {
+			r.Header.Set(k, v)
+		}
+		w := &fakeResponseWriter{}
+		if !requestHandler(w, r) {
+			t.Fatalf("unexpected false is returned from requestHandler")
+		}
+
+		response := strings.TrimSpace(strings.ReplaceAll(w.getResponse(), "\r\n", "\n"))
+		responseExpected := "statusCode=200\nuser=" + userExpected
+		if response != responseExpected {
+			t.Fatalf("unexpected response\ngot\n%s\nwant\n%s", response, responseExpected)
+		}
+	}
+
+	f(`
+unauthorized_user:
+  url_prefix: {BACKEND}/foo`, map[string]string{
+		"X-VictoriaMetrics-User": "admin",
+	}, `[]`)
+
+	f(`
+users:
+- username: foo
+  password: bar
+  url_prefix: {BACKEND}/foo`, map[string]string{
+		"Authorization":          "Basic Zm9vOmJhcg==",
+		"X-VictoriaMetrics-User": "admin",
+	}, `[]`)
+
+	f(`
+users:
+- name: team-a
+  username: foo
+  password: bar
+  url_prefix: {BACKEND}/foo`, map[string]string{
+		"Authorization":          "Basic Zm9vOmJhcg==",
+		"X-VictoriaMetrics-User": "admin",
+	}, `["team-a"]`)
+
+	f(`
+users:
+- name: team-a
+  username: foo
+  password: bar
+  headers:
+  - "X-VictoriaMetrics-User:"
+  url_prefix: {BACKEND}/foo`, map[string]string{
+		"Authorization": "Basic Zm9vOmJhcg==",
+	}, `[]`)
+
+	jwtCfgStr := func(extraJWTOptions string) string {
+		return fmt.Sprintf(`
+users:
+- jwt:
+    public_keys:
+    - %q
+%s
+  url_prefix: {BACKEND}/foo`, jt.PublicKeyPEM, extraJWTOptions)
+	}
+	genToken := func(claims map[string]any) map[string]string {
+		claims["exp"] = time.Now().Add(10 * time.Minute).Unix()
+		claims["vm_access"] = map[string]any{}
+		return map[string]string{
+			"Authorization": "Bearer " + jt.GenToken(claims, true),
+		}
+	}
+
+	f(jwtCfgStr(""), genToken(map[string]any{
+		"sub":   "alice",
+		"email": "alice@example.com",
+	}), `["alice"]`)
+
+	f(jwtCfgStr("  name: team-c"), genToken(map[string]any{
+		"sub": "alice",
+	}), `["alice"]`)
+
+	f(jwtCfgStr("    user_claim: email"), genToken(map[string]any{
+		"sub":   "alice",
+		"email": "alice@example.com",
+	}), `["alice@example.com"]`)
+
+	f(jwtCfgStr(""), genToken(map[string]any{}), `[]`)
+
+	f(jwtCfgStr("  name: team-c"), genToken(map[string]any{}), `["team-c"]`)
+}
+
 func TestJWTRequestHandler(t *testing.T) {
 	jt := newTokenTester(t)
 

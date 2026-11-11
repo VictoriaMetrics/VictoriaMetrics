@@ -303,24 +303,11 @@ func (t *Token) matchClaim(c *Claim) bool {
 	if len(c.nestedKeys) == 0 {
 		return true
 	}
-	var gotV *fastjson.Value
 	if c.nestedKeys[0] == "scope" {
 		// special case, scope could be both string and []string
 		return c.valueRe.MatchString(t.body.Scope)
 	}
-	keys := c.nestedKeys
-	if keys[0] == "vm_access" && t.body.vmAccessClaimObject != nil {
-		// vm_access was encoded as a string in the token body; use the
-		// separately parsed vmAccessClaimObject for nested key lookup.
-		if len(keys) == 1 {
-			// vm_access is object type, it cannot match string
-			return false
-		}
-		keys = keys[1:]
-		gotV = t.body.vmAccessClaimObject.Get(keys...)
-	} else {
-		gotV = t.body.allClaims.Get(keys...)
-	}
+	gotV := t.claimValue(c.nestedKeys)
 	if gotV == nil {
 		// fast path
 		return false
@@ -340,6 +327,24 @@ func (t *Token) matchClaim(c *Claim) bool {
 	match := c.valueRe.Match(b)
 	claimValuePool.Put(bb)
 	return match
+}
+
+func (t *Token) claimValue(keys []string) *fastjson.Value {
+	if keys[0] == "vm_access" && t.body.vmAccessClaimObject != nil {
+		// vm_access was encoded as a string in the token body; use the
+		// separately parsed vmAccessClaimObject for nested key lookup.
+		if len(keys) == 1 {
+			// vm_access is object type, it has no scalar value
+			return nil
+		}
+		return t.body.vmAccessClaimObject.Get(keys[1:]...)
+	}
+	return t.body.allClaims.Get(keys...)
+}
+
+// ClaimString returns the value of the string claim at the given nestedKeys obtained from ParseClaimKey.
+func (t *Token) ClaimString(nestedKeys []string) string {
+	return string(t.claimValue(nestedKeys).GetStringBytes())
 }
 
 func matchClaimArray(c *Claim, elems []*fastjson.Value) bool {
@@ -799,29 +804,23 @@ type Claim struct {
 //
 // {"audit": {"permissions": [0, 1, 0]}}
 func NewClaim(key, value string) (*Claim, error) {
-	var nestedKeys []string
-	if idx := strings.Index(key, "."); idx > 0 {
-		nestedKeys = splitNestedClaimKey(key)
-	} else {
-		nestedKeys = []string{key}
-	}
 	valueRe, err := regexp.Compile("^(?:" + value + ")$")
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse value match re=%q: %w", value, err)
 	}
 	return &Claim{
-		nestedKeys: nestedKeys,
+		nestedKeys: ParseClaimKey(key),
 		valueRe:    valueRe,
 	}, nil
 }
 
-// splitNestedClaimKey splits a dot-delimited claim key into individual path segments.
+// ParseClaimKey splits a dot-delimited claim key into individual path segments.
 // A dot preceded by a backslash (\.) is treated as a literal dot and not a delimiter.
 //
 // For example:
 //   - "a.b.c"   ? ["a", "b", "c"]
 //   - "a\.b.c"  ? ["a.b", "c"]
-func splitNestedClaimKey(key string) []string {
+func ParseClaimKey(key string) []string {
 	var keys []string
 	var unescapedKey string
 	for {

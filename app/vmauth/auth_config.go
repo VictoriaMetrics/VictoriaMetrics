@@ -31,6 +31,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -138,8 +139,12 @@ func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int,
 	headers := getHeaders(r, ui.AccessLog.Headers)
 	remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 	requestURI := httpserver.GetRequestURI(r)
-	logger.Infof("access_log request_host=%q request_uri=%q status_code=%d remote_addr=%s user_agent=%q referer=%q duration_ms=%d username=%q%s",
-		r.Host, requestURI, statusCode, remoteAddr, r.UserAgent(), r.Referer(), duration.Milliseconds(), userName, headers)
+	var user string
+	if s := r.Header.Get(httpserver.VMAuthUserHeader); s != "" {
+		user = fmt.Sprintf(" user=%q", s)
+	}
+	logger.Infof("access_log request_host=%q request_uri=%q status_code=%d remote_addr=%s user_agent=%q referer=%q duration_ms=%d username=%q%s%s",
+		r.Host, requestURI, statusCode, remoteAddr, r.UserAgent(), r.Referer(), duration.Milliseconds(), userName, user, headers)
 }
 
 // getHeaders extracts headers that match seek
@@ -1285,6 +1290,15 @@ func (ui *UserInfo) name() string {
 		return `jwt`
 	}
 	return ""
+}
+
+func (ui *UserInfo) readableName(tkn *jwt.Token) string {
+	if tkn != nil {
+		if s := tkn.ClaimString(ui.JWT.userClaimKeys); s != "" {
+			return s
+		}
+	}
+	return ui.Name
 }
 
 func getAuthTokens(authToken, bearerToken, username, password string) ([]string, error) {

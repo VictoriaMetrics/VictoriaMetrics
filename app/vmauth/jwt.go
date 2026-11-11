@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"net/url"
 	"os"
@@ -65,6 +66,9 @@ type JWTConfig struct {
 	MatchClaims       map[string]string `yaml:"match_claims,omitempty"`
 	parsedMatchClaims []*jwt.Claim
 
+	UserClaim     string `yaml:"user_claim,omitempty"`
+	userClaimKeys []string
+
 	DefaultVMAccessClaim *jwt.VMAccessClaim `yaml:"default_vm_access_claim,omitempty"`
 
 	// ProxyCookieAuthorizationToken, when set, forwards the SSO cookie token to the backend
@@ -108,6 +112,7 @@ func parseJWTUsers(ac *AuthConfig, oidcDP *oidcDiscovererPool) ([]*UserInfo, err
 			parsedClaims = append(parsedClaims, pc)
 		}
 		ui.JWT.parsedMatchClaims = parsedClaims
+		ui.JWT.userClaimKeys = jwt.ParseClaimKey(cmp.Or(jwtToken.UserClaim, "sub"))
 		sort.Strings(sortedClaims)
 		claimsString = strings.Join(sortedClaims, ",")
 
