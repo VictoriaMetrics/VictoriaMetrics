@@ -45,9 +45,10 @@ var (
 	storagePath    string
 	httpListenAddr string
 	// Insert series from 2000-01-01T00:00:00.
-	testStartTime          = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
-	testLogLevel           = "ERROR"
-	disableAlertgroupLabel bool
+	testStartTime               = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	testLogLevel                = "ERROR"
+	disableAlertgroupLabel      bool
+	respectGroupIntervalEnabled bool
 )
 
 func durationToTime(pd *promutil.Duration) time.Time {
@@ -62,7 +63,7 @@ const (
 )
 
 // UnitTest runs unittest for files
-func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, externalURL, httpListenPort, logLevel string) bool {
+func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, externalURL, httpListenPort, logLevel string, respectGroupInterval bool) bool {
 	if logLevel != "" {
 		testLogLevel = logLevel
 	}
@@ -123,6 +124,7 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 	defer vminsert.Stop()
 	defer vmselect.Stop()
 	disableAlertgroupLabel = disableGroupLabel
+	respectGroupIntervalEnabled = respectGroupInterval
 
 	testfiles, err := vmalertconfig.ReadFromFS(files)
 	if err != nil {
@@ -368,24 +370,44 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 		return groupOrderMap[testGroups[i].Name] < groupOrderMap[testGroups[j].Name]
 	})
 
+	// Groups without `interval` get defaultInterval when created. With
+	// respectGroupInterval the evaluation follows that value, so it must match
+	// evalInterval; otherwise groups are evaluated on evalInterval regardless.
+	defaultInterval := time.Minute
+	if respectGroupIntervalEnabled {
+		defaultInterval = evalInterval
+	}
+
 	// create groups with given rule
 	var groups []*rule.Group
+	var groupIntervals []time.Duration
 	for _, group := range testGroups {
 		mergedExternalLabels := make(map[string]string)
 		maps.Copy(mergedExternalLabels, tg.ExternalLabels)
 		maps.Copy(mergedExternalLabels, externalLabels)
-		ng := rule.NewGroup(group, q, time.Minute, mergedExternalLabels)
+		ng := rule.NewGroup(group, q, defaultInterval, mergedExternalLabels)
 		ng.Init()
 		groups = append(groups, ng)
+
+		interval := evalInterval
+		if respectGroupIntervalEnabled {
+			interval = ng.Interval
+		}
+		groupIntervals = append(groupIntervals, interval)
 	}
+
+	// nextEval holds the next timestamp at which each group has to be evaluated,
+	// so the loop below walks the union of the groups' evaluation timestamps
+	nextEval := make([]time.Time, len(groups))
 
 	evalIndex := 0
 	maxEvalTime := testStartTime.Add(tg.maxEvalTime())
-	for ts := testStartTime; ts.Before(maxEvalTime) || ts.Equal(maxEvalTime); ts = ts.Add(evalInterval) {
-		for _, g := range groups {
-			if len(g.Rules) == 0 {
+	for ts := testStartTime; ts.Before(maxEvalTime) || ts.Equal(maxEvalTime); {
+		for i, g := range groups {
+			if len(g.Rules) == 0 || nextEval[i].After(ts) {
 				continue
 			}
+			nextEval[i] = ts.Add(groupIntervals[i])
 			errs := g.ExecOnce(context.Background(), rw, ts)
 			for err := range errs {
 				if err != nil {
@@ -398,10 +420,21 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 			vmstorage.DebugFlush()
 		}
 
+		// the next timestamp any of the groups has to be evaluated at
+		nextTS := maxEvalTime.Add(time.Nanosecond)
+		for i, g := range groups {
+			if len(g.Rules) == 0 {
+				continue
+			}
+			if nextEval[i].Before(nextTS) {
+				nextTS = nextEval[i]
+			}
+		}
+
 		// check alert_rule_test case at every eval time
 		for evalIndex < len(alertEvalTimes) {
 			if ts.Sub(testStartTime) > alertEvalTimes[evalIndex] ||
-				alertEvalTimes[evalIndex] >= ts.Add(evalInterval).Sub(testStartTime) {
+				alertEvalTimes[evalIndex] >= nextTS.Sub(testStartTime) {
 				break
 			}
 			gotAlertsMap := map[string]map[string]labelsAndAnnotations{}
@@ -475,6 +508,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 			evalIndex++
 		}
 
+		ts = nextTS
 	}
 
 	checkErrs = append(checkErrs, checkMetricsqlCase(tg.MetricsqlExprTests, q)...)

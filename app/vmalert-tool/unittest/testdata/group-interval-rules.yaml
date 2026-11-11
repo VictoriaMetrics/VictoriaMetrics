@@ -1,0 +1,20 @@
+groups:
+  # no interval, so the file-wide evaluation_interval is used
+  - name: defaultInterval
+    rules:
+      - record: default_evals
+        expr: count_over_time(up[1h]) or vector(0)
+
+  # evaluated 5 times less often than the group above
+  - name: slowInterval
+    interval: 5m
+    rules:
+      - record: slow_evals
+        expr: count_over_time(up[1h]) or vector(0)
+
+  # the interval is not a multiple of the evaluation_interval
+  - name: unalignedInterval
+    interval: 90s
+    rules:
+      - record: unaligned_evals
+        expr: count_over_time(up[1h]) or vector(0)
