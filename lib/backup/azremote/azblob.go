@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
@@ -78,10 +79,12 @@ func (fs *FS) Init(ctx context.Context) error {
 }
 
 func (fs *FS) newClient() (*service.Client, error) {
+	opts := azClientOptions()
+
 	connString := fs.env("AZURE_STORAGE_ACCOUNT_CONNECTION_STRING")
 	if connString != "" {
 		logger.Infof("creating AZBlob service client from connection string defined at AZURE_STORAGE_ACCOUNT_CONNECTION_STRING")
-		return service.NewClientFromConnectionString(connString, nil)
+		return service.NewClientFromConnectionString(connString, opts)
 	}
 
 	accountKey := fs.env("AZURE_STORAGE_ACCOUNT_KEY")
@@ -98,7 +101,7 @@ func (fs *FS) newClient() (*service.Client, error) {
 			return nil, fmt.Errorf("failed to create Shared Key credentials: %w", err)
 		}
 		serviceURL := fs.getServiceURL(accountName)
-		return service.NewClientWithSharedKeyCredential(serviceURL, creds, nil)
+		return service.NewClientWithSharedKeyCredential(serviceURL, creds, opts)
 	}
 
 	useDefault := fs.env("AZURE_USE_DEFAULT_CREDENTIAL")
@@ -116,11 +119,27 @@ func (fs *FS) newClient() (*service.Client, error) {
 		}
 
 		serviceURL := fs.getServiceURL(accountName)
-		return service.NewClient(serviceURL, creds, nil)
+		return service.NewClient(serviceURL, creds, opts)
 	}
 
 	return nil, fmt.Errorf("failed to detect credentials for AZBlob; ensure that one of the options listed at " +
 		"https://docs.victoriametrics.com/victoriametrics/vmbackup/#providing-credentials-via-env-variables is set")
+}
+
+// azClientOptions returns a more patient retry policy than the SDK default (3 retries, 60s
+// max delay), since Azure Blob Storage can return 503 ServerBusy for extended periods under
+// sustained load. Backoff is exponential (RetryDelay * (2^try - 1), jittered), so 8 retries
+// from a 5s base delay can reach the 1200s cap by the last retry.
+func azClientOptions() *service.ClientOptions {
+	return &service.ClientOptions{
+		ClientOptions: azcore.ClientOptions{
+			Retry: policy.RetryOptions{
+				MaxRetries:    8,
+				RetryDelay:    5 * time.Second,
+				MaxRetryDelay: 1200 * time.Second,
+			},
+		},
+	}
 }
 
 func (fs *FS) env(name string) string {
