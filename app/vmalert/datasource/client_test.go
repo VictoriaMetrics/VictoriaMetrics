@@ -496,7 +496,7 @@ func TestVMRangeQuery(t *testing.T) {
 	}
 	expected = Metric{
 		Labels:     []prompb.Label{{Value: "total", Name: "stats_result"}},
-		Timestamps: []int64{1583786142},
+		Timestamps: []int64{1583786202},
 		Values:     []float64{10},
 	}
 	if !reflect.DeepEqual(m[0], expected) {
@@ -764,7 +764,7 @@ func TestRequestParams(t *testing.T) {
 		dataSourceType:     datasourceVLogs,
 		evaluationInterval: time.Minute,
 	}, func(t *testing.T, r *http.Request) {
-		ts := timestamp.Format(time.RFC3339)
+		ts := timestamp.Add(-time.Minute).Format(time.RFC3339)
 		exp := url.Values{"query": {vlogsQuery}, "start": {ts}, "end": {ts}, "step": {"60s"}}
 		checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 	})
