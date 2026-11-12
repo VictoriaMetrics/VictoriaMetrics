@@ -2,6 +2,7 @@ package vmctlutil
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
@@ -14,12 +15,24 @@ const (
 )
 
 // ParseTime parses time in s string and returns time.Time object
-// if parse correctly or error if not
+// if parsed correctly or error if not.
+//
+// The `<` and `>` prefixes make the time exclusive, e.g. `<2026-02-01` is the last millisecond before 2026-02-01.
 func ParseTime(s string) (time.Time, error) {
+	// The ±1ms step applies after rounding to msecs: for inputs with sub-ms precision, the rounding error might interfere
+	halfOpenDelta := int64(0)
+	if strings.HasPrefix(s, "<") {
+		halfOpenDelta--
+		s = s[1:]
+	} else if strings.HasPrefix(s, ">") {
+		halfOpenDelta++
+		s = s[1:]
+	}
 	msecs, err := timeutil.ParseTimeMsec(s)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("cannot parse %s: %w", s, err)
 	}
+	msecs += halfOpenDelta
 	if msecs < minTimeMsecs {
 		msecs = 0
 	}
