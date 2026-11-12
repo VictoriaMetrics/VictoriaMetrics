@@ -50,6 +50,7 @@ func TestFilterPartitions(t *testing.T) {
 		makePart("data/small/2024_06/file.bin"),
 		makePart("data/big/2024_06/big.bin"),
 		makePart("data/indexdb/2024_06/index.dat"),
+		makePart("data/small/2025_12/file.bin"),
 		makePart("data/small/2026_06/parts.json"),
 		makePart("data/small/2026_06/file.bin"),
 		makePart("data/big/2026_06/big.bin"),
@@ -87,6 +88,7 @@ func TestFilterPartitions(t *testing.T) {
 		"data/small/2024_06/file.bin",
 		"data/big/2024_06/big.bin",
 		"data/indexdb/2024_06/index.dat",
+		"data/small/2025_12/file.bin",
 		"data/small/2026_06/parts.json",
 		"data/small/2026_06/file.bin",
 		"data/big/2026_06/big.bin",
@@ -132,6 +134,7 @@ func TestFilterPartitions(t *testing.T) {
 	// restoreSince=2y from 2026-06-28: cutoff is 2024-06-28.
 	// 2024_01 ends 2024-02-01 — before cutoff, excluded.
 	// 2024_06 ends 2024-07-01 — after cutoff (Jul 1 > Jun 28), included.
+	// 2025_12 ends 2026-01-01 — after cutoff, included.
 	// 2026_06 ends 2026-07-01 — after cutoff, included.
 	twoYears := 2 * 365 * 24 * time.Hour
 	f(twoYears, "", []string{
@@ -139,6 +142,26 @@ func TestFilterPartitions(t *testing.T) {
 		"data/small/2024_06/file.bin",
 		"data/big/2024_06/big.bin",
 		"data/indexdb/2024_06/index.dat",
+		"data/small/2025_12/file.bin",
+		"data/small/2026_06/parts.json",
+		"data/small/2026_06/file.bin",
+		"data/big/2026_06/big.bin",
+		"data/indexdb/2026_06/index.dat",
+		"metadata/tenantsMetadata.json",
+	})
+
+	// December rollover: 2025_12 ends 2026-01-01 (time.Date normalizes month 13)
+	// Cutoff 2025-12-31 23:00 — 2025_12 included.
+	f(now.Sub(time.Date(2025, 12, 31, 23, 0, 0, 0, time.UTC)), "", []string{
+		"data/small/2025_12/file.bin",
+		"data/small/2026_06/parts.json",
+		"data/small/2026_06/file.bin",
+		"data/big/2026_06/big.bin",
+		"data/indexdb/2026_06/index.dat",
+		"metadata/tenantsMetadata.json",
+	})
+	// Cutoff exactly 2026-01-01 — 2025_12 excluded, since the partition end is exclusive.
+	f(now.Sub(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)), "", []string{
 		"data/small/2026_06/parts.json",
 		"data/small/2026_06/file.bin",
 		"data/big/2026_06/big.bin",
