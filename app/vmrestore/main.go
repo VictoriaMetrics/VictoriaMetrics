@@ -38,8 +38,8 @@ var (
 		"Supports s (second), h (hour), d (day), w (week), M (month), y (year) suffixes.")
 	restorePartitions = flag.String("restorePartitions", "", "Regular expression matching partition names (YYYY_MM) to restore from the backup. "+
 		"Partitions whose name doesn't match are skipped. Non-partition files (metadata, etc.) are always restored. "+
-		"Example: -restorePartitions=2024_01 restores only January 2024; -restorePartitions=2026_.* restores the whole of 2026; "+
-		"-restorePartitions=2026_(0[1-6]) restores the first half of 2026. If not set, all partitions are restored.")
+		"Example: -restorePartitions=2024_01 restores only January 2024; -restorePartitions='2026_.*' restores the whole of 2026; "+
+		"-restorePartitions='2026_(0[1-6])' restores the first half of 2026. If not set, all partitions are restored.")
 )
 
 func main() {

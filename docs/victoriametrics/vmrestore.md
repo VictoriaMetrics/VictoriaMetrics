@@ -54,10 +54,11 @@ This is useful when only recent data is needed and over-provisioning storage is 
 (for example, Kubernetes PVCs that can expand but not shrink).
 
 > **Note:** partial restore via `-restoreSince` or `-restorePartitions` is not supported for
-> backups that still contain the legacy, non-partitioned indexDB (i.e. backups created before
-> per-partition indexDB support was added, see
-> [#7599](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7599)). Such backups must
-> be restored in full.
+> backups that still contain the legacy, non-partitioned indexDB. Per-partition indexDB was introduced in
+> [v1.133.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11330)
+> (see [#7599](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7599)); storage created by an
+> earlier version keeps its legacy indexDB until it is rotated out by retention. Such backups must be
+> restored in full.
 
 ### Restore only recent data
 
@@ -91,10 +92,10 @@ which partitions to download:{{% available_from "#" %}}
 ```
 
 Partition names follow the `YYYY_MM` format used by VictoriaMetrics storage, and the regexp is
-matched unanchored against that name. For example, `-restorePartitions=2026_.*` restores every
-partition in 2026, and `-restorePartitions=2026_(0[1-6])` restores only the first half of 2026.
+matched unanchored against that name. For example, `-restorePartitions='2026_.*'` restores every
+partition in 2026, and `-restorePartitions='2026_(0[1-6])'` restores only the first half of 2026.
 To restore a fixed set of specific months, alternate them explicitly, e.g.
-`-restorePartitions=2026_05|2026_06`.
+`-restorePartitions='2026_05|2026_06'`.
 Non-partition files (metadata etc.) are always restored regardless of this flag.
 
 Both flags can be combined — only partitions that satisfy both filters are downloaded.
@@ -261,7 +262,7 @@ Run `vmrestore -help` in order to see all the available options:
   -s3TLSInsecureSkipVerify
      Whether to skip TLS verification when connecting to the S3 endpoint.
   -restorePartitions string
-     Regular expression matching partition names (YYYY_MM) to restore from the backup. Partitions whose name doesn't match are skipped. Non-partition files (metadata, etc.) are always restored. Example: -restorePartitions=2024_01 restores only January 2024; -restorePartitions=2026_.* restores the whole of 2026; -restorePartitions=2026_(0[1-6]) restores the first half of 2026. If not set, all partitions are restored.
+     Regular expression matching partition names (YYYY_MM) to restore from the backup. Partitions whose name doesn't match are skipped. Non-partition files (metadata, etc.) are always restored. Example: -restorePartitions=2024_01 restores only January 2024; -restorePartitions='2026_.*' restores the whole of 2026; -restorePartitions='2026_(0[1-6])' restores the first half of 2026. If not set, all partitions are restored.
   -restoreSince value
      If set, a partition is restored only if the end date derived from its name (YYYY_MM) is newer than now()-restoreSince; the whole partition is restored, even though it may also contain data older than restoreSince. This reduces the download size when only recent data is needed and helps avoid over-provisioning disk space. For example, -restoreSince=5d restores only partitions whose calendar month ends within the last 5 days. Supports s (second), h (hour), d (day), w (week), M (month), y (year) suffixes.
   -skipBackupCompleteCheck
