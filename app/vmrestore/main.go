@@ -34,7 +34,7 @@ var (
 	SkipPreallocation       = flag.Bool("skipFilePreallocation", false, "Whether to skip pre-allocated files. This will likely be slower in most cases, but allows restores to resume mid file on failure")
 	restoreSince            = flagutil.NewRetentionDuration("restoreSince", "", "If set, a partition is restored only if the end date derived from its name (YYYY_MM) is newer than now()-restoreSince; the whole partition is restored, even though it may also contain data older than restoreSince. "+
 		"This reduces the download size when only recent data is needed and helps avoid over-provisioning disk space. "+
-		"For example, -restoreSince=5d restores only partitions whose calendar month ends within the last 5 days.")
+		"For example, -restoreSince=5d restores the current month, plus the previous month if it ended less than 5 days ago.")
 	restorePartitions = flag.String("restorePartitions", "", "Regular expression matching partition names (YYYY_MM) to restore from the backup. "+
 		"Partitions whose name doesn't match are skipped. Non-partition files (metadata, etc.) are always restored. "+
 		"Example: -restorePartitions=2024_01 restores only January 2024; -restorePartitions='2026_.*' restores the whole of 2026; "+
