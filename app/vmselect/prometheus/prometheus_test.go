@@ -1,12 +1,18 @@
 package prometheus
 
 import (
+	"flag"
 	"math"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"reflect"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 )
 
 func TestRemoveEmptyValuesAndTimeseries(t *testing.T) {
@@ -228,4 +234,82 @@ func TestGetLatencyOffsetMillisecondsFailure(t *testing.T) {
 		}
 	}
 	f("http://localhost?latency_offset=foobar")
+}
+
+func setMaxQueryLen(t *testing.T, n int) {
+	t.Helper()
+	origMaxQueryLen := searchutil.GetMaxQueryLen()
+	if err := flag.Set("search.maxQueryLen", strconv.Itoa(n)); err != nil {
+		t.Fatalf("cannot set -search.maxQueryLen to %d: %s", n, err)
+	}
+	t.Cleanup(func() {
+		if err := flag.Set("search.maxQueryLen", strconv.Itoa(origMaxQueryLen)); err != nil {
+			t.Fatalf("cannot restore -search.maxQueryLen to %d: %s", origMaxQueryLen, err)
+		}
+	})
+}
+
+func TestExpandWithExprsTooLongQuery(t *testing.T) {
+	setMaxQueryLen(t, 64)
+
+	// A query longer than -search.maxQueryLen must be rejected before it reaches
+	// the MetricsQL parser. Unclosed parens make sure the response cannot be
+	// mistaken for a parse error: the parser would report a syntax error instead.
+	r, err := http.NewRequest(http.MethodGet, "/expand-with-exprs?query="+url.QueryEscape(strings.Repeat("(", 65)), nil)
+	if err != nil {
+		t.Fatalf("unexpected error in NewRequest: %s", err)
+	}
+	rec := httptest.NewRecorder()
+	ExpandWithExprs(rec, r)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("unexpected status code; got %d; want %d; body: %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "too long query") {
+		t.Fatalf("unexpected response body; got %s; expecting it to contain %q", rec.Body.String(), "too long query")
+	}
+
+	// A query within -search.maxQueryLen must still be processed.
+	r, err = http.NewRequest(http.MethodGet, "/expand-with-exprs?format=json&query=up", nil)
+	if err != nil {
+		t.Fatalf("unexpected error in NewRequest: %s", err)
+	}
+	rec = httptest.NewRecorder()
+	ExpandWithExprs(rec, r)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("unexpected status code; got %d; want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"status": "success"`) {
+		t.Fatalf("unexpected response body; got %s; expecting a successful response", rec.Body.String())
+	}
+}
+
+func TestPrettifyQueryTooLongQuery(t *testing.T) {
+	setMaxQueryLen(t, 64)
+
+	r, err := http.NewRequest(http.MethodGet, "/prettify-query?query="+url.QueryEscape(strings.Repeat("(", 65)), nil)
+	if err != nil {
+		t.Fatalf("unexpected error in NewRequest: %s", err)
+	}
+	rec := httptest.NewRecorder()
+	PrettifyQuery(rec, r)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("unexpected status code; got %d; want %d; body: %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "too long query") {
+		t.Fatalf("unexpected response body; got %s; expecting it to contain %q", rec.Body.String(), "too long query")
+	}
+
+	// A query within -search.maxQueryLen must still be processed.
+	r, err = http.NewRequest(http.MethodGet, "/prettify-query?query=up", nil)
+	if err != nil {
+		t.Fatalf("unexpected error in NewRequest: %s", err)
+	}
+	rec = httptest.NewRecorder()
+	PrettifyQuery(rec, r)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("unexpected status code; got %d; want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"status": "success"`) {
+		t.Fatalf("unexpected response body; got %s; expecting a successful response", rec.Body.String())
+	}
 }

@@ -76,6 +76,11 @@ const defaultStep = 5 * 60 * 1000
 func ExpandWithExprs(w http.ResponseWriter, r *http.Request) {
 	query := r.FormValue("query")
 	format := r.FormValue("format")
+	maxLen := searchutil.GetMaxQueryLen()
+	if len(query) > maxLen {
+		httpserver.SendPrometheusError(w, r, httpserver.InvalidParamError(fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxLen)))
+		return
+	}
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	if format == "json" {
@@ -91,6 +96,11 @@ func ExpandWithExprs(w http.ResponseWriter, r *http.Request) {
 // PrettifyQuery handles the request /prettify-query
 func PrettifyQuery(w http.ResponseWriter, r *http.Request) {
 	query := r.FormValue("query")
+	maxLen := searchutil.GetMaxQueryLen()
+	if len(query) > maxLen {
+		httpserver.SendPrometheusError(w, r, httpserver.InvalidParamError(fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxLen)))
+		return
+	}
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	w.Header().Set("Content-Type", "application/json")
