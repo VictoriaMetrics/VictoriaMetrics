@@ -42,6 +42,9 @@ func TestUnitTest_Success(t *testing.T) {
 	// every rule group is evaluated on its own interval
 	f(false, []string{"./testdata/group-interval-test.yaml"}, nil, "", "", true)
 
+	// every rule group is evaluated on its own interval from start_timestamp
+	f(false, []string{"./testdata/start-timestamp-group-interval.yaml"}, nil, "", "", true)
+
 	// every rule group is evaluated on the evaluation_interval
 	f(false, []string{"./testdata/group-interval-default-test.yaml"}, nil, "", "", false)
 
