@@ -323,7 +323,7 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 	sn.sendDurationSeconds.Add(duration.Seconds())
 
 	now := time.Now()
-	saturation := float64(now.Sub(startTime)) / float64(now.Sub(sn.lastSendTime))
+	saturation := float64(now.Sub(startTime)) / float64(max(now.Sub(sn.lastSendTime), time.Nanosecond))
 	sn.avgSaturation.Add(saturation)
 	sn.lastSendTime = now
 
