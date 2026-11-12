@@ -326,22 +326,11 @@ var bytesDownloadedTotal = metrics.NewCounter(`vm_backups_downloaded_bytes_total
 // partitionDirPrefixes are the directory prefixes that contain per-partition subdirectories in a backup.
 var partitionDirPrefixes = []string{"data/small/", "data/big/", "data/indexdb/"}
 
-// legacyIndexDBPathPrefix is the path prefix of the legacy, non-partitioned indexDB
-// directory in a backup, as created by VictoriaMetrics versions prior to per-partition
-// indexDB support (https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7599).
-//
-// A backup containing files under this prefix cannot be safely restored partially,
-// since the legacy indexDB isn't scoped to individual YYYY_MM partitions.
+// legacyIndexDBPathPrefix holds the non-partitioned indexDB from before
+// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7599; it can't be restored partially.
 const legacyIndexDBPathPrefix = "indexdb/"
 
-// extractPartitionName returns the YYYY_MM partition name from a part path, or an empty string
-// if the path does not belong to a partition directory (e.g. metadata files).
-//
-// Part paths in VictoriaMetrics backups follow the pattern:
-//
-//	data/small/YYYY_MM/...
-//	data/big/YYYY_MM/...
-//	data/indexdb/YYYY_MM/...
+// extractPartitionName returns YYYY_MM for a data/{small,big,indexdb}/YYYY_MM/... path, or "" otherwise.
 func extractPartitionName(partPath string) string {
 	for _, prefix := range partitionDirPrefixes {
 		if strings.HasPrefix(partPath, prefix) {
@@ -356,22 +345,7 @@ func extractPartitionName(partPath string) string {
 	return ""
 }
 
-// filterPartitions filters srcParts according to the restoreSince duration and the
-// restorePartitionsRegexp pattern. Non-partition files are always retained.
-//
-//   - If restoreSince > 0, a partition is kept if the end date derived from its name
-//     (YYYY_MM) is at or after (now - restoreSince). The whole partition is kept, even
-//     though it may also contain data older than restoreSince.
-//   - If restorePartitionsRegexp is non-empty, only partitions whose name matches the
-//     regexp are kept. The regexp is matched unanchored against the partition name, so
-//     e.g. "2026_" matches every 2026 partition and "2026_(0[1-6])" matches partitions
-//     from the first half of 2026.
-//   - Both filters are applied when both are set (intersection).
-//
-// It is an error to filter a backup that contains the legacy, non-partitioned indexDB
-// (see legacyIndexDBPathPrefix), since such a backup cannot be restored partially.
-//
-// now is the reference time used for computing the restoreSince cutoff.
+// filterPartitions keeps non-partition parts and the partitions selected by restoreSince and restorePartitionsRegexp.
 func filterPartitions(srcParts []common.Part, restoreSince time.Duration, restorePartitionsRegexp string, now time.Time) ([]common.Part, error) {
 	var partitionRe *regexp.Regexp
 	if restorePartitionsRegexp != "" {
@@ -417,11 +391,8 @@ func filterPartitions(srcParts []common.Part, restoreSince time.Duration, restor
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse partition name %q from path %q: %w", ptName, p.Path, err)
 		}
-		// The partition covers the whole calendar month. Its end timestamp is
-		// the start of the next month (exclusive). The partition's end date,
-		// derived from its YYYY_MM name, is compared against sinceTime; the whole
-		// partition is kept if that end date is after sinceTime, even though the
-		// partition may also contain data older than sinceTime.
+
+		// Keep the whole monthly partition if any of it is after sinceTime
 		y, m, _ := ptTime.Date()
 		partitionEnd := time.Date(y, m+1, 1, 0, 0, 0, 0, time.UTC)
 		if partitionEnd.After(sinceTime) {
