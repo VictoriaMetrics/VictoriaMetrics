@@ -194,7 +194,7 @@ func (tb *table) addPartitionWrapperLocked(pt *partition) *partitionWrapper {
 
 // MustClose closes the table.
 //
-// This func must be called only when there are no goroutines using the the
+// This func must be called only when there are no goroutines using the
 // table, such as ones that ingest or retrieve time series samples or index
 // data.
 func (tb *table) MustClose() {
@@ -429,9 +429,8 @@ func (tb *table) getMinMaxIngestionTimestamps() (int64, int64) {
 func (tb *table) getMinMaxTimestampsForAge(minAgeMsecs int64) (int64, int64) {
 	now := int64(fasttime.UnixTimestamp() * 1000)
 	minTimestamp := now - minAgeMsecs
-	if minTimestamp < 0 {
-		// Negative timestamps aren't supported by the storage.
-		minTimestamp = 0
+	if minTimestamp < minUnixMilli {
+		minTimestamp = minUnixMilli
 	}
 	maxTimestamp := int64(maxUnixMilli)
 	if maxUnixMilli-now > tb.s.futureRetentionMsecs {

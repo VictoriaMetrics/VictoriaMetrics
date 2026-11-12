@@ -47,6 +47,7 @@ func main() {
 	start := time.Now()
 	beforeFn := func(c *cli.Context) error {
 		flag.Parse()
+		initSecretFlags()
 		logger.Init()
 		isSilent = c.Bool(globalSilent)
 		if c.Bool(globalDisableProgressBar) {
@@ -401,7 +402,7 @@ func main() {
 			{
 				Name:   "vm-native",
 				Usage:  "Migrate time series between VictoriaMetrics installations",
-				Flags:  mergeFlags(globalFlags, vmNativeFlags),
+				Flags:  mergeFlags(globalFlags, stateFlags, vmNativeFlags),
 				Before: beforeFn,
 				Action: func(c *cli.Context) error {
 					fmt.Println("VictoriaMetrics Native import mode")
@@ -419,6 +420,11 @@ func main() {
 					}
 
 					disableKeepAlive := c.Bool(vmNativeDisableHTTPKeepAlive)
+
+					cc := c.Int(vmConcurrency)
+					if cc <= 0 {
+						cc = 1
+					}
 
 					var srcExtraLabels []string
 					srcAddr := strings.Trim(c.String(vmNativeSrcAddr), "/")
@@ -445,6 +451,8 @@ func main() {
 					trSrc := httputil.NewTransport(false, "vmctl_src")
 					trSrc.DisableKeepAlives = disableKeepAlive
 					trSrc.TLSClientConfig = srcTC
+					// Keep an idle connection per worker to reduce connections churn.
+					trSrc.MaxIdleConnsPerHost = cc
 
 					srcHTTPClient := &http.Client{
 						Transport: trSrc,
@@ -475,6 +483,8 @@ func main() {
 					trDst := httputil.NewTransport(false, "vmctl_dst")
 					trDst.DisableKeepAlives = disableKeepAlive
 					trDst.TLSClientConfig = dstTC
+					// Keep an idle connection per worker to reduce connections churn.
+					trDst.MaxIdleConnsPerHost = cc
 
 					dstHTTPClient := &http.Client{
 						Transport: trDst,
@@ -503,9 +513,12 @@ func main() {
 							HTTPClient:  dstHTTPClient,
 						},
 						backoff:                  bf,
-						cc:                       c.Int(vmConcurrency),
+						cc:                       cc,
 						disablePerMetricRequests: c.Bool(vmNativeDisablePerMetricMigration),
 						isNative:                 !c.Bool(vmNativeDisableBinaryProtocol),
+						stateDir:                 c.String(stateDir),
+						srcHeaders:               c.String(vmNativeSrcHeaders),
+						dstHeaders:               c.String(vmNativeDstHeaders),
 					}
 					return p.run(ctx)
 				},
@@ -618,4 +631,9 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 		RateLimit:          c.Int64(vmRateLimit),
 		Backoff:            bf,
 	}, nil
+}
+
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
+func initSecretFlags() {
+	pushmetrics.InitSecretFlags()
 }

@@ -1,6 +1,7 @@
 ---
 weight: 5
 title: How to use OpenTelemetry with VictoriaMetrics and VictoriaLogs
+description: "Use OpenTelemetry with VictoriaMetrics and VictoriaLogs on Kubernetes."
 menu:
   docs:
     parent: "guides"

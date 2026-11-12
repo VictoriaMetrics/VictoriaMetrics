@@ -303,10 +303,12 @@ func (c *Client) flush(ctx context.Context, wr *prompb.WriteRequest) {
 L:
 	for {
 		err := c.send(ctx, zb.B)
-		if err != nil && (errors.Is(err, io.EOF) || netutil.IsTrivialNetworkError(err)) {
-			// Something in the middle between client and destination might be closing
-			// the connection. So we do a one more attempt in hope request will succeed.
-			err = c.send(ctx, zb.B)
+		if err != nil {
+			if errors.Is(err, io.EOF) || netutil.IsTrivialNetworkError(err) {
+				// Something in the middle between client and destination might be closing
+				// the connection. So we do a one more attempt in hope request will succeed.
+				err = c.send(ctx, zb.B)
+			}
 		}
 		if err == nil {
 			sentRows.Add(len(wr.Timeseries))

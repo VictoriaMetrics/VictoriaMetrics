@@ -1,9 +1,8 @@
 import { FC, useMemo } from "preact/compat";
 import { RouterOptions, routerOptions, RouterOptionsHeader } from "../../../router";
 import { useLocation } from "react-router-dom";
-import {
-  useFetchAccountIds
-} from "../../../components/Configurators/GlobalSettings/TenantsConfiguration/hooks/useFetchAccountIds";
+
+
 import Button from "../../../components/Main/Button/Button";
 import { MoreIcon } from "../../../components/Main/Icons";
 import classNames from "classnames";
@@ -17,7 +16,6 @@ export interface ControlsProps {
   displaySidebar: boolean;
   isMobile?: boolean;
   headerSetup?: RouterOptionsHeader;
-  accountIds?: string[];
   closeModal: () => void;
 }
 
@@ -28,7 +26,6 @@ const HeaderControls: FC<ControlsProps & HeaderProps> = ({
 }) => {
   const appModeEnable = getAppModeEnable();
   const { pathname } = useLocation();
-  const { accountIds } = useFetchAccountIds();
 
   const {
     value: openList,
@@ -44,7 +41,6 @@ const HeaderControls: FC<ControlsProps & HeaderProps> = ({
     <ControlsComponent
       {...props}
       isMobile={isMobile}
-      accountIds={accountIds}
       headerSetup={headerSetup}
       closeModal={handleCloseList}
     />

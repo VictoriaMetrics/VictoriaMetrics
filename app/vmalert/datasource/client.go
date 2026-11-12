@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -103,6 +104,9 @@ func (c *Client) ApplyParams(params QuerierParams) *Client {
 		c.dataSourceType = toDatasourceType(params.DataSourceType)
 	}
 	c.evaluationInterval = params.EvaluationInterval
+	if params.QueryStep > 0 {
+		c.queryStep = params.QueryStep
+	}
 	c.applyIntervalAsTimeFilter = params.ApplyIntervalAsTimeFilter
 	if params.QueryParams != nil {
 		if c.extraParams == nil {
@@ -267,7 +271,11 @@ func (c *Client) do(req *http.Request) (*http.Response, error) {
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		return nil, fmt.Errorf("unexpected response code %d for %s. Response body %s", resp.StatusCode, ru, body)
+		err = &httpserver.ErrorWithStatusCode{
+			StatusCode: resp.StatusCode,
+			Err:        fmt.Errorf("unexpected response code %d for %s. Response body %s", resp.StatusCode, ru, body),
+		}
+		return nil, err
 	}
 	return resp, nil
 }

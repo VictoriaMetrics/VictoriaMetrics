@@ -394,7 +394,7 @@ type swosByKeyWithLock struct {
 	swosByKey map[string][]any
 }
 
-func (gw *groupWatcher) getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey map[string]object, awsMap map[*apiWatcher]struct{}) map[*apiWatcher]*swosByKeyWithLock {
+func (gw *groupWatcher) getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey map[string]object, awsMap map[*apiWatcher]struct{}, skipEmptySwos bool) map[*apiWatcher]*swosByKeyWithLock {
 	if len(awsMap) == 0 {
 		return nil
 	}
@@ -416,6 +416,12 @@ func (gw *groupWatcher) getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey map[
 		wg.Go(func() {
 			for aw, e := range swosByAPIWatcher {
 				swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labelss)
+				if len(swos) == 0 && skipEmptySwos {
+					// skip empty swos allows reduce memory usage by map below,
+					// recreateScrapeWorksLocked only needs non-empty swos.
+					// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11751.
+					continue
+				}
 				e.mu.Lock()
 				e.swosByKey[key] = swos
 				e.mu.Unlock()
@@ -662,20 +668,15 @@ func (uw *urlWatcher) registerPendingAPIWatchersLocked() {
 }
 
 func (uw *urlWatcher) recreateScrapeWorksLocked(objectsByKey map[string]object, awsMap map[*apiWatcher]struct{}) {
-	es := uw.gw.getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey, awsMap)
+	es := uw.gw.getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey, awsMap, true)
 	for aw, e := range es {
-		swosByKey := e.swosByKey
-		for key, swos := range swosByKey {
-			if len(swos) == 0 {
-				delete(swosByKey, key)
-			}
-		}
-		aw.replaceScrapeWorks(uw, swosByKey)
+		aw.replaceScrapeWorks(uw, e.swosByKey)
 	}
 }
 
 func (uw *urlWatcher) updateScrapeWorksLocked(objectsByKey map[string]object, awsMap map[*apiWatcher]struct{}) {
-	es := uw.gw.getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey, awsMap)
+	// Empty results must reach updateScrapeWorks as deletion signals for changed objects.
+	es := uw.gw.getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey, awsMap, false)
 	for aw, e := range es {
 		aw.updateScrapeWorks(uw, e.swosByKey)
 	}

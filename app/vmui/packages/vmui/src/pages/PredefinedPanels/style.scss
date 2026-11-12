@@ -13,6 +13,12 @@
     padding: $padding-small 0;
   }
 
+  &-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
   &-tabs {
     display: flex;
     flex-wrap: wrap;

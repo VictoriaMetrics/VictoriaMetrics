@@ -1,5 +1,6 @@
 ---
 title: Cortex
+description: "Migrate historical metrics from Cortex to VictoriaMetrics with vmctl."
 weight: 6
 menu:
   docs:

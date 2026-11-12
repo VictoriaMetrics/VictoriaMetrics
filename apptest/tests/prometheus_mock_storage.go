@@ -59,7 +59,7 @@ func (ms *PrometheusMockStorage) Read(_ context.Context, query *prompb.Query, so
 		}
 
 		if !notMatch {
-			q.Timeseries = append(q.Timeseries, &prompb.TimeSeries{Labels: s.Labels, Samples: s.Samples})
+			q.Timeseries = append(q.Timeseries, &prompb.TimeSeries{Labels: s.Labels, Samples: s.Samples, Histograms: s.Histograms})
 		}
 	}
 

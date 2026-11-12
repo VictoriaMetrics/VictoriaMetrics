@@ -1,5 +1,6 @@
 ---
 title: Prometheus
+description: "Migrate historical data from Prometheus snapshots."
 weight: 1
 menu:
   docs:

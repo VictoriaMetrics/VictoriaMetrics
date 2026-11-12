@@ -8,7 +8,6 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -64,7 +63,6 @@ func TestExecSuccess(t *testing.T) {
 			Step:               step,
 			MaxPointsPerSeries: 1e4,
 			MaxSeries:          1000,
-			Deadline:           searchutil.NewDeadline(time.Now(), time.Minute, ""),
 			RoundDigits:        100,
 		}
 		for range 5 {
@@ -8479,6 +8477,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`running_avg(time() != 1500)`, func(t *testing.T) {
+		t.Parallel()
+		q := `running_avg(time() != 1500)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1100, 1200, 1300, 1400, 1500},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`smooth_exponential(time(), 1)`, func(t *testing.T) {
 		t.Parallel()
 		q := `smooth_exponential(time(), 1)`
@@ -8543,6 +8552,17 @@ func TestExecSuccess(t *testing.T) {
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{1500, 1500, 1500, 1500, 1500, 1500},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`range_avg(time() != 1400)`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_avg(time() != 1400)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1520, 1520, 1520, 1520, 1520, 1520},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -10461,7 +10481,6 @@ func TestExecError(t *testing.T) {
 			Step:               100,
 			MaxPointsPerSeries: 1e4,
 			MaxSeries:          1000,
-			Deadline:           searchutil.NewDeadline(time.Now(), time.Minute, ""),
 			RoundDigits:        100,
 		}
 		for range 4 {
@@ -10633,6 +10652,9 @@ func TestExecError(t *testing.T) {
 	f(`bitmap_xor()`)
 	f(`quantiles()`)
 	f(`limit_offset()`)
+	// Negative limit/offset must return an error, not panic.
+	f(`limit_offset(-1, 1, time())`)
+	f(`limit_offset(1, -1, time())`)
 	f(`increase()`)
 	f(`increase_prometheus()`)
 	f(`changes()`)
@@ -10735,6 +10757,9 @@ func TestExecError(t *testing.T) {
 	f(`rollup_rate(time()[5m], "foo")`)
 	f(`rollup_rate(time()[5m], "foo", "bar")`)
 	f(`rollup_candlestick(time(), "foo")`)
+
+	// check ValidateMaxPointsPerSeries after start/end aligment at alignStartEnd.
+	f(`count_over_time(time()[398984ms:7ms])`)
 }
 
 func testResultsEqual(t *testing.T, result, resultExpected []netstorage.Result) {

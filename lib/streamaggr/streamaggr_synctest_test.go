@@ -11,7 +11,14 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
+	"github.com/VictoriaMetrics/metrics"
 )
+
+func init() {
+	// Create the first summary outside of synctest so the global goroutine it starts doesn't belong to any synctest.
+	// Otherwise, the test would panic with "blocked goroutines remain" when it ends.
+	_ = metrics.NewSet().NewSummary("streamaggr_synctest_seconds")
+}
 
 func TestAggregatorsSuccess(t *testing.T) {
 	f := func(inputMetrics []string, interval time.Duration, outputMetricsExpected, config, matchIdxsStrExpected string) {
@@ -366,8 +373,8 @@ foo:1m_total{baz="qwe"} 15
 	f([]string{`
 foo 123
 bar{baz="qwe"} 1.32
-bar{baz="qwe"} 4.34
-bar{baz="qwe"} 2
+bar{baz="qwe"} 4.34 1
+bar{baz="qwe"} 2 2
 foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
@@ -385,8 +392,8 @@ foo:1m_total_prometheus{baz="qwe"} 15
 	f([]string{`
 foo 123
 bar{baz="qwe"} 1.32
-bar{baz="qwe"} 4.34
-bar{baz="qwe"} 2
+bar{baz="qwe"} 4.34 1
+bar{baz="qwe"} 2 2
 foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
@@ -403,8 +410,8 @@ foo:1m_total 15
 	f([]string{`
 foo 123
 bar{baz="qwe"} 1.32
-bar{baz="qwe"} 4.34
-bar{baz="qwe"} 2
+bar{baz="qwe"} 4.34 1
+bar{baz="qwe"} 2 2
 foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
@@ -416,6 +423,19 @@ foo:1m_total_prometheus 15
   by: [__name__]
   outputs: [total_prometheus]
 `, "11111111")
+
+	// total output must skip a duplicate sample with the same timestamp and a lower value instead of treating it as a counter reset
+	f([]string{`
+foo 100
+foo 105 10
+foo 103 10
+foo 105 10
+foo 110 20
+`}, time.Minute, `foo:1m_total 10
+`, `
+- interval: 1m
+  outputs: [total]
+`, "11111")
 
 	// increase output for non-repeated series
 	f([]string{`
@@ -443,8 +463,8 @@ foo:1m_increase_prometheus 0
 	f([]string{`
 foo 123
 bar{baz="qwe"} 1.32
-bar{baz="qwe"} 4.34
-bar{baz="qwe"} 2
+bar{baz="qwe"} 4.34 1
+bar{baz="qwe"} 2 2
 foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
@@ -462,8 +482,8 @@ foo:1m_increase{baz="qwe"} 15
 	f([]string{`
 foo 123
 bar{baz="qwe"} 1.32
-bar{baz="qwe"} 4.34
-bar{baz="qwe"} 2
+bar{baz="qwe"} 4.34 1
+bar{baz="qwe"} 2 2
 foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
@@ -935,4 +955,75 @@ foo:1m_sum_samples{baz="qwe"} 10
   dedup_interval: 30s
   outputs: [sum_samples]
 `, "11111111")
+
+	// Reproduce issue #11261: sum_samples_total must be monotonic with enable_windows: true
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11262
+	f([]string{`
+test_delta 1
+`, `
+test_delta 1
+`, `
+test_delta 1
+`, `
+test_delta 1
+`}, time.Minute, `test_delta 1
+test_delta 2
+test_delta 3
+test_delta 4
+`, `
+- interval: 1m
+  keep_metric_names: true
+  outputs: [sum_samples_total]
+  enable_windows: true
+`, "1111")
+
+	// Reproduce issue #11707: samples from both windows in one push must not move the increase into the next window
+	f([]string{`
+foo 0
+`, `
+foo 0 -25
+`, `
+foo 1 -2
+foo 1 1
+`, `
+foo 1 -25
+`, `
+foo 2 -2
+foo 2 1
+`, `
+foo 2 -25
+`, `
+foo 3 -2
+foo 3 1
+`}, 30*time.Second, `foo:1m_increase 1
+foo:1m_increase 1
+foo:1m_increase 1
+foo:1m_total 1
+foo:1m_total 2
+foo:1m_total 3
+`, `
+- interval: 1m
+  outputs: [increase, total]
+  enable_windows: true
+`, "1111111111")
+
+	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11810
+	// rate_sum with enable_windows must skip out-of-order samples across windows instead of treating them as counter resets.
+	f([]string{`
+foo 1000000
+foo 1000005 5
+`, `
+foo 1000065 35
+bar 1 -30
+`, `
+foo 1000045 -10
+`, `
+foo 1000090
+`, ``, ``}, 30*time.Second, `foo:1m_rate_sum 1
+foo:1m_rate_sum 1
+`, `
+- interval: 1m
+  outputs: [rate_sum]
+  enable_windows: true
+`, "111111")
 }

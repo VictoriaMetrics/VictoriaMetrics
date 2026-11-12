@@ -282,27 +282,31 @@ func decompress(dctx, dctxDict *dctxWrapper, dst, src []byte, dd *DDict, limit i
 	}
 
 	// Slow path - resize dst to fit decompressed data.
-	decompressBound := int(C.ZSTD_findDecompressedSize_wrapper(
+	decompressBound := uint64(C.ZSTD_findDecompressedSize_wrapper(
 		C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))), C.size_t(len(src))))
 	// Prevent from GC'ing of src during CGO call above.
 	runtime.KeepAlive(src)
-	switch uint64(decompressBound) {
+	switch decompressBound {
 	case uint64(C.ZSTD_CONTENTSIZE_UNKNOWN):
 		return streamDecompress(dst, src, dd, limit)
 	case uint64(C.ZSTD_CONTENTSIZE_ERROR):
 		return dst, fmt.Errorf("cannot decompress invalid src")
 	}
-	if limit > 0 && decompressBound > limit {
+	if limit > 0 && decompressBound > uint64(limit) {
 		return dst, fmt.Errorf("decompressed source size: %d exceeds limit: %d", decompressBound, limit)
 	}
-	decompressBound++
+	const maxInt = int(^uint(0) >> 1)
+	if decompressBound >= uint64(maxInt-dstLen) {
+		return dst, fmt.Errorf("decompressed source size: %d exceeds maximum slice size", decompressBound)
+	}
+	decompressSize := int(decompressBound) + 1
 
-	if n := dstLen + decompressBound - cap(dst); n > 0 {
+	if n := dstLen + decompressSize - cap(dst); n > 0 {
 		// This should be optimized since go 1.11 - see https://golang.org/doc/go1.11#performance-compiler.
 		dst = append(dst[:cap(dst)], make([]byte, n)...)
 	}
 
-	result := decompressInternal(dctx, dctxDict, dst[dstLen:dstLen+decompressBound], src, dd)
+	result := decompressInternal(dctx, dctxDict, dst[dstLen:dstLen+decompressSize], src, dd)
 	decompressedSize := int(result)
 	if decompressedSize >= 0 {
 		dst = dst[:dstLen+decompressedSize]
@@ -358,10 +362,13 @@ func ensureNoError(funcName string, result C.size_t) {
 }
 
 func streamDecompress(dst, src []byte, dd *DDict, limit int) ([]byte, error) {
-	sd := getStreamDecompressor(dd, limit)
+	sd, err := getStreamDecompressor(dd, limit)
+	if err != nil {
+		return nil, err
+	}
 	sd.dst = dst
 	sd.src = src
-	_, err := sd.zr.WriteTo(sd)
+	_, err = sd.zr.WriteTo(sd)
 	dst = sd.dst
 	putStreamDecompressor(sd)
 	return dst, err
@@ -392,7 +399,7 @@ func (sd *streamDecompressor) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func getStreamDecompressor(dd *DDict, limit int) *streamDecompressor {
+func getStreamDecompressor(dd *DDict, limit int) (*streamDecompressor, error) {
 	v := streamDecompressorPool.Get()
 	if v == nil {
 		sd := &streamDecompressor{
@@ -404,10 +411,12 @@ func getStreamDecompressor(dd *DDict, limit int) *streamDecompressor {
 	sd.zr.Reset((*srcReader)(sd), dd)
 	if limit > 0 {
 		result := C.ZSTD_DCtx_setMaxWindowSize_wrapper(C.uintptr_t(uintptr(unsafe.Pointer(sd.zr.ds))), C.size_t(limit))
-		ensureNoError("ZSTD_DCtx_setMaxWindowSize", result)
+		if C.ZSTD_getErrorCode(result) != 0 {
+			return nil, fmt.Errorf("cannot set window size limit=%d: %s", limit, errStr(result))
+		}
 		sd.zr.limit = limit
 	}
-	return sd
+	return sd, nil
 }
 
 func putStreamDecompressor(sd *streamDecompressor) {

@@ -116,8 +116,13 @@ func getOrValues(sre *syntax.Regexp) []string {
 		if len(sre.Sub) == 1 {
 			return prefixes
 		}
-		sre.Sub = sre.Sub[1:]
-		suffixes := getOrValues(sre)
+		// Do not modify sre in place: callers such as NewPromRegex() and
+		// NewRegex() keep using it after this call to derive fast paths.
+		sreTail := &syntax.Regexp{
+			Op:  syntax.OpConcat,
+			Sub: sre.Sub[1:],
+		}
+		suffixes := getOrValues(sreTail)
 		if len(suffixes) == 0 {
 			return nil
 		}

@@ -1,6 +1,6 @@
 import { ErrorTypes, TopQuery } from "../../../types";
 import { useAppState } from "../../../state/common/StateContext";
-import { useMemo, useState } from "preact/compat";
+import { useMemo, useState, useRef, useEffect, useCallback } from "preact/compat";
 import { getTopQueries } from "../../../api/top-queries";
 import { TopQueriesData } from "../../../types";
 import { getDurationFromMilliseconds, relativeTimeOptions } from "../../../utils/time";
@@ -48,24 +48,42 @@ export const useFetchTopQueries = ({ topN, maxLifetime }: useFetchTopQueriesProp
   const [data, setData] = useState<TopQueriesData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ErrorTypes | string>();
+  const abortControllerRef = useRef<AbortController>();
 
   const fetchUrl = useMemo(() => getTopQueries(serverUrl, topN, maxLifetime), [serverUrl, topN, maxLifetime]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setLoading(true);
     setSearchParamsFromKeys({ topN, maxLifetime });
     try {
-      const response = await fetch(fetchUrl);
+      const response = await fetch(fetchUrl, { signal: controller.signal });
       const resp = await response.json();
+      if (controller.signal.aborted) return;
+
       setData(response.ok ? processResponse(resp) : null);
       setError(String(resp.error || ""));
     } catch (e) {
-      if (e instanceof Error && e.name !== "AbortError") {
+      if (!controller.signal.aborted && e instanceof Error) {
         setError(`${e.name}: ${e.message}`);
       }
+    } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = undefined;
+        setLoading(false);
+      }
     }
-    setLoading(false);
-  };
+  }, [fetchUrl, setSearchParamsFromKeys]);
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = undefined;
+    };
+  }, []);
 
   return {
     data,

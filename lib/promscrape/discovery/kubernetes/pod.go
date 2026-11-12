@@ -227,14 +227,16 @@ func (p *Pod) appendContainerLabels(m *promutil.Labels, c *Container, cp *Contai
 	}
 }
 
-func (p *Pod) appendEndpointLabels(m *promutil.Labels, eps *Endpoints) {
+func (p *Pod) appendEndpointLabels(m *promutil.Labels, gw *groupWatcher, eps *Endpoints) {
+	appendNamespaceLabels(m, gw, eps.Metadata.Namespace)
 	m.Add("__meta_kubernetes_endpoints_name", eps.Metadata.Name)
 	m.Add("__meta_kubernetes_endpoint_address_target_kind", "Pod")
 	m.Add("__meta_kubernetes_endpoint_address_target_name", p.Metadata.Name)
 	eps.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_endpoints", m)
 }
 
-func (p *Pod) appendEndpointSliceLabels(m *promutil.Labels, eps *EndpointSlice) {
+func (p *Pod) appendEndpointSliceLabels(m *promutil.Labels, gw *groupWatcher, eps *EndpointSlice) {
+	appendNamespaceLabels(m, gw, eps.Metadata.Namespace)
 	m.Add("__meta_kubernetes_endpointslice_name", eps.Metadata.Name)
 	m.Add("__meta_kubernetes_endpointslice_address_target_kind", "Pod")
 	m.Add("__meta_kubernetes_endpointslice_address_target_name", p.Metadata.Name)
@@ -243,19 +245,23 @@ func (p *Pod) appendEndpointSliceLabels(m *promutil.Labels, eps *EndpointSlice) 
 }
 
 func (p *Pod) appendCommonLabels(m *promutil.Labels, gw *groupWatcher) {
+	appendNamespaceLabels(m, gw, p.Metadata.Namespace)
+	p.appendTargetRefLabels(m, gw)
+}
+
+// appendTargetRefLabels appends labels for the pod p without the namespace labels.
+//
+// It is used for pods referenced by Endpoints and EndpointSlice objects, since
+// __meta_kubernetes_namespace and the namespace metadata must come from the namespace
+// of the Endpoints or EndpointSlice object, which may differ from the pod namespace.
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11798
+func (p *Pod) appendTargetRefLabels(m *promutil.Labels, gw *groupWatcher) {
 	if gw.attachNodeMetadata {
 		m.Add("__meta_kubernetes_node_name", p.Spec.NodeName)
 		o := gw.getObjectByRoleLocked("node", p.Metadata.Namespace, p.Spec.NodeName)
 		if o != nil {
 			n := o.(*Node)
 			n.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_node", m)
-		}
-	}
-	if gw.attachNamespaceMetadata {
-		o := gw.getObjectByRoleLocked("namespace", "", p.Metadata.Namespace)
-		if o != nil {
-			ns := o.(*Namespace)
-			ns.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_namespace", m)
 		}
 	}
 	m.Add("__meta_kubernetes_pod_name", p.Metadata.Name)
@@ -265,7 +271,6 @@ func (p *Pod) appendCommonLabels(m *promutil.Labels, gw *groupWatcher) {
 	m.Add("__meta_kubernetes_pod_node_name", p.Spec.NodeName)
 	m.Add("__meta_kubernetes_pod_host_ip", p.Status.HostIP)
 	m.Add("__meta_kubernetes_pod_uid", p.Metadata.UID)
-	m.Add("__meta_kubernetes_namespace", p.Metadata.Namespace)
 	if pc := getPodController(p.Metadata.OwnerReferences); pc != nil {
 		if pc.Kind != "" {
 			m.Add("__meta_kubernetes_pod_controller_kind", pc.Kind)
@@ -275,6 +280,18 @@ func (p *Pod) appendCommonLabels(m *promutil.Labels, gw *groupWatcher) {
 		}
 	}
 	p.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_pod", m)
+}
+
+// appendNamespaceLabels appends __meta_kubernetes_namespace and, if enabled, the metadata of the given namespace to m.
+func appendNamespaceLabels(m *promutil.Labels, gw *groupWatcher, namespace string) {
+	if gw.attachNamespaceMetadata {
+		o := gw.getObjectByRoleLocked("namespace", "", namespace)
+		if o != nil {
+			ns := o.(*Namespace)
+			ns.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_namespace", m)
+		}
+	}
+	m.Add("__meta_kubernetes_namespace", namespace)
 }
 
 func getPodController(ors []OwnerReference) *OwnerReference {

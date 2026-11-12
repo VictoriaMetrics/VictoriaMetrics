@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 968 420" role="img" aria-labelledby="title description">
+  <title id="title">AutoTunedModel tuning and inference lifecycle</title>
+  <desc id="description">The tuning process tests and scores model candidates across n time-series splits until the trial count or timeout is reached. Each fold fits a candidate on training data and predicts anomalies on its validation segment. The best model is then used on inference data until the next fit call.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 10 5 0 10Z" fill="#202124"/>
+    </marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #202124; font-size: 18px; }
+      .line { fill: none; stroke: #202124; stroke-width: 2.5; }
+      .arrow { fill: none; stroke: #202124; stroke-width: 2.5; marker-end: url(#arrow); }
+      .dash { fill: none; stroke: #202124; stroke-width: 2.5; stroke-dasharray: 8 9; }
+      .box { fill: #fff; stroke: #202124; stroke-width: 1.5; }
+    </style>
+  </defs>
+
+  <rect width="968" height="420" fill="#fff"/>
+  <rect x="112" y="10" width="242" height="83" class="box"/>
+  <text x="233" y="38" text-anchor="middle">
+    <tspan x="233" dy="0">test and score candidates</tspan>
+    <tspan x="233" dy="21">until `n_trials` or `timeout`</tspan>
+    <tspan x="233" dy="21">is reached</tspan>
+  </text>
+  <path d="M354 49 V67" class="arrow"/>
+  <text x="355" y="90" text-anchor="middle">Tuning</text>
+  <text x="355" y="112" text-anchor="middle">process</text>
+
+  <path d="M162 157 V136 H549 V157" class="line"/>
+  <path d="M355 112 V136" class="line"/>
+  <path d="M399 93 H653 V152" class="line"/>
+
+  <path d="M113 161 H75 V350 H113" class="line"/>
+  <path d="M75 236 H39" class="line"/>
+  <text x="28" y="250" transform="rotate(-90 28 250)" text-anchor="middle">n splits</text>
+
+  <text x="102" y="227">Fold 1</text>
+  <text x="102" y="255">Fold 2</text>
+  <text x="102" y="283">Fold 3</text>
+  <text x="120" y="327">...</text>
+
+  <text x="260" y="179" text-anchor="middle">Fit</text>
+  <text x="260" y="202" text-anchor="middle">candidate</text>
+  <text x="413" y="179" text-anchor="middle">Predict</text>
+  <text x="413" y="202" text-anchor="middle">anomalies</text>
+
+  <path d="M173 221 H354 V207" class="line"/>
+  <path d="M232 249 H412 V235" class="line"/>
+  <path d="M293 280 H472 V265" class="line"/>
+  <path d="M354 221 H412" class="dash"/>
+  <path d="M412 249 H474" class="dash"/>
+  <path d="M472 280 H513" class="dash"/>
+
+  <path d="M548 144 V415" class="dash" style="stroke-width:1.5;stroke-dasharray:4 6"/>
+  <rect x="577" y="152" width="136" height="61" rx="12" class="box"/>
+  <text x="645" y="187" text-anchor="middle">best model</text>
+  <path d="M653 213 V348" class="arrow"/>
+  <text x="815" y="168" text-anchor="middle">
+    <tspan x="815" dy="0">used to predict</tspan>
+    <tspan x="815" dy="21">on inference data</tspan>
+    <tspan x="815" dy="21">until the next `fit` call</tspan>
+  </text>
+
+  <path d="M40 350 H895" class="arrow"/>
+  <text x="455" y="402" text-anchor="middle">Training data</text>
+  <text x="623" y="402" text-anchor="middle">Inference data</text>
+  <text x="856" y="402">Time axis, t</text>
+</svg>

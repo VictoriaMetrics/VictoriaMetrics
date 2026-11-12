@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // AlertManager represents integration provider with Prometheus alert manager
@@ -100,21 +101,34 @@ func (am *AlertManager) Send(ctx context.Context, alerts []Alert, alertLabels []
 }
 
 func (am *AlertManager) send(ctx context.Context, alerts []Alert, alertLabels [][]prompb.Label, headers map[string]string) error {
-	b := &bytes.Buffer{}
-	alertsToSend := make([]Alert, 0, len(alerts))
-	lblss := make([][]prompb.Label, 0, len(alerts))
-	for i, a := range alerts {
-		lbls := alertLabels[i]
-		if am.relabelConfigs != nil {
-			lbls = am.relabelConfigs.Apply(lbls, 0)
+	if am.relabelConfigs != nil {
+		// make a shallow copy of alerts and alert labels
+		// to prevent possible data race
+		tmpAlerts := make([]Alert, 0, len(alerts))
+		tmpLabels := make([][]prompb.Label, 0, len(alertLabels))
+
+		auxLabels := promutil.GetLabels()
+		dstLabels := auxLabels.Labels[:0]
+		defer func() {
+			auxLabels.Labels = dstLabels
+			promutil.PutLabels(auxLabels)
+		}()
+		for i, a := range alerts {
+			dstLabelsLen := len(dstLabels)
+			dstLabels = append(dstLabels, alertLabels[i]...)
+			dstLabels = am.relabelConfigs.Apply(dstLabels, dstLabelsLen)
+			if len(dstLabels) == dstLabelsLen {
+				continue
+			}
+			tmpLabels = append(tmpLabels, dstLabels[dstLabelsLen:])
+			tmpAlerts = append(tmpAlerts, a)
 		}
-		if len(lbls) == 0 {
-			continue
-		}
-		alertsToSend = append(alertsToSend, a)
-		lblss = append(lblss, lbls)
+		alerts = tmpAlerts
+		alertLabels = tmpLabels
 	}
-	writeamRequest(b, alertsToSend, am.argFunc, lblss)
+
+	b := &bytes.Buffer{}
+	writeamRequest(b, alerts, am.argFunc, alertLabels)
 
 	req, err := http.NewRequest(http.MethodPost, am.addr.String(), b)
 	if err != nil {

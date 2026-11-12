@@ -1,5 +1,6 @@
 ---
 title: Monitoring
+description: "Self-monitoring via push and pull models."
 weight: 5
 menu:
   docs:
@@ -23,6 +24,10 @@ There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push
 - Adding a `query_key` label to the `vmanomaly_reader_response_parsing_seconds` [metric](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics) to provide finer granularity in tracking the performance of individual queries. This metric has also been switched from `Summary` to `Histogram` to align with the other metrics and support quantile calculations.
 - Adding `preset` and `scheduler_alias` keys to [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics) and [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#writer-behaviour-metrics) metrics for consistency in multi-[scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) setups.
 - Renaming [Counters](https://prometheus.io/docs/concepts/metric_types/#counter) `vmanomaly_reader_response_count` to `vmanomaly_reader_responses` and `vmanomaly_writer_response_count` to `vmanomaly_writer_responses`.
+
+<div class="collapse-group">
+
+{{% collapse name="Pull model config parameters" %}}
 
 ## Pull Model Config parameters
 
@@ -59,6 +64,10 @@ There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push
         </tr>
     </tbody>
 </table>
+
+{{% /collapse %}}
+
+{{% collapse name="Push config parameters" %}}
 
 ## Push Config parameters
 
@@ -227,6 +236,10 @@ Path to a file with the client certificate key, i.e. `client.key`{{% available_f
     </tbody>
 </table>
 
+{{% /collapse %}}
+
+</div>
+
 ## Monitoring section config example
 
 ``` yaml
@@ -259,6 +272,11 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 - [Reader metrics](#reader-behaviour-metrics)
 - [Model metrics](#models-behaviour-metrics)
 - [Writer metrics](#writer-behaviour-metrics)
+- [AI Copilot metrics](#ai-copilot-metrics)
+
+<div class="collapse-group">
+
+{{% collapse name="Startup metrics" %}}
 
 ### Startup metrics
 
@@ -313,6 +331,14 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
             </td>
             <td>Gauge</td>
             <td>Effective CPU capacity available to the process{{% available_from "v1.18.4" anomaly %}}, constrained by host logical CPUs, process affinity, and cgroup quota. The value can be fractional when a fractional CPU quota is configured.</td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`vmanomaly_native_threads_per_worker`</span>
+            </td>
+            <td>Gauge</td>
+            <td>Effective maximum native numerical-library threads per model worker{{% available_from "v1.30.2" anomaly %}} after resolving [`settings.native_threads_per_worker`](https://docs.victoriametrics.com/anomaly-detection/components/settings/#parallelization) against the effective worker count and container-aware CPU capacity.</td>
         </tr>
         <tr>
             <td>
@@ -385,6 +411,10 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 
 [Back to metric sections](#metrics-generated-by-vmanomaly)
 
+{{% /collapse %}}
+
+{{% collapse name="Reader behaviour metrics" %}}
+
 ### Reader behaviour metrics
 Label names [description](#labelnames)
 
@@ -423,7 +453,7 @@ Label names [description](#labelnames)
 
 `Counter`
             </td>
-            <td>The count of responses received from VictoriaMetrics `url` for the `query_key` query, categorized by `code`, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
+            <td>The count of request outcomes from VictoriaMetrics `url` for the `query_key` query, categorized by `code` (HTTP status or `ssl_error`, `connection_error`, `timeout`, `io_error`), within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
 `url`, `query_key`, `code`, `scheduler_alias`, `preset`
@@ -509,6 +539,10 @@ Label names [description](#labelnames)
 
 [Back to metric sections](#metrics-generated-by-vmanomaly)
 
+{{% /collapse %}}
+
+{{% collapse name="Models behaviour metrics" %}}
+
 ### Models behaviour metrics
 Label names [description](#labelnames)
 
@@ -564,7 +598,7 @@ Label names [description](#labelnames)
 
 `Counter`
             </td>
-            <td>The number of valid datapoints accepted by `model_alias`, excluding NaN and Inf values, during `fit`, `infer`, or combined `fit_infer` execution for the `query_key` query.</td>
+            <td>The number of valid datapoints accepted by `model_alias`, excluding NaN and Inf values, during `fit`, `infer`, or combined `fit_infer` execution for the `query_key` query. During inference, only previously unseen valid rows are counted {{% available_from "v1.30.1" anomaly %}}.</td>
             <td>
 
 `stage`, `query_key`, `model_alias`, `scheduler_alias`, `preset`
@@ -635,6 +669,10 @@ Label names [description](#labelnames)
 
 [Back to metric sections](#metrics-generated-by-vmanomaly)
 
+{{% /collapse %}}
+
+{{% collapse name="Writer behaviour metrics" %}}
+
 ### Writer behaviour metrics
 Label names [description](#labelnames)
 
@@ -659,7 +697,7 @@ Label names [description](#labelnames)
 
 `Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}})
             </td>
-            <td>The total time (in seconds) taken by write requests to VictoriaMetrics `url` for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.
+            <td>The total time (in seconds) taken by write requests to VictoriaMetrics `url` for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode. Successful and handled failed attempts, including connection retries, are observed {{% available_from "v1.30.1" anomaly %}}.
 </td>
             <td>
 
@@ -675,7 +713,7 @@ Label names [description](#labelnames)
 
 `Counter`
             </td>
-            <td>The count of response codes received from VictoriaMetrics `url` for the `query_key` query, categorized by `code`, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.
+            <td>The count of final write-batch outcomes after retries to VictoriaMetrics `url` for the `query_key` query, categorized by `code` (HTTP status or `ssl_error`, `connection_error`, `timeout`, `io_error`), within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.
 </td>
             <td>
 
@@ -746,6 +784,75 @@ Label names [description](#labelnames)
 
 [Back to metric sections](#metrics-generated-by-vmanomaly)
 
+{{% /collapse %}}
+
+{{% collapse name="AI Copilot metrics" %}}
+
+### AI Copilot metrics
+
+{{% available_from "v1.30.5" anomaly %}} These metrics are exposed through the QueryServer `/metrics` endpoint. The configuration-intent and availability gauges are registered even when Copilot is disabled or fails to initialize. Usage counters are registered when Copilot budgeting or usage accounting initializes and may otherwise be absent. Counters measure model calls, not unique conversations, and reset on process restart; labeled series appear when first observed.
+
+| Metric | Type | Labels and meaning |
+| --- | --- | --- |
+| `vmanomaly_copilot_configured` | Gauge | No labels. `1` means the Copilot enable flag is set; `0` means intentionally disabled. Configuration can still be invalid when this is `1`. |
+| `vmanomaly_copilot_enabled` | Gauge | No labels. `1` means Copilot initialized successfully and is available; `0` means disabled or unavailable at startup, including initialization or mounting failure. This is not a live provider or MCP health check. |
+| `vmanomaly_copilot_request_bytes_total` | Counter | `category`: `history`, `parameters`<br>`stage`: `before`, `after`<br>Cumulative serialized request representation bytes before and after history projection. Parameters are measured but not compacted. Includes attempts rejected by the local budget; not provider wire bytes. |
+| `vmanomaly_copilot_tokens_total` | Counter | `direction`: `input`, `output`<br>SDK/provider-reported tokens for observed responses; not a billing estimate. |
+| `vmanomaly_copilot_responses_total` | Counter | `finish_reason`: `stop`, `length`, `tool_call`, `content_filter`, `error`, `other`<br>Observed model responses. Unknown or missing reasons map to `other`. Transport exceptions are not necessarily counted as responses. |
+| `vmanomaly_copilot_budget_rejections_total` | Counter | No labels. Requests refused before the model call because compacted history plus measured parameters exceed the configured context byte budget. |
+| `vmanomaly_copilot_estimated_cost_usd_total` | Counter | No labels. Sum of estimated USD costs for priced responses; excludes unpriced responses and tool/server compute. Not a billing total. |
+| `vmanomaly_copilot_cost_estimates_total` | Counter | `status`: `available`, `unavailable`<br>Observed responses with or without a usable cost estimate. Unknown pricing or missing reported tokens counts as unavailable. |
+
+To distinguish disabled Copilot from an available but unused assistant, check `vmanomaly_copilot_enabled{instance="<scrape-target>"}` for the selected instance. The `instance` label is attached by your scraper, not by this metric. Missing data means unknown availability; check the target’s `up` metric separately.
+
+The gauge pair distinguishes disabled (`configured=0`, `enabled=0`), available (`1`, `1`), and requested but unavailable (`1`, `0`). To alert on initialization failure for a reachable target, use the following expression with a persistence interval such as `for: 5m`. Match additional target labels if your scrape configuration needs them. This does not detect later provider outages or quota exhaustion.
+
+```promql
+(vmanomaly_copilot_configured == 1)
+  and on (job, instance) (vmanomaly_copilot_enabled == 0)
+  and on (job, instance) (up == 1)
+```
+
+Each listed value is a separate possible label value. Labels have bounded sets and do not include session IDs, query aliases, prompt contents or secrets. Compaction can increase small history representations; `after` is not guaranteed to be smaller than `before`.
+
+```prometheus
+vmanomaly_copilot_configured 1
+vmanomaly_copilot_enabled 1
+vmanomaly_copilot_request_bytes_total{category="history",stage="before"} 330951
+vmanomaly_copilot_request_bytes_total{category="history",stage="after"} 43032
+vmanomaly_copilot_tokens_total{direction="input"} 25800
+vmanomaly_copilot_tokens_total{direction="output"} 4707
+vmanomaly_copilot_responses_total{finish_reason="tool_call"} 2
+vmanomaly_copilot_budget_rejections_total 0
+vmanomaly_copilot_estimated_cost_usd_total 0.042
+vmanomaly_copilot_cost_estimates_total{status="available"} 3
+vmanomaly_copilot_cost_estimates_total{status="unavailable"} 1
+```
+
+These are illustrative cumulative values. To monitor token rate and local refusals:
+
+```promql
+sum by (direction) (rate(vmanomaly_copilot_tokens_total[5m]))
+sum(increase(vmanomaly_copilot_budget_rejections_total[15m]))
+```
+
+To measure history byte reduction over a window (negative means growth; undefined when no bytes were observed):
+
+```promql
+100 * (1 -
+  sum(increase(vmanomaly_copilot_request_bytes_total{category="history",stage="after"}[15m])) /
+  sum(increase(vmanomaly_copilot_request_bytes_total{category="history",stage="before"}[15m]))
+)
+```
+
+Use `finish_reason="length"` to investigate responses ending at the output limit. See [Copilot context budgets](https://docs.victoriametrics.com/anomaly-detection/ui/#copilot-context-budgets) before changing limits; increasing a local byte limit does not increase the provider's context window.
+
+[Back to metric sections](#metrics-generated-by-vmanomaly)
+
+{{% /collapse %}}
+
+</div>
+
 ### Labelnames
 
 * `stage` - model execution stage: `fit`, `infer`, or `fit_infer` for a combined fit/inference scheduler run. See [model types](https://docs.victoriametrics.com/anomaly-detection/components/models/#model-types).
@@ -793,6 +900,10 @@ and the [command-line arguments](https://docs.victoriametrics.com/anomaly-detect
 - [Query server and task logs](#query-server-and-task-logs)
 - [AI Copilot logs](#ai-copilot-logs)
 
+<div class="collapse-group">
+
+
+{{% collapse name="Startup logs" %}}
 
 ### Startup logs
 
@@ -811,6 +922,10 @@ server addresses, hot-reload state, and active schedulers. The most useful prefi
   `DEBUG` diagnostics.
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
+
+{{% /collapse %}}
+
+{{% collapse name="Reader logs" %}}
 
 ### Reader logs
 
@@ -863,6 +978,10 @@ or parsed. See [reader behaviour metrics](#reader-behaviour-metrics).
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
 
+{{% /collapse %}}
+
+{{% collapse name="Service logs" %}}
+
 ### Service logs
 
 The service logs `fit`, `infer`, and combined `fit_infer`/backtesting work for each model alias and scheduler.
@@ -891,6 +1010,10 @@ an unsuccessful stage. See [models behaviour metrics](#models-behaviour-metrics)
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
 
+{{% /collapse %}}
+
+{{% collapse name="Writer logs" %}}
+
 ### Writer logs
 
 Writer logs cover serialization and delivery of produced series such as
@@ -918,6 +1041,10 @@ and datapoints are recorded only after a successful response. See [writer behavi
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
 
+{{% /collapse %}}
+
+{{% collapse name="Scheduler supervision logs" %}}
+
 ### Scheduler supervision logs
 
 Scheduler supervision{{% available_from "v1.30.0" anomaly %}} logs a dead worker, automatic restart, successful
@@ -926,6 +1053,10 @@ alive`, `Scheduler ... restarted successfully`, `restart attempt ... failed`, an
 Correlate them with `vmanomaly_scheduler_alive` and `vmanomaly_scheduler_restarts_total`.
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
+
+{{% /collapse %}}
+
+{{% collapse name="Hot-reload logs" %}}
 
 ### Hot-reload logs
 
@@ -936,6 +1067,10 @@ without restarting services`.
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
 
+{{% /collapse %}}
+
+{{% collapse name="Persisted-state logs" %}}
+
 ### Persisted-state logs
 
 With `settings.restore_state`, startup logs the stored/runtime version assessment, reusable components, required
@@ -943,6 +1078,10 @@ model or reader-data purges, and restored jobs/services. `Persisted state is inc
 stored artifacts completely` indicates a full reset; missing or unreadable model files are reported separately.
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
+
+{{% /collapse %}}
+
+{{% collapse name="Query server and task logs" %}}
 
 ### Query server and task logs
 
@@ -952,6 +1091,10 @@ background raw query finishing cleanly.
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
 
+{{% /collapse %}}
+
+{{% collapse name="AI Copilot logs" %}}
+
 ### AI Copilot logs
 
 AI Copilot{{% available_from "v1.30.0" anomaly %}} reports whether it is initialized, disabled, misconfigured, or
@@ -960,3 +1103,7 @@ request failed` identifies provider execution failure, and `MCP server unreachab
 guidance tools.
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
+
+{{% /collapse %}}
+
+</div>

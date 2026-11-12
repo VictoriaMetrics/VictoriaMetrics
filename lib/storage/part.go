@@ -68,15 +68,15 @@ func mustOpenFilePart(path string) *part {
 
 	var timestampsFile fs.MustReadAtCloser
 	var timestampsSize uint64
-	pro.Add(timestampsPath, &timestampsFile, &timestampsSize)
+	pro.Add(timestampsPath, &timestampsFile, &timestampsSize, true)
 
 	var valuesFile fs.MustReadAtCloser
 	var valuesSize uint64
-	pro.Add(valuesPath, &valuesFile, &valuesSize)
+	pro.Add(valuesPath, &valuesFile, &valuesSize, true)
 
 	var indexFile fs.MustReadAtCloser
 	var indexSize uint64
-	pro.Add(indexPath, &indexFile, &indexSize)
+	pro.Add(indexPath, &indexFile, &indexSize, false)
 
 	pro.Run()
 

@@ -13,6 +13,13 @@ import (
 	cgo "github.com/valyala/gozstd"
 )
 
+func TestCompressLevelEmpty(t *testing.T) {
+	compressed := CompressLevel(nil, nil, 5)
+	if len(compressed) != 0 {
+		t.Fatalf("expected empty output for empty input; got %x", compressed)
+	}
+}
+
 func TestDecomrpessLimitedOK(t *testing.T) {
 	f := func(compressedData []byte, limit int) {
 		t.Helper()

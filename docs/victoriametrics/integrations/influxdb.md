@@ -1,5 +1,6 @@
 ---
 title: InfluxDB
+description: "Receiving InfluxDB line protocol and migration guide."
 weight: 5
 menu:
   docs:

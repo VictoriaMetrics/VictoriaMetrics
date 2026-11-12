@@ -1,6 +1,7 @@
 ---
 weight: 8
 title: Year 2020
+description: "Release history for all VictoriaMetrics components (YEAR 2020)"
 search:
   weight: 0.1
 menu:

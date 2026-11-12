@@ -134,7 +134,7 @@ func TestTimeRangeDateRange(t *testing.T) {
 	tr = TimeRange{1 * msecPerDay, 1 * msecPerDay}
 	f(tr, 1, 1)
 
-	// MinTimestamp is greater than MaxTimestamp MaxTimestamp. Max date must be
+	// MinTimestamp is greater than MaxTimestamp. Max date must be
 	// the same as min date.
 	tr = TimeRange{2*msecPerDay + 654, 1*msecPerDay + 321}
 	f(tr, 2, 2)

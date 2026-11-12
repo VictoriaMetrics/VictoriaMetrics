@@ -27,7 +27,8 @@ import (
 )
 
 var (
-	httpListenAddr    = flag.String("httpListenAddr", ":8420", "TCP address for exporting metrics at /metrics page")
+	httpListenAddr = flag.String("httpListenAddr", ":8420", "Address for exporting metrics at /metrics page. "+
+		"Use unix:/path/to/socket to listen on Unix domain socket")
 	storageDataPath   = flag.String("storageDataPath", "victoria-metrics-data", "Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage")
 	snapshotName      = flag.String("snapshotName", "", "Name for the snapshot to backup. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots. There is no need in setting -snapshotName if -snapshot.createURL is set")
 	snapshotCreateURL = flag.String("snapshot.createURL", "", "VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup. "+
@@ -47,11 +48,13 @@ func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
-	flagutil.RegisterSecretFlag("snapshot.createURL")
-	flagutil.RegisterSecretFlag("snapshot.deleteURL")
 	envflag.Parse()
+	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
+
+	listenAddrs := []string{*httpListenAddr}
+	httpserver.CheckHealth(listenAddrs)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
@@ -107,7 +110,6 @@ func main() {
 		}
 	}
 
-	listenAddrs := []string{*httpListenAddr}
 	go httpserver.Serve(listenAddrs, nil, httpserver.ServeOptions{})
 
 	pushmetrics.Init()
@@ -272,4 +274,11 @@ func newRemoteOriginFS(ctx context.Context) (common.RemoteFS, error) {
 		return nil, fmt.Errorf("cannot parse `-origin`=%q: %w", *origin, err)
 	}
 	return fs, nil
+}
+
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
+func initSecretFlags() {
+	flagutil.RegisterSecretFlag("snapshot.createURL")
+	flagutil.RegisterSecretFlag("snapshot.deleteURL")
+	pushmetrics.InitSecretFlags()
 }

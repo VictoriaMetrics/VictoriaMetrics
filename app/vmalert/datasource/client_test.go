@@ -651,6 +651,18 @@ func TestRequestParams(t *testing.T) {
 		checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 	})
 
+	// step override via querier params
+	f(false, (&Client{
+		dataSourceType: datasourcePrometheus,
+		queryStep:      time.Minute,
+	}).ApplyParams(QuerierParams{
+		EvaluationInterval: 15 * time.Second,
+		QueryStep:          time.Hour,
+	}), func(t *testing.T, r *http.Request) {
+		exp := url.Values{"query": {query}, "step": {"3600s"}, "time": {timestamp.Format(time.RFC3339)}}
+		checkEqualString(t, exp.Encode(), r.URL.RawQuery)
+	})
+
 	//  step to seconds
 	f(false, &Client{
 		dataSourceType:     datasourcePrometheus,

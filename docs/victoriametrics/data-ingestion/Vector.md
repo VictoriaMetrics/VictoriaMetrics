@@ -1,5 +1,6 @@
 ---
 title: Vector
+description: "Configure Vector with Prometheus remote write sink."
 weight: 4
 menu:
   docs:

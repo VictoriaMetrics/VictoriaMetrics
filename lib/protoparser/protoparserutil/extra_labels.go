@@ -20,6 +20,9 @@ func GetExtraLabels(req *http.Request) ([]prompb.Label, error) {
 	}
 	q := req.URL.Query()
 	for _, label := range q["extra_label"] {
+		if label == "" {
+			continue
+		}
 		tmp := strings.SplitN(label, "=", 2)
 		if len(tmp) != 2 {
 			return nil, fmt.Errorf("`extra_label` query arg must have the format `name=value`; got %q", label)

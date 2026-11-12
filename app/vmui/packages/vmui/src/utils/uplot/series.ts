@@ -47,12 +47,14 @@ export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[],
 const getSeriesStatistics = (d: MetricResult) => {
   const values = d.values.map(v => promValueToNumber(v[1]));
   const { min, max, median } = getMathStats(values, { min: true, max: true, median: true });
+  const range = min !== null && max !== null ? max - min : null;
   return {
     median: Number(median),
     statsFormatted: {
       min: formatPrettyNumber(min, min, max),
       max: formatPrettyNumber(max, min, max),
       median: formatPrettyNumber(median, min, max),
+      range: formatPrettyNumber(range, min, max),
       last: formatPrettyNumber(values.at(-1), min, max),
     },
   };

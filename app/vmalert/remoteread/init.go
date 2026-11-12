@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	addr = flag.String("remoteRead.url", "", "Optional URL to datasource compatible with MetricsQL. It can be single node VictoriaMetrics or vmselect. "+
+	addr = flag.String("remoteRead.url", "", "Optional URL to datasource compatible with Prometheus querying API. It can be single node VictoriaMetrics, vmselect or Prometheus. "+
 		"Remote read is used to restore alerts state. "+
 		"This configuration makes sense only if vmalert was configured with '-remoteWrite.url' before and has been successfully persisted its state. "+
 		"Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. "+
@@ -56,7 +56,8 @@ var (
 	oauth2Scopes   = flag.String("remoteRead.oauth2.scopes", "", "Optional OAuth2 scopes to use for -remoteRead.url. Scopes must be delimited by ';'.")
 )
 
-// InitSecretFlags must be called after flag.Parse and before any logging
+// InitSecretFlags manages the secret flags for this pkg and must be called by app-level initSecretFlags.
+// It should run before logger initialization and package Init() (if exists).
 func InitSecretFlags() {
 	if !*showRemoteReadURL {
 		flagutil.RegisterSecretFlag("remoteRead.url")

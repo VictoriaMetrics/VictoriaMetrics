@@ -1,42 +1,27 @@
-import { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
+import { useStep } from "../../../state/step/StepStateContext";
+import { FC, useEffect, useRef, useState } from "preact/compat";
 import { ArrowDownIcon, RestartIcon, TimelineIcon } from "../../Main/Icons";
 import TextField from "../../Main/TextField/TextField";
 import Button from "../../Main/Button/Button";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import { ErrorTypes } from "../../../types";
-import { getStepFromDuration, supportedDurations } from "../../../utils/time";
-import { useTimeState } from "../../../state/time/TimeStateContext";
-import { useGraphDispatch, useGraphState } from "../../../state/graph/GraphStateContext";
-import usePrevious from "../../../hooks/usePrevious";
+import { supportedDurations } from "../../../utils/time";
 import "./style.scss";
 import { getAppModeEnable } from "../../../utils/app-mode";
 import Popper from "../../Main/Popper/Popper";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import classNames from "classnames";
 import useBoolean from "../../../hooks/useBoolean";
-import { useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import Hyperlink from "../../Main/Hyperlink/Hyperlink";
 
 const StepConfigurator: FC = () => {
   const appModeEnable = getAppModeEnable();
   const { isMobile } = useDeviceDetect();
 
-  const { customStep: value, isHistogram } = useGraphState();
-  const { period: { step, end, start } } = useTimeState();
-  const graphDispatch = useGraphDispatch();
-  const { displayType } = useCustomPanelState();
-
-  const prevDuration = usePrevious(end - start);
-
-  const defaultStep = useMemo(() => {
-    return getStepFromDuration(end - start, isHistogram, displayType);
-  }, [end, start, isHistogram, displayType]);
-  const prevDefaultStep = usePrevious(defaultStep);
-
-  const [customStep, setCustomStep] = useState(value || defaultStep);
+  const { calculated, override, effective, setOverride, reset } = useStep();
+  const [customStep, setCustomStep] = useState(effective);
   const [error, setError] = useState("");
-
-  const isAutoStep = value === defaultStep;
+  const edited = useRef(false);
 
   const {
     value: openOptions,
@@ -46,13 +31,14 @@ const StepConfigurator: FC = () => {
 
   const buttonRef = useRef<HTMLDivElement>(null);
 
-  const handleApply = (value?: string) => {
-    const step = value || customStep || defaultStep || "1s";
-    const durations = step.match(/[a-zA-Z]+/g) || [];
-    const stepDur = !durations.length ? `${step}s` : step;
-    graphDispatch({ type: "SET_CUSTOM_STEP", payload: stepDur });
-    setCustomStep(stepDur);
-    setError("");
+  const handleApply = () => {
+    if (!edited.current || error) return;
+    const normalized = (customStep.match(/([0-9]*\.[0-9]+|[0-9]+)([a-zA-Z]+)?/g) || []).join("");
+    const durations = normalized.match(/[a-zA-Z]+/g) || [];
+    const value = durations.length ? normalized : `${normalized}s`;
+    setOverride(value);
+    setCustomStep(value);
+    edited.current = false;
   };
 
   const handleCloseOptions = () => {
@@ -72,13 +58,15 @@ const StepConfigurator: FC = () => {
   };
 
   const handleChangeStep = (value: string) => {
-    const numbers = value.match(/[-+]?([0-9]*\.[0-9]+|[0-9]+)/g) || [];
-    const durations = value.match(/[a-zA-Z]+/g) || [];
+    const normalized = value.replace(/,/g, ".").replace(/[^0-9.a-zA-Z]/g, "");
+    const numbers = normalized.match(/[-+]?([0-9]*\.[0-9]+|[0-9]+)/g) || [];
+    const durations = normalized.match(/[a-zA-Z]+/g) || [];
     const isValidNumbers = numbers.length && numbers.every(num => parseFloat(num) > 0);
     const isValidDuration = durations.every(d => supportedDurations.find(dur => dur.short === d));
     const isValidStep = isValidNumbers && isValidDuration;
 
-    setCustomStep(value);
+    setCustomStep(normalized);
+    edited.current = true;
 
     if (isValidStep) {
       setError("");
@@ -88,34 +76,19 @@ const StepConfigurator: FC = () => {
   };
 
   const handleReset = () => {
-    const value = defaultStep || "1s";
-    handleChangeStep(value);
-    handleApply(value);
+    reset();
+    setCustomStep(calculated);
+    setError("");
+    edited.current = false;
   };
 
   useEffect(() => {
-    if (value) {
-      handleApply(value);
-    }
-  }, [value]);
+    setCustomStep(effective);
+    setError("");
+    edited.current = false;
+  }, [effective, override]);
 
-  useEffect(() => {
-    if (!value && defaultStep) {
-      handleApply(defaultStep);
-    }
-  }, [defaultStep]);
-
-  useEffect(() => {
-    const dur = end - start;
-    if (dur === prevDuration || !prevDuration || value !== prevDefaultStep) return;
-    if (defaultStep) {
-      handleApply(defaultStep);
-    }
-  }, [prevDuration, defaultStep]);
-
-  useEffect(() => {
-    if (step === value || step === defaultStep) handleApply(defaultStep);
-  }, [isHistogram, displayType]);
+  const textValue = override === null ? `auto (${effective})` : effective;
 
   return (
     <div
@@ -130,7 +103,7 @@ const StepConfigurator: FC = () => {
           <span className="vm-mobile-option__icon"><TimelineIcon/></span>
           <div className="vm-mobile-option-text">
             <span className="vm-mobile-option-text__label">Step</span>
-            <span className="vm-mobile-option-text__value">{customStep}</span>
+            <span className="vm-mobile-option-text__value">{textValue}</span>
           </div>
           <span className="vm-mobile-option__arrow"><ArrowDownIcon/></span>
         </div>
@@ -142,7 +115,7 @@ const StepConfigurator: FC = () => {
           startIcon={<TimelineIcon/>}
           onClick={toggleOpenOptions}
         >
-          Step: {isAutoStep ? `auto (${customStep})` : customStep}
+          Step: {textValue}
         </Button>
       )}
       <Popper
@@ -168,7 +141,7 @@ const StepConfigurator: FC = () => {
             onFocus={handleFocus}
             onBlur={handleApply}
             endIcon={(
-              <Tooltip title={`Reset to auto step (${defaultStep})`}>
+              <Tooltip title={`Reset to auto step (${calculated})`}>
                 <Button
                   size="small"
                   variant="text"

@@ -61,6 +61,7 @@ const CardinalityDatePicker: FC = () => {
         format={DATE_FORMAT}
         onChange={handleChangeDate}
         targetRef={buttonRef}
+        maxDate={dayjs().tz().endOf("day")}
       />
     </div>
   );

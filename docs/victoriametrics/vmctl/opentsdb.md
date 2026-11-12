@@ -1,5 +1,6 @@
 ---
 title: OpenTSDB
+description: "Migrate historical data from OpenTSDB."
 weight: 3
 menu:
   docs:

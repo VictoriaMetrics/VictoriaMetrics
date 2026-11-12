@@ -1,6 +1,6 @@
+import { useStep } from "../../../state/step/StepStateContext";
 import { FC } from "preact/compat";
 import Hyperlink from "../../../components/Main/Hyperlink/Hyperlink";
-import { useGraphState } from "../../../state/graph/GraphStateContext";
 
 const last_over_time = <Hyperlink
   text="last_over_time"
@@ -15,7 +15,7 @@ const instant_query = <Hyperlink
 />;
 
 const InstantQueryTip: FC = () => {
-  const { customStep } = useGraphState();
+  const { effective: customStep } = useStep();
 
   return (
     <div>

@@ -1,6 +1,7 @@
 ---
 weight: 7
 title: Year 2021
+description: "Release history for all VictoriaMetrics components (YEAR 2021)"
 search:
   weight: 0.1
 menu:

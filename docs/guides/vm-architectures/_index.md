@@ -1,6 +1,7 @@
 ---
 weight: 14
 title: VictoriaMetrics topologies
+description: "Choose the right deployment topology for risk tolerance and performance needs."
 menu:
   docs:
     parent: "guides"
@@ -10,8 +11,7 @@ tags:
   - guide
   - scalability
   - kubernetes
-  - high-availability
-  - cell-based infrasructure
+  - high availability
   - reliability
 aliases:
 - /guides/vm-architectures.html

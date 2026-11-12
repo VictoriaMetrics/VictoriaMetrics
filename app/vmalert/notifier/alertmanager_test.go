@@ -116,6 +116,37 @@ func TestAlertManager_Send(t *testing.T) {
 			if len(a) != 1 {
 				t.Fatalf("expected 1 alert in array got %d", len(a))
 			}
+		case 5:
+			var a []struct {
+				Labels map[string]string `json:"labels"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&a); err != nil {
+				t.Fatalf("can not unmarshal data into alert %s", err)
+			}
+			if len(a) != 1 {
+				t.Fatalf("expected 1 alert in array got %d", len(a))
+			}
+			envLabelValue := a[0].Labels["env"]
+			wantLabel := "production"
+			if envLabelValue != wantLabel {
+				t.Fatalf("unexpected env label value want: %q; got: %q", wantLabel, envLabelValue)
+			}
+		case 6:
+			var a []struct {
+				Labels map[string]string `json:"labels"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&a); err != nil {
+				t.Fatalf("can not unmarshal data into alert %s", err)
+			}
+			if len(a) != 1 {
+				t.Fatalf("expected 1 alert in array got %d", len(a))
+			}
+			envLabelValue := a[0].Labels["env"]
+			wantLabel := "dev"
+			if envLabelValue != wantLabel {
+				t.Fatalf("unexpected env label value want: %q; got: %q", wantLabel, envLabelValue)
+			}
+
 		}
 	})
 	srv := httptest.NewServer(mux)
@@ -195,4 +226,67 @@ func TestAlertManager_Send(t *testing.T) {
 	if c != 4 {
 		t.Fatalf("expected 4 calls(count from zero) to server got %d", c)
 	}
+
+	// test shared alert labels modification
+	// relabel configs must set different values
+	// and do not modify shared
+	am1ParsedConfigs, err := promrelabel.ParseRelabelConfigsData([]byte(`
+- target_label: "env"
+  replacement: "production"
+  if: '{env="unset"}'
+`))
+	if err != nil {
+		t.Fatalf("unexpected error when parse relabeling config: %s", err)
+	}
+	am2Parsed2Configs, err := promrelabel.ParseRelabelConfigsData([]byte(`
+- target_label: "env"
+  replacement: "dev"
+  if: '{env="unset"}'
+`))
+	if err != nil {
+		t.Fatalf("unexpected error when parse relabeling config: %s", err)
+	}
+	mustBuildAlertManager := func(t *testing.T, pc *promrelabel.ParsedConfigs) *AlertManager {
+		t.Helper()
+		newAm, err := NewAlertManager(srv.URL+alertManagerPath, func(alert Alert) string {
+			return strconv.FormatUint(alert.GroupID, 10) + "/" + strconv.FormatUint(alert.ID, 10)
+		}, aCfg, pc, 0)
+		if err != nil {
+			t.Fatalf("unexpected build alertmanager error: %s", err)
+		}
+		return newAm
+	}
+	assertCalls := func(t *testing.T, want int) {
+		t.Helper()
+		if c != want {
+			t.Fatalf("expected %d calls(count from zero) to server got %d", want, c)
+		}
+	}
+	am1 := mustBuildAlertManager(t, am1ParsedConfigs)
+	defer am1.Close()
+	am2 := mustBuildAlertManager(t, am2Parsed2Configs)
+	defer am2.Close()
+	alertsToSend := []Alert{
+		{
+			Name:   "alert2",
+			Labels: map[string]string{"rule": "test", "tenant": "1"},
+		},
+	}
+	alertsLabels := [][]prompb.Label{
+		{
+			{Name: "rule", Value: "test"},
+			{Name: "tenant", Value: "1"},
+			{Name: "env", Value: "unset"},
+		},
+	}
+	headersToSend := map[string]string{headerKey: "bar"}
+	if err := am1.Send(t.Context(), alertsToSend, alertsLabels, headersToSend); err != nil {
+		t.Fatalf("unexpected Send error %s", err)
+	}
+	assertCalls(t, 5)
+	if err := am2.Send(t.Context(), alertsToSend, alertsLabels, headersToSend); err != nil {
+		t.Fatalf("unexpected Send error %s", err)
+	}
+	assertCalls(t, 6)
+
 }

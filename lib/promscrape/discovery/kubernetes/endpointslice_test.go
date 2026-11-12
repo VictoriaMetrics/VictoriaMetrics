@@ -650,3 +650,51 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 		})
 	})
 }
+
+func TestGetEndpointSliceLabelsPodInOtherNamespace(t *testing.T) {
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11798
+	eps := EndpointSlice{
+		Metadata: ObjectMeta{
+			Name:      "demo-1",
+			Namespace: "ns-a",
+			Labels: promutil.NewLabelsFromMap(map[string]string{
+				"kubernetes.io/service-name": "demo",
+			}),
+		},
+		Endpoints: []Endpoint{
+			{
+				Addresses: []string{"10.1.2.3"},
+				TargetRef: ObjectReference{
+					Kind:      "Pod",
+					Namespace: "ns-b",
+					Name:      "demo-backend",
+				},
+			},
+		},
+		AddressType: "IPv4",
+		Ports: []EndpointPort{
+			{
+				Name: "http",
+				Port: 8080,
+			},
+		},
+	}
+	gw := newTestGroupWatcherWithPodInOtherNamespace()
+
+	f := func(withService bool) {
+		t.Helper()
+		if !withService {
+			delete(gw.m["service"].objectsByKey, "ns-a/demo")
+		}
+		ms := eps.getTargetLabels(gw)
+		if len(ms) != 2 {
+			t.Fatalf("unexpected number of targets; got %d; want 2", len(ms))
+		}
+		for _, m := range ms {
+			checkNamespaceLabelsFromEndpoints(t, m)
+		}
+	}
+
+	f(true)
+	f(false)
+}

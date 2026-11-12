@@ -1,9 +1,9 @@
 import { useEffect } from "preact/compat";
 import { FunctionIcon } from "../components/Main/Icons";
 import { AutocompleteOptions } from "../components/Main/Autocomplete/Autocomplete";
-import { marked } from "marked";
 import MetricsQL from "../assets/MetricsQL.md";
 import { useQueryDispatch, useQueryState } from "../state/query/QueryStateContext";
+import { markdownToSafeHtml } from "../utils/html";
 
 const CATEGORY_TAG = "h3";
 const FUNCTION_TAG = "h4";
@@ -54,7 +54,7 @@ const useGetMetricsQL = (includeFunctions: boolean) => {
 
   const processMarkdown = (text: string) => {
     const div = document.createElement("div");
-    div.innerHTML = marked(text) as string;
+    div.innerHTML = markdownToSafeHtml(text);
     const groups = div.querySelectorAll(`${CATEGORY_TAG}, ${FUNCTION_TAG}`);
     return processGroups(groups);
   };

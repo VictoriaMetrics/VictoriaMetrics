@@ -165,10 +165,12 @@ func scanString(s string) (string, error) {
 func parsePositiveNumber(s string) (float64, error) {
 	if isSpecialIntegerPrefix(s) {
 		n, err := strconv.ParseInt(s, 0, 64)
-		if err != nil {
-			return 0, err
+		if err == nil {
+			return float64(n), nil
 		}
-		return float64(n), nil
+		// Fall back to float parser for Prometheus compatibility.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11621
+		return strconv.ParseFloat(s, 64)
 	}
 	s = strings.ToLower(s)
 	m := float64(1)
@@ -689,12 +691,11 @@ func scanSingleDuration(s string, canBeNegative bool) int {
 		return -1
 	}
 	if s[i] == '.' {
-		j := i
 		i++
 		for i < len(s) && isDecimalChar(s[i]) {
 			i++
 		}
-		if i == j || i == len(s) {
+		if i == len(s) {
 			return -1
 		}
 	}

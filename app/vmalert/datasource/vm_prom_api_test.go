@@ -30,8 +30,8 @@ func TestPromInstant_UnmarshalPositive(t *testing.T) {
 	})
 	f(`[
 {"metric":{"__name__":"up"},"value":[1583780000,"42"]},
-{"metric":{"__name__":"foo"},"value":[1583780001,"7"]},
-{"metric":{"__name__":"baz", "instance":"bar"},"value":[1583780002,"8"]}]`, []Metric{
+{"metric":{"__name__":"foo"},"value":[1583780001.123,"7"]},
+{"metric":{"__name__":"baz", "instance":"bar"},"value":[1.583780002E9,"8"]}]`, []Metric{
 		{
 			Labels:     []prompb.Label{{Name: "__name__", Value: "up"}},
 			Timestamps: []int64{1583780000},
@@ -72,4 +72,6 @@ func TestPromInstant_UnmarshalNegative(t *testing.T) {
 	f(`[{"metric":{"__name__":"up"},"value":[1583780000]}]`)
 	// non-numeric sample value
 	f(`[{"metric":{"__name__":"up"},"value":[1583780000,"foo"]}]`)
+	// non-numeric timestamp
+	f(`[{"metric":{"__name__":"up"},"value":["foo","42"]}]`)
 }

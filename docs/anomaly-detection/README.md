@@ -27,7 +27,7 @@ Key functions:
 
 The diagram below illustrates how `vmanomaly` fits into an observability setup, such as detecting anomalies in metrics collected by `node_exporter`:
 
-<img src="https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_overview.webp" alt="node_exporter_example_diagram" style="width:60%"/>
+<img src="/anomaly-detection/guides/guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_overview.svg" alt="Typical vmanomaly observability pipeline using node-exporter, vmagent, VictoriaMetrics, Grafana, vmalert, and Alertmanager" style="width:60%"/>
 
 ## How does it work?
 
@@ -40,7 +40,7 @@ VictoriaMetrics Anomaly Detection **continuously re-fit and apply machine learni
   - **Confidence intervals** (`[yhat_lower, yhat_upper]`)  
   These outputs integrate seamlessly into downstream applications, making it easier to **visually inspect anomalies**, e.g. in respective [Grafana dashboards](https://docs.victoriametrics.com/anomaly-detection/presets/#grafana-dashboard).
 
-<img src="https://docs.victoriametrics.com/anomaly-detection/components/vmanomaly-components.webp" alt="node_exporter_example_diagram" style="width:80%"/>
+{{% content "components/vmanomaly-components-diagram.md" %}}
 
 ## Key benefits
 
@@ -50,13 +50,14 @@ VictoriaMetrics Anomaly Detection **continuously re-fit and apply machine learni
   
 - **Handling complex metrics** – effectively detects anomalies in **trending, seasonal, or dynamically scaling data**, where **fixed thresholds and simpler models usually fail**.
 
-- **Detecting anomalies in interconnected metrics** – supports **[multivariate anomaly detection](http://docs.victoriametrics.com/anomaly-detection/components/models#multivariate-models)**, identifying patterns across **related metrics** instead of treating them in isolation as [univariate metrics](http://docs.victoriametrics.com/anomaly-detection/components/models#univariate-models).
+- **Different ways to detect anomalies** – use [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models) for each metric independently, [multivariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) for relationships across related metrics, or [peer-group models](https://docs.victoriametrics.com/anomaly-detection/components/models/#peer-group-models) {{% available_from "v1.31.0" anomaly %}} to find unusual members among comparable replicas or hosts, even as membership changes.
 
 ## Practical guides and installation
 
 Get started with VictoriaMetrics Anomaly Detection by following our guides and installation options:
 
 - **Quickstart**: Learn how to quickly set up `vmanomaly` by following the [Quickstart Guide](https://docs.victoriametrics.com/anomaly-detection/quickstart/).
+- **Model selection**: [Choose a model for your metrics](https://docs.victoriametrics.com/anomaly-detection/guides/model-selection/) with practical examples and copyable recipes.
 - **UI**: Explore anomaly detection configurations through the [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/).
 - **AI-assisted setup (optional)**: Use the [UI Copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance), [vmanomaly MCP server](https://docs.victoriametrics.com/ai-tools/#vmanomaly-mcp-server), or [agent skills](https://docs.victoriametrics.com/ai-tools/#agent-skills) to inspect time-series characteristics, select and autotune models, and generate validated configurations.
 - **Integration**: Integrate anomaly detection into your existing observability stack. Find detailed steps [here](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/).

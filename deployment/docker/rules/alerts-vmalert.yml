@@ -126,10 +126,10 @@ groups:
           (
             vmalert_alerting_rules_last_evaluation_samples
               > on(group,file) group_left()
-            (vmalert_group_rule_results_limit * 0.9)
+            min by (group,file) (vmalert_group_rule_results_limit * 0.9)
           )
             and on(group,file)
-          (vmalert_group_rule_results_limit > 0)
+          (min by (group,file) (vmalert_group_rule_results_limit) > 0)
         for: 5m
         labels:
           severity: warning
@@ -144,10 +144,10 @@ groups:
           (
             vmalert_recording_rules_last_evaluation_samples
               > on(group,file) group_left()
-            (vmalert_group_rule_results_limit * 0.9)
+            min by (group,file) (vmalert_group_rule_results_limit * 0.9)
           )
             and on(group,file)
-          (vmalert_group_rule_results_limit > 0)
+          (min by (group,file) (vmalert_group_rule_results_limit) > 0)
         for: 5m
         labels:
           severity: warning

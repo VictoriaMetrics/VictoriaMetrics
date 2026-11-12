@@ -1,5 +1,6 @@
 ---
 title: Datadog
+description: "Receiving metrics from DataDog agent, DogStatsD, and Lambda Extension."
 weight: 4
 menu:
   docs:

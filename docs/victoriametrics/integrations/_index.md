@@ -1,5 +1,6 @@
 ---
 title: Integrations
+description: "Overview of all supported integrations."
 weight: 13
 menu:
   docs:

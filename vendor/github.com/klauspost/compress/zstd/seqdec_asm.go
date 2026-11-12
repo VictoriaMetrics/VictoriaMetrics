@@ -1,4 +1,4 @@
-//go:build (amd64 || arm64) && !appengine && !noasm && gc
+//go:build (amd64 || arm64) && !noasm && gc
 
 package zstd
 
@@ -55,6 +55,9 @@ type executeAsmContext struct {
 	outPosition int
 	litPosition int
 	windowSize  int
+	// prefetch enables the match-source prefetch in the execute loop; see
+	// sequenceDecs.useTwoPass.
+	prefetch bool
 }
 
 const noError = 0
@@ -77,22 +80,54 @@ const errorNotEnoughSpace = 5
 // error reported when bits are overread.
 const errorOverread = 6
 
+// useSafeDecodeSync reports whether decodeSyncSimple must use the bounds-exact
+// ("safe") copy variants for the current buffer geometry.
+//
+// When the output and literal buffers have compressedBlockOverAlloc (16)
+// bytes of slack past their logical use, the assembly may use extended
+// memory copies that read and write in 16-byte blocks, overrunning the end
+// of a literal run or match by up to 15 bytes; an empty literal run still
+// copies one block, reading and writing the full 16 bytes of slack past
+// its position. Otherwise it must use the bounds-exact ("safe") copies.
+// This mirrors the analogous, always-dynamic selection in executeSimple below.
+//
+// The unsafe copies were disabled in #644 (2022) as a mitigation for a
+// crash, but that crash's root cause — an unguarded bitReader overread that
+// produced out-of-range match offsets/lengths — was fixed three days later
+// in #645, which also added the fuzz corpus that has guarded this path since.
+// See #1168. An asan-instrumented fuzz job (see .github/workflows/go.yml)
+// covers the extended-copy path, which -race and plain fuzzing cannot.
+func (s *sequenceDecs) useSafeDecodeSync() bool {
+	// A block never produces more than maxBlockSize bytes.
+	maxBlockSize := min(s.windowSize, maxCompressedBlockSize)
+	if s.maxSyncLen == 0 && cap(s.out)-len(s.out) < maxBlockSize+compressedBlockOverAlloc {
+		return true
+	}
+	// The block, not the rest of the frame, must fit with the slack: a
+	// buffer sized exactly to the frame needs the safe copies only for the
+	// final block(s).
+	if s.maxSyncLen > 0 && cap(s.out)-len(s.out)-compressedBlockOverAlloc < min(int(s.maxSyncLen), maxBlockSize) {
+		return true
+	}
+	if cap(s.literals) < len(s.literals)+compressedBlockOverAlloc {
+		return true
+	}
+	return false
+}
+
 // decode sequences from the stream with the provided history but without a dictionary.
 func (s *sequenceDecs) decodeSyncSimple(hist []byte) (bool, error) {
 	if len(s.dict) > 0 {
 		return false, nil
 	}
-	if s.maxSyncLen == 0 && cap(s.out)-len(s.out) < maxCompressedBlockSize {
+	maxBlockSize := min(s.windowSize, maxCompressedBlockSize)
+	if s.maxSyncLen == 0 && cap(s.out)-len(s.out) < maxBlockSize {
 		return false, nil
 	}
 
-	// FIXME: Using unsafe memory copies leads to rare, random crashes
-	// with fuzz testing. It is therefore disabled for now.
-	const useSafe = true
+	useSafe := s.useSafeDecodeSync()
 
 	br := s.br
-
-	maxBlockSize := min(s.windowSize, maxCompressedBlockSize)
 
 	ctx := decodeSyncAsmContext{
 		llTable:     s.litLengths.fse.dt[:maxTablesize],
@@ -126,7 +161,7 @@ func (s *sequenceDecs) decodeSyncSimple(hist []byte) (bool, error) {
 
 	case errorMatchOffTooBig:
 		return true, fmt.Errorf("match offset (%d) bigger than current history (%d)",
-			ctx.mo, ctx.outPosition+len(hist)-startSize)
+			ctx.mo, ctx.outPosition-startSize)
 
 	case errorNotEnoughLiterals:
 		return true, fmt.Errorf("unexpected literal count, want %d bytes, but only %d is available",
@@ -239,8 +274,10 @@ func (s *sequenceDecs) decode(seqs []seqVals) error {
 
 // executeSimple handles cases when dictionary is not used.
 func (s *sequenceDecs) executeSimple(seqs []seqVals, hist []byte) error {
-	// Ensure we have enough output size...
-	if len(s.out)+s.seqSize+compressedBlockOverAlloc > cap(s.out) {
+	// Grow only if the block does not fit. Lacking just the slack is
+	// handled by the safe copies below, so a buffer sized exactly to the
+	// frame is not reallocated and copied on its last block.
+	if len(s.out)+s.seqSize > cap(s.out) {
 		addBytes := s.seqSize + len(s.out) + compressedBlockOverAlloc
 		s.out = append(s.out, make([]byte, addBytes)...)
 		s.out = s.out[:len(s.out)-addBytes]
@@ -262,10 +299,12 @@ func (s *sequenceDecs) executeSimple(seqs []seqVals, hist []byte) error {
 		litPosition: 0,
 		literals:    s.literals,
 		windowSize:  s.windowSize,
+		prefetch:    s.useTwoPass(),
 	}
-	// useSafe avoids overwriting the output buffer when the literals slice has
-	// not been allocated with the required over-allocation slack.
-	useSafe := cap(s.literals) < len(s.literals)+compressedBlockOverAlloc
+	// useSafe avoids writing past either buffer when the literals or the
+	// output lack the extended copies' over-allocation slack.
+	useSafe := cap(s.literals) < len(s.literals)+compressedBlockOverAlloc ||
+		cap(out) < len(out)+compressedBlockOverAlloc
 
 	ok := executeSimpleAsm(&ctx, useSafe)
 	if !ok {

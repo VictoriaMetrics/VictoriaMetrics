@@ -97,14 +97,18 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file.
      Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
+  -fs.disableAdviseRandomRead
+     Whether to disable FADV_RANDOM and MADV_RANDOM hints for data part files. Typical queries with selectors access data part files at random offsets, so FADV_RANDOM is enforced to reduce excessive disk readahead.Use this flag if your query read pattern benefits from sequential read (e.g. query by metric name without selectors) to prefer FADV_NORMAL. (default true)
   -fs.disableMincore
      Whether to disable the mincore() syscall for checking mmap()ed files. By default, mincore() is used to detect whether mmap()ed file pages are resident in memory. Disabling mincore() may be needed on older ZFS filesystems (below 2.1.5), since it may trigger ZFS bug. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10327 for details.
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -fs.maxConcurrency int
-     The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default fsutil.getDefaultConcurrency())
+     The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default 16x CPU cores, capped at 256)
   -group.maxStartDelay duration
      Defines the max delay before starting the group evaluation. Group's start is artificially delayed for random duration on interval [0..min(--group.maxStartDelay, group.interval)]. This helps smoothing out the load on the configured datasource, so evaluations aren't executed too close to each other. (default 5m0s)
+  -healthcheck
+     Whether to check that the running process accepts connections at -httpListenAddr and exit. The exit code is non-zero if the check fails. This is useful for Docker HEALTHCHECK in images without curl or wget. Pass the same -httpListenAddr as the checked process has
   -http.connTimeout duration
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableCORS
@@ -136,7 +140,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr array
-     Address to listen for incoming http requests. See also -tls and -httpListenAddr.useProxyProtocol
+     Address to listen for incoming http requests. Use unix:/path/to/socket to listen on Unix domain socket. Note that -tls and -httpListenAddr.useProxyProtocol cannot be used with Unix sockets
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr.useProxyProtocol array
@@ -234,6 +238,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Optional OAuth2 tokenURL to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -notifier.sanitizeLabelNames
+     Whether to replace characters outside [a-zA-Z0-9_:] in alert label names with underscores before sending alerts to notifiers. Set it to false only if all notifiers support UTF-8 label names, e.g. Alertmanager >= v0.27.0 not running in classic-mode. (default true)
   -notifier.sendTimeout array
      Timeout when sending alerts to the corresponding -notifier.url (default 10s)
      Supports array of values separated by comma or specified via multiple flags.
@@ -345,7 +351,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -remoteRead.tlsServerName string
      Optional TLS server name to use for connections to -remoteRead.url. By default, the server name from -remoteRead.url is used
   -remoteRead.url string
-     Optional URL to datasource compatible with MetricsQL. It can be single node VictoriaMetrics or vmselect. Remote read is used to restore alerts state. This configuration makes sense only if vmalert was configured with '-remoteWrite.url' before and has been successfully persisted its state. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. See also '-remoteRead.disablePathAppend', '-remoteRead.showURL'.
+     Optional URL to datasource compatible with Prometheus querying API. It can be single node VictoriaMetrics, vmselect or Prometheus. Remote read is used to restore alerts state. This configuration makes sense only if vmalert was configured with '-remoteWrite.url' before and has been successfully persisted its state. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. See also '-remoteRead.disablePathAppend', '-remoteRead.showURL'.
   -remoteWrite.basicAuth.password string
      Optional basic auth password for -remoteWrite.url
   -remoteWrite.basicAuth.passwordFile string
@@ -359,7 +365,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -remoteWrite.bearerTokenFile string
      Optional path to bearer token file to use for -remoteWrite.url.
   -remoteWrite.concurrency int
-     Defines number of writers for concurrent writing into remote write endpoint. Default value depends on the number of available CPU cores. (default 2*cgroup.AvailableCPUs())
+     Defines number of writers for concurrent writing into remote write endpoint. Default value depends on the number of available CPU cores. (default 2x CPU cores)
   -remoteWrite.disablePathAppend
      Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
   -remoteWrite.flushInterval duration
@@ -370,6 +376,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Defines a duration for idle (keep-alive connections) to exist. Consider settings this value less to the value of "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors. (default 50s)
   -remoteWrite.maxBatchSize int
      Defines max number of timeseries to be flushed at once (default 10000)
+  -remoteWrite.maxIdleConnections int
+     Defines the number of idle (keep-alive connections) to -remoteWrite.url for the vmalert-tool debug writer, which sends every series in a separate request. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -remoteWrite.maxQueueSize int
      Defines the max number of pending datapoints to remote write endpoint (default 100000)
   -remoteWrite.oauth2.clientID string
@@ -404,6 +412,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Optional TLS server name to use for connections to -remoteWrite.url. By default, the server name from -remoteWrite.url is used
   -remoteWrite.url string
      Optional URL to persist alerts state and recording rules results in form of timeseries. It must support either VictoriaMetrics remote write protocol or Prometheus remote_write protocol. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend, '-remoteWrite.showURL'.
+  -replay.continueWithExecutionErr
+     Whether to continue replaying other rules if a rule execution fails with a 400 or 422 response code, which can happen due to an expression syntax error or a resource limit being hit.
   -replay.disableProgressBar
      Whether to disable rendering progress bars during the replay. Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.
   -replay.maxDatapointsPerQuery int
@@ -411,7 +421,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -replay.ruleEvaluationConcurrency int
      The maximum number of concurrent '/query_range' requests when replay recording rule or alerting rule with for=0. Increasing this value when replaying for a long time, since each request is limited by -replay.maxDatapointsPerQuery. (default 1)
   -replay.ruleRetryAttempts int
-     Defines how many retries to make before giving up on rule if request for it returns an error. (default 5)
+     Defines how many retries to make before giving up on rule if request for it returns a retriable error. (default 5)
   -replay.rulesDelay duration
      Delay before evaluating the next rule within the group. Is important for chained rules. Keep it equal or bigger than -remoteWrite.flushInterval. When set to >0, replay ignores group's concurrency setting. (default 1s)
   -replay.timeFrom string

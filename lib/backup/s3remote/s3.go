@@ -129,6 +129,9 @@ type FS struct {
 	// S3 tags to be set for uploaded objects.
 	Tags map[string]string
 
+	// Whether to skip tagging headers on object copy for S3-compatible storage that rejects them.
+	SkipTaggingDirective bool
+
 	// parsed Metadata to be used with aws-sdk-go-v2
 	metadata map[string]*string
 
@@ -370,9 +373,12 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 		StorageClass:      fs.StorageClass,
 		Metadata:          fs.Metadata,
 		MetadataDirective: s3types.MetadataDirectiveReplace,
-		Tagging:           fs.tags,
-		TaggingDirective:  s3types.TaggingDirectiveReplace,
 		ACL:               fs.ACL,
+	}
+	// Set x-amz-tagging-directive to REPLACE, so copied objects get the configured tags instead of the source object tags.
+	if !fs.SkipTaggingDirective {
+		input.Tagging = fs.tags
+		input.TaggingDirective = s3types.TaggingDirectiveReplace
 	}
 	if len(fs.SSEKMSKeyId) > 0 {
 		input.SSEKMSKeyId = aws.String(fs.SSEKMSKeyId)

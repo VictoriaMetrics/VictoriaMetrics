@@ -59,14 +59,14 @@ func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
 		tfssAll := []*TagFilters{tfsAll}
 
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			metricIDs, err := idb.searchMetricIDs(noDeadlineContext, tfssAll, tr, 1e9)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
 			return metricIDs.AppendTo(nil)
 		}
 		searchTSIDs := func() []TSID {
-			tsids, err := s.SearchTSIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			tsids, err := s.SearchTSIDs(noDeadlineContext, nil, tfssAll, tr, 1e9)
 			if err != nil {
 				panic(fmt.Sprintf("SearchTSIDs() failed unexpectedly: %v", err))
 			}
@@ -161,14 +161,14 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 		tfssAll := []*TagFilters{tfsAll}
 
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			metricIDs, err := idb.searchMetricIDs(noDeadlineContext, tfssAll, tr, 1e9)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
 			return metricIDs.AppendTo(nil)
 		}
 		searchMetricNames := func() []string {
-			metricNames, err := s.SearchMetricNames(nil, tfssAll, tr, 1e9, noDeadline)
+			metricNames, err := s.SearchMetricNames(noDeadlineContext, nil, tfssAll, tr, 1e9)
 			if err != nil {
 				panic(fmt.Sprintf("SearchMetricNames() failed unexpectedly: %v", err))
 			}
@@ -295,7 +295,7 @@ func TestStorageRotateIndexDBPrefill(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			// Prefill of the next partition indexDB happens during the
 			// (nextMonth-prefillStart, nextMonth] time interval.
-			// Advance current time right before the the beginning of that interval.
+			// Advance current time right before the beginning of that interval.
 			ct := time.Now().UTC()
 			nextMonth := time.Date(ct.Year(), ct.Month()+1, 1, 0, 0, 0, 0, time.UTC)
 			time.Sleep(nextMonth.Sub(ct.Add(prefillStart)))
@@ -414,7 +414,7 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 		if err := tfs.Add(nil, []byte(prefix+".*"), false, true); err != nil {
 			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
 		}
-		ids := testSearchMetricIDs(s, []*TagFilters{tfs}, tr, 1e9, noDeadline)
+		ids := testSearchMetricIDs(noDeadlineContext, s, []*TagFilters{tfs}, tr, 1e9)
 		return len(ids)
 	}
 
@@ -899,7 +899,7 @@ func TestStorageLastPartitionMetrics(t *testing.T) {
 		})
 		assertLastPartitionNonEmpty(t, s)
 
-		// Advance current time to the the next month, 2000-02-01T00:30:00Z.
+		// Advance current time to the next month, 2000-02-01T00:30:00Z.
 		// last partition is now 2000-02 and it must be empty.
 		time.Sleep(2*time.Hour + time.Minute*30)
 		assertLastPartitionEmpty(t, s)
@@ -1165,7 +1165,7 @@ func TestStorage_denyQueriesOutsideRetention(t *testing.T) {
 	}
 	assertMetricNames := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
 		t.Helper()
-		metricNames, err := s.SearchMetricNames(nil, tfssAll, tr, 1e9, noDeadline)
+		metricNames, err := s.SearchMetricNames(noDeadlineContext, nil, tfssAll, tr, 1e9)
 		gotErr := err != nil
 		if gotErr != wantErr {
 			t.Fatalf("SearchMetricNames(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
@@ -1184,7 +1184,7 @@ func TestStorage_denyQueriesOutsideRetention(t *testing.T) {
 	}
 	assertLabelNames := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
 		t.Helper()
-		gotData, err := s.SearchLabelNames(nil, nil, tr, 1e9, 1e9, noDeadline)
+		gotData, err := s.SearchLabelNames(noDeadlineContext, nil, nil, tr, 1e9, 1e9)
 		gotErr := err != nil
 		if gotErr != wantErr {
 			t.Fatalf("SearchLabelNames(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
@@ -1197,7 +1197,7 @@ func TestStorage_denyQueriesOutsideRetention(t *testing.T) {
 	}
 	assertLabelValues := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
 		t.Helper()
-		gotData, err := s.SearchLabelValues(nil, "__name__", nil, tr, 1e9, 1e9, noDeadline)
+		gotData, err := s.SearchLabelValues(noDeadlineContext, nil, "__name__", nil, tr, 1e9, 1e9)
 		gotErr := err != nil
 		if gotErr != wantErr {
 			t.Fatalf("SearchLabelValues(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
@@ -1210,7 +1210,7 @@ func TestStorage_denyQueriesOutsideRetention(t *testing.T) {
 	}
 	assertTagValueSuffixes := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
 		t.Helper()
-		gotData, err := s.SearchTagValueSuffixes(nil, tr, "", "", '.', 1e9, noDeadline)
+		gotData, err := s.SearchTagValueSuffixes(noDeadlineContext, nil, tr, "", "", '.', 1e9)
 		gotErr := err != nil
 		if gotErr != wantErr {
 			t.Fatalf("SearchTagValueSuffixes(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
@@ -1224,7 +1224,7 @@ func TestStorage_denyQueriesOutsideRetention(t *testing.T) {
 
 	assertGraphitePaths := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
 		t.Helper()
-		gotData, err := s.SearchGraphitePaths(nil, tr, []byte("*"), 1e9, noDeadline)
+		gotData, err := s.SearchGraphitePaths(noDeadlineContext, nil, tr, []byte("*"), 1e9)
 		gotErr := err != nil
 		if gotErr != wantErr {
 			t.Fatalf("SearchTagValueSuffixes(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)

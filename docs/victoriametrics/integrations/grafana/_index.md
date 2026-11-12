@@ -1,5 +1,6 @@
 ---
 title: Grafana
+description: "Using VictoriaMetrics with Grafana via Prometheus or VM datasource plugin."
 weight: 1
 menu:
   docs:
@@ -47,9 +48,9 @@ If you don't see an option to create a data source - try contacting system admin
 ## Prometheus datasource
 
 Create [Prometheus datasource](https://grafana.com/docs/grafana/latest/datasources/prometheus/configure/)
-in Grafana. Follow the same connection instructions as for [VictoriaMetrics datasource](#VictoriaMetrics-datasource).
+in Grafana. Follow the same connection instructions as for [VictoriaMetrics datasource](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/#victoriametrics-datasource).
 
-In the "Type and version" section set the type to "Prometheus" and the version to at least "2.24.x".
+In the "Performance" section set the Prometheus type to "Prometheus" and the Prometheus version to at least "2.24.x".
 This allows Grafana to use a more efficient API to get label values:
 
 ![Datasource](datasource-prometheus.webp)
