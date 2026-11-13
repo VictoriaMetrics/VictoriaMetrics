@@ -54,10 +54,10 @@ This is useful when only recent data is needed and over-provisioning storage is 
 (for example, Kubernetes PVCs that can expand but not shrink).
 
 > **Note:** partial restore via `-restoreSince` or `-restorePartitions` is not supported for
-> backups that still contain the legacy, non-partitioned indexDB. Per-partition indexDB was introduced in
+> backups that still contain the legacy, non-partitioned IndexDB. Per-partition IndexDB was introduced in
 > [v1.133.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11330)
 > (see [#7599](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7599)); storage created by an
-> earlier version keeps its legacy indexDB until it is rotated out by retention. Such backups must be
+> earlier version keeps its legacy IndexDB until it is rotated out by retention. Such backups must be
 > restored in full.
 
 ### Restore only recent data
