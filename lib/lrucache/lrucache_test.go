@@ -118,6 +118,20 @@ func TestCache(t *testing.T) {
 	if n := c.Resets(); n != 1 {
 		t.Fatalf("unexpected Resets(); got %d; want %d", n, 1)
 	}
+
+	// The entry mustn't be stored if the cache has been reset after obtaining the number of resets.
+	resets := c.Resets()
+	c.Reset()
+	c.PutEntryIfNotReset(k, &e, resets)
+	if e1 := c.GetEntry(k); e1 != nil {
+		t.Fatalf("unexpected entry obtained after the reset; got %v; want nil", e1)
+	}
+
+	// The entry must be stored if the cache hasn't been reset.
+	c.PutEntryIfNotReset(k, &e, c.Resets())
+	if e1 := c.GetEntry(k); e1 != &e {
+		t.Fatalf("unexpected entry obtained; got %v; want %v", e1, &e)
+	}
 }
 
 func TestCacheConcurrentAccess(_ *testing.T) {

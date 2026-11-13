@@ -40,8 +40,12 @@ func TestTagFiltersToMetricIDsCache(t *testing.T) {
 		key := []byte("key")
 		wantSet := &uint64set.Set{}
 		wantSet.AddMulti(want)
-		idb.putMetricIDsToTagFiltersCache(nil, wantSet, key)
-		gotSet, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
+		_, cacheResets, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
+		if ok {
+			t.Fatalf("unexpected metricIDs found in empty cache")
+		}
+		idb.putMetricIDsToTagFiltersCache(nil, wantSet, key, cacheResets)
+		gotSet, _, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
 		if !ok {
 			t.Fatalf("expected metricIDs to be found in cache but they weren't: %v", want)
 		}
@@ -68,8 +72,12 @@ func TestTagFiltersToMetricIDsCache_EmptyMetricIDList(t *testing.T) {
 	defer s.tb.PutPartition(ptw)
 
 	key := []byte("key")
-	idb.putMetricIDsToTagFiltersCache(nil, nil, key)
-	got, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
+	_, cacheResets, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
+	if ok {
+		t.Fatalf("unexpected metricID list found in empty cache")
+	}
+	idb.putMetricIDsToTagFiltersCache(nil, nil, key, cacheResets)
+	got, _, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
 	if !ok {
 		t.Fatalf("expected empty metricID list to be found in cache but it wasn't")
 	}
@@ -716,8 +724,16 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, dat
 		if err != nil {
 			return fmt.Errorf("cannot search by exact tag filter: %w", err)
 		}
-		if !reflect.DeepEqual(tsidsCached, tsidsFound) {
-			return fmt.Errorf("unexpected tsids returned; got\n%+v; want\n%+v", tsidsCached, tsidsFound)
+		if isConcurrent {
+			// Concurrent workers may register and flush series with the same name
+			// between the two searches, so the cached result may contain more tsids.
+			if !testHasTSID(tsidsCached, tsid) {
+				return fmt.Errorf("tsids is missing in cached exact tsidsFound\ntsid=%+v\ntsidsFound=%+v\ntfs=%s\nmn=%s\ni=%d", tsid, tsidsCached, tfs, mn, i)
+			}
+		} else {
+			if !reflect.DeepEqual(tsidsCached, tsidsFound) {
+				return fmt.Errorf("unexpected tsids returned; got\n%+v; want\n%+v", tsidsCached, tsidsFound)
+			}
 		}
 
 		// Add negative filter for zeroing search results.
@@ -1626,6 +1642,88 @@ func testIndexDBSearchTSIDs(t *testing.T, disablePerDayIndex bool) {
 		MaxTimestamp: timestamp,
 	}
 	assertTSIDs(tfs, tr, metricsPerDay*days)
+}
+
+// TestIndexDBSearchTSIDs_ConcurrentFlush verifies that a series flushed before
+// the search starts is returned by this search when other goroutines search
+// for the same tag filters during the flush.
+//
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11916
+func TestIndexDBSearchTSIDs_ConcurrentFlush(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const searchers = 4
+	const series = 200
+	timestamp := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC).UnixMilli()
+	date := uint64(timestamp) / msecPerDay
+	tr := TimeRange{
+		MinTimestamp: timestamp - msecPerHour,
+		MaxTimestamp: timestamp,
+	}
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	ptw := s.tb.MustGetPartition(timestamp)
+	defer s.tb.PutPartition(ptw)
+	db := ptw.pt.idb
+
+	// Use many distinct tag filters matching all the series, so concurrent searches
+	// mostly miss tagFiltersToMetricIDsCache and search the index during the flush.
+	tfss := make([][]*TagFilters, 256)
+	for i := range tfss {
+		tfs := NewTagFilters()
+		if err := tfs.Add(nil, []byte("testMetric"), false, false); err != nil {
+			t.Fatalf("cannot add filter: %s", err)
+		}
+		if err := tfs.Add([]byte("filter"), fmt.Appendf(nil, "%d", i), true, false); err != nil {
+			t.Fatalf("cannot add negative filter: %s", err)
+		}
+		tfss[i] = []*TagFilters{tfs}
+	}
+
+	stopCh := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := range searchers {
+		wg.Go(func() {
+			for j := i; ; j++ {
+				select {
+				case <-stopCh:
+					return
+				default:
+				}
+				if _, err := db.SearchTSIDs(noDeadlineContext, nil, tfss[j%len(tfss)], tr, 1e5); err != nil {
+					t.Errorf("SearchTSIDs() failed unexpectedly in concurrent searcher: %s", err)
+					return
+				}
+			}
+		})
+	}
+	defer func() {
+		close(stopCh)
+		wg.Wait()
+	}()
+
+	for i := range series {
+		mn := MetricName{
+			MetricGroup: []byte("testMetric"),
+		}
+		mn.AddTag("series", fmt.Sprintf("%d", i))
+		mn.sortTags()
+		var tsid TSID
+		generateTSID(&tsid, &mn)
+		createAllIndexesForMetricName(db, &mn, &tsid, date)
+		db.tb.DebugFlush()
+
+		for j := range tfss {
+			tsids, err := db.SearchTSIDs(noDeadlineContext, nil, tfss[j], tr, 1e5)
+			if err != nil {
+				t.Fatalf("SearchTSIDs() failed unexpectedly: %s", err)
+			}
+			if !testHasTSID(tsids, &tsid) {
+				t.Fatalf("series %d is missing in the search results for tag filters %d after the flush; got %d tsids; want %d", i, j, len(tsids), i+1)
+			}
+		}
+	}
 }
 
 func TestIndexDBSearchLabelNames(t *testing.T) {

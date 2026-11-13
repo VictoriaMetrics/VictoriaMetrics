@@ -326,32 +326,43 @@ func (db *indexDB) MustClose() {
 // getMetricIDsFromTagFiltersCache retrieves the set of metricIDs that
 // correspond to the given (tffs, date) key.
 //
+// It also returns cacheResets, which must be passed to
+// putMetricIDsToTagFiltersCache() when storing the metricIDs found in the index
+// after a cache miss.
+//
 // The caller must convert the (tfss, date) to a byte slice and use it as the key
 // when calling this method (see marshalTagFiltersKey()).
 //
 // The caller must not modify the set of metricIDs returned by this method.
-func (db *indexDB) getMetricIDsFromTagFiltersCache(qt *querytracer.Tracer, key []byte) (*uint64set.Set, bool) {
+func (db *indexDB) getMetricIDsFromTagFiltersCache(qt *querytracer.Tracer, key []byte) (*uint64set.Set, uint64, bool) {
 	qt.Printf("search for metricIDs in tag filters cache")
+	cacheResets := db.tagFiltersToMetricIDsCache.Resets()
 	v := db.tagFiltersToMetricIDsCache.GetEntry(bytesutil.ToUnsafeString(key))
 	if v == nil {
 		qt.Printf("cache miss")
-		return nil, false
+		return nil, cacheResets, false
 	}
 	metricIDs := v.(*uint64set.Set)
 	qt.Printf("found %d metricIDs in cache", metricIDs.Len())
-	return metricIDs, true
+	return metricIDs, cacheResets, true
 }
 
 // putMetricIDsToTagFiltersCache stores the set of metricIDs that
 // correspond to the given (tffs, date) key into the cache.
 //
+// cacheResets must be the value returned by getMetricIDsFromTagFiltersCache()
+// before the search for metricIDs in the index. The metricIDs aren't stored
+// if the cache has been reset since then. Otherwise metricIDs found before
+// the indexDB flush could be stored after the cache reset triggered by this
+// flush. They would hide the flushed metricIDs until the next reset.
+//
 // The caller must convert the (tfss, date) to a byte slice and use it as the key
 // when calling this method (see marshalTagFiltersKey()).
 //
 // The caller must not modify the set of metricIDs after calling this method.
-func (db *indexDB) putMetricIDsToTagFiltersCache(qt *querytracer.Tracer, metricIDs *uint64set.Set, key []byte) {
+func (db *indexDB) putMetricIDsToTagFiltersCache(qt *querytracer.Tracer, metricIDs *uint64set.Set, key []byte, cacheResets uint64) {
 	qt.Printf("put %d metricIDs in cache", metricIDs.Len())
-	db.tagFiltersToMetricIDsCache.PutEntry(string(key), metricIDs)
+	db.tagFiltersToMetricIDsCache.PutEntryIfNotReset(string(key), metricIDs, cacheResets)
 	qt.Printf("stored %d metricIDs into cache", metricIDs.Len())
 }
 
@@ -1885,7 +1896,8 @@ func (db *indexDB) searchMetricIDsByDateAndFilters(ctx context.Context, qt *quer
 	tfKeyBuf := tagFiltersKeyBufPool.Get()
 	defer tagFiltersKeyBufPool.Put(tfKeyBuf)
 	tfKeyBuf.B = marshalTagFiltersKey(tfKeyBuf.B[:0], tfss, date)
-	if metricIDs, ok := db.getMetricIDsFromTagFiltersCache(qt, tfKeyBuf.B); ok {
+	metricIDs, cacheResets, ok := db.getMetricIDsFromTagFiltersCache(qt, tfKeyBuf.B)
+	if ok {
 		// Fast path - metricIDs found in the cache
 		if metricIDs.Len() > maxMetrics {
 			return nil, errTooManyTimeseries(maxMetrics)
@@ -1900,7 +1912,7 @@ func (db *indexDB) searchMetricIDsByDateAndFilters(ctx context.Context, qt *quer
 	}
 
 	// Store metricIDs in the cache.
-	db.putMetricIDsToTagFiltersCache(qt, metricIDs, tfKeyBuf.B)
+	db.putMetricIDsToTagFiltersCache(qt, metricIDs, tfKeyBuf.B, cacheResets)
 
 	qt.Printf("found %d metricIDs", metricIDs.Len())
 	return metricIDs, nil
