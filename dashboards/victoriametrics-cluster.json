@@ -177,7 +177,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -248,7 +248,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -321,7 +321,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -393,7 +393,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -465,7 +465,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -537,7 +537,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -609,7 +609,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -680,7 +680,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -781,7 +781,7 @@
           }
         ]
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -889,7 +889,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -1014,7 +1014,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -1124,7 +1124,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -1234,7 +1234,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -1342,7 +1342,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -1452,7 +1452,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -1568,7 +1568,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -1680,7 +1680,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 38
+            "y": 102
           },
           "id": 66,
           "options": {
@@ -1702,7 +1702,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.3.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -1795,7 +1795,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 38
+            "y": 102
           },
           "id": 64,
           "options": {
@@ -1817,7 +1817,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.3.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -1913,7 +1913,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 88
+            "y": 110
           },
           "id": 138,
           "options": {
@@ -1935,7 +1935,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.3.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -1959,7 +1959,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "CPU pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\n**Lower is better.**\n\nPressure is measured as amount of time within 1sec time window the process was:\n- waiting: at least one task in the process was ready to run (runnable) but couldn't get scheduled on the CPU.\n- stalled: all tasks in the process (except idle ones) were unable to get CPU time — a full CPU stall.\n\nIf there's a CPU burst, it's normal to see waiting or stalled > 100ms. It only becomes a concern if it consistently climbs above 50-100ms and aligns with latency spikes or GC slowdowns.",
+          "description": "CPU pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html) and quota throttling by [Linux cgroup CPU controller](https://docs.kernel.org/admin-guide/cgroup-v2.html#cpu-interface-files) \n\n**Lower is better.**\n\nPressure is measured as amount of time within 1sec time window the process was:\n- waiting: at least one task in the process was ready to run (runnable) but couldn't get scheduled on the CPU.\n- stalled: all tasks in the process (except idle ones) were unable to get CPU time — a full CPU stall.\n\nIf there's a CPU burst, it's normal to see waiting or stalled > 100ms. It only becomes a concern if it consistently climbs above 50-100ms and aligns with latency spikes or GC slowdowns.\n\nCPU quota throttling is shown as the average throttled time per second over each rate interval.\n- throttled: CPU throttling time recorded when the cgroup exhausts its CPU quota. \n\nIf CPU throttling stays elevated, it means the process is throttled by cgroup CPU controller. Consider increasing the cgroup’s CPU quota.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2020,7 +2020,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 88
+            "y": 110
           },
           "id": 219,
           "options": {
@@ -2042,7 +2042,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.3.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2052,6 +2052,7 @@
               "editorMode": "code",
               "expr": "max(rate(process_pressure_cpu_waiting_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
               "format": "time_series",
+              "hide": false,
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "{{job}} - waiting",
@@ -2072,9 +2073,22 @@
               "legendFormat": "{{job}} - stalled",
               "range": true,
               "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(rate(process_cgroup_cpu_throttled_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{job}} - throttled",
+              "range": true,
+              "refId": "C"
             }
           ],
-          "title": "CPU pressure",
+          "title": "CPU pressure and throttling",
           "type": "timeseries"
         },
         {
@@ -2143,7 +2157,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 96
+            "y": 118
           },
           "id": 220,
           "options": {
@@ -2165,7 +2179,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.3.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2281,7 +2295,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 96
+            "y": 118
           },
           "id": 122,
           "options": {
@@ -2303,7 +2317,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.3.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2426,7 +2440,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 104
+            "y": 126
           },
           "id": 117,
           "options": {
@@ -2448,7 +2462,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.3.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2550,7 +2564,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 104
+            "y": 126
           },
           "id": 204,
           "options": {
@@ -2572,7 +2586,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.3.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2678,7 +2692,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 112
+            "y": 134
           },
           "id": 68,
           "options": {
@@ -2787,7 +2801,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 112
+            "y": 134
           },
           "id": 221,
           "options": {
@@ -2913,7 +2927,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 120
+            "y": 142
           },
           "id": 70,
           "options": {
@@ -3022,7 +3036,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 120
+            "y": 142
           },
           "id": 119,
           "options": {
@@ -3132,7 +3146,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 128
+            "y": 150
           },
           "id": 210,
           "options": {
@@ -3238,7 +3252,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 128
+            "y": 150
           },
           "id": 120,
           "options": {
@@ -3345,7 +3359,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 136
+            "y": 158
           },
           "id": 218,
           "options": {
@@ -3455,7 +3469,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 136
+            "y": 158
           },
           "id": 213,
           "options": {
@@ -3519,7 +3533,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 204
+            "y": 592
           },
           "id": 211,
           "options": {
@@ -3622,7 +3636,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 206
+            "y": 594
           },
           "id": 102,
           "options": {
@@ -3742,7 +3756,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 206
+            "y": 594
           },
           "id": 108,
           "options": {
@@ -3849,7 +3863,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 248
+            "y": 636
           },
           "id": 170,
           "options": {
@@ -3960,7 +3974,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 248
+            "y": 636
           },
           "id": 107,
           "options": {
@@ -3996,112 +4010,6 @@
             }
           ],
           "title": "Slow queries % ($instance)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "description": "Shows the percentage of used cache size from the allowed size by type. \nValues close to 100% show the maximum potential utilization.\nValues close to 0% show that cache is underutilized.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "percentunit"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 12,
-            "y": 256
-          },
-          "id": 144,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.2.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "exemplar": true,
-              "expr": "max(\n    vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"} \n    /\n    vm_cache_size_max_bytes{job=~\"$job\", instance=~\"$instance\"}\n) by(type)",
-              "interval": "",
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Cache usage % by type ($instance)",
           "type": "timeseries"
         },
         {
@@ -4174,8 +4082,8 @@
                   {
                     "id": "color",
                     "value": {
-                      "mode": "fixed",
-                      "fixedColor": "red"
+                      "fixedColor": "red",
+                      "mode": "fixed"
                     }
                   }
                 ]
@@ -4189,8 +4097,8 @@
                   {
                     "id": "color",
                     "value": {
-                      "mode": "fixed",
-                      "fixedColor": "green"
+                      "fixedColor": "green",
+                      "mode": "fixed"
                     }
                   }
                 ]
@@ -4204,8 +4112,8 @@
                   {
                     "id": "color",
                     "value": {
-                      "mode": "fixed",
-                      "fixedColor": "gray"
+                      "fixedColor": "gray",
+                      "mode": "fixed"
                     }
                   }
                 ]
@@ -4216,7 +4124,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 256
+            "y": 644
           },
           "id": 58,
           "options": {
@@ -4297,6 +4205,112 @@
             "type": "prometheus",
             "uid": "$ds"
           },
+          "description": "Shows the percentage of used cache size from the allowed size by type. \nValues close to 100% show the maximum potential utilization.\nValues close to 0% show that cache is underutilized.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 12,
+            "y": 644
+          },
+          "id": 144,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "max(\n    vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"} \n    /\n    vm_cache_size_max_bytes{job=~\"$job\", instance=~\"$instance\"}\n) by(type)",
+              "interval": "",
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Cache usage % by type ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
           "description": "The value is above 0 when the vmstorage at the given `addr` communicates to the given vminsert node that it cannot accept new data because it is in the read-only mode.",
           "fieldConfig": {
             "defaults": {
@@ -4361,7 +4375,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 265
+            "y": 653
           },
           "id": 142,
           "links": [
@@ -4478,7 +4492,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 265
+            "y": 653
           },
           "id": 215,
           "options": {
@@ -4586,7 +4600,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 273
+            "y": 661
           },
           "id": 135,
           "options": {
@@ -4711,7 +4725,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 273
+            "y": 661
           },
           "id": 217,
           "options": {
@@ -4816,7 +4830,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 281
+            "y": 669
           },
           "id": 183,
           "options": {
@@ -4948,7 +4962,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 281
+            "y": 669
           },
           "id": 214,
           "options": {
@@ -5054,7 +5068,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 289
+            "y": 677
           },
           "id": 222,
           "options": {
@@ -5173,7 +5187,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 289
+            "y": 677
           },
           "id": 223,
           "options": {
@@ -5275,7 +5289,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 305
+            "y": 693
           },
           "id": 230,
           "options": {
@@ -5392,7 +5406,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 8371
+            "y": 8759
           },
           "id": 76,
           "options": {
@@ -5507,7 +5521,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 8371
+            "y": 8759
           },
           "id": 86,
           "options": {
@@ -5631,7 +5645,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8380
+            "y": 8768
           },
           "id": 80,
           "options": {
@@ -5735,7 +5749,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8380
+            "y": 8768
           },
           "id": 78,
           "options": {
@@ -5850,7 +5864,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8388
+            "y": 8776
           },
           "id": 82,
           "options": {
@@ -5976,7 +5990,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1037
+            "y": 1425
           },
           "id": 100,
           "options": {
@@ -6092,7 +6106,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1037
+            "y": 1425
           },
           "id": 113,
           "options": {
@@ -6209,7 +6223,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1045
+            "y": 1433
           },
           "id": 151,
           "options": {
@@ -6359,7 +6373,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1045
+            "y": 1433
           },
           "id": 167,
           "options": {
@@ -6517,7 +6531,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1053
+            "y": 1441
           },
           "id": 212,
           "links": [
@@ -6662,7 +6676,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1053
+            "y": 1441
           },
           "id": 133,
           "options": {
@@ -6787,7 +6801,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1094
+            "y": 1482
           },
           "id": 54,
           "options": {
@@ -6896,7 +6910,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1094
+            "y": 1482
           },
           "id": 55,
           "options": {
@@ -7010,7 +7024,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1102
+            "y": 1490
           },
           "id": 20,
           "options": {
@@ -7148,7 +7162,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1102
+            "y": 1490
           },
           "id": 22,
           "options": {
@@ -7276,7 +7290,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1110
+            "y": 1498
           },
           "id": 202,
           "options": {
@@ -7417,7 +7431,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1110
+            "y": 1498
           },
           "id": 14,
           "options": {
@@ -7554,7 +7568,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1118
+            "y": 1506
           },
           "id": 206,
           "options": {
@@ -7675,7 +7689,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1118
+            "y": 1506
           },
           "id": 141,
           "links": [
@@ -7784,7 +7798,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1126
+            "y": 1514
           },
           "id": 216,
           "options": {
@@ -7897,7 +7911,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8384
+            "y": 8772
           },
           "id": 92,
           "options": {
@@ -8022,7 +8036,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8384
+            "y": 8772
           },
           "id": 95,
           "options": {
@@ -8143,7 +8157,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8392
+            "y": 8780
           },
           "id": 163,
           "options": {
@@ -8287,7 +8301,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8392
+            "y": 8780
           },
           "id": 165,
           "options": {
@@ -8426,7 +8440,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8400
+            "y": 8788
           },
           "id": 178,
           "options": {
@@ -8532,7 +8546,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8400
+            "y": 8788
           },
           "id": 180,
           "options": {
@@ -8638,7 +8652,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8408
+            "y": 8796
           },
           "id": 179,
           "options": {
@@ -8744,7 +8758,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8408
+            "y": 8796
           },
           "id": 181,
           "options": {
@@ -8861,7 +8875,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8416
+            "y": 8804
           },
           "id": 93,
           "options": {
@@ -8990,7 +9004,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8416
+            "y": 8804
           },
           "id": 207,
           "options": {
@@ -9109,7 +9123,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8424
+            "y": 8812
           },
           "id": 226,
           "options": {
@@ -9234,7 +9248,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 43
+            "y": 431
           },
           "id": 227,
           "options": {
@@ -9380,7 +9394,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 43
+            "y": 431
           },
           "id": 99,
           "options": {
@@ -9504,7 +9518,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 439
           },
           "id": 97,
           "options": {
@@ -9619,7 +9633,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 51
+            "y": 439
           },
           "id": 185,
           "options": {
@@ -9767,7 +9781,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 59
+            "y": 447
           },
           "id": 187,
           "options": {
@@ -9910,7 +9924,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 59
+            "y": 447
           },
           "id": 114,
           "options": {
@@ -10019,7 +10033,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 67
+            "y": 455
           },
           "id": 139,
           "options": {
@@ -10142,7 +10156,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 67
+            "y": 455
           },
           "id": 209,
           "options": {
@@ -10276,7 +10290,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 75
+            "y": 463
           },
           "id": 208,
           "options": {
@@ -10398,7 +10412,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 75
+            "y": 463
           },
           "id": 88,
           "options": {
@@ -10463,7 +10477,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 44
+            "y": 432
           },
           "id": 198,
           "options": {
@@ -10545,7 +10559,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 46
+            "y": 434
           },
           "id": 189,
           "options": {
@@ -10651,7 +10665,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 46
+            "y": 434
           },
           "id": 190,
           "options": {
@@ -10757,7 +10771,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 54
+            "y": 442
           },
           "id": 225,
           "options": {
@@ -10932,7 +10946,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 54
+            "y": 442
           },
           "id": 196,
           "options": {
@@ -11039,7 +11053,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 62
+            "y": 450
           },
           "id": 192,
           "options": {
@@ -11147,7 +11161,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 62
+            "y": 450
           },
           "id": 201,
           "options": {
@@ -11267,7 +11281,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 70
+            "y": 458
           },
           "id": 200,
           "options": {
@@ -11374,7 +11388,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 70
+            "y": 458
           },
           "id": 224,
           "options": {
@@ -11486,7 +11500,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 78
+            "y": 466
           },
           "id": 203,
           "options": {
@@ -11712,5 +11726,5 @@
   "timezone": "",
   "title": "VictoriaMetrics - cluster",
   "uid": "oS7Bi_0Wz",
-  "version": 1
+  "version": 4
 }
