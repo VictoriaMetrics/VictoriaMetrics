@@ -14,6 +14,9 @@ const (
 	maxTimeMsecs = int64(1<<63-1) / 1e6
 )
 
+// RFC3339Milli is RFC3339 with msec precision, so exclusive bounds such as 23:59:59.999 survive formatting.
+const RFC3339Milli = "2006-01-02T15:04:05.000Z07:00"
+
 // ParseTime parses time in s string and returns time.Time object
 // if parsed correctly or error if not.
 //

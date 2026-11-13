@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vmctlutil"
 )
 
 const (
@@ -51,8 +52,8 @@ func (c *Client) Explore(ctx context.Context, f Filter, tenantID string, start, 
 	}
 
 	params := req.URL.Query()
-	params.Set("start", start.Format(time.RFC3339))
-	params.Set("end", end.Format(time.RFC3339))
+	params.Set("start", start.Format(vmctlutil.RFC3339Milli))
+	params.Set("end", end.Format(vmctlutil.RFC3339Milli))
 	params.Set("match[]", f.Match)
 	req.URL.RawQuery = params.Encode()
 
