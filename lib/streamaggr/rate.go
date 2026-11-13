@@ -116,11 +116,9 @@ func (av *rateAggrValue) pushSample(c aggrConfig, sample *pushSample, key string
 			ac.counterOutOfOrderSamples.Inc()
 			return
 		}
-		if sample.value >= sv.value {
-			state.increase += sample.value - sv.value
-		} else {
-			// counter reset
-			state.increase += sample.value
+		delta, reset := counterDelta(sv.value, sample.value)
+		state.increase += delta
+		if reset {
 			ac.counterResetsTotal.Inc()
 		}
 	} else {
