@@ -34,6 +34,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
+// Global index types.
 const (
 	// Prefix for MetricName->TSID entries.
 	//
@@ -63,6 +64,13 @@ const (
 	// Prefix for deleted MetricID entries.
 	nsPrefixDeletedMetricID = 4
 
+	// TODO(@rtm0): Add nsPrefixMetricID and use it in is.HasMetricID instead
+	// of nsPrefixMetricIDToTSID. This can potentially improve the ingestion
+	// and block cache utilization when the per-day index is disabled.
+)
+
+// Per-day index types.
+const (
 	// Prefix for Date->MetricID entries.
 	nsPrefixDateToMetricID = 5
 
