@@ -141,8 +141,12 @@ func (r *Regex) matchStringNoPrefix(s string) bool {
 	}
 	if r.substrDotPlus != "" {
 		// Fast path - r contains ".+someText.+"
-		n := strings.Index(s, r.substrDotPlus)
-		return n > 0 && n+len(r.substrDotPlus) < len(s)
+		// There must be at least one char before and after someText,
+		// so look for someText in s without the first and last chars.
+		if len(s) < len(r.substrDotPlus)+2 {
+			return false
+		}
+		return strings.Contains(s[1:len(s)-1], r.substrDotPlus)
 	}
 
 	if len(r.orValues) == 0 {
@@ -180,8 +184,12 @@ func (r *Regex) matchStringWithPrefix(s string) bool {
 	}
 	if r.substrDotPlus != "" {
 		// Fast path - r contains ".+someText.+"
-		n := strings.Index(s, r.substrDotPlus)
-		return n > 0 && n+len(r.substrDotPlus) < len(s)
+		// There must be at least one char before and after someText,
+		// so look for someText in s without the first and last chars.
+		if len(s) < len(r.substrDotPlus)+2 {
+			return false
+		}
+		return strings.Contains(s[1:len(s)-1], r.substrDotPlus)
 	}
 
 	for {
