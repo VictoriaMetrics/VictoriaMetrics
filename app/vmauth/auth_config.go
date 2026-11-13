@@ -60,6 +60,7 @@ type AuthConfig struct {
 	Users            []UserInfo   `yaml:"users,omitempty"`
 	UnauthorizedUser *UserInfo    `yaml:"unauthorized_user,omitempty"`
 	SSO              []*ssoConfig `yaml:"sso,omitempty"`
+	ResponseHeaders  []*Header    `yaml:"response_headers,omitempty"`
 
 	// ms holds all the metrics for the given AuthConfig
 	ms *metrics.Set
@@ -178,6 +179,17 @@ type HeadersConf struct {
 	ResponseHeaders    []*Header `yaml:"response_headers,omitempty"`
 	KeepOriginalHost   *bool     `yaml:"keep_original_host,omitempty"`
 	hasAnyPlaceHolders bool
+}
+
+func (ui *UserInfo) prependResponseHeaders(headers []*Header) {
+	if len(headers) == 0 {
+		return
+	}
+	ui.HeadersConf.ResponseHeaders = append(slices.Clone(headers), ui.HeadersConf.ResponseHeaders...)
+	for i := range ui.URLMaps {
+		hc := &ui.URLMaps[i].HeadersConf
+		hc.ResponseHeaders = append(slices.Clone(headers), hc.ResponseHeaders...)
+	}
 }
 
 func (ui *UserInfo) beginConcurrencyLimit(ctx context.Context) error {
@@ -1018,6 +1030,12 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 	}
 	if err := yaml.UnmarshalStrict(data, ac); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal AuthConfig data: %w", err)
+	}
+	for i := range ac.Users {
+		ac.Users[i].prependResponseHeaders(ac.ResponseHeaders)
+	}
+	if ac.UnauthorizedUser != nil {
+		ac.UnauthorizedUser.prependResponseHeaders(ac.ResponseHeaders)
 	}
 
 	ui := ac.UnauthorizedUser
