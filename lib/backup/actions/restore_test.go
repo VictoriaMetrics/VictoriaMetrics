@@ -29,6 +29,7 @@ func TestExtractPartitionName(t *testing.T) {
 
 	// Non-partition paths — expect empty string.
 	f("data/small/file.bin", "")
+	f("data/small/snapshots/file.bin", "")
 	f("indexdb/1838A2E6BE5C4E9F/parts.json", "")
 	f("metadata/tenantsMetadata.json", "")
 	f("parts.json", "")

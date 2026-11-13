@@ -337,6 +337,9 @@ func extractPartitionName(partPath string) string {
 	if !ok {
 		return ""
 	}
+	if _, err := time.Parse("2006_01", ptName); err != nil {
+		return ""
+	}
 	return ptName
 }
 
