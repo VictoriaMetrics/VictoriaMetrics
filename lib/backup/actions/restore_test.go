@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"regexp"
 	"testing"
 	"time"
 
@@ -60,7 +61,11 @@ func TestFilterPartitions(t *testing.T) {
 
 	f := func(restoreSince time.Duration, restorePartitionsRegexp string, wantPaths []string) {
 		t.Helper()
-		got, err := filterPartitions(allParts, restoreSince, restorePartitionsRegexp, now)
+		var partitionRe *regexp.Regexp
+		if restorePartitionsRegexp != "" {
+			partitionRe = regexp.MustCompile(restorePartitionsRegexp)
+		}
+		got, err := filterPartitions(allParts, restoreSince, partitionRe, now)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -184,18 +189,6 @@ func TestFilterPartitions(t *testing.T) {
 	})
 }
 
-func TestFilterPartitionsInvalidRegexp(t *testing.T) {
-	now := time.Date(2026, 6, 28, 0, 0, 0, 0, time.UTC)
-	parts := []common.Part{{Path: "data/small/2024_01/file.bin", FileSize: 100, Size: 100, ActualSize: 100}}
-
-	if _, err := filterPartitions(parts, 0, "2024_0[", now); err == nil {
-		t.Fatal("expected error for invalid -restorePartitions regexp '2024_0[', got nil")
-	}
-	if _, err := filterPartitions(parts, 0, "2024_(01", now); err == nil {
-		t.Fatal("expected error for invalid -restorePartitions regexp '2024_(01', got nil")
-	}
-}
-
 func TestFilterPartitionsLegacyIndexDB(t *testing.T) {
 	now := time.Date(2026, 6, 28, 0, 0, 0, 0, time.UTC)
 	parts := []common.Part{
@@ -203,10 +196,10 @@ func TestFilterPartitionsLegacyIndexDB(t *testing.T) {
 		{Path: "indexdb/2024_01/index.dat", FileSize: 100, Size: 100, ActualSize: 100},
 	}
 
-	if _, err := filterPartitions(parts, 24*time.Hour, "", now); err == nil {
+	if _, err := filterPartitions(parts, 24*time.Hour, nil, now); err == nil {
 		t.Fatal("expected error when filtering a backup containing the legacy indexdb, got nil")
 	}
-	if _, err := filterPartitions(parts, 0, "2024_01", now); err == nil {
+	if _, err := filterPartitions(parts, 0, regexp.MustCompile("2024_01"), now); err == nil {
 		t.Fatal("expected error when filtering a backup containing the legacy indexdb, got nil")
 	}
 }

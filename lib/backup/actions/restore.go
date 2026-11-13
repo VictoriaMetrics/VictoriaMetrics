@@ -56,11 +56,11 @@ type Restore struct {
 	// For example, RestoreSince=5*24*time.Hour on 2026-11-03 restores 2026_10 and 2026_11.
 	RestoreSince time.Duration
 
-	// RestorePartitions, if non-empty, is a regular expression matched against partition
+	// RestorePartitions, if non-nil, is a regular expression matched against partition
 	// names (YYYY_MM). Only partitions whose name matches are restored; all other partitions
 	// are skipped. Non-partition files (metadata, etc.) are always restored regardless of
 	// this setting.
-	RestorePartitions string
+	RestorePartitions *regexp.Regexp
 }
 
 // Run runs r with the provided settings.
@@ -110,7 +110,7 @@ func (r *Restore) Run(ctx context.Context) error {
 			return fmt.Errorf("part file %s would be written outside storage directory %s", srcPart.Path, r.Dst.Dir)
 		}
 	}
-	if r.RestoreSince > 0 || r.RestorePartitions != "" {
+	if r.RestoreSince > 0 || r.RestorePartitions != nil {
 		srcParts, err = filterPartitions(srcParts, r.RestoreSince, r.RestorePartitions, time.Now().UTC())
 		if err != nil {
 			return fmt.Errorf("cannot filter partitions: %w", err)
@@ -345,17 +345,8 @@ func extractPartitionName(partPath string) string {
 	return ""
 }
 
-// filterPartitions keeps non-partition parts and the partitions selected by restoreSince and restorePartitionsRegexp.
-func filterPartitions(srcParts []common.Part, restoreSince time.Duration, restorePartitionsRegexp string, now time.Time) ([]common.Part, error) {
-	var partitionRe *regexp.Regexp
-	if restorePartitionsRegexp != "" {
-		re, err := regexp.Compile(restorePartitionsRegexp)
-		if err != nil {
-			return nil, fmt.Errorf("invalid -restorePartitions regexp %q: %w", restorePartitionsRegexp, err)
-		}
-		partitionRe = re
-	}
-
+// filterPartitions keeps non-partition parts and the partitions selected by restoreSince and partitionRe.
+func filterPartitions(srcParts []common.Part, restoreSince time.Duration, partitionRe *regexp.Regexp, now time.Time) ([]common.Part, error) {
 	for _, p := range srcParts {
 		if strings.HasPrefix(p.Path, legacyIndexDBPathPrefix) {
 			return nil, fmt.Errorf("cannot apply -restoreSince or -restorePartitions: the backup contains data in the legacy, "+

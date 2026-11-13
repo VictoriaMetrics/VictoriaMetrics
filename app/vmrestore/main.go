@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/actions"
@@ -51,6 +52,15 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
+	var restorePartitionsRe *regexp.Regexp
+	if *restorePartitions != "" {
+		re, err := regexp.Compile(*restorePartitions)
+		if err != nil {
+			logger.Fatalf("invalid -restorePartitions=%q: %s", *restorePartitions, err)
+		}
+		restorePartitionsRe = re
+	}
+
 	listenAddrs := []string{*httpListenAddr}
 	httpserver.CheckHealth(listenAddrs)
 	go httpserver.Serve(listenAddrs, nil, httpserver.ServeOptions{})
@@ -77,7 +87,7 @@ func main() {
 		SkipBackupCompleteCheck: *skipBackupCompleteCheck,
 		SkipPreallocation:       *SkipPreallocation,
 		RestoreSince:            restoreSince.Duration(),
-		RestorePartitions:       *restorePartitions,
+		RestorePartitions:       restorePartitionsRe,
 	}
 	pushmetrics.Init()
 	if err := a.Run(ctx); err != nil {
