@@ -57,12 +57,11 @@ of production data into a test environment.
 
 > **Warning:** local partitions in `-storageDataPath` that are not restored are removed.
 
-> **Note:** partial restore via `-restoreSince` or `-restorePartitions` is not supported for
-> backups that still contain the legacy, non-partitioned IndexDB. Per-partition IndexDB was introduced in
-> [v1.133.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11330)
-> (see [#7599](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7599)); storage created by an
-> earlier version keeps its legacy IndexDB until it is rotated out by retention. Such backups must be
-> restored in full.
+> **Note:** partial restore skips the legacy, non-partitioned IndexDB, which storage created before
+> [v1.133.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11330) keeps until retention rotates it out
+> (see [#7599](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7599)). It covers all partitions, so it can't be
+> restored partially, and it is usually large, so restoring it in full would defeat the purpose of partial restore.
+> Data indexed only in the legacy IndexDB isn't searchable after a partial restore; restore the backup in full if you need it.
 
 [`-restoreSince`](https://docs.victoriametrics.com/victoriametrics/vmrestore/#restore-only-recent-data) and
 [`-restorePartitions`](https://docs.victoriametrics.com/victoriametrics/vmrestore/#restore-specific-partitions)
