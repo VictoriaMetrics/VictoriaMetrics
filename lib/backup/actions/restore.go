@@ -111,7 +111,10 @@ func (r *Restore) Run(ctx context.Context) error {
 		}
 	}
 	if r.RestoreSince > 0 || r.RestorePartitions != nil {
-		srcParts = filterPartitions(srcParts, r.RestoreSince, r.RestorePartitions, time.Now().UTC())
+		srcParts, err = filterPartitions(srcParts, r.RestoreSince, r.RestorePartitions, time.Now().UTC())
+		if err != nil {
+			return err
+		}
 	}
 	logger.Infof("obtaining list of parts at %s", dst)
 	dstParts, err := dst.ListParts()
@@ -345,13 +348,15 @@ func extractPartitionName(partPath string) string {
 
 // filterPartitions keeps non-partition parts and the partitions selected by restoreSince and partitionRe.
 // The legacy non-partitioned indexdb is skipped. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7599
-func filterPartitions(srcParts []common.Part, restoreSince time.Duration, partitionRe *regexp.Regexp, now time.Time) []common.Part {
+// It returns an error if the backup contains partitions, but none of them is selected.
+func filterPartitions(srcParts []common.Part, restoreSince time.Duration, partitionRe *regexp.Regexp, now time.Time) ([]common.Part, error) {
 	var sinceTime time.Time
 	if restoreSince > 0 {
 		sinceTime = now.Add(-restoreSince)
 	}
 
 	var keptParts []common.Part
+	keptPartitions := make(map[string]struct{})
 	skippedPartitions := make(map[string]struct{})
 	for _, p := range srcParts {
 		// Skip the legacy indexdb: it can't be matched against partitions,
@@ -374,6 +379,7 @@ func filterPartitions(srcParts []common.Part, restoreSince time.Duration, partit
 
 		if sinceTime.IsZero() {
 			keptParts = append(keptParts, p)
+			keptPartitions[ptName] = struct{}{}
 			continue
 		}
 
@@ -390,12 +396,16 @@ func filterPartitions(srcParts []common.Part, restoreSince time.Duration, partit
 			continue
 		}
 		keptParts = append(keptParts, p)
+		keptPartitions[ptName] = struct{}{}
 	}
 
+	if len(skippedPartitions) > 0 && len(keptPartitions) == 0 {
+		return nil, fmt.Errorf("-restoreSince and -restorePartitions don't select any of %d partitions in the backup; check the flag values", len(skippedPartitions))
+	}
 	if len(skippedPartitions) > 0 {
 		logger.Infof("skipped %d partitions outside the requested restore range", len(skippedPartitions))
 	}
-	return keptParts
+	return keptParts, nil
 }
 
 func createRestoreLock(dstDir string) error {

@@ -72,7 +72,10 @@ func TestFilterPartitions(t *testing.T) {
 		if restorePartitionsRegexp != "" {
 			partitionRe = regexp.MustCompile(restorePartitionsRegexp)
 		}
-		got := filterPartitions(allParts, restoreSince, partitionRe, now)
+		got, err := filterPartitions(allParts, restoreSince, partitionRe, now)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 		gotPaths := make([]string, len(got))
 		for i, p := range got {
 			gotPaths[i] = p.Path
@@ -189,12 +192,6 @@ func TestFilterPartitions(t *testing.T) {
 		"data/big/snapshots/data.bin",
 		"metadata/tenantsMetadata.json",
 	})
-
-	// restorePartitions regexp that matches nothing in the set — only non-partition files survive.
-	f(0, "9999_01", []string{
-		"data/big/snapshots/data.bin",
-		"metadata/tenantsMetadata.json",
-	})
 }
 
 func TestFilterPartitionsLegacyIndexDB(t *testing.T) {
@@ -204,7 +201,10 @@ func TestFilterPartitionsLegacyIndexDB(t *testing.T) {
 		{Path: "indexdb/1838A2E6BE5C4E9F/parts.json", FileSize: 100, Size: 100, ActualSize: 100},
 	}
 
-	got := filterPartitions(parts, 0, regexp.MustCompile("2024_01"), now)
+	got, err := filterPartitions(parts, 0, regexp.MustCompile("2024_01"), now)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	want := []common.Part{parts[0]}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected parts\ngot\n%v\nwant\n%v", got, want)
