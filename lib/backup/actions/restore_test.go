@@ -193,3 +193,21 @@ func TestFilterPartitions(t *testing.T) {
 		"metadata/tenantsMetadata.json",
 	})
 }
+
+func TestFilterPartitionsNothingSelected(t *testing.T) {
+	now := time.Date(2026, 6, 28, 0, 0, 0, 0, time.UTC)
+	parts := []common.Part{
+		{Path: "data/small/2024_01/file.bin", FileSize: 100, Size: 100, ActualSize: 100},
+		{Path: "data/small/2024_02/file.bin", FileSize: 100, Size: 100, ActualSize: 100},
+		{Path: "metadata/tenantsMetadata.json", FileSize: 100, Size: 100, ActualSize: 100},
+	}
+
+	_, err := filterPartitions(parts, 0, regexp.MustCompile("9999_01"), now)
+	if err == nil {
+		t.Fatalf("expecting non-nil error")
+	}
+	errExpected := "-restoreSince and -restorePartitions don't select any of 2 partitions in the backup; check the flag values"
+	if err.Error() != errExpected {
+		t.Fatalf("unexpected error\ngot\n%s\nwant\n%s", err, errExpected)
+	}
+}
