@@ -29,6 +29,12 @@ import (
 )
 
 var (
+	connectTimeout = flag.Duration("promscrape.kubernetes.connectTimeout", 60*time.Second, "Timeout for DNS resolution and TCP connection establishment to Kubernetes API servers. "+
+		"Non-positive values disable this timeout. LIST and WATCH startup timeouts still apply.")
+	listTimeout = flag.Duration("promscrape.kubernetes.listTimeout", 60*time.Second, "Timeout for a Kubernetes LIST request, including reading the response body. "+
+		"Non-positive values disable this timeout.")
+	watchStartTimeout = flag.Duration("promscrape.kubernetes.watchStartTimeout", 60*time.Second, "Timeout from starting a Kubernetes WATCH request until receiving response headers, including connection setup. "+
+		"Does not limit reading the WATCH stream. Non-positive values disable this timeout.")
 	apiServerTimeout      = flag.Duration("promscrape.kubernetes.apiServerTimeout", 30*time.Minute, "How frequently to reload the full state from Kubernetes API server")
 	attachNodeMetadataAll = flag.Bool("promscrape.kubernetes.attachNodeMetadataAll", false, "Whether to set attach_metadata.node=true for all the kubernetes_sd_configs at -promscrape.config . "+
 		"It is possible to set attach_metadata.node=false individually per each kubernetes_sd_configs . See https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs")
@@ -237,6 +243,9 @@ type groupWatcher struct {
 	setHeaders func(req *http.Request) error
 	client     *http.Client
 
+	listTimeout       time.Duration
+	watchStartTimeout time.Duration
+
 	mu sync.Mutex
 	m  map[string]*urlWatcher
 
@@ -282,7 +291,7 @@ func getHTTPClient(ac *promauth.Config, proxyURL *url.URL) *http.Client {
 }
 
 func newHTTPTransport(enableHTTP2 bool) *http.Transport {
-	tr := httputil.NewTransport(enableHTTP2, "vm_promscrape_discovery_kubernetes")
+	tr := httputil.NewTransportWithDialTimeout(enableHTTP2, *connectTimeout, "vm_promscrape_discovery_kubernetes")
 	tr.TLSHandshakeTimeout = 10 * time.Second
 	tr.IdleConnTimeout = *apiServerTimeout
 	tr.MaxIdleConnsPerHost = 100
@@ -302,8 +311,10 @@ func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string,
 		setHeaders: func(req *http.Request) error {
 			return ac.SetHeaders(req, true)
 		},
-		client: client,
-		m:      make(map[string]*urlWatcher),
+		client:            client,
+		listTimeout:       *listTimeout,
+		watchStartTimeout: *watchStartTimeout,
+		m:                 make(map[string]*urlWatcher),
 
 		ctx:    ctx,
 		cancel: cancel,
@@ -541,6 +552,42 @@ func (gw *groupWatcher) doRequest(ctx context.Context, requestURL string) (*http
 	return resp, nil
 }
 
+// doWatchRequest bounds connection setup and response headers without timing out the stream.
+func (gw *groupWatcher) doWatchRequest(ctx context.Context, requestURL string) (*http.Response, error) {
+	if gw.watchStartTimeout <= 0 {
+		return gw.doRequest(ctx, requestURL)
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	t := time.AfterFunc(gw.watchStartTimeout, cancel)
+	resp, err := gw.doRequest(ctx, requestURL)
+	if !t.Stop() {
+		// The timer callback may still be running. Cancel before closing the response,
+		// and never return a stream whose context is about to be canceled.
+		cancel()
+		if resp != nil {
+			resp.Body.Close()
+		}
+		return nil, fmt.Errorf("waiting for WATCH response headers: %w", context.DeadlineExceeded)
+	}
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	// Keep the request context alive until the caller closes the stream.
+	resp.Body = &watchResponseBody{ReadCloser: resp.Body, cancel: cancel}
+	return resp, nil
+}
+
+type watchResponseBody struct {
+	io.ReadCloser
+	cancel context.CancelFunc
+}
+
+func (b *watchResponseBody) Close() error {
+	b.cancel()
+	return b.ReadCloser.Close()
+}
+
 func (gw *groupWatcher) registerPendingAPIWatchers() {
 	gw.mu.Lock()
 	for _, uw := range gw.m {
@@ -717,7 +764,13 @@ func (uw *urlWatcher) reloadObjects() string {
 	// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4855 .
 	delimiter := getQueryArgsDelimiter(apiURL)
 	requestURL := apiURL + delimiter + "resourceVersion=0&resourceVersionMatch=NotOlderThan"
-	resp, err := gw.doRequest(gw.ctx, requestURL)
+	ctx := gw.ctx
+	if gw.listTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, gw.listTimeout)
+		defer cancel()
+	}
+	resp, err := gw.doRequest(ctx, requestURL)
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
 			logger.Errorf("cannot perform request to %q: %s", requestURL, err)
@@ -807,7 +860,7 @@ func (uw *urlWatcher) watchForUpdates() {
 			continue
 		}
 		requestURL := apiURL + "&resourceVersion=" + url.QueryEscape(resourceVersion)
-		resp, err := gw.doRequest(gw.ctx, requestURL)
+		resp, err := gw.doWatchRequest(gw.ctx, requestURL)
 		if err != nil {
 			if !errors.Is(err, context.Canceled) {
 				logger.Errorf("cannot perform request to %q: %s", requestURL, err)
@@ -821,6 +874,7 @@ func (uw *urlWatcher) watchForUpdates() {
 				bt.Reset()
 				uw.staleResourceVersions.Inc()
 				uw.resourceVersion = ""
+				_ = resp.Body.Close()
 			} else {
 				body, _ := io.ReadAll(resp.Body)
 				_ = resp.Body.Close()
