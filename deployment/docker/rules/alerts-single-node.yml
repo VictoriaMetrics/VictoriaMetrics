@@ -75,7 +75,7 @@ groups:
             Consider to limit the ingestion rate, decrease retention or scale the disk space if possible."
 
       - alert: RequestErrorsToAPI
-        expr: increase(vm_http_request_errors_total[5m]) > 0
+        expr: increase(vm_http_request_errors_total{path=~".+"}[5m]) > 0
         for: 15m
         labels:
           severity: warning
@@ -84,6 +84,21 @@ groups:
           summary: "Too many errors served for path {{ $labels.path }} (instance {{ $labels.instance }})"
           description: "Requests to path {{ $labels.path }} are receiving errors.
             Please verify if clients are sending correct requests."
+
+      # Auth errors and unknown paths should be handled by a different alert
+      # See https://github.com/VictoriaMetrics/VictoriaMetrics/blob/fdd9a221df835daa378ae2e6c9f12e4e3be79c76/lib/httpserver/httpserver.go#L589-L591
+      - alert: RequestErrorsToUnknownPaths
+        expr: sum(increase(vm_http_request_errors_total{path=~"^(\*|)$"}[5m])) by(job, instance, reason) > 0
+        for: 15m
+        labels:
+          severity: warning
+          show_at: dashboard
+        annotations:
+          dashboard: "{{ $externalURL }}/d/oS7Bi_0Wz?viewPanel=52&var-instance={{ $labels.instance }}"
+          summary: "Too many errors served for {{ $labels.job }} with reason {{ $labels.reason }} (instance {{ $labels.instance }})"
+          description: |
+            Requests are failing with reason {{ $labels.reason }}.
+            Please verify if clients are sending correct requests.
 
       - alert: TooHighChurnRate
         expr: |
