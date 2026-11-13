@@ -1,16 +1,492 @@
 package kubernetes
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
+
+func newKubernetesTestServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	server := httptest.NewUnstartedServer(handler)
+	server.Config.BaseContext = func(net.Listener) context.Context { return ctx }
+	server.Start()
+	t.Cleanup(func() {
+		// Unblock handlers even if discovery startup timed out before registering its cleanup.
+		cancel()
+		server.Close()
+	})
+	return server
+}
+
+func startTestSDConfig(t *testing.T, sdc *SDConfig) {
+	t.Helper()
+	started := make(chan struct{})
+	// A regression to synchronous LISTs should fail with a timeout instead of hanging the test.
+	go func() {
+		sdc.MustStart("", func(labels *promutil.Labels) any { return labels.Clone() })
+		close(started)
+	}()
+	receiveWithTimeout(t, started)
+	if sdc.cfg == nil {
+		t.Fatalf("cannot start discovery: %v", sdc.startErr)
+	}
+	t.Cleanup(func() {
+		sdc.MustStop()
+		sdc.cfg.aw.gw.cancel()
+	})
+}
+
+func receiveWithTimeout[T any](t *testing.T, ch <-chan T) T {
+	t.Helper()
+	select {
+	case result := <-ch:
+		return result
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for Kubernetes discovery")
+		var zero T
+		return zero
+	}
+}
+
+func getTestScrapeWorksAsync(t *testing.T, sdc *SDConfig) <-chan []any {
+	result := make(chan []any, 1)
+	go func() {
+		swos, err := sdc.GetScrapeWorkObjects()
+		if err != nil {
+			t.Errorf("cannot get scrape works: %v", err)
+		}
+		result <- swos
+	}()
+	return result
+}
+
+// The second v1 request receives its 404 after the first has enabled fallback.
+// Both requests must retry v1beta1, and later requests must start with v1beta1.
+func TestKubernetesConcurrentRequestsFallBackToV1Beta1(t *testing.T) {
+	for _, tc := range []struct {
+		apiGroup string
+		resource string
+	}{
+		{apiGroup: "networking.k8s.io", resource: "ingresses"},
+		{apiGroup: "discovery.k8s.io", resource: "endpointslices"},
+	} {
+		t.Run(tc.apiGroup, func(t *testing.T) {
+			v1 := "/apis/" + tc.apiGroup + "/v1/namespaces/"
+			beta := "/apis/" + tc.apiGroup + "/v1beta1/namespaces/"
+			secondStarted := make(chan struct{})
+			firstFallback := make(chan struct{})
+			var betaRequests atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case v1 + "a/" + tc.resource:
+					// Both requests must use v1 before either enables fallback.
+					select {
+					case <-secondStarted:
+					case <-r.Context().Done():
+						return
+					}
+				case v1 + "b/" + tc.resource:
+					close(secondStarted)
+					// Return the second 404 after the shared fallback flag is set.
+					select {
+					case <-firstFallback:
+					case <-r.Context().Done():
+						return
+					}
+				case beta + "a/" + tc.resource:
+					betaRequests.Add(1)
+					close(firstFallback)
+					fmt.Fprint(w, `{"metadata":{"resourceVersion":"7"},"items":[]}`)
+					return
+				case beta + "b/" + tc.resource:
+					betaRequests.Add(1)
+					fmt.Fprint(w, `{"metadata":{"resourceVersion":"7"},"items":[]}`)
+					return
+				case beta + "missing/" + tc.resource:
+					betaRequests.Add(1)
+				default:
+					t.Errorf("unexpected request path: %q", r.URL.Path)
+				}
+				http.NotFound(w, r)
+			}))
+			defer server.Close()
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			gw := &groupWatcher{
+				client:     server.Client(),
+				setHeaders: func(_ *http.Request) error { return nil },
+			}
+			statuses := make(chan int, 2)
+			for _, namespace := range []string{"a", "b"} {
+				go func() {
+					resp, err := gw.doRequest(ctx, server.URL+v1+namespace+"/"+tc.resource)
+					if err != nil {
+						t.Errorf("cannot LIST namespace %q: %v", namespace, err)
+						statuses <- 0
+						return
+					}
+					resp.Body.Close()
+					statuses <- resp.StatusCode
+				}()
+			}
+			for range 2 {
+				if status := receiveWithTimeout(t, statuses); status != http.StatusOK {
+					t.Errorf("LIST status = %d; want 200", status)
+				}
+			}
+			// Later requests must use the cached version, and a beta 404 must not retry.
+			resp, err := gw.doRequest(ctx, server.URL+v1+"missing/"+tc.resource)
+			if err != nil {
+				t.Fatalf("cannot LIST missing namespace: %v", err)
+			}
+			resp.Body.Close()
+			if resp.StatusCode != http.StatusNotFound {
+				t.Fatalf("missing namespace status = %d; want 404", resp.StatusCode)
+			}
+			if got := betaRequests.Load(); got != 3 {
+				t.Errorf("got %d beta requests; want 3", got)
+			}
+		})
+	}
+}
+
+// Finish the endpoint LIST while service and namespace LISTs remain blocked.
+// Neither direct collection nor another role's batch registration may expose targets before their metadata is available.
+func TestKubernetesTargetsWaitForMetadataDependencies(t *testing.T) {
+	for _, role := range []string{"endpoints", "endpointslice"} {
+		t.Run(role, func(t *testing.T) {
+			lists := map[string]string{
+				"nodes":          `{"metadata":{"resourceVersion":"7"},"items":[{"metadata":{"name":"node1","labels":{"zone":"west"}}}]}`,
+				"namespaces":     `{"metadata":{"resourceVersion":"7"},"items":[{"metadata":{"name":"default","labels":{"team":"test"}}}]}`,
+				"pods":           `{"metadata":{"resourceVersion":"7"},"items":[{"metadata":{"name":"pod1","namespace":"default"},"spec":{"nodeName":"node1"},"status":{"podIP":"10.0.0.1"}}]}`,
+				"services":       `{"metadata":{"resourceVersion":"7"},"items":[{"metadata":{"name":"svc1","namespace":"default","labels":{"app":"demo"}}}]}`,
+				"endpoints":      `{"metadata":{"resourceVersion":"7"},"items":[{"metadata":{"name":"svc1","namespace":"default"},"subsets":[{"addresses":[{"ip":"10.0.0.1","targetRef":{"kind":"Pod","namespace":"default","name":"pod1"}}],"ports":[{"port":80}]}]}]}`,
+				"endpointslices": `{"metadata":{"resourceVersion":"7"},"items":[{"metadata":{"name":"slice1","namespace":"default","labels":{"kubernetes.io/service-name":"svc1"}},"endpoints":[{"addresses":["10.0.0.1"],"targetRef":{"kind":"Pod","namespace":"default","name":"pod1"}}],"ports":[{"port":80}]}]}`,
+			}
+			release := make(chan struct{})
+			targetWatchStarted := make(chan struct{})
+			server := newKubernetesTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+				resource := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
+				if r.URL.Query().Get("watch") != "" {
+					if resource == getObjectTypeByRole(role) {
+						close(targetWatchStarted)
+					}
+					<-r.Context().Done()
+					return
+				}
+				if resource == "services" || resource == "namespaces" {
+					select {
+					case <-release:
+					case <-r.Context().Done():
+						return
+					}
+				}
+				fmt.Fprint(w, lists[resource])
+			})
+			sdc := &SDConfig{APIServer: server.URL, Role: role, AttachMetadata: &AttachMetadata{Node: true, Namespace: true}}
+			startTestSDConfig(t, sdc)
+			// The target LIST must finish even while dependency LISTs are blocked.
+			receiveWithTimeout(t, targetWatchStarted)
+			// Collecting nodes registers pending subscribers across the group; endpoints must remain pending.
+			nodeSD := &SDConfig{APIServer: server.URL, Role: "node", AttachMetadata: sdc.AttachMetadata}
+			startTestSDConfig(t, nodeSD)
+			receiveWithTimeout(t, getTestScrapeWorksAsync(t, nodeSD))
+			gw := sdc.cfg.aw.gw
+			gw.mu.Lock()
+			registered := false
+			for _, uw := range gw.m {
+				_, ok := uw.aws[sdc.cfg.aw]
+				registered = registered || ok
+			}
+			gw.mu.Unlock()
+			if registered {
+				t.Fatal("registered targets before metadata dependencies finished")
+			}
+			result := getTestScrapeWorksAsync(t, sdc)
+			select {
+			case <-result:
+				t.Fatal("getter returned before initial dependency LISTs finished")
+			case <-time.After(50 * time.Millisecond):
+			}
+			close(release)
+			swos := receiveWithTimeout(t, result)
+			if len(swos) != 1 {
+				t.Fatalf("got %d targets; want 1", len(swos))
+			}
+			labels := swos[0].(*promutil.Labels)
+			for name, want := range map[string]string{
+				"__meta_kubernetes_service_label_app":    "demo",
+				"__meta_kubernetes_namespace_label_team": "test",
+				"__meta_kubernetes_node_label_zone":      "west",
+				"__meta_kubernetes_pod_name":             "pod1",
+			} {
+				if got := labels.Get(name); got != want {
+					t.Errorf("%s = %q; want %q", name, got, want)
+				}
+			}
+		})
+	}
+}
+
+// Two configs share a blocked LIST. Stopping one must unblock its getter,
+// preserve discovery for the other, and let a replacement reuse the same LIST.
+func TestKubernetesStopUnblocksGetterWithoutCancelingSharedList(t *testing.T) {
+	release := make(chan struct{})
+	var lists atomic.Int32
+	listStarted := make(chan struct{}, 10)
+	server := newKubernetesTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("watch") != "" {
+			<-r.Context().Done()
+			return
+		}
+		lists.Add(1)
+		listStarted <- struct{}{}
+		select {
+		case <-release:
+		case <-r.Context().Done():
+			return
+		}
+		fmt.Fprint(w, `{"metadata":{"resourceVersion":"7"},"items":[{"metadata":{"name":"svc1","namespace":"default"},"spec":{"ports":[{"port":80}]}}]}`)
+	})
+	sdc := &SDConfig{APIServer: server.URL, Role: "service"}
+	startTestSDConfig(t, sdc)
+	receiveWithTimeout(t, listStarted)
+	peer := &SDConfig{APIServer: server.URL, Role: "service"}
+	startTestSDConfig(t, peer)
+	result := make(chan error, 1)
+	go func() {
+		_, err := sdc.GetScrapeWorkObjects()
+		result <- err
+	}()
+	sdc.MustStop()
+	// The getter must exit while the LIST needed by the other subscriber is still blocked.
+	if err := receiveWithTimeout(t, result); !errors.Is(err, context.Canceled) {
+		t.Fatalf("got %v; want context.Canceled", err)
+	}
+	// A replacement config reuses the LIST already in flight, as on a config reload.
+	replacement := &SDConfig{APIServer: server.URL, Role: "service"}
+	startTestSDConfig(t, replacement)
+	if replacement.cfg.aw.gw != sdc.cfg.aw.gw {
+		t.Fatal("replacement config did not reuse the group watcher")
+	}
+	close(release)
+	if got := receiveWithTimeout(t, getTestScrapeWorksAsync(t, peer)); len(got) != 1 {
+		t.Fatalf("got %d targets for the other subscriber; want 1", len(got))
+	}
+	if got := receiveWithTimeout(t, getTestScrapeWorksAsync(t, replacement)); len(got) != 1 {
+		t.Fatalf("got %d targets after reuse; want 1", len(got))
+	}
+	if got := lists.Load(); got != 1 {
+		t.Fatalf("got %d LIST requests; want 1", got)
+	}
+	// Completing initialization must not subscribe the stopped watcher again.
+	gw := sdc.cfg.aw.gw
+	gw.mu.Lock()
+	defer gw.mu.Unlock()
+	for _, uw := range gw.m {
+		if _, ok := uw.aws[sdc.cfg.aw]; ok {
+			t.Fatal("stopped watcher was registered again")
+		}
+		if _, ok := uw.awsPending[sdc.cfg.aw]; ok {
+			t.Fatal("stopped watcher was subscribed again")
+		}
+	}
+}
+
+// Block the retry after an initial 403; collection must return no targets without waiting for a successful retry.
+func TestKubernetesFailedInitialListDoesNotBlockGetter(t *testing.T) {
+	var requests atomic.Int32
+	retryStarted := make(chan struct{})
+	server := newKubernetesTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if requests.Add(1) == 1 {
+			http.Error(w, "denied", http.StatusForbidden)
+			return
+		}
+		close(retryStarted)
+		<-r.Context().Done()
+	})
+	sdc := &SDConfig{APIServer: server.URL, Role: "pod"}
+	startTestSDConfig(t, sdc)
+	receiveWithTimeout(t, retryStarted)
+	if got := receiveWithTimeout(t, getTestScrapeWorksAsync(t, sdc)); len(got) != 0 {
+		t.Fatalf("got %d targets after failed LIST; want 0", len(got))
+	}
+}
+
+// Configs using one server share a LIST limit, held until each response body is decoded.
+// Exercise saturation, new arrivals, an independent server, and relists after WATCH expiry.
+func TestKubernetesListConcurrencyLimitPerServer(t *testing.T) {
+	limit := *listConcurrency
+	const extra = 2
+	listStarted := make(chan struct{}, 100)
+	watchStarted := make(chan struct{}, 100)
+	finishOneList := make(chan struct{})
+	expireWatches := make(chan struct{})
+	var active atomic.Int32
+	var peak atomic.Int32
+	server := newKubernetesTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("watch") != "" {
+			if got := r.URL.Query().Get("resourceVersion"); got != "7" {
+				t.Errorf("watch resourceVersion = %q; want 7", got)
+			}
+			watchStarted <- struct{}{}
+			select {
+			case <-expireWatches:
+				fmt.Fprint(w, `{"type":"ERROR","object":{"code":410}}`)
+			case <-r.Context().Done():
+			}
+			return
+		}
+		n := active.Add(1)
+		defer active.Add(-1)
+		for prev := peak.Load(); n > prev; prev = peak.Load() {
+			if peak.CompareAndSwap(prev, n) {
+				break
+			}
+		}
+		// Headers alone must not release the permit; keep the response body incomplete.
+		fmt.Fprint(w, `{"metadata":`)
+		w.(http.Flusher).Flush()
+		listStarted <- struct{}{}
+		select {
+		case <-finishOneList:
+			fmt.Fprint(w, `{"resourceVersion":"7"},"items":[]}`)
+		case <-r.Context().Done():
+		}
+	})
+	// Different selectors create separate watchers, which must still share the server's limit.
+	for i := 0; i < limit+extra; i++ {
+		startTestSDConfig(t, &SDConfig{
+			APIServer: server.URL, Role: "pod",
+			Selectors: []Selector{{Role: "pod", Label: fmt.Sprintf("job=%d", i)}},
+		})
+	}
+	assertListLimitReached := func() {
+		t.Helper()
+		for i := 0; i < limit; i++ {
+			receiveWithTimeout(t, listStarted)
+		}
+		select {
+		case <-listStarted:
+			t.Fatal("LIST concurrency exceeded the per-server limit")
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+	assertListLimitReached()
+	// Free one slot for a queued caller; a newly added job must still wait for another slot.
+	select {
+	case finishOneList <- struct{}{}:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out releasing LIST")
+	}
+	receiveWithTimeout(t, listStarted)
+	receiveWithTimeout(t, watchStarted)
+	startTestSDConfig(t, &SDConfig{
+		APIServer: server.URL, Role: "pod",
+		Selectors: []Selector{{Role: "pod", Label: "job=late"}},
+	})
+	select {
+	case <-listStarted:
+		t.Fatal("new request bypassed the shared LIST concurrency limit")
+	case <-time.After(50 * time.Millisecond):
+	}
+	// Saturating one API server must not block another server.
+	other := newKubernetesTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("watch") != "" {
+			<-r.Context().Done()
+			return
+		}
+		fmt.Fprint(w, `{"metadata":{"resourceVersion":"7"},"items":[]}`)
+	})
+	otherSD := &SDConfig{APIServer: other.URL, Role: "pod"}
+	startTestSDConfig(t, otherSD)
+	receiveWithTimeout(t, getTestScrapeWorksAsync(t, otherSD))
+	assertKubernetesListLimitReleased(t, other.URL)
+	// Complete the remaining initial LISTs so every watcher can start WATCH.
+	for i := 0; i < limit+extra; i++ {
+		select {
+		case finishOneList <- struct{}{}:
+		case <-time.After(5 * time.Second):
+			t.Fatal("timed out releasing LIST")
+		}
+	}
+	for i := 0; i < extra; i++ {
+		receiveWithTimeout(t, listStarted)
+	}
+	for i := 0; i < limit+extra; i++ {
+		receiveWithTimeout(t, watchStarted)
+	}
+	assertKubernetesListLimitReleased(t, server.URL)
+	// Expire all WATCH streams together; the resulting relists must obey the same limit.
+	close(expireWatches)
+	assertListLimitReached()
+	if got := peak.Load(); got != int32(limit) {
+		t.Fatalf("peak LIST concurrency = %d; want %d", got, limit)
+	}
+}
+
+// A queued acquire must wake on cancellation and leave no limiter entry after the active requests finish.
+func TestKubernetesListLimiterCancelsQueuedRequest(t *testing.T) {
+	const apiServer = "https://limiter-cancellation.invalid"
+	t.Cleanup(func() { assertKubernetesListLimitReleased(t, apiServer) })
+	for i := 0; i < *listConcurrency; i++ {
+		if err := listLimiter.Acquire(context.Background(), apiServer); err != nil {
+			t.Fatalf("cannot acquire LIST slot: %v", err)
+		}
+		defer listLimiter.Release(apiServer)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	result := make(chan error, 1)
+	go func() {
+		err := listLimiter.Acquire(ctx, apiServer)
+		if err == nil {
+			listLimiter.Release(apiServer)
+		}
+		result <- err
+	}()
+	// Cancel only after the extra caller is queued behind the occupied slots.
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		listLimiter.mu.Lock()
+		queued := listLimiter.limits[apiServer].users == *listConcurrency+1
+		listLimiter.mu.Unlock()
+		if queued {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("timed out waiting for queued LIST")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	cancel()
+	if err := receiveWithTimeout(t, result); !errors.Is(err, context.Canceled) {
+		t.Fatalf("got %v; want context.Canceled", err)
+	}
+}
+
+func assertKubernetesListLimitReleased(t *testing.T, apiServer string) {
+	t.Helper()
+	listLimiter.mu.Lock()
+	defer listLimiter.mu.Unlock()
+	if _, ok := listLimiter.limits[apiServer]; ok {
+		t.Errorf("LIST semaphore for %q was not released", apiServer)
+	}
+}
 
 func TestGetAPIPathsWithNamespaces(t *testing.T) {
 	f := func(role string, namespaces []string, selectors []Selector, expectedPaths []string) {
