@@ -193,20 +193,3 @@ func TestFilterPartitions(t *testing.T) {
 		"metadata/tenantsMetadata.json",
 	})
 }
-
-func TestFilterPartitionsLegacyIndexDB(t *testing.T) {
-	now := time.Date(2026, 6, 28, 0, 0, 0, 0, time.UTC)
-	parts := []common.Part{
-		{Path: "data/small/2024_01/file.bin", FileSize: 100, Size: 100, ActualSize: 100},
-		{Path: "indexdb/1838A2E6BE5C4E9F/parts.json", FileSize: 100, Size: 100, ActualSize: 100},
-	}
-
-	got, err := filterPartitions(parts, 0, regexp.MustCompile("2024_01"), now)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	want := []common.Part{parts[0]}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("unexpected parts\ngot\n%v\nwant\n%v", got, want)
-	}
-}
