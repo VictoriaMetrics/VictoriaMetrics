@@ -272,7 +272,7 @@ VMUI provides the following features:
 * Tools:
   * [Trace analyzer](#query-tracing) - explore query traces loaded from JSON;
   * [Query analyzer](#query-tracing) - explore query results and traces loaded from JSON. See `Export query` button below;
-  * [WITH expressions playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/expand-with-exprs) - test how WITH expressions work;
+  * [WITH expressions playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/expand-with-exprs) - expand [templates](https://docs.victoriametrics.com/victoriametrics/metricsql/#with-templates) into the final query;
   * [Metric relabel debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling) - debug [relabeling](#relabeling) rules.
   * [Downsampling filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/downsampling-filters-debug) {{% available_from "v1.105.0" %}} - debug [downsampling](#downsampling) configs.
   * [Retention filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/retention-filters-debug) {{% available_from "v1.105.0" %}} - debug [retention filter](#retention-filters) configs.
