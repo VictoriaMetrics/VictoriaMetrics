@@ -111,6 +111,22 @@ func (r *Restore) Run(ctx context.Context) error {
 		}
 	}
 	if r.RestoreSince > 0 || r.RestorePartitions != nil {
+		for _, p := range srcParts {
+			if !strings.HasPrefix(p.Path, "indexdb/") {
+				continue
+			}
+			logger.Warnf("the backup contains the legacy non-partitioned IndexDB, which isn't restored when -restoreSince or -restorePartitions is set; " +
+				"data indexed only in the legacy indexdb won't be searchable after the restore; " +
+				"if you need such data, run a full restore without these flags; " +
+				"see https://docs.victoriametrics.com/victoriametrics/vmrestore/#partial-restore; " +
+				"continuing in 30 seconds, stop vmrestore to cancel")
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(30 * time.Second):
+			}
+			break
+		}
 		srcParts, err = filterPartitions(srcParts, r.RestoreSince, r.RestorePartitions, time.Now().UTC())
 		if err != nil {
 			return err
