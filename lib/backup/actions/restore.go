@@ -50,10 +50,10 @@ type Restore struct {
 	// This will likely be slower in most cases, but allows restores to resume mid file
 	SkipPreallocation bool
 
-	// RestoreSince, if non-zero, only restores partitions whose time range ends at or after
-	// (now - RestoreSince). This allows restoring only recent data to reduce disk usage.
+	// RestoreSince, if non-zero, restores every monthly partition that overlaps the last RestoreSince.
+	// Partitions are restored whole, so they may contain data older than RestoreSince.
 	//
-	// For example, RestoreSince=5*24*time.Hour restores only the last 5 days of data.
+	// For example, RestoreSince=5*24*time.Hour on 2026-11-03 restores 2026_10 and 2026_11.
 	RestoreSince time.Duration
 
 	// RestorePartitions, if non-empty, is a regular expression matched against partition
@@ -392,7 +392,7 @@ func filterPartitions(srcParts []common.Part, restoreSince time.Duration, restor
 			return nil, fmt.Errorf("cannot parse partition name %q from path %q: %w", ptName, p.Path, err)
 		}
 
-		// Keep the whole monthly partition if any of it is after sinceTime
+		// Keep the whole monthly partition if it overlaps the last restoreSince, i.e. [sinceTime, now]
 		y, m, _ := ptTime.Date()
 		partitionEnd := time.Date(y, m+1, 1, 0, 0, 0, 0, time.UTC)
 		if partitionEnd.After(sinceTime) {
