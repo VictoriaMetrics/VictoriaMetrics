@@ -33,12 +33,11 @@ var (
 	skipBackupCompleteCheck = flag.Bool("skipBackupCompleteCheck", false, "Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file")
 	SkipPreallocation       = flag.Bool("skipFilePreallocation", false, "Whether to skip pre-allocated files. This will likely be slower in most cases, but allows restores to resume mid file on failure")
 	restoreSince            = flagutil.NewRetentionDuration("restoreSince", "", "If set, restores every monthly partition that overlaps the last restoreSince. Partitions are restored whole, so they may contain data older than restoreSince. "+
-		"This reduces the download size when only recent data is needed and helps avoid over-provisioning disk space. "+
-		"For example, -restoreSince=5d run on 2026-11-03 restores two partitions: 2026_10 and 2026_11.")
-	restorePartitions = flag.String("restorePartitions", "", "Regular expression matching partition names (YYYY_MM) to restore from the backup. "+
-		"Partitions whose name doesn't match are skipped. Non-partition files (metadata, etc.) are always restored. "+
-		"Example: -restorePartitions=2024_01 restores only January 2024; -restorePartitions='2026_.*' restores the whole of 2026; "+
-		"-restorePartitions='2026_(0[1-6])' restores the first half of 2026. If not set, all partitions are restored.")
+		"For example, -restoreSince=5d run on 2026-11-03 restores two partitions: 2026_10 and 2026_11. "+
+		"This reduces the download size when only recent data is needed and helps avoid over-provisioning disk space.")
+	restorePartitions = flag.String("restorePartitions", "", "If set, restores every monthly partition whose name (YYYY_MM) matches the restorePartitions regular expression. "+
+		"Non-partition files (metadata, etc.) are always restored. "+
+		"For example, -restorePartitions='2026_0[1-6]' restores 2026_01 through 2026_06.")
 )
 
 func main() {
