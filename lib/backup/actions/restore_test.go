@@ -28,6 +28,8 @@ func TestExtractPartitionName(t *testing.T) {
 	f("data/indexdb/2023_12/index.dat", "2023_12")
 
 	// Non-partition paths — expect empty string.
+	f("data/small/file.bin", "")
+	f("indexdb/1838A2E6BE5C4E9F/parts.json", "")
 	f("metadata/tenantsMetadata.json", "")
 	f("parts.json", "")
 	f("backup_complete", "")
@@ -65,10 +67,7 @@ func TestFilterPartitions(t *testing.T) {
 		if restorePartitionsRegexp != "" {
 			partitionRe = regexp.MustCompile(restorePartitionsRegexp)
 		}
-		got, err := filterPartitions(allParts, restoreSince, partitionRe, now)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
+		got := filterPartitions(allParts, restoreSince, partitionRe, now)
 		if len(got) != len(wantPaths) {
 			gotPaths := make([]string, len(got))
 			for i, p := range got {
@@ -193,13 +192,11 @@ func TestFilterPartitionsLegacyIndexDB(t *testing.T) {
 	now := time.Date(2026, 6, 28, 0, 0, 0, 0, time.UTC)
 	parts := []common.Part{
 		{Path: "data/small/2024_01/file.bin", FileSize: 100, Size: 100, ActualSize: 100},
-		{Path: "indexdb/2024_01/index.dat", FileSize: 100, Size: 100, ActualSize: 100},
+		{Path: "indexdb/1838A2E6BE5C4E9F/parts.json", FileSize: 100, Size: 100, ActualSize: 100},
 	}
 
-	if _, err := filterPartitions(parts, 24*time.Hour, nil, now); err == nil {
-		t.Fatal("expected error when filtering a backup containing the legacy indexdb, got nil")
-	}
-	if _, err := filterPartitions(parts, 0, regexp.MustCompile("2024_01"), now); err == nil {
-		t.Fatal("expected error when filtering a backup containing the legacy indexdb, got nil")
+	got := filterPartitions(parts, 0, regexp.MustCompile("2024_01"), now)
+	if len(got) != 1 || got[0].Path != "data/small/2024_01/file.bin" {
+		t.Fatalf("expected only data/small/2024_01/file.bin, got %v", got)
 	}
 }
