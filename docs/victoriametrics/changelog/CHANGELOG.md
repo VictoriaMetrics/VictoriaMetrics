@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards): update the `Ingestion rate` panels of the [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/) dashboard to account for samples ingested directly into `vmstorage` via the remote write protocol with `-enableIngestionAPI` enabled. Previously, these panels counted only samples received from `vminsert`. See [#11809](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11809). Thanks to @sarankumar1325 for contribution.
+
 **Update Note 1:** `vmctl` in [vm-native](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/) mode: `--vm-native-filter-time-end` is now a required parameter. See [#11830](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11830) for details.
 
 * SECURITY: upgrade Go builder from Go1.27.3 to Go1.27.4. See [the list of issues addressed in Go1.27.4](https://github.com/golang/go/issues?q=milestone%3AGo1.27.4%20label%3ACherryPickApproved).
