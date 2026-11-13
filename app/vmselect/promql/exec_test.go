@@ -5363,6 +5363,139 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2, r3, r4, r5}
 		f(q, resultExpected)
 	})
+	t.Run(`buckets_limit(nan_at_some_points)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(buckets_limit(5, (
+			alias(label_set(5 if time() > 1200, "le", "10"), "metric"),
+			alias(label_set(40, "le", "30"), "metric"),
+			alias(label_set(41, "le", "70"), "metric"),
+			alias(label_set(42 if (time() < 1400 or time() > 1600), "le", "120"), "metric"),
+			alias(label_set(90, "le", "300"), "metric"),
+			alias(label_set(91, "le", "inf"), "metric"),
+		)))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, 5, 5, 5, 5},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("metric")
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("10"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{40, 40, 40, 40, 40, 40},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("metric")
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("30"),
+			},
+		}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{42, 42, nan, nan, 42, 42},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.MetricGroup = []byte("metric")
+		r3.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("120"),
+			},
+		}
+		r4 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{90, 90, 90, 90, 90, 90},
+			Timestamps: timestampsExpected,
+		}
+		r4.MetricName.MetricGroup = []byte("metric")
+		r4.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("300"),
+			},
+		}
+		r5 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{91, 91, 91, 91, 91, 91},
+			Timestamps: timestampsExpected,
+		}
+		r5.MetricName.MetricGroup = []byte("metric")
+		r5.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("inf"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2, r3, r4, r5}
+		f(q, resultExpected)
+	})
+	t.Run(`buckets_limit(nan_only_bucket)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(buckets_limit(4, (
+			alias(label_set(100, "le", "inf"), "metric"),
+			alias(label_set(50, "le", "120"), "metric"),
+			alias(label_set(nan, "le", "70"), "metric"),
+			alias(label_set(10, "le", "30"), "metric"),
+			alias(label_set(9, "le", "10"), "metric"),
+		)))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{9, 9, 9, 9, 9, 9},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("metric")
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("10"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{10, 10, 10, 10, 10, 10},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("metric")
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("30"),
+			},
+		}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{50, 50, 50, 50, 50, 50},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.MetricGroup = []byte("metric")
+		r3.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("120"),
+			},
+		}
+		r4 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{100, 100, 100, 100, 100, 100},
+			Timestamps: timestampsExpected,
+		}
+		r4.MetricName.MetricGroup = []byte("metric")
+		r4.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("inf"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2, r3, r4}
+		f(q, resultExpected)
+	})
 	t.Run(`buckets_limit(unused)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(buckets_limit(5, (
