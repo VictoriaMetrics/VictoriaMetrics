@@ -107,7 +107,8 @@ func reloadStreamAggrConfigGlobal() {
 	logger.Infof("reloading stream aggregation configs pointed by -streamAggr.config=%q", path)
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_total{path=%q}`, path)).Inc()
 
-	sasNew, err := newStreamAggrConfigGlobal()
+	sas := sasGlobal.Load()
+	sasNew, err := sas.Reload()
 	if err != nil {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_errors_total{path=%q}`, path)).Inc()
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, path)).Set(0)
@@ -115,13 +116,11 @@ func reloadStreamAggrConfigGlobal() {
 		return
 	}
 
-	sas := sasGlobal.Load()
-	if !sasNew.Equal(sas) {
-		sasOld := sasGlobal.Swap(sasNew)
-		sasOld.MustStop()
+	if sasNew != sas {
+		sasGlobal.Store(sasNew)
+		sas.MustStop()
 		logger.Infof("successfully reloaded -streamAggr.config=%q", path)
 	} else {
-		sasNew.MustStop()
 		logger.Infof("-streamAggr.config=%q wasn't changed since the last reload", path)
 	}
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, path)).Set(1)
@@ -180,7 +179,8 @@ func (rwctx *remoteWriteCtx) reloadStreamAggrConfig() {
 	logger.Infof("reloading stream aggregation configs pointed by -remoteWrite.streamAggr.config=%q", path)
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_total{path=%q}`, path)).Inc()
 
-	sasNew, err := rwctx.newStreamAggrConfig()
+	sas := rwctx.sas.Load()
+	sasNew, err := sas.Reload()
 	if err != nil {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_errors_total{path=%q}`, path)).Inc()
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, path)).Set(0)
@@ -188,13 +188,11 @@ func (rwctx *remoteWriteCtx) reloadStreamAggrConfig() {
 		return
 	}
 
-	sas := rwctx.sas.Load()
-	if !sasNew.Equal(sas) {
-		sasOld := rwctx.sas.Swap(sasNew)
-		sasOld.MustStop()
+	if sasNew != sas {
+		rwctx.sas.Store(sasNew)
+		sas.MustStop()
 		logger.Infof("successfully reloaded -remoteWrite.streamAggr.config=%q", path)
 	} else {
-		sasNew.MustStop()
 		logger.Infof("-remoteWrite.streamAggr.config=%q wasn't changed since the last reload", path)
 	}
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, path)).Set(1)
