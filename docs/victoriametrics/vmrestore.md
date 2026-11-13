@@ -48,10 +48,14 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
 
 ## Partial restore
 
-By default `vmrestore` downloads every partition from the backup. Use the flags below to
+By default `vmrestore` downloads every partition from the backup. Use [`-restoreSince`](https://docs.victoriametrics.com/victoriametrics/vmrestore/#restore-only-recent-data)
+or [`-restorePartitions`](https://docs.victoriametrics.com/victoriametrics/vmrestore/#restore-specific-partitions) to
 restore only a subset of partitions and reduce both download time and disk usage.
 This is useful when only recent data is needed and over-provisioning storage is undesirable
-(for example, Kubernetes PVCs that can expand but not shrink).
+(for example, Kubernetes PVCs that can expand but not shrink), or when restoring a few months
+of production data into a test environment.
+
+> **Warning:** local partitions in `-storageDataPath` that are not restored are removed.
 
 > **Note:** partial restore via `-restoreSince` or `-restorePartitions` is not supported for
 > backups that still contain the legacy, non-partitioned IndexDB. Per-partition IndexDB was introduced in
@@ -59,6 +63,10 @@ This is useful when only recent data is needed and over-provisioning storage is 
 > (see [#7599](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7599)); storage created by an
 > earlier version keeps its legacy IndexDB until it is rotated out by retention. Such backups must be
 > restored in full.
+
+[`-restoreSince`](https://docs.victoriametrics.com/victoriametrics/vmrestore/#restore-only-recent-data) and
+[`-restorePartitions`](https://docs.victoriametrics.com/victoriametrics/vmrestore/#restore-specific-partitions)
+can be combined — only partitions that satisfy both filters are restored.
 
 ### Restore only recent data
 
@@ -95,8 +103,6 @@ partition in 2026, and `-restorePartitions='2026_(0[1-6])'` restores only the fi
 To restore a fixed set of specific months, alternate them explicitly, e.g.
 `-restorePartitions='2026_05|2026_06'`.
 Non-partition files (metadata etc.) are always restored regardless of this flag.
-
-Both flags can be combined — only partitions that satisfy both filters are downloaded.
 
 ## Troubleshooting
 
