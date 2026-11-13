@@ -84,7 +84,7 @@ func TestGetTime_Success(t *testing.T) {
 	}())
 
 	// float timestamp representation",
-	f("1562529662.324", time.Date(2019, 7, 7, 20, 01, 02, 324e6, time.UTC))
+	f("1562529662.324", time.Date(2019, 7, 7, 20, 1, 2, 324e6, time.UTC))
 
 	// big timestamp
 	f("1223372036855", time.Date(2008, 10, 7, 9, 33, 56, 855e6, time.UTC))
