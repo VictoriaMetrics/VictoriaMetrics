@@ -244,7 +244,7 @@ func (c *Client) QueryRange(ctx context.Context, query string, start, end time.T
 	case datasourcePrometheus:
 		parseFn = parsePrometheusRangeResponse
 	case datasourceVLogs:
-		parseFn = parseVLogsRangeResponse
+		parseFn = c.parseVLogsRangeResponse
 	default:
 		logger.Panicf("BUG: unsupported datasource type %q to parse query range response", c.dataSourceType)
 	}
