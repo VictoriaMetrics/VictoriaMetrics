@@ -51,7 +51,7 @@ func TestGetTime_Success(t *testing.T) {
 	f("2019-02-01Z", time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC))
 
 	// year, month, and day (exclusive 'end')
-	f("<2019-02-01Z", time.Date(2019, 1, 31, 23, 59, 59, 999e6, time.UTC))
+	f("<2019-02-01T00:00:00.000Z", time.Date(2019, 1, 31, 23, 59, 59, 999e6, time.UTC))
 
 	// year, month, and day (exclusive 'start')
 	f(">2019-03-31T23:59:59.999Z", time.Date(2019, 4, 1, 0, 0, 0, 0, time.UTC))
