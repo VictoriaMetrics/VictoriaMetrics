@@ -2118,7 +2118,7 @@ func (db *indexDB) searchTSIDsByMetricIDs(ctx context.Context, qt *querytracer.T
 func (db *indexDB) searchMetricName(dst []byte, metricID uint64, noCache bool) ([]byte, bool) {
 	is := db.getIndexSearchInternal(noCache)
 	defer db.putIndexSearch(is)
-	return is.searchMetricName(dst, metricID)
+	return is.getMetricNameByMetricID(dst, metricID)
 }
 
 func (db *indexDB) SearchMetricNames(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]string, error) {
@@ -2314,7 +2314,7 @@ func (is *indexSearch) searchMetricNameWithCache(dst []byte, metricID uint64) ([
 		return metricName, true
 	}
 	var ok bool
-	dst, ok = is.searchMetricName(dst, metricID)
+	dst, ok = is.getMetricNameByMetricID(dst, metricID)
 	if ok {
 		// There is no need in verifying whether the given metricID is deleted,
 		// since the filtering must be performed before calling this func.
@@ -2324,42 +2324,50 @@ func (is *indexSearch) searchMetricNameWithCache(dst []byte, metricID uint64) ([
 	return dst, false
 }
 
-func (is *indexSearch) searchMetricName(dst []byte, metricID uint64) ([]byte, bool) {
-	ts := &is.ts
+func (is *indexSearch) getMetricNameByMetricID(dst []byte, metricID uint64) ([]byte, bool) {
 	kb := &is.kb
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToMetricName)
 	kb.B = encoding.MarshalUint64(kb.B, metricID)
-	if err := ts.FirstItemWithPrefix(kb.B); err != nil {
+	return is.getMetricNameByPrefix(dst, kb.B)
+}
+
+func (is *indexSearch) getMetricNameByPrefix(dst []byte, prefix []byte) ([]byte, bool) {
+	ts := &is.ts
+	if err := ts.FirstItemWithPrefix(prefix); err != nil {
 		if err == io.EOF {
 			return dst, false
 		}
-		logger.Panicf("FATAL: error when searching metricName by metricID; searchPrefix %q: %s", kb.B, err)
+		logger.Panicf("FATAL: error when searching metricName by prefix %q: %s", prefix, err)
 	}
-	v := ts.Item[len(kb.B):]
+	v := ts.Item[len(prefix):]
 	dst = append(dst, v...)
 	return dst, true
 }
 
 func (is *indexSearch) getTSIDByMetricID(dst *TSID, metricID uint64) bool {
-	// There is no need in checking for deleted metricIDs here, since they
-	// must be checked by the caller.
-	ts := &is.ts
 	kb := &is.kb
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
 	kb.B = encoding.MarshalUint64(kb.B, metricID)
-	if err := ts.FirstItemWithPrefix(kb.B); err != nil {
+	return is.getTSIDByPrefix(dst, kb.B)
+}
+
+func (is *indexSearch) getTSIDByPrefix(dst *TSID, prefix []byte) bool {
+	// There is no need in checking for deleted metricIDs here, since they
+	// must be checked by the caller.
+	ts := &is.ts
+	if err := ts.FirstItemWithPrefix(prefix); err != nil {
 		if err == io.EOF {
 			return false
 		}
-		logger.Panicf("FATAL: error when searching TSID by metricID=%d; searchPrefix %q: %s", metricID, kb.B, err)
+		logger.Panicf("FATAL: error when searching TSID by prefix %q: %s", prefix, err)
 	}
-	v := ts.Item[len(kb.B):]
+	v := ts.Item[len(prefix):]
 	tail, err := dst.Unmarshal(v)
 	if err != nil {
-		logger.Panicf("FATAL: cannot unmarshal the found TSID=%X for metricID=%d: %s", v, metricID, err)
+		logger.Panicf("FATAL: cannot unmarshal the found TSID=%X for prefix %q: %s", v, prefix, err)
 	}
 	if len(tail) > 0 {
-		logger.Panicf("FATAL: unexpected non-zero tail left after unmarshaling TSID for metricID=%d: %X", metricID, tail)
+		logger.Panicf("FATAL: unexpected non-zero tail left after unmarshaling TSID for prefix %q: %X", prefix, tail)
 	}
 	return true
 }
