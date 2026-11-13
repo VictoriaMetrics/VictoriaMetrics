@@ -124,8 +124,7 @@ The list of MetricsQL features on top of PromQL:
 * `default` binary operator. `q1 default q2` fills gaps in `q1` with the corresponding values from `q2`. See also [drop_empty_series](#drop_empty_series).
 * `if` binary operator. `q1 if q2` removes values from `q1` for missing values from `q2`.
 * `ifnot` binary operator. `q1 ifnot q2` removes values from `q1` for existing values from `q2`.
-* `WITH` templates. This feature simplifies writing and managing complex queries.
-  Go to [WITH templates playground](https://play.victoriametrics.com/select/0/prometheus/graph/#/expand-with-exprs) and try it.
+* `WITH` templates. This feature simplifies writing and managing complex queries. See [these docs](https://docs.victoriametrics.com/victoriametrics/metricsql/#with-templates).
 * String literals may be concatenated. This is useful with `WITH` templates:
   `WITH (commonPrefix="long_metric_prefix_") {__name__=commonPrefix+"suffix1"} / {__name__=commonPrefix+"suffix2"}`.
 * `keep_metric_names` modifier can be applied to all the [rollup functions](#rollup-functions), [transform functions](#transform-functions)
@@ -143,6 +142,34 @@ For example:
 
 * `rate({__name__=~"foo|bar"}) keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
 * `({__name__=~"foo|bar"} / 10) keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
+
+## WITH templates
+
+`WITH` templates allow you to set a name to a part of a query and reuse it in the rest of the query.
+A template can be a query expression, a set of label filters, a string or a function with arguments. Templates can be nested.
+
+A function template works as a macro: every call is replaced with the template body, where the arguments are substituted with the passed values.
+For example, the following query returns three series with cached, buffered and free memory as a percentage of total memory.
+Each series has a `name` label with the value `cache`, `buffers` or `free`:
+
+```metricsql
+WITH (
+    commonFilters = {job="node-exporter", instance="host1:9100"},
+    memUsage(name, freev) = label_set(sum(freev) / sum(node_memory_MemTotal_bytes{commonFilters}) * 100, "name", name)
+)
+union(
+    memUsage("cache", node_memory_Cached_bytes{commonFilters}),
+    memUsage("buffers", node_memory_Buffers_bytes{commonFilters}),
+    memUsage("free", node_memory_MemFree_bytes{commonFilters})
+)
+```
+
+A template is available only in the query where it is defined.
+The [VictoriaMetrics datasource for Grafana](https://github.com/VictoriaMetrics/victoriametrics-datasource#how-to-use-with-templates)
+stores templates per dashboard, so all the panels of the dashboard can use them.
+
+Try `WITH` templates in the [playground](https://play.victoriametrics.com/select/0/prometheus/graph/#/expand-with-exprs),
+which shows the expanded query and contains a step-by-step tutorial.
 
 ## MetricsQL functions
 
