@@ -22,6 +22,8 @@ func TestNewAPIConfig_Success(t *testing.T) {
 				S: "foobar",
 			},
 		},
+		Label:    "prod",
+		Hostname: "foo",
 	}
 	baseDir := "."
 	_, err := newAPIConfig(sdc, baseDir)
