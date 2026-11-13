@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"reflect"
 	"regexp"
 	"testing"
 	"time"
@@ -41,49 +42,47 @@ func TestFilterPartitions(t *testing.T) {
 	// Fixed reference time: 2026-06-28 00:00:00 UTC
 	now := time.Date(2026, 6, 28, 0, 0, 0, 0, time.UTC)
 
-	makePart := func(path string) common.Part {
-		return common.Part{Path: path, FileSize: 100, Size: 100, ActualSize: 100}
-	}
-
-	allParts := []common.Part{
-		makePart("data/small/2024_01/parts.json"),
-		makePart("data/small/2024_01/file.bin"),
-		makePart("data/big/2024_01/big.bin"),
-		makePart("data/indexdb/2024_01/index.dat"),
-		makePart("data/small/2024_06/parts.json"),
-		makePart("data/small/2024_06/file.bin"),
-		makePart("data/big/2024_06/big.bin"),
-		makePart("data/indexdb/2024_06/index.dat"),
-		makePart("data/small/2025_12/file.bin"),
-		makePart("data/small/2026_06/parts.json"),
-		makePart("data/small/2026_06/file.bin"),
-		makePart("data/big/2026_06/big.bin"),
-		makePart("data/indexdb/2026_06/index.dat"),
-		makePart("metadata/tenantsMetadata.json"),
-	}
-
 	f := func(restoreSince time.Duration, restorePartitionsRegexp string, wantPaths []string) {
 		t.Helper()
+
+		makePart := func(path string) common.Part {
+			return common.Part{Path: path, FileSize: 100, Size: 100, ActualSize: 100}
+		}
+
+		allParts := []common.Part{
+			makePart("data/small/2024_01/parts.json"),
+			makePart("data/small/2024_01/file.bin"),
+			makePart("data/big/2024_01/big.bin"),
+			makePart("data/indexdb/2024_01/index.dat"),
+			makePart("data/small/2024_06/parts.json"),
+			makePart("data/small/2024_06/file.bin"),
+			makePart("data/big/2024_06/big.bin"),
+			makePart("data/indexdb/2024_06/index.dat"),
+			makePart("data/small/2025_12/file.bin"),
+			makePart("data/small/2026_06/parts.json"),
+			makePart("data/small/2026_06/file.bin"),
+			makePart("data/big/2026_06/big.bin"),
+			makePart("data/indexdb/2026_06/index.dat"),
+			makePart("data/big/snapshots/data.bin"),
+			makePart("indexdb/1838A2E6BE5C4E9F/parts.json"),
+			makePart("metadata/tenantsMetadata.json"),
+		}
+
 		var partitionRe *regexp.Regexp
 		if restorePartitionsRegexp != "" {
 			partitionRe = regexp.MustCompile(restorePartitionsRegexp)
 		}
 		got := filterPartitions(allParts, restoreSince, partitionRe, now)
-		if len(got) != len(wantPaths) {
-			gotPaths := make([]string, len(got))
-			for i, p := range got {
-				gotPaths[i] = p.Path
-			}
-			t.Fatalf("got %d parts %v, want %d parts %v", len(got), gotPaths, len(wantPaths), wantPaths)
-		}
+		gotPaths := make([]string, len(got))
 		for i, p := range got {
-			if p.Path != wantPaths[i] {
-				t.Fatalf("part[%d]: got %q, want %q", i, p.Path, wantPaths[i])
-			}
+			gotPaths[i] = p.Path
+		}
+		if !reflect.DeepEqual(gotPaths, wantPaths) {
+			t.Fatalf("unexpected parts\ngot\n%v\nwant\n%v", gotPaths, wantPaths)
 		}
 	}
 
-	// No filters — all parts pass through.
+	// No filters — all parts pass through except the legacy indexdb.
 	f(0, "", []string{
 		"data/small/2024_01/parts.json",
 		"data/small/2024_01/file.bin",
@@ -98,19 +97,21 @@ func TestFilterPartitions(t *testing.T) {
 		"data/small/2026_06/file.bin",
 		"data/big/2026_06/big.bin",
 		"data/indexdb/2026_06/index.dat",
+		"data/big/snapshots/data.bin",
 		"metadata/tenantsMetadata.json",
 	})
 
-	// restorePartitions=2024_01 — only Jan 2024 and metadata.
+	// restorePartitions=2024_01 — only Jan 2024 plus non-partition files.
 	f(0, "2024_01", []string{
 		"data/small/2024_01/parts.json",
 		"data/small/2024_01/file.bin",
 		"data/big/2024_01/big.bin",
 		"data/indexdb/2024_01/index.dat",
+		"data/big/snapshots/data.bin",
 		"metadata/tenantsMetadata.json",
 	})
 
-	// restorePartitions=2024_01|2026_06 — two explicit partitions plus metadata.
+	// restorePartitions=2024_01|2026_06 — two explicit partitions plus non-partition files.
 	f(0, "2024_01|2026_06", []string{
 		"data/small/2024_01/parts.json",
 		"data/small/2024_01/file.bin",
@@ -120,10 +121,11 @@ func TestFilterPartitions(t *testing.T) {
 		"data/small/2026_06/file.bin",
 		"data/big/2026_06/big.bin",
 		"data/indexdb/2026_06/index.dat",
+		"data/big/snapshots/data.bin",
 		"metadata/tenantsMetadata.json",
 	})
 
-	// restorePartitions=2024_.* — every 2024 partition (regexp, not a literal list) plus metadata.
+	// restorePartitions=2024_.* — every 2024 partition (regexp, not a literal list) plus non-partition files.
 	f(0, "2024_.*", []string{
 		"data/small/2024_01/parts.json",
 		"data/small/2024_01/file.bin",
@@ -133,6 +135,7 @@ func TestFilterPartitions(t *testing.T) {
 		"data/small/2024_06/file.bin",
 		"data/big/2024_06/big.bin",
 		"data/indexdb/2024_06/index.dat",
+		"data/big/snapshots/data.bin",
 		"metadata/tenantsMetadata.json",
 	})
 
@@ -152,6 +155,7 @@ func TestFilterPartitions(t *testing.T) {
 		"data/small/2026_06/file.bin",
 		"data/big/2026_06/big.bin",
 		"data/indexdb/2026_06/index.dat",
+		"data/big/snapshots/data.bin",
 		"metadata/tenantsMetadata.json",
 	})
 
@@ -163,6 +167,7 @@ func TestFilterPartitions(t *testing.T) {
 		"data/small/2026_06/file.bin",
 		"data/big/2026_06/big.bin",
 		"data/indexdb/2026_06/index.dat",
+		"data/big/snapshots/data.bin",
 		"metadata/tenantsMetadata.json",
 	})
 	// Cutoff exactly 2026-01-01 — 2025_12 excluded, since the partition end is exclusive.
@@ -171,20 +176,23 @@ func TestFilterPartitions(t *testing.T) {
 		"data/small/2026_06/file.bin",
 		"data/big/2026_06/big.bin",
 		"data/indexdb/2026_06/index.dat",
+		"data/big/snapshots/data.bin",
 		"metadata/tenantsMetadata.json",
 	})
 
-	// Both filters: restoreSince=2y AND restorePartitions=2026_06 — only 2026_06 and metadata.
+	// Both filters: restoreSince=2y AND restorePartitions=2026_06 — only 2026_06 plus non-partition files.
 	f(twoYears, "2026_06", []string{
 		"data/small/2026_06/parts.json",
 		"data/small/2026_06/file.bin",
 		"data/big/2026_06/big.bin",
 		"data/indexdb/2026_06/index.dat",
+		"data/big/snapshots/data.bin",
 		"metadata/tenantsMetadata.json",
 	})
 
-	// restorePartitions regexp that matches nothing in the set — only metadata survives.
+	// restorePartitions regexp that matches nothing in the set — only non-partition files survive.
 	f(0, "9999_01", []string{
+		"data/big/snapshots/data.bin",
 		"metadata/tenantsMetadata.json",
 	})
 }
@@ -197,7 +205,8 @@ func TestFilterPartitionsLegacyIndexDB(t *testing.T) {
 	}
 
 	got := filterPartitions(parts, 0, regexp.MustCompile("2024_01"), now)
-	if len(got) != 1 || got[0].Path != "data/small/2024_01/file.bin" {
-		t.Fatalf("expected only data/small/2024_01/file.bin, got %v", got)
+	want := []common.Part{parts[0]}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected parts\ngot\n%v\nwant\n%v", got, want)
 	}
 }
