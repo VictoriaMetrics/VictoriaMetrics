@@ -113,6 +113,17 @@ The following example shows how to read data from the remote storage and import 
 
 In the example above we are used `--mimir-custom-s3-endpoint` flag to specify the custom S3 endpoint if it is needed.
 
+By default, `--mimir-filter-time-start` and `--mimir-filter-time-end` are inclusive: vmctl imports samples with timestamps
+`>= start` and `<= end`. Prefix a value with `>` (strictly after) or `<` (strictly before) to exclude the specified time.
+For example, the following flags import exactly December 2024, up to `2024-12-31T23:59:59.999Z`:
+
+```sh
+--mimir-filter-time-start='2024-12-01T00:00:00Z' \
+--mimir-filter-time-end='<2025-01-01T00:00:00Z'
+```
+
+Quote values starting with `<` or `>`, since the shell treats them as redirections.
+
 When the process finishes, you will see the following:
 
 ```sh
