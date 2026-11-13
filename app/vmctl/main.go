@@ -351,7 +351,7 @@ func main() {
 			{
 				Name:   "thanos",
 				Usage:  "Migrate time series from Thanos blocks (supports raw and downsampled data)",
-				Flags:  mergeFlags(globalFlags, thanosFlags, vmFlags),
+				Flags:  mergeFlags(globalFlags, stateFlags, thanosFlags, vmFlags),
 				Before: beforeFn,
 				Action: func(c *cli.Context) error {
 					fmt.Println("Thanos import mode")
@@ -395,6 +395,7 @@ func main() {
 						cc:        c.Int(thanosConcurrency),
 						isVerbose: c.Bool(globalVerbose),
 						aggrTypes: aggrTypes,
+						stateDir:  c.String(stateDir),
 					}
 					return tp.run(ctx)
 				},

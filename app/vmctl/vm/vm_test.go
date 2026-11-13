@@ -1,6 +1,61 @@
 package vm
 
-import "testing"
+import (
+	"errors"
+	"sync"
+	"testing"
+	"time"
+)
+
+func TestBlockAckWaitsForAllItems(t *testing.T) {
+	im := &Importer{}
+	b := im.NewBlockAck()
+	for range 3 {
+		b.add()
+	}
+	done := make(chan error, 1)
+	go func() { done <- im.WaitBlock(b) }()
+	select {
+	case <-done:
+		t.Fatal("WaitBlock returned before items finished")
+	case <-time.After(10 * time.Millisecond):
+	}
+	b.finish(nil)
+	b.finish(errors.New("import failed"))
+	select {
+	case <-done:
+		t.Fatal("WaitBlock returned before all items finished")
+	case <-time.After(10 * time.Millisecond):
+	}
+	b.finish(nil)
+	if err := <-done; err == nil || err.Error() != "import failed" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestBlockAckIndependent(t *testing.T) {
+	im := &Importer{}
+	b1, b2 := im.NewBlockAck(), im.NewBlockAck()
+	b1.add()
+	b2.add()
+	var wg sync.WaitGroup
+	wg.Add(2)
+	got := make(chan error, 2)
+	go func() { defer wg.Done(); got <- im.WaitBlock(b1) }()
+	go func() { defer wg.Done(); got <- im.WaitBlock(b2) }()
+	b1.finish(nil)
+	b2.finish(errors.New("block 2 failed"))
+	wg.Wait()
+	var failures int
+	for range 2 {
+		if err := <-got; err != nil {
+			failures++
+		}
+	}
+	if failures != 1 {
+		t.Fatalf("unexpected failures: %d", failures)
+	}
+}
 
 func TestAddExtraLabelsToImportPath_Failure(t *testing.T) {
 	f := func(path string, extraLabels []string) {

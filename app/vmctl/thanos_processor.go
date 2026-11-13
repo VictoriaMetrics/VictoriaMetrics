@@ -2,8 +2,13 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -13,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/migrationstate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/thanos"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
@@ -24,12 +30,46 @@ type thanosProcessor struct {
 
 	isVerbose bool
 	aggrTypes []thanos.AggrType
+	stateDir  string
+	state     *migrationstate.State
+}
+
+type thanosStateParams struct {
+	Snapshot, DstAddr, AccountID string
+	ExtraLabels                  []string
+	Filter                       thanos.Filter
+	AggrTypes                    []thanos.AggrType
+}
+
+func (tp *thanosProcessor) loadState() error {
+	pv := thanosStateParams{Snapshot: tp.cl.Snapshot(), DstAddr: tp.im.Addr(), AccountID: tp.im.AccountID(), ExtraLabels: tp.im.ExtraLabels(), Filter: tp.cl.Filter(), AggrTypes: tp.aggrTypes}
+	b, err := json.Marshal(pv)
+	if err != nil {
+		return err
+	}
+	sum := sha256.Sum256(b)
+	if tp.stateDir != "" {
+		if err := os.MkdirAll(tp.stateDir, 0o755); err != nil {
+			return err
+		}
+	}
+	path := filepath.Join(tp.stateDir, fmt.Sprintf("vmctl-thanos-%s.state", hex.EncodeToString(sum[:8])))
+	tp.state, err = migrationstate.Load(path, pv)
+	if err != nil {
+		return fmt.Errorf("failed to load state: %w", err)
+	}
+	log.Printf("Thanos migration state is stored at %q (%d units done)", path, tp.state.DoneCount())
+	return nil
 }
 
 func (tp *thanosProcessor) run(ctx context.Context) error {
 	if len(tp.aggrTypes) == 0 {
 		tp.aggrTypes = thanos.AllAggrTypes
 	}
+	if err := tp.loadState(); err != nil {
+		return err
+	}
+	defer tp.state.Close()
 
 	log.Printf("Processing blocks with aggregate types: %v", tp.aggrTypes)
 
@@ -41,6 +81,12 @@ func (tp *thanosProcessor) run(ctx context.Context) error {
 	if len(blocks) < 1 {
 		return fmt.Errorf("found no blocks to import")
 	}
+	blocksClosed := false
+	defer func() {
+		if !blocksClosed {
+			thanos.CloseBlocks(blocks)
+		}
+	}()
 
 	// Separate blocks into raw (resolution=0) and downsampled (resolution>0)
 	var rawBlocks, downsampledBlocks []thanos.BlockInfo
@@ -62,7 +108,19 @@ func (tp *thanosProcessor) run(ctx context.Context) error {
 
 	// Calculate total number of block processing passes for the progress bar:
 	// raw blocks are processed once, downsampled blocks are processed once per aggregate type.
-	totalPasses := len(rawBlocks) + len(downsampledBlocks)*len(tp.aggrTypes)
+	totalPasses := 0
+	for _, b := range rawBlocks {
+		if !tp.state.IsBlockDone(&migrationstate.BlockUnit{ULID: b.Block.Meta().ULID.String(), Resolution: b.Resolution.String(), Aggregate: thanos.AggrTypeNone.String()}) {
+			totalPasses++
+		}
+	}
+	for _, b := range downsampledBlocks {
+		for _, a := range tp.aggrTypes {
+			if !tp.state.IsBlockDone(&migrationstate.BlockUnit{ULID: b.Block.Meta().ULID.String(), Resolution: b.Resolution.String(), Aggregate: a.String()}) {
+				totalPasses++
+			}
+		}
+	}
 	thanosBlocksTotal.Add(totalPasses)
 	bar := barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing blocks"), totalPasses)
 	if err := barpool.Start(); err != nil {
@@ -96,6 +154,7 @@ func (tp *thanosProcessor) run(ctx context.Context) error {
 	// Close blocks from the initial Explore. The querierSeriesSet wrapper
 	// has already released all querier read references, so Close won't hang.
 	thanos.CloseBlocks(blocks)
+	blocksClosed = true
 
 	// Process downsampled blocks for each aggregate type.
 	// Each type needs its own AggrChunkPool, so we reopen blocks per type.
@@ -181,10 +240,18 @@ func (tp *thanosProcessor) processBlocks(blocks []thanos.BlockInfo, aggrType tha
 		workerID := i
 		wg.Go(func() {
 			for bi := range blockReadersCh {
+				u := &migrationstate.BlockUnit{ULID: bi.Block.Meta().ULID.String(), Resolution: bi.Resolution.String(), Aggregate: aggrType.String()}
+				if tp.state.IsBlockDone(u) {
+					continue
+				}
 				seriesCount, samplesCount, err := tp.do(bi, aggrType)
 				if err != nil {
 					thanosErrorsTotal.Inc()
 					errCh <- fmt.Errorf("read failed for block %q with aggr %s: %w", bi.Block.Meta().ULID, aggrType, err)
+					return
+				}
+				if err := tp.state.MarkBlockDone(u); err != nil {
+					errCh <- fmt.Errorf("persist state for block %q: %w", u.ULID, err)
 					return
 				}
 
@@ -242,6 +309,8 @@ func (tp *thanosProcessor) do(bi thanos.BlockInfo, aggrType thanos.AggrType) (ui
 
 	var it chunkenc.Iterator
 	var seriesCount, samplesCount uint64
+	blockAck := tp.im.NewBlockAck()
+	var readErr error
 
 	for ss.Next() {
 		var name string
@@ -259,7 +328,8 @@ func (tp *thanosProcessor) do(bi thanos.BlockInfo, aggrType thanos.AggrType) (ui
 			})
 		})
 		if name == "" {
-			return seriesCount, samplesCount, fmt.Errorf("failed to find `__name__` label in labelset for block %v", bi.Block.Meta().ULID)
+			readErr = fmt.Errorf("failed to find `__name__` label in labelset for block %v", bi.Block.Meta().ULID)
+			break
 		}
 
 		// Add resolution and aggregate type suffix to metric name for downsampled blocks
@@ -283,7 +353,8 @@ func (tp *thanosProcessor) do(bi thanos.BlockInfo, aggrType thanos.AggrType) (ui
 			values = append(values, v)
 		}
 		if err := it.Err(); err != nil {
-			return seriesCount, samplesCount, err
+			readErr = err
+			break
 		}
 
 		samplesCount += uint64(len(timestamps))
@@ -295,11 +366,21 @@ func (tp *thanosProcessor) do(bi thanos.BlockInfo, aggrType thanos.AggrType) (ui
 			Timestamps: timestamps,
 			Values:     values,
 		}
-		if err := tp.im.Input(&ts); err != nil {
-			return seriesCount, samplesCount, err
+		if err := tp.im.InputBlock(blockAck, &ts); err != nil {
+			readErr = err
+			break
 		}
 	}
-	return seriesCount, samplesCount, ss.Err()
+	if readErr == nil {
+		readErr = ss.Err()
+	}
+	if err := tp.im.WaitBlock(blockAck); err != nil {
+		return seriesCount, samplesCount, err
+	}
+	if readErr != nil {
+		return seriesCount, samplesCount, readErr
+	}
+	return seriesCount, samplesCount, nil
 }
 
 var (

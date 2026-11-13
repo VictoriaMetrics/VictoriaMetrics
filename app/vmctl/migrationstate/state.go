@@ -22,6 +22,17 @@ type Unit struct {
 	TR         storage.TimeRange
 }
 
+// BlockUnit identifies one block processing pass.
+type BlockUnit struct {
+	ULID       string
+	Resolution string
+	Aggregate  string
+}
+
+func (u *BlockUnit) String() string {
+	return fmt.Sprintf("block %s %s %s", u.ULID, u.Resolution, u.Aggregate)
+}
+
 // String returns u representation in the state file.
 func (u *Unit) String() string {
 	tenant := u.Tenant
@@ -36,6 +47,10 @@ func (u *Unit) String() string {
 // 0:0 1788220800000 1792673981569 go_info
 // See u.String() method
 func isValidStateLine(line string) bool {
+	if strings.HasPrefix(line, "block ") {
+		a := strings.Split(line, " ")
+		return len(a) == 4 && a[1] != "" && a[2] != "" && a[3] != ""
+	}
 	a := strings.SplitN(line, " ", 4)
 	if len(a) != 4 || a[0] == "" || a[3] == "" {
 		return false
@@ -158,13 +173,24 @@ func (st *State) IsDone(u *Unit) bool {
 	return ok
 }
 
+func (st *State) IsBlockDone(u *BlockUnit) bool {
+	_, ok := st.done[u.String()]
+	return ok
+}
+
+func (st *State) MarkBlockDone(u *BlockUnit) error { return st.markDone(u.String()) }
+
 // MarkDone appends u to the state file.
 // It doesn't update in-memory state, so IsDone will not get the change.
 // We don't update st.done because IsDone is checked before MarkDone for each unit.
 func (st *State) MarkDone(u *Unit) error {
+	return st.markDone(u.String())
+}
+
+func (st *State) markDone(s string) error {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	if _, err := st.f.WriteString(u.String() + "\n"); err != nil {
+	if _, err := st.f.WriteString(s + "\n"); err != nil {
 		return fmt.Errorf("cannot write to state file %q: %w", st.path, err)
 	}
 	return nil

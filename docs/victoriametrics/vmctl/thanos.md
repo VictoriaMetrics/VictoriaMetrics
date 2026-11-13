@@ -40,6 +40,30 @@ vmctl thanos --thanos-snapshot thanos-data --vm-addr http://victoria-metrics:842
 
 If `--thanos-aggr-types` is not specified, all aggregate types will be imported.
 
+### Resuming an interrupted migration
+
+Thanos migrations can be resumed with `--state-dir`. `vmctl` stores an append-only
+state file there for each migration identity. A raw block is one migration unit;
+each downsampled block and aggregate type is tracked independently. A unit is
+written only after all of its time series have been accepted by successful
+VictoriaMetrics import requests.
+
+If the process or either endpoint fails, rerun the same command with the same
+relevant options. Completed units are skipped and incomplete units are retried:
+
+```sh
+vmctl thanos --thanos-snapshot thanos-data \
+  --vm-addr http://victoria-metrics:8428 \
+  --state-dir /var/lib/vmctl-state
+```
+
+The migration identity includes the snapshot path, destination, account and
+extra labels, filters, and selected aggregate types. Changing one of these
+creates a separate state file. To intentionally start over, use a new empty
+state directory (or remove the specific state file after stopping vmctl).
+State files contain migration parameters and completed block identifiers, not
+authentication passwords or bearer tokens.
+
 ### Migration steps
 
 We assume you're using **Thanos Sidecar** on your Prometheus pods, and that you have a separate Thanos Store installation.
