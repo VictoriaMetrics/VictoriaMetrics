@@ -88,7 +88,16 @@ func TestGetTime_Success(t *testing.T) {
 
 	// big timestamp
 	f("1223372036855", time.Date(2008, 10, 7, 9, 33, 56, 855e6, time.UTC))
+}
 
-	// duration time
-	f("1h5m", time.Now().Round(time.Millisecond).Add(-1*time.Hour).Add(-5*time.Minute))
+func TestGetTime_RelativeDuration(t *testing.T) {
+	// ParseTime reads the clock itself and rounds to msecs, so tolerate a +- 1 ms delta.
+	expected := time.Now().Add(-time.Hour - 5*time.Minute)
+	result, err := ParseTime("1h5m")
+	if err != nil {
+		t.Fatalf("ParseTime() error: %s", err)
+	}
+	if delta := result.Sub(expected).Abs(); delta > 1*time.Millisecond {
+		t.Fatalf("unexpected result; got %s; want %s ± 1ms", result, expected)
+	}
 }
