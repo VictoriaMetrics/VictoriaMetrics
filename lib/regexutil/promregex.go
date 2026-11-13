@@ -113,8 +113,12 @@ func (pr *PromRegex) MatchString(s string) bool {
 	}
 	if pr.substrDotPlus != "" {
 		// Fast path - pr contains ".+someText.+"
-		n := strings.Index(s, pr.substrDotPlus)
-		return n > 0 && n+len(pr.substrDotPlus) < len(s)
+		// There must be at least one char before and after someText,
+		// so look for someText in s without the first and last chars.
+		if len(s) < len(pr.substrDotPlus)+2 {
+			return false
+		}
+		return strings.Contains(s[1:len(s)-1], pr.substrDotPlus)
 	}
 
 	if len(pr.orValues) > 0 {
