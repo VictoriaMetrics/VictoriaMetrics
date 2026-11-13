@@ -272,7 +272,6 @@ VMUI provides the following features:
 * Tools:
   * [Trace analyzer](#query-tracing) - explore query traces loaded from JSON;
   * [Query analyzer](#query-tracing) - explore query results and traces loaded from JSON. See `Export query` button below;
-  * [WITH expressions playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/expand-with-exprs) - expand [templates](https://docs.victoriametrics.com/victoriametrics/metricsql/#with-templates) into the final query;
   * [Metric relabel debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling) - debug [relabeling](#relabeling) rules.
   * [Downsampling filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/downsampling-filters-debug) {{% available_from "v1.105.0" %}} - debug [downsampling](#downsampling) configs.
   * [Retention filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/retention-filters-debug) {{% available_from "v1.105.0" %}} - debug [retention filter](#retention-filters) configs.
@@ -284,6 +283,7 @@ VMUI provides the following features:
 **Querying:**
 
 Enter the MetricsQL query in `Query` field and hit `Enter`. Multi-line queries can be entered by pressing `Shift-Enter`.
+Repeated parts of a query can be defined with [WITH templates](https://docs.victoriametrics.com/victoriametrics/metricsql/#with-templates).
 
 VMUI provides auto-completion for [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) functions, metric names, label names and label values.
 The auto-completion can be enabled by checking the `Autocomplete` toggle. When the auto-completion is disabled, it can
