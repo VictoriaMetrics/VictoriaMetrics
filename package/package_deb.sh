@@ -16,6 +16,9 @@ elif [[ "$ARCH" == "arm64" ]]; then
 elif [[ "$ARCH" == "arm" ]]; then
     DEB_ARCH=armhf
     EXENAME_SRC="victoria-metrics-linux-arm-prod"
+elif [[ "$ARCH" == "riscv64" ]]; then
+    DEB_ARCH=riscv64
+    EXENAME_SRC="victoria-metrics-linux-riscv64-prod"
 else
     echo "*** Unknown arch $ARCH"
     exit 1
