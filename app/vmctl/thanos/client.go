@@ -28,6 +28,7 @@ type Filter struct {
 type Client struct {
 	snapshotPath string
 	filter       filter
+	configFilter Filter
 	statsPrinted bool
 }
 
@@ -62,8 +63,12 @@ func NewClient(cfg Config) (*Client, error) {
 			label:      cfg.Filter.Label,
 			labelValue: cfg.Filter.LabelValue,
 		},
+		configFilter: cfg.Filter,
 	}, nil
 }
+
+func (c *Client) Snapshot() string { return c.snapshotPath }
+func (c *Client) Filter() Filter   { return c.configFilter }
 
 // Explore fetches all available blocks from the snapshot with support for
 // Thanos AggrChunk (downsampled blocks). It opens blocks with a custom pool

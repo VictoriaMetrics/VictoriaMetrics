@@ -64,29 +64,143 @@ type Config struct {
 // via VictoriaMetrics import protocol
 // see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data
 type Importer struct {
-	addr       string
-	authCfg    *auth.Config
-	client     *http.Client
-	importPath string
-	compress   bool
+	addr        string
+	authCfg     *auth.Config
+	client      *http.Client
+	importPath  string
+	accountID   string
+	extraLabels []string
+	compress    bool
 
 	close  chan struct{}
-	input  chan *TimeSeries
+	input  chan importItem
 	errors chan *ImportError
+
+	flushWorkerChs []chan chan struct{}
+	flushMu        sync.Mutex
 
 	rl *limiter.Limiter
 
-	wg   sync.WaitGroup
-	once sync.Once
+	wg    sync.WaitGroup
+	errWg sync.WaitGroup
+	once  sync.Once
 
-	s       *stats
-	backoff *backoff.Backoff
+	s                  *stats
+	backoff            *backoff.Backoff
+	significantFigures int
+	roundDigits        int
 
 	importRequestsTotal       *metrics.Counter
 	importRequestsErrorsTotal *metrics.Counter
 	importSamplesTotal        *metrics.Counter
 	importBytesTotal          *metrics.Counter
 	importDuration            *metrics.Histogram
+}
+
+func (im *Importer) Addr() string          { return im.addr }
+func (im *Importer) AccountID() string     { return im.accountID }
+func (im *Importer) ExtraLabels() []string { return im.extraLabels }
+
+type importItem struct {
+	ts    *TimeSeries
+	block *blockAck
+}
+
+type blockAck struct {
+	mu      sync.Mutex
+	pending int
+	closed  bool
+	err     error
+	done    chan struct{}
+	once    sync.Once
+	wg      sync.WaitGroup // Tracks active submissions
+}
+
+func (im *Importer) NewBlockAck() *blockAck { return &blockAck{done: make(chan struct{})} }
+
+func (b *blockAck) add() error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.closed {
+		return errors.New("cannot add to a closed blockAck")
+	}
+	b.pending++
+	b.wg.Add(1)
+	return nil
+}
+
+func (b *blockAck) finish(err error) {
+	b.mu.Lock()
+	if err != nil && b.err == nil {
+		b.err = err
+	}
+	if b.pending <= 0 {
+		b.mu.Unlock()
+		panic("blockAck: negative pending count")
+	}
+	b.pending--
+	closeNow := b.closed && b.pending == 0
+	b.mu.Unlock()
+	if closeNow {
+		b.once.Do(func() { close(b.done) })
+	}
+}
+
+func (b *blockAck) seal() {
+	b.mu.Lock()
+	b.closed = true
+	b.mu.Unlock()
+	// Wait for any in-flight InputBlock items to finish queueing into the channel
+	b.wg.Wait()
+}
+
+func (b *blockAck) wait() error {
+	b.mu.Lock()
+	closeNow := b.pending == 0
+	b.mu.Unlock()
+	if closeNow {
+		b.once.Do(func() { close(b.done) })
+	}
+	<-b.done
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.err
+}
+
+func (im *Importer) Flush() {
+	im.flushMu.Lock()
+	defer im.flushMu.Unlock()
+
+	select {
+	case <-im.close:
+		return
+	default:
+	}
+
+	var wg sync.WaitGroup
+	for _, ch := range im.flushWorkerChs {
+		wg.Add(1)
+		go func(c chan chan struct{}) {
+			defer wg.Done()
+			done := make(chan struct{})
+			select {
+			case c <- done:
+				select {
+				case <-done:
+				case <-im.close:
+				}
+			case <-im.close:
+			}
+		}(ch)
+	}
+	wg.Wait()
+}
+
+// WaitBlock waits until all series submitted in b have been imported.
+func (im *Importer) WaitBlock(b *blockAck) error {
+	b.seal()
+	im.Flush()
+	return b.wait()
 }
 
 // ResetStats resets im stats.
@@ -143,16 +257,21 @@ func NewImporter(ctx context.Context, cfg Config) (*Importer, error) {
 	}
 
 	im := &Importer{
-		addr:       addr,
-		client:     client,
-		importPath: importPath,
-		compress:   cfg.Compress,
-		authCfg:    cfg.AuthCfg,
-		rl:         limiter.NewLimiter(cfg.RateLimit),
-		close:      make(chan struct{}),
-		input:      make(chan *TimeSeries, cfg.Concurrency*4),
-		errors:     make(chan *ImportError, cfg.Concurrency),
-		backoff:    cfg.Backoff,
+		addr:               addr,
+		client:             client,
+		importPath:         importPath,
+		accountID:          cfg.AccountID,
+		extraLabels:        append([]string(nil), cfg.ExtraLabels...),
+		compress:           cfg.Compress,
+		authCfg:            cfg.AuthCfg,
+		rl:                 limiter.NewLimiter(cfg.RateLimit),
+		close:              make(chan struct{}),
+		input:              make(chan importItem, cfg.Concurrency*4),
+		errors:             make(chan *ImportError, cfg.Concurrency),
+		flushWorkerChs:     make([]chan chan struct{}, cfg.Concurrency),
+		backoff:            cfg.Backoff,
+		significantFigures: cfg.SignificantFigures,
+		roundDigits:        cfg.RoundDigits,
 
 		importRequestsTotal:       metrics.GetOrCreateCounter(`vmctl_importer_requests_total`),
 		importRequestsErrorsTotal: metrics.GetOrCreateCounter(`vmctl_importer_request_errors_total`),
@@ -171,9 +290,11 @@ func NewImporter(ctx context.Context, cfg Config) (*Importer, error) {
 	for i := range int(cfg.Concurrency) {
 		pbPrefix := fmt.Sprintf(`{{ green "VM worker %d:" }}`, i)
 		bar := barpool.AddWithTemplate(pbPrefix+pbTpl, 0)
+		ch := make(chan chan struct{})
+		im.flushWorkerChs[i] = ch
 
 		im.wg.Go(func() {
-			im.startWorker(ctx, bar, cfg.BatchSize, cfg.SignificantFigures, cfg.RoundDigits)
+			im.startWorker(ctx, bar, cfg.BatchSize, cfg.SignificantFigures, cfg.RoundDigits, ch)
 		})
 	}
 	im.ResetStats()
@@ -187,10 +308,7 @@ const pbTpl = `{{ (cycle . "←" "↖" "↑" "↗" "→" "↘" "↓" "↙" ) }} 
 type ImportError struct {
 	// The batch of timeseries processed by importer at the moment
 	Batch []*TimeSeries
-	// The error that appeared during insert
-	// If err is nil - no error happened and Batch
-	// Is the latest delivered Batch.
-	Err error
+	Err   error
 }
 
 // Errors returns a channel for receiving
@@ -200,10 +318,35 @@ func (im *Importer) Errors() chan *ImportError { return im.errors }
 // Input returns a channel for sending timeseries
 // that need to be imported
 func (im *Importer) Input(ts *TimeSeries) error {
+	return im.inputItem(importItem{ts: ts})
+}
+
+func (im *Importer) SignificantFigures() int {
+	return im.significantFigures
+}
+
+func (im *Importer) RoundDigits() int {
+	return im.roundDigits
+}
+
+func (im *Importer) InputBlock(b *blockAck, ts *TimeSeries) error {
+	if err := b.add(); err != nil {
+		return err
+	}
+	defer b.wg.Done()
+
+	if err := im.inputItem(importItem{ts: ts, block: b}); err != nil {
+		b.finish(err)
+		return err
+	}
+	return nil
+}
+
+func (im *Importer) inputItem(item importItem) error {
 	select {
 	case <-im.close:
 		return fmt.Errorf("importer is closed")
-	case im.input <- ts:
+	case im.input <- item:
 		return nil
 	case err := <-im.errors:
 		if err != nil && err.Err != nil {
@@ -218,34 +361,107 @@ func (im *Importer) Input(ts *TimeSeries) error {
 func (im *Importer) Close() {
 	im.once.Do(func() {
 		close(im.close)
+
+		// Wait for active flushes before closing the input channel.
+		im.flushMu.Lock()
+		im.flushMu.Unlock()
+
 		close(im.input)
 		im.wg.Wait()
-		close(im.errors)
+
+		go func() {
+			im.errWg.Wait()
+			close(im.errors)
+		}()
 	})
 }
 
-func (im *Importer) startWorker(ctx context.Context, bar barpool.Bar, batchSize, significantFigures, roundDigits int) {
-	var batch []*TimeSeries
+func (im *Importer) startWorker(ctx context.Context, bar barpool.Bar, batchSize, significantFigures, roundDigits int, flushCh chan chan struct{}) {
+	var batch []importItem
 	var dataPoints int
 	var waitForBatch time.Time
+
+	sendErr := func(err *ImportError) {
+		im.errWg.Go(func() {
+			im.errors <- err
+		})
+	}
+
 	for {
 		select {
 		case <-im.close:
-			for ts := range im.input {
-				ts = roundTimeseriesValue(ts, significantFigures, roundDigits)
-				batch = append(batch, ts)
+			for item := range im.input {
+				item.ts = roundTimeseriesValue(item.ts, significantFigures, roundDigits)
+				batch = append(batch, item)
 			}
-			exitErr := &ImportError{
-				Batch: batch,
+			if len(batch) > 0 {
+				exitErr := &ImportError{Batch: importItemsSeries(batch)}
+				retryableFunc := func() error { return im.Import(importItemsSeries(batch)) }
+				_, err := im.backoff.Retry(ctx, retryableFunc)
+				if err != nil {
+					exitErr.Err = err
+				}
+				ackItems(batch, exitErr.Err)
+				sendErr(exitErr)
 			}
-			retryableFunc := func() error { return im.Import(batch) }
-			_, err := im.backoff.Retry(ctx, retryableFunc)
-			if err != nil {
-				exitErr.Err = err
-			}
-			im.errors <- exitErr
 			return
-		case ts, ok := <-im.input:
+
+		case done := <-flushCh:
+		drain:
+			for {
+				select {
+				case item, ok := <-im.input:
+					if !ok {
+						break drain
+					}
+					if waitForBatch.IsZero() {
+						waitForBatch = time.Now()
+					}
+					item.ts = roundTimeseriesValue(item.ts, significantFigures, roundDigits)
+					batch = append(batch, item)
+					dataPoints += len(item.ts.Values)
+					bar.Add(len(item.ts.Values))
+
+					if dataPoints >= batchSize {
+						im.s.Lock()
+						im.s.idleDuration += time.Since(waitForBatch)
+						im.s.Unlock()
+
+						err := im.flush(ctx, importItemsSeries(batch))
+						ackItems(batch, err)
+						if err != nil {
+							sendErr(&ImportError{Batch: importItemsSeries(batch), Err: err})
+							batch = make([]importItem, 0, len(batch))
+						} else {
+							batch = batch[:0]
+						}
+						dataPoints = 0
+						waitForBatch = time.Now()
+					}
+				default:
+					break drain
+				}
+			}
+
+			if len(batch) > 0 {
+				im.s.Lock()
+				im.s.idleDuration += time.Since(waitForBatch)
+				im.s.Unlock()
+
+				err := im.flush(ctx, importItemsSeries(batch))
+				ackItems(batch, err)
+				if err != nil {
+					sendErr(&ImportError{Batch: importItemsSeries(batch), Err: err})
+					batch = make([]importItem, 0, len(batch))
+				} else {
+					batch = batch[:0]
+				}
+				dataPoints = 0
+				waitForBatch = time.Time{}
+			}
+			close(done)
+
+		case item, ok := <-im.input:
 			if !ok {
 				continue
 			}
@@ -255,30 +471,44 @@ func (im *Importer) startWorker(ctx context.Context, bar barpool.Bar, batchSize,
 				waitForBatch = time.Now()
 			}
 
-			ts = roundTimeseriesValue(ts, significantFigures, roundDigits)
-			batch = append(batch, ts)
-			dataPoints += len(ts.Values)
+			item.ts = roundTimeseriesValue(item.ts, significantFigures, roundDigits)
+			batch = append(batch, item)
+			dataPoints += len(item.ts.Values)
 
-			bar.Add(len(ts.Values))
+			bar.Add(len(item.ts.Values))
 
-			if dataPoints < batchSize {
-				continue
-			}
-			im.s.Lock()
-			im.s.idleDuration += time.Since(waitForBatch)
-			im.s.Unlock()
+			if dataPoints >= batchSize {
+				im.s.Lock()
+				im.s.idleDuration += time.Since(waitForBatch)
+				im.s.Unlock()
 
-			if err := im.flush(ctx, batch); err != nil {
-				im.errors <- &ImportError{
-					Batch: batch,
-					Err:   err,
+				err := im.flush(ctx, importItemsSeries(batch))
+				ackItems(batch, err)
+				if err != nil {
+					sendErr(&ImportError{Batch: importItemsSeries(batch), Err: err})
+					batch = make([]importItem, 0, len(batch))
+				} else {
+					batch = batch[:0]
 				}
-				// make a new batch, since old one was referenced as err
-				batch = make([]*TimeSeries, len(batch))
+				dataPoints = 0
+				waitForBatch = time.Now()
 			}
-			dataPoints = 0
-			batch = batch[:0]
-			waitForBatch = time.Now()
+		}
+	}
+}
+
+func importItemsSeries(items []importItem) []*TimeSeries {
+	result := make([]*TimeSeries, len(items))
+	for i := range items {
+		result[i] = items[i].ts
+	}
+	return result
+}
+
+func ackItems(items []importItem, err error) {
+	for _, item := range items {
+		if item.block != nil {
+			item.block.finish(err)
 		}
 	}
 }
