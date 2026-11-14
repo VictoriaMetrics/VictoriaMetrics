@@ -438,19 +438,23 @@ func TestImporterInputErrorDelivery(t *testing.T) {
 	im, srv := getTestImporter(t, handler)
 	defer srv.Close()
 
-	for i := 0; i < 20; i++ {
-		_ = im.Input(&TimeSeries{Values: []float64{1}})
-	}
+	errCh := make(chan *ImportError, 20)
+	consumerDone := make(chan struct{})
 
-	errCh := make(chan *ImportError, 1)
 	go func() {
+		defer close(consumerDone)
 		for err := range im.Errors() {
-			select {
-			case errCh <- err:
-			default:
-			}
+			errCh <- err
 		}
 	}()
+
+	for range 20 {
+		if err := im.Input(&TimeSeries{Values: []float64{1}}); err != nil {
+			t.Fatalf("Input failed: %v", err)
+		}
+	}
+
+	im.Flush()
 
 	select {
 	case err := <-errCh:
@@ -462,6 +466,12 @@ func TestImporterInputErrorDelivery(t *testing.T) {
 	}
 
 	im.Close()
+
+	select {
+	case <-consumerDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("error consumer did not stop after importer closed")
+	}
 }
 
 func TestImporterNoGoroutineLeakOnErrors(t *testing.T) {
