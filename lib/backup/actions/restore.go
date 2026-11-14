@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"path"
+	"regexp"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -47,6 +49,18 @@ type Restore struct {
 	//
 	// This will likely be slower in most cases, but allows restores to resume mid file
 	SkipPreallocation bool
+
+	// RestoreSince, if non-zero, restores every monthly partition that overlaps the last RestoreSince.
+	// Partitions are restored whole, so they may contain data older than RestoreSince.
+	//
+	// For example, RestoreSince=5*24*time.Hour on 2026-11-03 restores 2026_10 and 2026_11.
+	RestoreSince time.Duration
+
+	// RestorePartitions, if non-nil, is a regular expression matched against partition
+	// names (YYYY_MM). Only partitions whose name matches are restored; all other partitions
+	// are skipped. Non-partition files (metadata, etc.) are always restored regardless of
+	// this setting.
+	RestorePartitions *regexp.Regexp
 }
 
 // Run runs r with the provided settings.
@@ -94,6 +108,28 @@ func (r *Restore) Run(ctx context.Context) error {
 	for _, srcPart := range srcParts {
 		if !srcPart.IsLocalPathInsideDir(r.Dst.Dir) {
 			return fmt.Errorf("part file %s would be written outside storage directory %s", srcPart.Path, r.Dst.Dir)
+		}
+	}
+	if r.RestoreSince > 0 || r.RestorePartitions != nil {
+		for _, p := range srcParts {
+			if !strings.HasPrefix(p.Path, "indexdb/") {
+				continue
+			}
+			logger.Warnf("the backup contains the legacy non-partitioned IndexDB, which isn't restored when -restoreSince or -restorePartitions is set; " +
+				"data indexed only in the legacy indexdb won't be searchable after the restore; " +
+				"if you need such data, run a full restore without these flags; " +
+				"see https://docs.victoriametrics.com/victoriametrics/vmrestore/#partial-restore; " +
+				"continuing in 30 seconds, stop vmrestore to cancel")
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(30 * time.Second):
+			}
+			break
+		}
+		srcParts, err = filterPartitions(srcParts, r.RestoreSince, r.RestorePartitions, time.Now().UTC())
+		if err != nil {
+			return err
 		}
 	}
 	logger.Infof("obtaining list of parts at %s", dst)
@@ -302,6 +338,91 @@ func (sw *statWriter) Write(p []byte) (int, error) {
 }
 
 var bytesDownloadedTotal = metrics.NewCounter(`vm_backups_downloaded_bytes_total`)
+
+// extractPartitionName returns YYYY_MM for a data/{small,big,indexdb}/YYYY_MM/... path, or "" otherwise.
+func extractPartitionName(partPath string) string {
+	var rest string
+	switch {
+	case strings.HasPrefix(partPath, "data/small/"):
+		rest = partPath[len("data/small/"):]
+	case strings.HasPrefix(partPath, "data/big/"):
+		rest = partPath[len("data/big/"):]
+	case strings.HasPrefix(partPath, "data/indexdb/"):
+		rest = partPath[len("data/indexdb/"):]
+	default:
+		return ""
+	}
+	ptName, _, ok := strings.Cut(rest, "/")
+	if !ok {
+		return ""
+	}
+	if _, err := time.Parse("2006_01", ptName); err != nil {
+		return ""
+	}
+	return ptName
+}
+
+// filterPartitions keeps non-partition parts and the partitions selected by restoreSince and partitionRe.
+// The legacy non-partitioned indexdb is skipped. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7599
+// It returns an error if the backup contains partitions, but none of them is selected.
+func filterPartitions(srcParts []common.Part, restoreSince time.Duration, partitionRe *regexp.Regexp, now time.Time) ([]common.Part, error) {
+	var sinceTime time.Time
+	if restoreSince > 0 {
+		sinceTime = now.Add(-restoreSince)
+	}
+
+	var keptParts []common.Part
+	keptPartitions := make(map[string]struct{})
+	skippedPartitions := make(map[string]struct{})
+	for _, p := range srcParts {
+		// Skip the legacy indexdb: it can't be matched against partitions,
+		// and it is usually big, so restoring it would defeat the disk savings.
+		if strings.HasPrefix(p.Path, "indexdb/") {
+			continue
+		}
+
+		ptName := extractPartitionName(p.Path)
+		if ptName == "" {
+			// Non-partition file (snapshots, etc.) — always include.
+			keptParts = append(keptParts, p)
+			continue
+		}
+
+		if partitionRe != nil && !partitionRe.MatchString(ptName) {
+			skippedPartitions[ptName] = struct{}{}
+			continue
+		}
+
+		if sinceTime.IsZero() {
+			keptParts = append(keptParts, p)
+			keptPartitions[ptName] = struct{}{}
+			continue
+		}
+
+		ptTime, err := time.Parse("2006_01", ptName)
+		if err != nil {
+			logger.Panicf("FATAL: cannot parse partition name %q from path %q: %s", ptName, p.Path, err)
+		}
+
+		// Keep the whole monthly partition if it overlaps the last restoreSince, i.e. [sinceTime, now]
+		y, m, _ := ptTime.Date()
+		partitionEnd := time.Date(y, m+1, 1, 0, 0, 0, 0, time.UTC)
+		if !partitionEnd.After(sinceTime) {
+			skippedPartitions[ptName] = struct{}{}
+			continue
+		}
+		keptParts = append(keptParts, p)
+		keptPartitions[ptName] = struct{}{}
+	}
+
+	if len(skippedPartitions) > 0 && len(keptPartitions) == 0 {
+		return nil, fmt.Errorf("-restoreSince and -restorePartitions don't select any of %d partitions in the backup; check the flag values", len(skippedPartitions))
+	}
+	if len(skippedPartitions) > 0 {
+		logger.Infof("skipped %d partitions outside the requested restore range", len(skippedPartitions))
+	}
+	return keptParts, nil
+}
 
 func createRestoreLock(dstDir string) error {
 	lockF := path.Join(dstDir, backupnames.RestoreInProgressFilename)

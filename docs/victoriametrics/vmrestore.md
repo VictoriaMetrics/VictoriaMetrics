@@ -46,6 +46,63 @@ Run the following command to restore backup from the given `-src` into the given
 The original `-storageDataPath` directory may contain old files. They will be substituted by the files from backup,
 i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/questions/476041/how-do-i-make-rsync-delete-files-that-have-been-deleted-from-the-source-folder).
 
+## Partial restore
+
+By default `vmrestore` downloads every partition from the backup. Use [`-restoreSince`](https://docs.victoriametrics.com/victoriametrics/vmrestore/#restore-only-recent-data)
+or [`-restorePartitions`](https://docs.victoriametrics.com/victoriametrics/vmrestore/#restore-specific-partitions) to
+restore only a subset of partitions and reduce both download time and disk usage.
+This is useful when only recent data is needed and over-provisioning storage is undesirable
+(for example, Kubernetes PVCs that can expand but not shrink), or when restoring a few months
+of production data into a test environment.
+
+> **Warning:** local partitions in `-storageDataPath` that are not restored are removed.
+
+> **Note:** partial restore skips the legacy, non-partitioned IndexDB, which storage created before
+> [v1.133.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11330) keeps until retention rotates it out
+> (see [#7599](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7599)). It covers all partitions, so it can't be
+> restored partially, and it is usually large, so restoring it in full would defeat the purpose of partial restore.
+> Data indexed only in the legacy IndexDB isn't searchable after a partial restore; restore the backup in full if you need it.
+
+[`-restoreSince`](https://docs.victoriametrics.com/victoriametrics/vmrestore/#restore-only-recent-data) and
+[`-restorePartitions`](https://docs.victoriametrics.com/victoriametrics/vmrestore/#restore-specific-partitions)
+can be combined — only partitions that satisfy both filters are restored.
+
+### Restore only recent data
+
+Use `-restoreSince=<duration>` to restore every monthly partition that overlaps the last `<duration>`{{% available_from "#" %}}:
+
+```sh
+./vmrestore -src=<storageType>://<path/to/backup> -storageDataPath=<local/path/to/restore> \
+  -restoreSince=5d
+```
+
+VictoriaMetrics stores data in monthly partitions (named `YYYY_MM`), so partitions are restored whole
+and may contain data older than `<duration>`. For example, `-restoreSince=5d` run on 2026-11-03
+restores two partitions: `2026_10` and `2026_11`.
+
+> **Note:** `-restoreSince` computes the cutoff relative to the current time each run.
+> If `vmrestore` is interrupted and restarted after time passes, the set of selected
+> partitions may differ from the first run, which can result in an inconsistent restore.
+> For a fully resumable partial restore, prefer `-restorePartitions` with explicit
+> partition names instead.
+
+### Restore specific partitions
+
+Use `-restorePartitions` with a regular expression matched against partition names to select
+which partitions to download{{% available_from "#" %}}:
+
+```sh
+./vmrestore -src=<storageType>://<path/to/backup> -storageDataPath=<local/path/to/restore> \
+  -restorePartitions=2026_05
+```
+
+Partition names follow the `YYYY_MM` format used by VictoriaMetrics storage, and the regexp is
+matched unanchored against that name. For example, `-restorePartitions='2026_.*'` restores every
+partition in 2026, and `-restorePartitions='2026_(0[1-6])'` restores only the first half of 2026.
+To restore a fixed set of specific months, alternate them explicitly, e.g.
+`-restorePartitions='2026_05|2026_06'`.
+Non-partition files (metadata etc.) are always restored regardless of this flag.
+
 ## Troubleshooting
 
 * See [Connecting VM components to cloud storage](https://docs.victoriametrics.com/guides/connecting-vm-components-to-cloud-storage/) for instructions on configuring credentials.
@@ -207,6 +264,11 @@ Run `vmrestore -help` in order to see all the available options:
      See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html
   -s3TLSInsecureSkipVerify
      Whether to skip TLS verification when connecting to the S3 endpoint.
+  -restorePartitions string
+     If set, restores every monthly partition whose name (YYYY_MM) matches the restorePartitions regular expression. Non-partition files (metadata, etc.) are always restored. For example, -restorePartitions='2026_0[1-6]' restores 2026_01 through 2026_06. Local partitions in -storageDataPath that are not restored are removed.
+  -restoreSince value
+     If set, restores every monthly partition that overlaps the last restoreSince. Partitions are restored whole, so they may contain data older than restoreSince. For example, -restoreSince=5d run on 2026-11-03 restores two partitions: 2026_10 and 2026_11. This reduces the download size when only recent data is needed and helps avoid over-provisioning disk space. Local partitions in -storageDataPath that are not restored are removed.
+     The following optional suffixes are supported: s (second), h (hour), d (day), w (week), M (month), y (year). If suffix isn't set, then the duration is counted in months
   -skipBackupCompleteCheck
      Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file
   -src string

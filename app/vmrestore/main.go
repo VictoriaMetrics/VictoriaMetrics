@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/actions"
@@ -32,6 +33,14 @@ var (
 	maxBytesPerSecond       = flagutil.NewBytes("maxBytesPerSecond", 0, "The maximum download speed. There is no limit if it is set to 0")
 	skipBackupCompleteCheck = flag.Bool("skipBackupCompleteCheck", false, "Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file")
 	SkipPreallocation       = flag.Bool("skipFilePreallocation", false, "Whether to skip pre-allocated files. This will likely be slower in most cases, but allows restores to resume mid file on failure")
+	restoreSince            = flagutil.NewRetentionDuration("restoreSince", "", "If set, restores every monthly partition that overlaps the last restoreSince. Partitions are restored whole, so they may contain data older than restoreSince. "+
+		"For example, -restoreSince=5d run on 2026-11-03 restores two partitions: 2026_10 and 2026_11. "+
+		"This reduces the download size when only recent data is needed and helps avoid over-provisioning disk space. "+
+		"Local partitions in -storageDataPath that are not restored are removed.")
+	restorePartitions = flag.String("restorePartitions", "", "If set, restores every monthly partition whose name (YYYY_MM) matches the restorePartitions regular expression. "+
+		"Non-partition files (metadata, etc.) are always restored. "+
+		"For example, -restorePartitions='2026_0[1-6]' restores 2026_01 through 2026_06. "+
+		"Local partitions in -storageDataPath that are not restored are removed.")
 )
 
 func main() {
@@ -42,6 +51,15 @@ func main() {
 	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
+
+	var restorePartitionsRe *regexp.Regexp
+	if *restorePartitions != "" {
+		re, err := regexp.Compile(*restorePartitions)
+		if err != nil {
+			logger.Fatalf("invalid -restorePartitions=%q: %s", *restorePartitions, err)
+		}
+		restorePartitionsRe = re
+	}
 
 	listenAddrs := []string{*httpListenAddr}
 	httpserver.CheckHealth(listenAddrs)
@@ -68,6 +86,8 @@ func main() {
 		Dst:                     dstFS,
 		SkipBackupCompleteCheck: *skipBackupCompleteCheck,
 		SkipPreallocation:       *SkipPreallocation,
+		RestoreSince:            restoreSince.Duration(),
+		RestorePartitions:       restorePartitionsRe,
 	}
 	pushmetrics.Init()
 	if err := a.Run(ctx); err != nil {
