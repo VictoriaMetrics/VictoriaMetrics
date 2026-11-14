@@ -47,6 +47,7 @@ func (u *Unit) String() string {
 // 0:0 1788220800000 1792673981569 go_info
 // See u.String() method
 func isValidStateLine(line string) bool {
+	// block lines: block <ULID> <resolution> <aggregate>, see BlockUnit.String()
 	if strings.HasPrefix(line, "block ") {
 		a := strings.Split(line, " ")
 		return len(a) == 4 && a[1] != "" && a[2] != "" && a[3] != ""

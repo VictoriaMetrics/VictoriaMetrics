@@ -68,16 +68,27 @@ func TestBlockAckIndependent(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	got := make(chan error, 2)
+	type blockResult struct {
+		blockID string
+		err     error
+	}
+
+	got := make(chan blockResult, 2)
 
 	go func() {
 		defer wg.Done()
-		got <- im.WaitBlock(b1)
+		got <- blockResult{
+			blockID: "b1",
+			err:     im.WaitBlock(b1),
+		}
 	}()
 
 	go func() {
 		defer wg.Done()
-		got <- im.WaitBlock(b2)
+		got <- blockResult{
+			blockID: "b2",
+			err:     im.WaitBlock(b2),
+		}
 	}()
 
 	b1.finish(nil)
@@ -97,15 +108,17 @@ func TestBlockAckIndependent(t *testing.T) {
 
 	close(got)
 
-	var failures int
-	for err := range got {
-		if err != nil {
-			failures++
-		}
+	results := make(map[string]error, 2)
+	for result := range got {
+		results[result.blockID] = result.err
 	}
 
-	if failures != 1 {
-		t.Fatalf("unexpected failures: %d", failures)
+	if err := results["b1"]; err != nil {
+		t.Errorf("WaitBlock(b1) returned unexpected error: %v; want nil", err)
+	}
+
+	if err := results["b2"]; err == nil || err.Error() != "block 2 failed" {
+		t.Errorf("WaitBlock(b2) returned %v; want %q", err, "block 2 failed")
 	}
 }
 
