@@ -61,8 +61,10 @@ The migration identity includes the snapshot path, destination, account and
 extra labels, filters, and selected aggregate types. Changing one of these
 creates a separate state file. To intentionally start over, use a new empty
 state directory (or remove the specific state file after stopping vmctl).
-State files contain migration parameters and completed block identifiers, not
-authentication passwords or bearer tokens.
+Authentication credentials supplied through `--vm-password` and
+`--vm-bearer-token` are not stored in the state file. Avoid embedding
+credentials in `--vm-addr`, as the destination URL is part of the migration
+identity and may be stored in the state file.
 
 ### Migration steps
 

@@ -39,10 +39,12 @@ type thanosStateParams struct {
 	ExtraLabels                  []string
 	Filter                       thanos.Filter
 	AggrTypes                    []thanos.AggrType
+	SignificantFigures           int
+	RoundDigits                  int
 }
 
 func (tp *thanosProcessor) loadState() error {
-	pv := thanosStateParams{Snapshot: tp.cl.Snapshot(), DstAddr: tp.im.Addr(), AccountID: tp.im.AccountID(), ExtraLabels: tp.im.ExtraLabels(), Filter: tp.cl.Filter(), AggrTypes: tp.aggrTypes}
+	pv := thanosStateParams{Snapshot: tp.cl.Snapshot(), DstAddr: tp.im.Addr(), AccountID: tp.im.AccountID(), ExtraLabels: tp.im.ExtraLabels(), Filter: tp.cl.Filter(), AggrTypes: tp.aggrTypes, SignificantFigures: tp.im.SignificantFigures(), RoundDigits: tp.im.RoundDigits()}
 	b, err := json.Marshal(pv)
 	if err != nil {
 		return err

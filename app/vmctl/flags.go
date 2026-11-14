@@ -70,7 +70,7 @@ const stateDir = "state-dir"
 var stateFlags = []cli.Flag{
 	&cli.StringFlag{
 		Name:  stateDir,
-		Usage: "Directory for migration state files, which allow resuming interrupted migrations. The current working directory is used if empty.",
+		Usage: "Directory for migration state files, which allow resuming interrupted migrations. The current working directory is used if empty. See https://docs.victoriametrics.com/victoriametrics/vmctl/#resuming-migration",
 	},
 }
 
