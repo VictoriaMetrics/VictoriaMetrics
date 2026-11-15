@@ -61,7 +61,7 @@ Known deployment choices are included in one complete bundle. Otherwise, the bas
 
 If the score-writer destination is unknown, Copilot can still produce a **Draft** using `http://replace-me.invalid:8428`. Replace it with your real writer URL and confirm any cluster tenant; the reader destination is not automatically a writer. The placeholder must not be contacted. File cards and YAML comments list required substitutions, including deployment prerequisites where applicable.
 
-Configure vmalert to read the **score destination**, using its query endpoint and tenant. Supply an externally reachable vmanomaly URL if you want incident investigation links in alerts. Keep static rules that read raw metrics separate when they need a different datasource.
+Configure vmalert to read the **score destination**, using its query endpoint and tenant. Supply an externally reachable vmanomaly URL, including any reverse-proxy path prefix, for [incident investigation links in alerts](https://docs.victoriametrics.com/anomaly-detection/ui/#investigate-a-firing-alert). Investigation links currently require a shared VictoriaMetrics reader/writer URL and tenant, default output metric names, and the unmodified query key in the `for` label (see [writer metrics formatting](https://docs.victoriametrics.com/anomaly-detection/components/writer/#metrics-formatting)). Keep static rules that read raw metrics separate when they need a different datasource.
 
 Before deployment, review the queries and detection behavior on representative history, resource estimates, credentials, license and storage. Schema validation does not test connectivity, cluster compatibility or alert delivery. Generating files does not install anything or authorize writes to a destination.
 
