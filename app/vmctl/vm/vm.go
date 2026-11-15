@@ -308,7 +308,10 @@ const pbTpl = `{{ (cycle . "←" "↖" "↑" "↗" "→" "↘" "↓" "↙" ) }} 
 type ImportError struct {
 	// The batch of timeseries processed by importer at the moment
 	Batch []*TimeSeries
-	Err   error
+	// The error that appeared during insert
+	// If err is nil - no error happened and Batch
+	// Is the latest delivered Batch.
+	Err error
 }
 
 // Errors returns a channel for receiving
