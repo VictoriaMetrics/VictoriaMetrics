@@ -15,7 +15,6 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/mimir"
@@ -428,12 +427,10 @@ func main() {
 
 					var srcExtraLabels []string
 					srcAddr := strings.Trim(c.String(vmNativeSrcAddr), "/")
-					srcAuthConfig, err := auth.Generate(
-						auth.WithBasicAuth(c.String(vmNativeSrcUser), c.String(vmNativeSrcPassword)),
-						auth.WithBearer(c.String(vmNativeSrcBearerToken)),
-						auth.WithHeaders(c.String(vmNativeSrcHeaders)))
+					srcAuthConfig, err := newAuthConfig(c.String(vmNativeSrcUser), c.String(vmNativeSrcPassword),
+						c.String(vmNativeSrcBearerToken), c.String(vmNativeSrcHeaders))
 					if err != nil {
-						return fmt.Errorf("error initialize auth config for source: %s", srcAddr)
+						return fmt.Errorf("error initialize auth config for source: %s: %w", srcAddr, err)
 					}
 
 					// create TLS config
@@ -460,10 +457,8 @@ func main() {
 
 					dstAddr := strings.Trim(c.String(vmNativeDstAddr), "/")
 					dstExtraLabels := c.StringSlice(vmExtraLabel)
-					dstAuthConfig, err := auth.Generate(
-						auth.WithBasicAuth(c.String(vmNativeDstUser), c.String(vmNativeDstPassword)),
-						auth.WithBearer(c.String(vmNativeDstBearerToken)),
-						auth.WithHeaders(c.String(vmNativeDstHeaders)))
+					dstAuthConfig, err := newAuthConfig(c.String(vmNativeDstUser), c.String(vmNativeDstPassword),
+						c.String(vmNativeDstBearerToken), c.String(vmNativeDstHeaders))
 					if err != nil {
 						return fmt.Errorf("error initialize auth config for destination: %s: %w", dstAddr, err)
 					}
@@ -609,10 +604,7 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 		return vm.Config{}, fmt.Errorf("failed to create backoff object: %w", err)
 	}
 
-	authCfg, err := auth.Generate(
-		auth.WithBasicAuth(c.String(vmUser), c.String(vmPassword)),
-		auth.WithBearer(c.String(vmBearerToken)),
-		auth.WithHeaders(c.String(vmHeaders)))
+	authCfg, err := newAuthConfig(c.String(vmUser), c.String(vmPassword), c.String(vmBearerToken), c.String(vmHeaders))
 	if err != nil {
 		return vm.Config{}, fmt.Errorf("error initialize auth config for destination: %s: %w", addr, err)
 	}
@@ -631,6 +623,25 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 		RateLimit:          c.Int64(vmRateLimit),
 		Backoff:            bf,
 	}, nil
+}
+
+// newAuthConfig returns auth config for the given basic auth credentials, bearer token
+// and `^^`-separated list of headers in the `key: value` form.
+func newAuthConfig(username, password, bearerToken, headers string) (*promauth.Config, error) {
+	var hcc promauth.HTTPClientConfig
+	if username != "" || password != "" {
+		hcc.BasicAuth = &promauth.BasicAuthConfig{
+			Username: username,
+			Password: promauth.NewSecret(password),
+		}
+	}
+	if bearerToken != "" {
+		hcc.BearerToken = promauth.NewSecret(bearerToken)
+	}
+	if headers != "" {
+		hcc.Headers = strings.Split(headers, "^^")
+	}
+	return hcc.NewConfig(".")
 }
 
 // initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
