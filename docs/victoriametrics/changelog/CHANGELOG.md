@@ -27,11 +27,16 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 **Update Note 1:** `vmctl` in [vm-native](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/) mode: `--vm-native-filter-time-end` is now a required parameter. See [#11830](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11830) for details.
+**Update Note 2:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) change for [Vultr service discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#vultr_sd_configs): Vultr service discovery params now should be provided via `vultr_sd_configs` field. Previously, vmagent was expecting `vultr_configs` field to be set, which didn't match vmagent's documentation and Prometheus service discovery settings for Vultr. See [#]() for details. 
 
 * SECURITY: upgrade Go builder from Go1.27.3 to Go1.27.4. See [the list of issues addressed in Go1.27.4](https://github.com/golang/go/issues?q=milestone%3AGo1.27.4%20label%3ACherryPickApproved).
 
 * FEATURE: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): add `-respectGroupInterval` command-line flag to evaluate every rule group on its own `interval` instead of the file-wide `evaluation_interval`, the same way vmalert does. Groups without `interval` keep using `evaluation_interval`. The flag is disabled by default. See [#11383](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11383). Thanks @evkuzin for contribution.
 * FEATURE: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): allow resuming interrupted migrations in [vm-native mode](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/). vmctl tracks finished requests in a state file in the `--state-dir` directory (the current working directory by default), and a repeated run with the same flags continues the progress. `--vm-native-filter-time-end` is now required, so resumed runs migrate the same time range. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/#resuming-migration). See [issue #11763](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11763) and [change #11830](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11830) for details.
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): correctly parse [Vultr service discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#vultr_sd_configs) configuration provided via field `vultr_sd_configs`. Previously, vmagent was expecting `vultr_configs` field to be set, even though documentation was explicitly mentioning `vultr_sd_configs` field. The `vultr_sd_configs` field also matches [Prometheus service discovery settings for Vultr](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#vultr_sd_config). The bug was introduced in
+  [v1.102.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0). See [#6041](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6041).
+
 
 ## [v1.156.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.156.0)
 

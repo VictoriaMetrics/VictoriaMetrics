@@ -339,7 +339,7 @@ type ScrapeConfig struct {
 	OVHCloudSDConfigs     []ovhcloud.SDConfig     `yaml:"ovhcloud_sd_configs,omitempty"`
 	PuppetDBSDConfigs     []puppetdb.SDConfig     `yaml:"puppetdb_sd_configs,omitempty"`
 	StaticConfigs         []StaticConfig          `yaml:"static_configs,omitempty"`
-	VultrSDConfigs        []vultr.SDConfig        `yaml:"vultr_configs,omitempty"`
+	VultrSDConfigs        []vultr.SDConfig        `yaml:"vultr_sd_configs,omitempty"`
 	YandexCloudSDConfigs  []yandexcloud.SDConfig  `yaml:"yandexcloud_sd_configs,omitempty"`
 
 	// These options are supported only by lib/promscrape.
