@@ -178,10 +178,11 @@ func (c *Client) do(req *http.Request, expSC int) (*http.Response, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unexpected error when performing request: %w", err)
 	}
-	defer resp.Body.Close()
+	// don't defer body close, as the caller will consume body.
 
 	if resp.StatusCode != expSC {
 		body, err := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
 		if err != nil {
 			return nil, fmt.Errorf("failed to read response body for status code %d: %w", resp.StatusCode, err)
 		}
