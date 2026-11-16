@@ -420,6 +420,9 @@ func (sc *ScrapeConfig) mustStop() {
 	for i := range sc.LinodeSDConfigs {
 		sc.LinodeSDConfigs[i].MustStop()
 	}
+	for i := range sc.MarathonSDConfigs {
+		sc.MarathonSDConfigs[i].MustStop()
+	}
 	for i := range sc.NomadSDConfigs {
 		sc.NomadSDConfigs[i].MustStop()
 	}
