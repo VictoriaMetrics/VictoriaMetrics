@@ -36,6 +36,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): properly recover after a flush that takes longer than the aggregation or deduplication interval. Previously, such a flush could permanently shift aggregation results one interval into the future, and with [aggregation windows](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-windows) or [ignore_old_samples](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignoring-old-samples) enabled, all incoming samples were dropped as too old until restart. See [#11904](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11904).
 
+* BUGFIX: all VictoriaMetrics components: correctly match regular expressions of the form `.+text.+` (used in [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) rules and series label filters) when `text` appears at the start of the matched string. Previously such series could be silently dropped, for example `foofoox` did not match `.+foo.+`. See [#11941](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11941). Thanks to @amalsaidov for contribution.
+
 ## [v1.156.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.156.0)
 
 Released at 2026-11-09

@@ -140,9 +140,14 @@ func (r *Regex) matchStringNoPrefix(s string) bool {
 		return strings.Contains(s, r.substrDotStar)
 	}
 	if r.substrDotPlus != "" {
-		// Fast path - r contains ".+someText.+"
-		n := strings.Index(s, r.substrDotPlus)
-		return n > 0 && n+len(r.substrDotPlus) < len(s)
+		// Fast path - pr contains ".+someText.+"
+		if len(s) < len(r.substrDotPlus)+2 {
+			return false
+		}
+		// s may contain multiple substrDotPlus,
+		// so skip first char.
+		n := strings.Index(s[1:], r.substrDotPlus)
+		return n >= 0 && n+1+len(r.substrDotPlus) < len(s)
 	}
 
 	if len(r.orValues) == 0 {
@@ -179,9 +184,14 @@ func (r *Regex) matchStringWithPrefix(s string) bool {
 		return strings.Contains(s, r.substrDotStar)
 	}
 	if r.substrDotPlus != "" {
-		// Fast path - r contains ".+someText.+"
-		n := strings.Index(s, r.substrDotPlus)
-		return n > 0 && n+len(r.substrDotPlus) < len(s)
+		// Fast path - pr contains ".+someText.+"
+		if len(s) < len(r.substrDotPlus)+2 {
+			return false
+		}
+		// s may contain multiple substrDotPlus,
+		// so skip first char.
+		n := strings.Index(s[1:], r.substrDotPlus)
+		return n >= 0 && n+1+len(r.substrDotPlus) < len(s)
 	}
 
 	for {

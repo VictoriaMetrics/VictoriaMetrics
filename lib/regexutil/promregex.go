@@ -113,8 +113,13 @@ func (pr *PromRegex) MatchString(s string) bool {
 	}
 	if pr.substrDotPlus != "" {
 		// Fast path - pr contains ".+someText.+"
-		n := strings.Index(s, pr.substrDotPlus)
-		return n > 0 && n+len(pr.substrDotPlus) < len(s)
+		if len(s) < len(pr.substrDotPlus)+2 {
+			return false
+		}
+		// s may contain multiple substrDotPlus,
+		// so skip first char.
+		n := strings.Index(s[1:], pr.substrDotPlus)
+		return n >= 0 && n+1+len(pr.substrDotPlus) < len(s)
 	}
 
 	if len(pr.orValues) > 0 {
