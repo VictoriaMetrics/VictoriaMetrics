@@ -2,6 +2,7 @@ package notifier
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
@@ -153,7 +153,7 @@ func ValidateTemplates(annotations map[string]string) error {
 func templateAnnotations(annotations map[string]string, data AlertTplData, tmpl *textTpl.Template, execute bool) (map[string]string, error) {
 	var builder strings.Builder
 	var buf bytes.Buffer
-	eg := new(vmalertutil.ErrGroup)
+	var errs []error
 	r := make(map[string]string, len(annotations))
 	tData := tplData{data, externalLabels, externalURL}
 	header := strings.Join(tplHeaders, "")
@@ -174,12 +174,12 @@ func templateAnnotations(annotations map[string]string, data AlertTplData, tmpl 
 		ctmpl = ctmpl.Option("missingkey=zero")
 		if err := templateAnnotation(&buf, builder.String(), tData, ctmpl, execute); err != nil {
 			r[key] = err.Error()
-			eg.Add(fmt.Errorf("(key: %q, value: %q): %w", key, text, err))
+			errs = append(errs, fmt.Errorf("(key: %q, value: %q): %w", key, text, err))
 			continue
 		}
 		r[key] = buf.String()
 	}
-	return r, eg.Err()
+	return r, errors.Join(errs...)
 }
 
 type tplData struct {
