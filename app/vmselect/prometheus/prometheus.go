@@ -78,7 +78,9 @@ func ExpandWithExprs(w http.ResponseWriter, r *http.Request) {
 	format := r.FormValue("format")
 	maxLen := searchutil.GetMaxQueryLen()
 	if len(query) > maxLen {
-		httpserver.SendPrometheusError(w, r, httpserver.InvalidParamError(fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxLen)))
+		err := httpserver.InvalidParamError(fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxLen))
+		httpserver.LogHTTPError(r, err.Error())
+		httpserver.SendPrometheusError(w, r, err)
 		return
 	}
 	bw := bufferedwriter.Get(w)
@@ -98,7 +100,9 @@ func PrettifyQuery(w http.ResponseWriter, r *http.Request) {
 	query := r.FormValue("query")
 	maxLen := searchutil.GetMaxQueryLen()
 	if len(query) > maxLen {
-		httpserver.SendPrometheusError(w, r, httpserver.InvalidParamError(fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxLen)))
+		err := httpserver.InvalidParamError(fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxLen))
+		httpserver.LogHTTPError(r, err.Error())
+		httpserver.SendPrometheusError(w, r, err)
 		return
 	}
 	bw := bufferedwriter.Get(w)
