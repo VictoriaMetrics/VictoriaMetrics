@@ -1,0 +1,30 @@
+rule_files:
+  - group-interval-rules.yaml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    name: "every group is evaluated on its own interval"
+    input_series:
+      - series: "up"
+        values: "1x10"
+    metricsql_expr_test:
+      # evaluated at 0m, 1m, ... 10m
+      - expr: count_over_time(default_evals[1h])
+        eval_time: 10m
+        exp_samples:
+          - labels: '{}'
+            value: 11
+      # evaluated at 0m, 5m and 10m
+      - expr: count_over_time(slow_evals[1h])
+        eval_time: 10m
+        exp_samples:
+          - labels: '{}'
+            value: 3
+      # evaluated at 0m, 1m30s, 3m, 4m30s, 6m, 7m30s and 9m
+      - expr: count_over_time(unaligned_evals[1h])
+        eval_time: 9m
+        exp_samples:
+          - labels: '{}'
+            value: 7
