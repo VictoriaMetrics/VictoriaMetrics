@@ -304,7 +304,7 @@ func (im *Importer) Ping() error {
 	}
 	if im.authCfg != nil {
 		if err := im.authCfg.SetHeaders(req, true); err != nil {
-			return err
+			return fmt.Errorf("failed to set headers for %q: %w", im.addr, err)
 		}
 	}
 	resp, err := im.client.Do(req)
@@ -337,7 +337,7 @@ func (im *Importer) Import(tsBatch []*TimeSeries) error {
 	if im.authCfg != nil {
 		if err := im.authCfg.SetHeaders(req, true); err != nil {
 			im.importRequestsErrorsTotal.Inc()
-			return err
+			return fmt.Errorf("failed to set headers for %q: %w", im.addr, err)
 		}
 	}
 	if im.compress {

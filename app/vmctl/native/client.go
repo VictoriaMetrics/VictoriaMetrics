@@ -170,7 +170,7 @@ func (c *Client) GetSourceTenants(ctx context.Context, f Filter) ([]string, erro
 func (c *Client) do(req *http.Request, expSC int) (*http.Response, error) {
 	if c.AuthCfg != nil {
 		if err := c.AuthCfg.SetHeaders(req, true); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to set headers for %q: %w", c.Addr, err)
 		}
 	}
 
