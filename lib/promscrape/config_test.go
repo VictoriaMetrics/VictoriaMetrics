@@ -120,6 +120,12 @@ global:
   - action: labeldrop
     source_labels: [id]
 `)
+	f(`
+scrape_configs:
+- job_name: vultr
+  vultr_sd_configs:
+  - port: 80
+`)
 }
 
 func TestGetClusterMemberNumsForScrapeWork(t *testing.T) {
