@@ -37,7 +37,6 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): correctly parse [Vultr service discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#vultr_sd_configs) configuration provided via field `vultr_sd_configs`. Previously, vmagent was expecting `vultr_configs` field to be set, even though documentation was explicitly mentioning `vultr_sd_configs` field. The `vultr_sd_configs` field also matches [Prometheus service discovery settings for Vultr](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#vultr_sd_config). The bug was introduced in
   [v1.102.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0). See [#6041](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6041).
 
-
 ## [v1.156.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.156.0)
 
 Released at 2026-11-09
