@@ -19,12 +19,9 @@ func FuzzParse(f *testing.F) {
 	f.Add(snappy.Encode(nil, wr.MarshalProtobuf(nil)))
 	f.Add(encoding.CompressZSTDLevel(nil, wr.MarshalProtobuf(nil), 1))
 	f.Add([]byte{0xff, 0x00})
+	f.Add([]byte("(\xb5/\xfd\xd3000000000000\xd3C000"))
 	f.Fuzz(func(t *testing.T, data []byte) {
 		if len(data) > 4096 {
-			t.Skip()
-		}
-		// Skip known gozstd overflow until https://github.com/valyala/gozstd/pull/79 is merged and vendored.
-		if bytes.Equal(data, []byte("(\xb5/\xfd\xd3000000000000\xd3C000")) {
 			t.Skip()
 		}
 		_ = Parse(bytes.NewReader(data), true, func([]prompb.TimeSeries, []prompb.MetricMetadata) error {
@@ -56,11 +53,16 @@ func FuzzStructuredWriteRequest(f *testing.F) {
 			},
 		).Fill(&generated)
 		message := generated.MarshalProtobuf(nil)
-		_ = Parse(bytes.NewReader(snappy.Encode(nil, message)), true, func([]prompb.TimeSeries, []prompb.MetricMetadata) error {
-			return nil
-		})
-		_ = Parse(bytes.NewReader(encoding.CompressZSTDLevel(nil, message, 1)), true, func([]prompb.TimeSeries, []prompb.MetricMetadata) error {
-			return nil
-		})
+		for _, body := range [][]byte{
+			snappy.Encode(nil, message),
+			encoding.CompressZSTDLevel(nil, message, 1),
+		} {
+			// Exercise both codec selections and their queue-compatibility fallbacks.
+			for _, isVMRemoteWrite := range []bool{false, true} {
+				_ = Parse(bytes.NewReader(body), isVMRemoteWrite, func([]prompb.TimeSeries, []prompb.MetricMetadata) error {
+					return nil
+				})
+			}
+		}
 	})
 }

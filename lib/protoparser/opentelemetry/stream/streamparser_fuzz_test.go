@@ -36,6 +36,7 @@ func FuzzParseStreamEncodings(f *testing.F) {
 	f.Add(valid, uint8(1))
 	f.Add(valid, uint8(2))
 	f.Add([]byte{0x0a, 0xff}, uint8(0))
+	f.Add([]byte{0x28, 0xb5, 0x2f, 0xfd}, uint8(0))
 	f.Fuzz(func(t *testing.T, data []byte, level uint8) {
 		if len(data) > 4096 {
 			t.Skip()
@@ -50,6 +51,7 @@ func FuzzParseStreamEncodings(f *testing.F) {
 		}
 		levels := []int{1, 3, 5}
 		for _, body := range [][]byte{
+			data, // Preserve malformed compressed frames instead of always recompressing input.
 			buf.Bytes(),
 			snappy.Encode(nil, data),
 			encoding.CompressZSTDLevel(nil, data, levels[int(level)%len(levels)]),
