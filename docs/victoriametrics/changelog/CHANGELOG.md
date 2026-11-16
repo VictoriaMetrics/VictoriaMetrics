@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [docs/integrations](https://docs.victoriametrics.com/victoriametrics/integrations/): add [integration with Nightingale](https://docs.victoriametrics.com/victoriametrics/integrations/nightingale/), a monitoring and alerting platform that uses VictoriaMetrics as a datasource and remote storage. See [#11886](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11886).
+* FEATURE: [docs/integrations](https://docs.victoriametrics.com/victoriametrics/integrations/): add [integration with Nightingale](https://docs.victoriametrics.com/victoriametrics/integrations/nightingale/), a monitoring and alerting platform that uses VictoriaMetrics as a datasource and remote storage. See [#11886](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11886). Thanks to @710leo for the contribution.
 
 ## [v1.156.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.156.0)
 
