@@ -119,7 +119,7 @@ specified individually per each `-remoteWrite.url`:
   # no_align_flush_to_interval: false
 
   # flush_on_shutdown instructs to flush aggregated data to the storage on the first and the last intervals
-  # during vmagent starts, restarts or configuration reloads.
+  # during vmagent starts, restarts or configuration reloads, which change this aggregation config.
   # Incomplete aggregated data isn't flushed to the storage by default, since it is usually confusing.
   #
   # flush_on_shutdown: false
@@ -198,6 +198,9 @@ support the following approaches for hot reloading stream aggregation configs fr
   ```
 
 * By sending HTTP request to `/-/reload` endpoint (e.g. `http://vmagent:8429/-/reload` or `http://victoria-metrics:8428/-/reload`).
+
+Only the changed aggregation configs are restarted on reload. {{% available_from "#" %}} The aggregation config is considered unchanged
+if it stays identical and keeps the same position in the config file. Unchanged aggregation configs keep their aggregation state.
 
 ## Aggregation outputs
 
