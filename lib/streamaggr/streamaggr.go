@@ -22,7 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 	"gopkg.in/yaml.v2"
 )
@@ -792,8 +791,8 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlu
 		if dSleep <= 0 {
 			return
 		}
-		timer := timerpool.Get(dSleep)
-		defer timerpool.Put(timer)
+		timer := time.NewTimer(dSleep)
+		defer timer.Stop()
 		select {
 		case <-a.stopCh:
 		case <-timer.C:
@@ -848,6 +847,14 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlu
 			}
 			if a.dedupInterval <= 0 {
 				cs.maxDeadline = flushTime.UnixMilli()
+			} else {
+				// The flush may take longer than dedupInterval, skip the passed dedup flush times as well.
+				dedupTime := time.UnixMilli(cs.maxDeadline)
+				for time.Now().After(dedupTime) {
+					dedupTime = dedupTime.Add(a.dedupInterval)
+					a.da.flushSkipped.Inc()
+				}
+				cs.maxDeadline = dedupTime.UnixMilli()
 			}
 		}
 		if a.enableWindows {
