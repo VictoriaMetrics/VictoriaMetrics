@@ -483,6 +483,9 @@ func validateJWTPlaceholdersForURL(up *URLPrefix, isAllowed bool) error {
 
 func parsePlaceholdersForHC(hc *HeadersConf, isAllowed bool) error {
 	for _, rhs := range hc.RequestHeaders {
+		if rhs == nil {
+			return fmt.Errorf("request header cannot be null")
+		}
 		ok := strings.Contains(rhs.Value, placeholderPrefix)
 		if ok && !isAllowed {
 			return fmt.Errorf("request header: %q placeholder: %q is only supported at JWT context", rhs.Name, rhs.Value)
@@ -495,6 +498,9 @@ func parsePlaceholdersForHC(hc *HeadersConf, isAllowed bool) error {
 		}
 	}
 	for _, rhs := range hc.ResponseHeaders {
+		if rhs == nil {
+			return fmt.Errorf("response header cannot be null")
+		}
 		if strings.Contains(rhs.Value, placeholderPrefix) {
 			return fmt.Errorf("response header placeholders are not supported; found placeholder prefix at header: %q with value: %q", rhs.Name, rhs.Value)
 		}
