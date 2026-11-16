@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"hash/fnv"
@@ -13,7 +14,6 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/log"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
@@ -265,22 +265,22 @@ func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressio
 }
 
 func parse(files map[string][]byte, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
-	errGroup := new(vmalertutil.ErrGroup)
+	var errs []error
 	var groups []Group
 	for file, data := range files {
 		uniqueGroups := map[string]struct{}{}
 		gr, err := parseConfig(data)
 		if err != nil {
-			errGroup.Add(fmt.Errorf("failed to parse file %q: %w", file, err))
+			errs = append(errs, fmt.Errorf("failed to parse file %q: %w", file, err))
 			continue
 		}
 		for _, g := range gr {
 			if err := g.Validate(validateTplFn, validateExpressions); err != nil {
-				errGroup.Add(fmt.Errorf("invalid group %q in file %q: %w", g.Name, file, err))
+				errs = append(errs, fmt.Errorf("invalid group %q in file %q: %w", g.Name, file, err))
 				continue
 			}
 			if _, ok := uniqueGroups[g.Name]; ok {
-				errGroup.Add(fmt.Errorf("group name %q duplicate in file %q", g.Name, file))
+				errs = append(errs, fmt.Errorf("group name %q duplicate in file %q", g.Name, file))
 				continue
 			}
 			uniqueGroups[g.Name] = struct{}{}
@@ -288,7 +288,7 @@ func parse(files map[string][]byte, validateTplFn ValidateTplFn, validateExpress
 			groups = append(groups, g)
 		}
 	}
-	if err := errGroup.Err(); err != nil {
+	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
 	return groups, nil
