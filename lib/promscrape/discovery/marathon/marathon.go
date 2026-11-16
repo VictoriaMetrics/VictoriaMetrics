@@ -45,7 +45,13 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
 
 // MustStop stops further usage for sdc.
 func (sdc *SDConfig) MustStop() {
-	_ = configMap.Delete(sdc)
+	v := configMap.Delete(sdc)
+	if v != nil {
+		cfg := v.(*apiConfig)
+		for _, client := range cfg.cs {
+			client.Stop()
+		}
+	}
 }
 
 // getAppsLabels takes an array of Marathon apps and converts them into labels.
