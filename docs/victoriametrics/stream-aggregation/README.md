@@ -482,9 +482,9 @@ For example:
 - if `interval: 1h` is set, then the aggregated data is flushed to the storage at the end of every hour
 
 If you do not need such an alignment, then set the `no_align_flush_to_interval: true` option in the [aggregate config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
-In this case, aggregated data flushes will be aligned to the `vmagent` start time or to [config reload](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#configuration-update) time.
+In this case, aggregated data flushes will be aligned to the `vmagent` start time or to the time the aggregation config was changed during [config reload](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#configuration-update).
 
-The aggregated data on the first and the last interval is dropped during `vmagent` start, restart, or [config reload](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#configuration-update),
+The aggregated data on the first and the last interval is dropped during `vmagent` start, restart, or when the aggregation config is changed during [config reload](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#configuration-update),
 since the first and last aggregation intervals are incomplete, they usually contain incomplete, confusing data.
 If you need to preserve the aggregated data on these intervals, then set `flush_on_shutdown: true` option in the [aggregate config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
 
