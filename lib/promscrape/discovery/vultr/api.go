@@ -54,7 +54,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 
 	// Prepare additional query params for list instance API.
 	// See https://www.vultr.com/api/#tag/instances/operation/list-instances
-	var qp url.Values
+	qp := make(url.Values)
 	if sdc.Label != "" {
 		qp.Set("label", sdc.Label)
 	}
