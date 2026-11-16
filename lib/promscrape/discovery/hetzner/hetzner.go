@@ -46,5 +46,9 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
 
 // MustStop stops further usage for sdc.
 func (sdc *SDConfig) MustStop() {
-	configMap.Delete(sdc)
+	v := configMap.Delete(sdc)
+	if v != nil {
+		cfg := v.(*apiConfig)
+		cfg.client.Stop()
+	}
 }
