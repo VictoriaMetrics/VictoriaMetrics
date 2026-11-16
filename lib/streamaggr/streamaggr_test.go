@@ -325,3 +325,25 @@ func TestFlushLag(t *testing.T) {
 	f([]push{{true, 15000, 0}}, 9*time.Second)
 	f([]push{{false, 0, 15000}}, 9*time.Second)
 }
+
+func TestLoadFromDataNullConfig(t *testing.T) {
+	tests := []struct {
+		name   string
+		config string
+	}{
+		{"null rule", "- null\n"},
+		{"null rule after valid rule", "- interval: 1m\n  outputs: [count_samples]\n- null\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a, err := LoadFromData([]byte(tt.config), func([]prompb.TimeSeries) {}, nil, "test")
+			if a != nil {
+				a.MustStop()
+				t.Fatal("expected nil aggregators")
+			}
+			if err == nil || !strings.Contains(err.Error(), "missing aggregation config") {
+				t.Fatalf("unexpected error: %v; want missing aggregation config", err)
+			}
+		})
+	}
+}
