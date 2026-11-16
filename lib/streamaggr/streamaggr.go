@@ -22,7 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 	"gopkg.in/yaml.v2"
 )
@@ -446,6 +445,7 @@ type aggregator struct {
 	ignoredOldSamplesLag *metrics.Summary
 
 	flushTimeouts     *metrics.Counter
+	flushSkipped      *metrics.Counter
 	ignoredOldSamples *metrics.Counter
 	ignoredNaNSamples *metrics.Counter
 	matchedSamples    *metrics.Counter
@@ -658,6 +658,7 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 
 		matchedSamples:    ms.NewCounter(fmt.Sprintf(`vm_streamaggr_matched_samples_total{%s}`, metricLabels)),
 		flushTimeouts:     ms.NewCounter(fmt.Sprintf(`vm_streamaggr_flush_timeouts_total{%s}`, metricLabels)),
+		flushSkipped:      ms.NewCounter(fmt.Sprintf(`vm_streamaggr_flush_skipped_total{%s}`, metricLabels)),
 		ignoredNaNSamples: ms.NewCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="nan",%s}`, metricLabels)),
 		ignoredOldSamples: ms.NewCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="too_old",%s}`, metricLabels)),
 	}
@@ -790,8 +791,8 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlu
 		if dSleep <= 0 {
 			return
 		}
-		timer := timerpool.Get(dSleep)
-		defer timerpool.Put(timer)
+		timer := time.NewTimer(dSleep)
+		defer timer.Stop()
 		select {
 		case <-a.stopCh:
 		case <-timer.C:
@@ -799,11 +800,17 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlu
 	}
 
 	tickerWait := func(t *time.Ticker) bool {
-		select {
-		case <-a.stopCh:
-			return false
-		case <-t.C:
-			return true
+		for {
+			select {
+			case <-a.stopCh:
+				return false
+			case ct := <-t.C:
+				// check if the current tick is stale and should be ignored,
+				// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11904.
+				if !isStaleTick(ct, a.cs.Load().maxDeadline, interval) {
+					return true
+				}
+			}
 		}
 	}
 
@@ -832,23 +839,28 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlu
 				a.flush(pf, flushTime, cs, false)
 			}
 			flushTime = flushTime.Add(a.interval)
+			// If the flush delay and the flush took longer than the interval, the next flush time has already passed.
+			// Skip the passed flush times, and their samples will be flushed together at the next upcoming one.
 			for time.Now().After(flushTime) {
 				flushTime = flushTime.Add(a.interval)
+				a.flushSkipped.Inc()
 			}
 			if a.dedupInterval <= 0 {
 				cs.maxDeadline = flushTime.UnixMilli()
+			} else {
+				// The flush may take longer than dedupInterval, skip the passed dedup flush times as well.
+				dedupTime := time.UnixMilli(cs.maxDeadline)
+				for time.Now().After(dedupTime) {
+					dedupTime = dedupTime.Add(a.dedupInterval)
+					a.da.flushSkipped.Inc()
+				}
+				cs.maxDeadline = dedupTime.UnixMilli()
 			}
 		}
 		if a.enableWindows {
 			cs.isGreen = !cs.isGreen
 		}
 		a.cs.Store(cs)
-		if alignFlushToInterval {
-			select {
-			case <-t.C:
-			default:
-			}
-		}
 	}
 
 	cs := a.cs.Load()
@@ -872,6 +884,13 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlu
 	a.flush(pf, flushTime, cs, true)
 }
 
+// isStaleTick checks if the tickTime belongs to a stale flush interval.
+// A valid tick should fire at about maxDeadline, while a stale tick can fire one or more intervals earlier.
+// The interval/2 margin should tolerate ticks firing slightly early or late.
+func isStaleTick(tickTime time.Time, maxDeadline int64, interval time.Duration) bool {
+	return tickTime.Add(interval / 2).Before(time.UnixMilli(maxDeadline))
+}
+
 func (a *aggregator) dedupFlush(dedupTime time.Time, cs *currentState) {
 	if a.dedupInterval <= 0 {
 		// The de-duplication is disabled.
@@ -892,8 +911,12 @@ func (a *aggregator) dedupFlush(dedupTime time.Time, cs *currentState) {
 			"possible solutions: increase dedup_interval; use match filter matching smaller number of series; "+
 			"reduce samples' ingestion rate to stream aggregation", a.dedupInterval, d.Seconds())
 	}
+	dedupTime = dedupTime.Add(a.dedupInterval)
+	// If the flush delay and the flush took longer than the interval, the next flush time has already passed.
+	// Skip the passed flush times, and their samples will be flushed together at the next upcoming one.
 	for time.Now().After(dedupTime) {
 		dedupTime = dedupTime.Add(a.dedupInterval)
+		a.da.flushSkipped.Inc()
 	}
 	cs.maxDeadline = dedupTime.UnixMilli()
 }
