@@ -26,6 +26,7 @@ A time series is considered active if the database received at least one sample 
 For example, given a [Node exporter](https://prometheus.io/docs/guides/node-exporter/)
 that exposes 1000 time series per instance and a total of 50 instances, the approximate number of Active Time series is `1000 * 50 = 50,000`.
 
+For VictoriaMetrics, get the max number of Active Time Series over the last 24h by running the following query:
 ```metricsql
 sum(max_over_time(vm_cache_entries{type="storage/hour_metric_ids"}[24h]))
 ```
@@ -130,8 +131,6 @@ Disk size = (Data size + Index size) * 1.25
 ```
 
 The `1.25` multiplier keeps at least 20% of free disk space, which VictoriaMetrics needs for background merges and efficient compression.
-
-If [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) is enabled, make sure the free disk space is at least one month of ingested data: the monthly final deduplication temporarily needs as much space as the previous month's data. Set `-storage.minFreeDiskSpaceBytes` accordingly.
 
 VictoriaMetrics stores data in monthly partitions. Entire partitions outside the configured retention are deleted on the first day of a new month. Data parts fully outside retention can also be deleted during background merges. For conservative capacity planning, allow for up to one additional month of data beyond the configured retention period.
 
