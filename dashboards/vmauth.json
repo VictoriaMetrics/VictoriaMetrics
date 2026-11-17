@@ -1756,6 +1756,137 @@
             "type": "prometheus",
             "uid": "$ds"
           },
+          "description": "Shows the percentage of open file descriptors compared to the limit set in the OS.\nReaching the limit of open files can cause various issues and must be prevented.\n\nSee how to change limits here https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 2,
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "percentunit"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "max"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "#C4162A",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 79
+          },
+          "id": 20,
+          "options": {
+            "annotations": {
+              "clustering": -1,
+              "multiLane": false
+            },
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(\n    max_over_time(process_open_fds{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_max_fds{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Open FDs ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
           "description": "CPU pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html) and quota throttling by [Linux cgroup CPU controller](https://docs.kernel.org/admin-guide/cgroup-v2.html#cpu-interface-files) \n\n**Lower is better.**\n\nPressure is measured as amount of time within 1sec time window the process was:\n- waiting: at least one task in the process was ready to run (runnable) but couldn't get scheduled on the CPU.\n- stalled: all tasks in the process (except idle ones) were unable to get CPU time — a full CPU stall.\n\nIf there's a CPU burst, it's normal to see waiting or stalled > 100ms. It only becomes a concern if it consistently climbs above 50-100ms and aligns with latency spikes or GC slowdowns.\n\nCPU quota throttling is shown as the average throttled time per second over each rate interval.\n- throttled: CPU throttling time recorded when the cgroup exhausts its CPU quota. \n\nIf CPU throttling stays elevated, it means the process is throttled by cgroup CPU controller. Consider increasing the cgroup’s CPU quota.",
           "fieldConfig": {
             "defaults": {
@@ -1816,7 +1947,7 @@
           "gridPos": {
             "h": 8,
             "w": 12,
-            "x": 0,
+            "x": 12,
             "y": 79
           },
           "id": 49,
@@ -1852,7 +1983,7 @@
               "hide": false,
               "interval": "",
               "intervalFactor": 2,
-              "legendFormat": "{{job}} - waiting",
+              "legendFormat": "{{job}} - {{instance}} -waiting",
               "range": true,
               "refId": "A"
             },
@@ -1867,7 +1998,7 @@
               "hide": false,
               "interval": "",
               "intervalFactor": 2,
-              "legendFormat": "{{job}} - stalled",
+              "legendFormat": "{{job}} - {{instance}} - stalled",
               "range": true,
               "refId": "B"
             },
@@ -1880,124 +2011,12 @@
               "expr": "max(rate(process_cgroup_cpu_throttled_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job, instance)",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{job}} - throttled",
+              "legendFormat": "{{job}} - {{instance}} - throttled",
               "range": true,
               "refId": "C"
             }
           ],
           "title": "CPU pressure and throttling",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 79
-          },
-          "id": 24,
-          "options": {
-            "annotations": {
-              "clustering": -1,
-              "multiLane": false
-            },
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true,
-              "sortBy": "Last *",
-              "sortDesc": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "12.2.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "expr": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
-              "format": "time_series",
-              "intervalFactor": 1,
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "TCP connections rate ($instance)",
           "type": "timeseries"
         },
         {
@@ -2156,7 +2175,6 @@
                   "mode": "off"
                 }
               },
-              "decimals": 0,
               "mappings": [],
               "min": 0,
               "thresholds": {
@@ -2182,7 +2200,7 @@
             "x": 12,
             "y": 87
           },
-          "id": 21,
+          "id": 24,
           "options": {
             "annotations": {
               "clustering": -1,
@@ -2214,15 +2232,15 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(max_over_time(go_goroutines{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
+              "expr": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
               "format": "time_series",
-              "intervalFactor": 2,
+              "intervalFactor": 1,
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Goroutines ($instance)",
+          "title": "TCP connections rate ($instance)",
           "type": "timeseries"
         },
         {
@@ -2343,7 +2361,6 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the percentage of open file descriptors compared to the limit set in the OS.\nReaching the limit of open files can cause various issues and must be prevented.\n\nSee how to change limits here https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2358,7 +2375,7 @@
                 "barAlignment": 0,
                 "barWidthFactor": 0.6,
                 "drawStyle": "line",
-                "fillOpacity": 0,
+                "fillOpacity": 10,
                 "gradientMode": "none",
                 "hideFrom": {
                   "legend": false,
@@ -2383,7 +2400,7 @@
                   "mode": "off"
                 }
               },
-              "decimals": 2,
+              "decimals": 0,
               "mappings": [],
               "min": 0,
               "thresholds": {
@@ -2399,25 +2416,9 @@
                   }
                 ]
               },
-              "unit": "percentunit"
+              "unit": "short"
             },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "max"
-                },
-                "properties": [
-                  {
-                    "id": "color",
-                    "value": {
-                      "fixedColor": "#C4162A",
-                      "mode": "fixed"
-                    }
-                  }
-                ]
-              }
-            ]
+            "overrides": []
           },
           "gridPos": {
             "h": 8,
@@ -2425,7 +2426,7 @@
             "x": 12,
             "y": 95
           },
-          "id": 20,
+          "id": 21,
           "options": {
             "annotations": {
               "clustering": -1,
@@ -2457,16 +2458,15 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(\n    max_over_time(process_open_fds{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_max_fds{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "expr": "sum(max_over_time(go_goroutines{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
               "format": "time_series",
-              "interval": "",
               "intervalFactor": 2,
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Open FDs ($instance)",
+          "title": "Goroutines ($instance)",
           "type": "timeseries"
         }
       ],
@@ -2549,7 +2549,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 249
+            "y": 340
           },
           "id": 34,
           "options": {
@@ -2668,7 +2668,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 249
+            "y": 340
           },
           "id": 8,
           "options": {
@@ -2774,7 +2774,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 257
+            "y": 348
           },
           "id": 41,
           "options": {
@@ -2884,7 +2884,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 257
+            "y": 348
           },
           "id": 39,
           "links": [
@@ -3024,7 +3024,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 250
+            "y": 341
           },
           "id": 28,
           "options": {
@@ -3151,7 +3151,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 250
+            "y": 341
           },
           "id": 27,
           "options": {
