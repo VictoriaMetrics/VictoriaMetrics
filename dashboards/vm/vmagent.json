@@ -51,6 +51,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
+  "id": 4,
   "links": [
     {
       "icon": "doc",
@@ -1768,7 +1769,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 141
+            "y": 118
           },
           "id": 111,
           "options": {
@@ -1883,7 +1884,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 141
+            "y": 118
           },
           "id": 157,
           "options": {
@@ -1995,7 +1996,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 196
+            "y": 126
           },
           "id": 155,
           "options": {
@@ -2041,7 +2042,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "CPU pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\n**Lower is better.**\n\nPressure is measured as amount of time within 1sec time window the process was:\n- waiting: at least one task in the process was ready to run (runnable) but couldn't get scheduled on the CPU.\n- stalled: all tasks in the process (except idle ones) were unable to get CPU time — a full CPU stall.\n\nIf there's a CPU burst, it's normal to see waiting or stalled > 100ms. It only becomes a concern if it consistently climbs above 50-100ms and aligns with latency spikes or GC slowdowns.",
+          "description": "CPU pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html) and quota throttling by [Linux cgroup CPU controller](https://docs.kernel.org/admin-guide/cgroup-v2.html#cpu-interface-files) \n\n**Lower is better.**\n\nPressure is measured as amount of time within 1sec time window the process was:\n- waiting: at least one task in the process was ready to run (runnable) but couldn't get scheduled on the CPU.\n- stalled: all tasks in the process (except idle ones) were unable to get CPU time — a full CPU stall.\n\nIf there's a CPU burst, it's normal to see waiting or stalled > 100ms. It only becomes a concern if it consistently climbs above 50-100ms and aligns with latency spikes or GC slowdowns.\n\nCPU quota throttling is shown as the average throttled time per second over each rate interval.\n- throttled: CPU throttling time recorded when the cgroup exhausts its CPU quota. \n\nIf CPU throttling stays elevated, it means the process is throttled by cgroup CPU controller. Consider increasing the cgroup’s CPU quota.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2102,7 +2103,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 196
+            "y": 126
           },
           "id": 158,
           "options": {
@@ -2132,7 +2133,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_pressure_cpu_waiting_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job, instance)",
+              "expr": "sum(rate(process_pressure_cpu_waiting_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job,instance)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
@@ -2146,7 +2147,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_pressure_cpu_stalled_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job, instance)",
+              "expr": "sum(rate(process_pressure_cpu_stalled_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job,instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2154,9 +2155,22 @@
               "legendFormat": "{{instance}} - stalled",
               "range": true,
               "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(rate(process_cgroup_cpu_throttled_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job,instance)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{instance}} - throttled",
+              "range": true,
+              "refId": "C"
             }
           ],
-          "title": "CPU pressure",
+          "title": "CPU pressure and throttling",
           "type": "timeseries"
         },
         {
@@ -2225,7 +2239,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 204
+            "y": 134
           },
           "id": 156,
           "options": {
@@ -2369,7 +2383,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 204
+            "y": 134
           },
           "id": 81,
           "options": {
@@ -2496,7 +2510,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 212
+            "y": 142
           },
           "id": 39,
           "options": {
@@ -2602,7 +2616,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 212
+            "y": 142
           },
           "id": 159,
           "options": {
@@ -2728,7 +2742,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 220
+            "y": 150
           },
           "id": 41,
           "options": {
@@ -2848,7 +2862,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 220
+            "y": 150
           },
           "id": 7,
           "options": {
@@ -2969,7 +2983,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 228
+            "y": 158
           },
           "id": 135,
           "options": {
@@ -3079,7 +3093,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 228
+            "y": 158
           },
           "id": 149,
           "options": {
@@ -3185,7 +3199,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 236
+            "y": 166
           },
           "id": 154,
           "options": {
@@ -3295,7 +3309,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 236
+            "y": 166
           },
           "id": 83,
           "options": {
@@ -3416,7 +3430,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 142
+            "y": 668
           },
           "id": 92,
           "options": {
@@ -3524,7 +3538,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 142
+            "y": 668
           },
           "id": 95,
           "options": {
@@ -3635,7 +3649,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 150
+            "y": 676
           },
           "id": 98,
           "options": {
@@ -3746,7 +3760,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 150
+            "y": 676
           },
           "id": 99,
           "options": {
@@ -3856,7 +3870,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 158
+            "y": 684
           },
           "id": 79,
           "options": {
@@ -3966,7 +3980,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 158
+            "y": 684
           },
           "id": 18,
           "links": [
@@ -4082,7 +4096,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 166
+            "y": 692
           },
           "id": 127,
           "options": {
@@ -4200,7 +4214,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 166
+            "y": 692
           },
           "id": 50,
           "options": {
@@ -4302,7 +4316,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 174
+            "y": 700
           },
           "id": 129,
           "options": {
@@ -4437,7 +4451,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 174
+            "y": 700
           },
           "id": 150,
           "options": {
@@ -4540,7 +4554,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 181
+            "y": 707
           },
           "id": 151,
           "options": {
@@ -4646,7 +4660,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 189
+            "y": 715
           },
           "id": 171,
           "options": {
@@ -4765,7 +4779,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 4209
+            "y": 4735
           },
           "id": 48,
           "options": {
@@ -4873,7 +4887,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 4209
+            "y": 4735
           },
           "id": 76,
           "options": {
@@ -4979,7 +4993,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 4216
+            "y": 4742
           },
           "id": 132,
           "options": {
@@ -5087,7 +5101,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 4216
+            "y": 4742
           },
           "id": 133,
           "options": {
@@ -5194,7 +5208,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4223
+            "y": 4749
           },
           "id": 20,
           "options": {
@@ -5300,7 +5314,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4223
+            "y": 4749
           },
           "id": 126,
           "options": {
@@ -5405,7 +5419,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4231
+            "y": 4757
           },
           "id": 46,
           "options": {
@@ -5510,7 +5524,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4231
+            "y": 4757
           },
           "id": 148,
           "options": {
@@ -5615,7 +5629,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4239
+            "y": 4765
           },
           "id": 31,
           "options": {
@@ -5721,123 +5735,6 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the rate of write requests served by ingestserver (UDP, TCP connections) and HTTP server.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "links": [],
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 3931
-          },
-          "id": 73,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "9.2.6",
-          "targets": [
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "exemplar": true,
-              "expr": "sum(rate(vm_ingestserver_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, type, net) > 0",
-              "interval": "",
-              "legendFormat": "{{net}}: {{ type }} ({{job}})",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "exemplar": true,
-              "expr": "sum(rate(vmagent_http_requests_total{job=~\"$job\", instance=~\"$instance\", protocol!=\"\"}[$__rate_interval])) by(job, protocol) > 0",
-              "interval": "",
-              "legendFormat": "{{ protocol }}: http ({{job}})",
-              "range": true,
-              "refId": "B"
-            }
-          ],
-          "title": "Requests rate  ($instance)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
           "description": "Shows the rate of data rows ingested from write requests. There are two kinds of rows:\n1. Raw sample: each sample consists of a value and a timestamp, see https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples. \n2. Metric metadata: refers to descriptive information about metrics. It can be disabled by setting `-enableMetadata=false`, see https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata.",
           "fieldConfig": {
             "defaults": {
@@ -5902,7 +5799,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 41
+            "y": 567
           },
           "id": 131,
           "options": {
@@ -5951,6 +5848,123 @@
             }
           ],
           "title": "Rows rate ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Shows the rate of write requests served by ingestserver (UDP, TCP connections) and HTTP server.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 4457
+          },
+          "id": 73,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.2.6",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "sum(rate(vm_ingestserver_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, type, net) > 0",
+              "interval": "",
+              "legendFormat": "{{net}}: {{ type }} ({{job}})",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "sum(rate(vmagent_http_requests_total{job=~\"$job\", instance=~\"$instance\", protocol!=\"\"}[$__rate_interval])) by(job, protocol) > 0",
+              "interval": "",
+              "legendFormat": "{{ protocol }}: http ({{job}})",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Requests rate  ($instance)",
           "type": "timeseries"
         },
         {
@@ -6019,7 +6033,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4207
+            "y": 4733
           },
           "id": 130,
           "options": {
@@ -6136,7 +6150,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4207
+            "y": 4733
           },
           "id": 77,
           "options": {
@@ -6261,7 +6275,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4254
+            "y": 4780
           },
           "id": 146,
           "options": {
@@ -6363,7 +6377,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4254
+            "y": 4780
           },
           "id": 143,
           "options": {
@@ -6459,7 +6473,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4262
+            "y": 4788
           },
           "id": 147,
           "options": {
@@ -6562,7 +6576,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4262
+            "y": 4788
           },
           "id": 139,
           "options": {
@@ -6673,7 +6687,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4270
+            "y": 4796
           },
           "id": 142,
           "options": {
@@ -6770,7 +6784,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4270
+            "y": 4796
           },
           "id": 137,
           "options": {
@@ -6883,7 +6897,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4310
+            "y": 4836
           },
           "id": 141,
           "options": {
@@ -7013,7 +7027,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2259
+            "y": 2785
           },
           "id": 60,
           "options": {
@@ -7121,7 +7135,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2259
+            "y": 2785
           },
           "id": 66,
           "options": {
@@ -7229,7 +7243,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2267
+            "y": 2793
           },
           "id": 61,
           "options": {
@@ -7337,7 +7351,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2267
+            "y": 2793
           },
           "id": 65,
           "options": {
@@ -7444,7 +7458,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2275
+            "y": 2801
           },
           "id": 88,
           "options": {
@@ -7548,7 +7562,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2275
+            "y": 2801
           },
           "id": 84,
           "options": {
@@ -7655,7 +7669,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2283
+            "y": 2809
           },
           "id": 90,
           "options": {
@@ -7755,8 +7769,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -7768,7 +7781,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 44
+            "y": 570
           },
           "id": 164,
           "links": [
@@ -7877,8 +7890,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -7890,7 +7902,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 44
+            "y": 570
           },
           "id": 165,
           "links": [
@@ -8017,7 +8029,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 52
+            "y": 578
           },
           "id": 167,
           "links": [
@@ -8144,7 +8156,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 52
+            "y": 578
           },
           "id": 168,
           "links": [
@@ -8263,7 +8275,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 60
+            "y": 586
           },
           "id": 172,
           "options": {
@@ -8323,7 +8335,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 60
+        "y": 44
       },
       "id": 113,
       "panels": [
@@ -8336,7 +8348,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 918
+            "y": 1444
           },
           "id": 115,
           "options": {
@@ -8418,7 +8430,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 920
+            "y": 1446
           },
           "id": 119,
           "options": {
@@ -8526,7 +8538,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 920
+            "y": 1446
           },
           "id": 117,
           "options": {
@@ -8636,7 +8648,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 928
+            "y": 1454
           },
           "id": 125,
           "links": [
@@ -8762,7 +8774,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 928
+            "y": 1454
           },
           "id": 123,
           "options": {
@@ -8896,7 +8908,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 936
+            "y": 1462
           },
           "id": 121,
           "options": {
@@ -9023,7 +9035,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 936
+            "y": 1462
           },
           "id": 161,
           "links": [
@@ -9145,7 +9157,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1309
+            "y": 1835
           },
           "id": 162,
           "options": {
