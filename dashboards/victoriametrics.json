@@ -62,6 +62,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
+  "id": 3,
   "links": [
     {
       "icon": "doc",
@@ -795,6 +796,7 @@
           "refId": "A"
         }
       ],
+      "title": "",
       "type": "table"
     },
     {
@@ -1673,7 +1675,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 180
+            "y": 118
           },
           "id": 112,
           "options": {
@@ -1788,7 +1790,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 180
+            "y": 118
           },
           "id": 114,
           "options": {
@@ -1906,7 +1908,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 188
+            "y": 126
           },
           "id": 123,
           "options": {
@@ -1952,7 +1954,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "CPU pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\n**Lower is better.**\n\nPressure is measured as amount of time within 1sec time window the process was:\n- waiting: at least one task in the process was ready to run (runnable) but couldn't get scheduled on the CPU.\n- stalled: all tasks in the process (except idle ones) were unable to get CPU time — a full CPU stall.\n\nIf there's a CPU burst, it's normal to see waiting or stalled > 100ms. It only becomes a concern if it consistently climbs above 50-100ms and aligns with latency spikes or GC slowdowns.",
+          "description": "CPU pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html) and quota throttling by [Linux cgroup CPU controller](https://docs.kernel.org/admin-guide/cgroup-v2.html#cpu-interface-files) \n\n**Lower is better.**\n\nPressure is measured as amount of time within 1sec time window the process was:\n- waiting: at least one task in the process was ready to run (runnable) but couldn't get scheduled on the CPU.\n- stalled: all tasks in the process (except idle ones) were unable to get CPU time — a full CPU stall.\n\nIf there's a CPU burst, it's normal to see waiting or stalled > 100ms. It only becomes a concern if it consistently climbs above 50-100ms and aligns with latency spikes or GC slowdowns.\n\nCPU quota throttling is shown as the average throttled time per second over each rate interval.\n- throttled: CPU throttling time recorded when the cgroup exhausts its CPU quota. \n\nIf CPU throttling stays elevated, it means the process is throttled by cgroup CPU controller. Consider increasing the cgroup’s CPU quota.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2013,7 +2015,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 188
+            "y": 126
           },
           "id": 134,
           "options": {
@@ -2064,9 +2066,22 @@
               "legendFormat": "{{job}}-{{instance}} - stalled",
               "range": true,
               "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(process_cgroup_cpu_throttled_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job, instance)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{job}}-{{instance}} - throttled",
+              "range": true,
+              "refId": "C"
             }
           ],
-          "title": "CPU pressure",
+          "title": "CPU pressure and throttling",
           "type": "timeseries"
         },
         {
@@ -2143,7 +2158,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 196
+            "y": 134
           },
           "id": 44,
           "options": {
@@ -2324,7 +2339,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 196
+            "y": 134
           },
           "id": 57,
           "options": {
@@ -2447,7 +2462,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 204
+            "y": 142
           },
           "id": 135,
           "options": {
@@ -2584,7 +2599,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 204
+            "y": 142
           },
           "id": 76,
           "options": {
@@ -2726,7 +2741,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 212
+            "y": 150
           },
           "id": 142,
           "options": {
@@ -2850,7 +2865,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 212
+            "y": 150
           },
           "id": 124,
           "options": {
@@ -2975,7 +2990,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 220
+            "y": 158
           },
           "id": 47,
           "options": {
@@ -3082,7 +3097,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 220
+            "y": 158
           },
           "id": 136,
           "options": {
@@ -3207,7 +3222,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 228
+            "y": 166
           },
           "id": 143,
           "options": {
@@ -3318,7 +3333,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 228
+            "y": 166
           },
           "id": 37,
           "options": {
@@ -3428,7 +3443,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 236
+            "y": 174
           },
           "id": 125,
           "options": {
@@ -3536,7 +3551,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 236
+            "y": 174
           },
           "id": 49,
           "options": {
@@ -3643,7 +3658,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 244
+            "y": 182
           },
           "id": 133,
           "options": {
@@ -3753,7 +3768,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 244
+            "y": 182
           },
           "id": 128,
           "options": {
@@ -3874,7 +3889,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 252
+            "y": 190
           },
           "id": 127,
           "options": {
@@ -4011,7 +4026,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 96
+            "y": 280
           },
           "id": 66,
           "options": {
@@ -4133,7 +4148,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 96
+            "y": 280
           },
           "id": 68,
           "options": {
@@ -4244,7 +4259,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 104
+            "y": 288
           },
           "id": 116,
           "options": {
@@ -4354,7 +4369,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 104
+            "y": 288
           },
           "id": 60,
           "options": {
@@ -4507,7 +4522,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 112
+            "y": 296
           },
           "id": 160,
           "options": {
@@ -4650,7 +4665,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 112
+            "y": 296
           },
           "id": 90,
           "options": {
@@ -4758,7 +4773,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 121
+            "y": 305
           },
           "id": 131,
           "options": {
@@ -4880,7 +4895,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 121
+            "y": 305
           },
           "id": 132,
           "links": [
@@ -5008,7 +5023,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 129
+            "y": 313
           },
           "id": 126,
           "options": {
@@ -5107,7 +5122,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 129
+            "y": 313
           },
           "id": 129,
           "options": {
@@ -5218,7 +5233,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 137
+            "y": 321
           },
           "id": 137,
           "options": {
@@ -5320,7 +5335,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 137
+            "y": 321
           },
           "id": 159,
           "options": {
@@ -5442,7 +5457,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 182
+            "y": 366
           },
           "id": 10,
           "options": {
@@ -5558,7 +5573,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 182
+            "y": 366
           },
           "id": 73,
           "options": {
@@ -5683,7 +5698,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 190
+            "y": 374
           },
           "id": 144,
           "links": [
@@ -5830,7 +5845,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 190
+            "y": 374
           },
           "id": 34,
           "options": {
@@ -5954,7 +5969,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 198
+            "y": 382
           },
           "id": 62,
           "options": {
@@ -6061,7 +6076,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 198
+            "y": 382
           },
           "id": 64,
           "options": {
@@ -6175,7 +6190,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 206
+            "y": 390
           },
           "id": 145,
           "options": {
@@ -6310,7 +6325,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 206
+            "y": 390
           },
           "id": 36,
           "options": {
@@ -6435,7 +6450,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 214
+            "y": 398
           },
           "id": 146,
           "options": {
@@ -6558,7 +6573,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 214
+            "y": 398
           },
           "id": 53,
           "options": {
@@ -6714,7 +6729,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 222
+            "y": 406
           },
           "id": 30,
           "options": {
@@ -6856,7 +6871,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 222
+            "y": 406
           },
           "id": 147,
           "options": {
@@ -6979,7 +6994,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 230
+            "y": 414
           },
           "id": 58,
           "options": {
@@ -7090,7 +7105,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 230
+            "y": 414
           },
           "id": 103,
           "options": {
@@ -7218,7 +7233,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 238
+            "y": 422
           },
           "id": 59,
           "options": {
@@ -7340,7 +7355,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 238
+            "y": 422
           },
           "id": 105,
           "options": {
@@ -7452,7 +7467,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 246
+            "y": 430
           },
           "id": 99,
           "options": {
@@ -7564,7 +7579,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 246
+            "y": 430
           },
           "id": 122,
           "options": {
@@ -7673,7 +7688,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 254
+            "y": 438
           },
           "id": 130,
           "options": {
@@ -7731,7 +7746,7 @@
             "h": 2,
             "w": 17,
             "x": 0,
-            "y": 576
+            "y": 760
           },
           "id": 139,
           "options": {
@@ -7815,7 +7830,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 578
+            "y": 762
           },
           "id": 140,
           "options": {
@@ -7920,7 +7935,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 578
+            "y": 762
           },
           "id": 141,
           "options": {
@@ -8082,7 +8097,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 586
+            "y": 770
           },
           "id": 148,
           "options": {
@@ -8188,7 +8203,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 586
+            "y": 770
           },
           "id": 149,
           "options": {
@@ -8298,7 +8313,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 594
+            "y": 778
           },
           "id": 150,
           "options": {
@@ -8404,7 +8419,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 594
+            "y": 778
           },
           "id": 151,
           "options": {
@@ -8511,7 +8526,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 602
+            "y": 786
           },
           "id": 152,
           "options": {
@@ -8630,7 +8645,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 602
+            "y": 786
           },
           "id": 153,
           "options": {
@@ -8746,7 +8761,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 610
+            "y": 794
           },
           "id": 154,
           "options": {
@@ -8794,6 +8809,7 @@
       "type": "row"
     }
   ],
+  "preload": false,
   "refresh": "",
   "schemaVersion": 42,
   "tags": [
@@ -8901,6 +8917,5 @@
   "timezone": "browser",
   "title": "VictoriaMetrics - single-node",
   "uid": "wNf0q_kZk",
-  "version": 1,
-  "weekStart": ""
+  "version": 1
 }
