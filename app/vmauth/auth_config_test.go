@@ -67,6 +67,21 @@ unauthorized_user:
     %s: [null]
 `, field), "unauthorized_user: url_map[0]: "+field+"[0] cannot be null")
 	}
+	f(`
+users:
+- username: foo
+  url_map:
+  - src_paths: [/route]
+    url_prefix: http://foo.bar
+    src_headers: [null]
+`, "users[0]: url_map[0]: src_headers[0] cannot be null")
+	f(`
+unauthorized_user:
+  url_map:
+  - src_paths: [/route]
+    url_prefix: http://foo.bar
+    src_headers: [null]
+`, "unauthorized_user: url_map[0]: src_headers[0] cannot be null")
 }
 
 func TestParseAuthConfigEmptyHeaders(t *testing.T) {
@@ -82,6 +97,7 @@ users:
   url_map:
   - src_paths: [/route]
     url_prefix: http://foo.bar
+    src_headers: %[2]s
     headers: %[2]s
     response_headers: %[2]s
 unauthorized_user:
@@ -91,6 +107,7 @@ unauthorized_user:
   url_map:
   - src_paths: [/route]
     url_prefix: http://foo.bar
+    src_headers: %[2]s
     headers: %[2]s
     response_headers: %[2]s
 `, globalHeaders, emptyHeaders)
@@ -102,6 +119,9 @@ unauthorized_user:
 			t.Fatalf("unexpected error when parsing users with empty headers: %s", err)
 		}
 		for _, ui := range []*UserInfo{&ac.Users[0], ac.UnauthorizedUser} {
+			if len(ui.URLMaps[0].SrcHeaders) != 0 {
+				t.Fatalf("unexpected src_headers: %v", ui.URLMaps[0].SrcHeaders)
+			}
 			for _, hc := range []*HeadersConf{&ui.HeadersConf, &ui.URLMaps[0].HeadersConf} {
 				if len(hc.RequestHeaders) != 0 || len(hc.ResponseHeaders) != headersExpected {
 					t.Fatalf("unexpected headers; got request=%v, response=%v; want 0 request and %d response headers",

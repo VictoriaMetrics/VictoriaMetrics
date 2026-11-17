@@ -205,6 +205,9 @@ func (ui *UserInfo) validateHeaders() error {
 		if err := ui.URLMaps[i].HeadersConf.validate(); err != nil {
 			return fmt.Errorf("url_map[%d]: %w", i, err)
 		}
+		if err := validateHeaders(ui.URLMaps[i].SrcHeaders, "src_headers"); err != nil {
+			return fmt.Errorf("url_map[%d]: %w", i, err)
+		}
 	}
 	return nil
 }
