@@ -59,7 +59,11 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
 
 // MustStop stops further usage for sdc.
 func (sdc *SDConfig) MustStop() {
-	_ = configMap.Delete(sdc)
+	v := configMap.Delete(sdc)
+	if v != nil {
+		cfg := v.(*apiConfig)
+		cfg.c.Stop()
+	}
 }
 
 // getInstanceLabels returns labels for Vultr instances obtained from the given cfg
