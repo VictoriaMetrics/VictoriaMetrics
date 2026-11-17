@@ -126,7 +126,7 @@ As a reference, see resource consumption of the VictoriaMetrics cluster on our [
 The Retention Period is the number of days or months during which the data is stored and persisted on disk. It directly affects the disk space usage. Use the following formulas to estimate the required disk space:
 
 ```
-Data size = Bytes Per Sample * Ingestion Rate * Replication Factor * (Retention Period in seconds + 1 month in seconds)
+Data size = Bytes Per Sample * Ingestion Rate * Replication Factor * (Retention Period in seconds + 31 days in seconds)
 Disk size = (Data size + Index size) * 1.25
 ```
 
@@ -146,7 +146,7 @@ On average, a sample takes 1 byte or less on disk after compression. Check the a
 sum(vm_data_size_bytes{type=~"storage/(small|big)"}) / sum(vm_rows{type=~"storage/(small|big)"})
 ```
 
-The size per sample depends on how random the values are. Values with many significant digits compress worse. Limiting precision with `-remoteWrite.significantFigures` or `-remoteWrite.roundDigits` in [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) improves compression. High cardinality and a high Churn Rate also increase the size per sample.
+The size per sample depends on how random the values are. Values with many significant digits compress worse. Limiting precision with `-remoteWrite.significantFigures` or `-remoteWrite.roundDigits` in [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) improves compression. High Churn Rate can also reduce compression efficiency.
 
 #### Index size
 
@@ -177,27 +177,21 @@ See [FAQ: Why is IndexDB so large?](https://docs.victoriametrics.com/victoriamet
 
 Let's assume we have a Kubernetes environment that ingests 5,000 samples per second with a 1-year Retention Period and ReplicationFactor=2.
 
-The Retention Period plus one extra month (30 days) is 365 + 30 = 395 days, or 34,128,000 seconds. Assuming 1 byte per sample, the data size for the whole year is:
+The Retention Period plus one extra month is 365 + 31 = 396 days, or 34,214,400 seconds. VictoriaMetrics counts a month as 31 days. Assuming 1 byte per sample, the data size is:
 
 ```
-Data size = 1 byte * 5,000 samples/s * 2 * 34,128,000 s = 341,280,000,000 bytes ≈ 318 GiB
+Data size = 1 byte * 5,000 samples/s * 2 * 34,214,400 s = 342,144,000,000 bytes ≈ 318.6 GiB
 ```
 
-Index size depends primarily on the number of indexed time series, the number and length of their labels, and the per-day index entries created for days when those series receive samples. It does not scale directly with the number of samples. See [index size](#index-size) to calculate the size of the index.
-
-For example, if the query shows that the index is about the same size as the data, the total disk size required will be (leaving 25% of headroom free):
+The index size depends on the Churn Rate (see [Index size](#index-size)). If a test run shows that the index is about the same size as the data:
 
 ```
-Disk size = (318 GiB + 318 GiB) * 1.25 ≈ 795 GiB
+Disk size = (318.6 GiB + 318.6 GiB) * 1.25 ≈ 797 GiB
 ```
 
-Kubernetes workloads can produce large label sets and frequent series turnover. A production cluster with roughly 30 to 40 labels and around 1 KB of label=value pairs per series can make the IndexDB reach twice the size of the sample data. In the example above, such a large IndexDB would take the total disk usage to:
+With an index of 2x the data size, which is possible in Kubernetes with a high Churn Rate, the estimate grows to (318.6 GiB + 637.2 GiB) * 1.25 ≈ 1,195 GiB.
 
-```text
-Disk size = (318 GiB + 636 GiB) * 1.25 ≈ 1,192 GiB
-```
-
-If [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) is enabled, make sure the free disk space is at least one month of ingested data: 1 byte * 5,000 samples/s * 2 * 2,592,000 s ≈ 24 GiB. In this example, the 20% headroom (≈ 159 GiB) already covers it. For small setups or short retentions, check it explicitly.
+If [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) is enabled, make sure the free disk space is at least one month of ingested data: 1 byte * 5,000 samples/s * 2 * 2,678,400 s ≈ 25 GiB. In this example, the 20% headroom (≈ 159 GiB) already covers it. For small setups or short retentions, check it explicitly.
 
 You can significantly reduce disk usage by using [Downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling) and [Retention Filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters). These settings are available in VictoriaMetrics Cloud and Enterprise. Note that downsampling reduces the data size but not the index size, since it doesn't reduce the number of stored time series. See a blog post about [reducing expenses on monitoring](https://victoriametrics.com/blog/reducing-costs-p2/) for more techniques.
 
