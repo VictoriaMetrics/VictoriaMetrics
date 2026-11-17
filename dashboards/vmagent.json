@@ -2677,7 +2677,7 @@
               "expr": "max(rate(process_cgroup_cpu_throttled_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job, instance)",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{instance}} - throtlled",
+              "legendFormat": "{{instance}} - throttled",
               "range": true,
               "refId": "C"
             }
