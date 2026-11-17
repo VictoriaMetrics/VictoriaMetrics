@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -61,6 +62,9 @@ type Restore struct {
 	// are skipped. Non-partition files (metadata, etc.) are always restored regardless of
 	// this setting.
 	RestorePartitions *regexp.Regexp
+
+	// SkipLegacyIndexDBCheck allows a partial restore of a backup containing the legacy non-partitioned indexdb.
+	SkipLegacyIndexDBCheck bool
 }
 
 // Run runs r with the provided settings.
@@ -111,21 +115,17 @@ func (r *Restore) Run(ctx context.Context) error {
 		}
 	}
 	if r.RestoreSince > 0 || r.RestorePartitions != nil {
-		for _, p := range srcParts {
-			if !strings.HasPrefix(p.Path, "indexdb/") {
-				continue
+		if slices.ContainsFunc(srcParts, func(p common.Part) bool {
+			return strings.HasPrefix(p.Path, "indexdb/")
+		}) {
+			if !r.SkipLegacyIndexDBCheck {
+				return fmt.Errorf("the backup contains the legacy non-partitioned IndexDB, which isn't restored when -restoreSince or -restorePartitions is set; " +
+					"data written before the upgrade to v1.133.0 won't be searchable after the restore; " +
+					"run a full restore if you need such data, or pass -skipLegacyIndexDBCheck if all the selected partitions were written after the upgrade; " +
+					"see https://docs.victoriametrics.com/victoriametrics/vmrestore/#partial-restore")
 			}
-			logger.Warnf("the backup contains the legacy non-partitioned IndexDB, which isn't restored when -restoreSince or -restorePartitions is set; " +
-				"data indexed only in the legacy indexdb won't be searchable after the restore; " +
-				"if you need such data, run a full restore without these flags; " +
-				"see https://docs.victoriametrics.com/victoriametrics/vmrestore/#partial-restore; " +
-				"continuing in 30 seconds, stop vmrestore to cancel")
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(30 * time.Second):
-			}
-			break
+			logger.Warnf("skipping the legacy non-partitioned IndexDB, since -skipLegacyIndexDBCheck is set; " +
+				"data in the selected partitions written before the upgrade to v1.133.0 won't be searchable after the restore")
 		}
 		srcParts, err = filterPartitions(srcParts, r.RestoreSince, r.RestorePartitions, time.Now().UTC())
 		if err != nil {

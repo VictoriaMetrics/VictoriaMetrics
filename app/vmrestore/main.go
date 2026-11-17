@@ -41,6 +41,9 @@ var (
 		"Non-partition files (metadata, etc.) are always restored. "+
 		"For example, -restorePartitions='2026_0[1-6]' restores 2026_01 through 2026_06. "+
 		"Local partitions in -storageDataPath that are not restored are removed.")
+	skipLegacyIndexDBCheck = flag.Bool("skipLegacyIndexDBCheck", false, "Whether to skip the check that fails a partial restore (-restoreSince or -restorePartitions) "+
+		"when the backup contains the legacy non-partitioned IndexDB created before v1.133.0. The legacy IndexDB is never restored in a partial restore, "+
+		"so data written before the upgrade to v1.133.0 isn't searchable after it")
 )
 
 func main() {
@@ -88,6 +91,7 @@ func main() {
 		SkipPreallocation:       *SkipPreallocation,
 		RestoreSince:            restoreSince.Duration(),
 		RestorePartitions:       restorePartitionsRe,
+		SkipLegacyIndexDBCheck:  *skipLegacyIndexDBCheck,
 	}
 	pushmetrics.Init()
 	if err := a.Run(ctx); err != nil {
