@@ -178,7 +178,7 @@ func (d *Deduplicator) runFlusher(pushFunc PushFunc) {
 			}
 			if d.enableWindows {
 				delay := d.flushLag.takeFlushDelay(d.interval)
-				time.Sleep(delay)
+				sleepWithStopCh(d.stopCh, delay)
 			}
 			d.flush(pushFunc)
 		}
