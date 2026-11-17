@@ -121,6 +121,7 @@ specified individually per each `-remoteWrite.url`:
   # flush_on_shutdown instructs to flush aggregated data to the storage on the first and the last intervals
   # during vmagent starts, restarts or configuration reloads, which change this aggregation config.
   # Incomplete aggregated data isn't flushed to the storage by default, since it is usually confusing.
+  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#flush-time-alignment
   #
   # flush_on_shutdown: false
 
@@ -154,6 +155,8 @@ specified individually per each `-remoteWrite.url`:
   # ignore_old_samples: false
 
   # ignore_first_intervals instructs ignoring the first N aggregation intervals after process start.
+  # Only complete intervals are counted. If N > 0, then the incomplete first interval after the start is ignored as well,
+  # even if flush_on_shutdown is set.
   # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignore-aggregation-intervals-on-start
   # See also -remoteWrite.streamAggr.ignoreFirstIntervals and -streamAggr.ignoreFirstIntervals command-line flags.
   #
