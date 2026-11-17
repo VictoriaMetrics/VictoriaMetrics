@@ -433,6 +433,7 @@ func evalBinaryOp(qt *querytracer.Tracer, ec *EvalConfig, be *metricsql.BinaryOp
 		be:    be,
 		left:  tssLeft,
 		right: tssRight,
+		ctx:   ec.Context,
 	}
 	rv, err := bf(bfa)
 	if err != nil {
