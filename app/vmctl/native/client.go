@@ -10,7 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 const (
@@ -21,7 +21,7 @@ const (
 // Client is an HTTP client for exporting and importing
 // time series via native protocol.
 type Client struct {
-	AuthCfg     *auth.Config
+	AuthCfg     *promauth.Config
 	Addr        string
 	ExtraLabels []string
 	HTTPClient  *http.Client
@@ -169,16 +169,20 @@ func (c *Client) GetSourceTenants(ctx context.Context, f Filter) ([]string, erro
 
 func (c *Client) do(req *http.Request, expSC int) (*http.Response, error) {
 	if c.AuthCfg != nil {
-		c.AuthCfg.SetHeaders(req, true)
+		if err := c.AuthCfg.SetHeaders(req, true); err != nil {
+			return nil, fmt.Errorf("failed to set headers for %q: %w", c.Addr, err)
+		}
 	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("unexpected error when performing request: %w", err)
 	}
+	// don't defer body close, as the caller will consume body.
 
 	if resp.StatusCode != expSC {
 		body, err := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
 		if err != nil {
 			return nil, fmt.Errorf("failed to read response body for status code %d: %w", resp.StatusCode, err)
 		}
