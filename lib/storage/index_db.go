@@ -1594,22 +1594,35 @@ func getRegexpPartsForGraphiteQuery(q string) ([]string, string) {
 //
 // It includes the deleted series.
 func (db *indexDB) GetSeriesCount(ctx context.Context, accountID, projectID uint32) (uint64, error) {
-	is := db.getIndexSearch(accountID, projectID)
-	defer db.putIndexSearch(is)
-	count, err := is.getSeriesCount(ctx)
+	count, err := db.getSeriesCount(ctx, accountID, projectID)
 	if err != nil {
 		return 0, db.wrapError("get series count", err)
 	}
 	return count, nil
 }
 
+func (db *indexDB) getSeriesCount(ctx context.Context, accountID, projectID uint32) (uint64, error) {
+	is := db.getIndexSearch(accountID, projectID)
+	defer db.putIndexSearch(is)
+	count, err := is.getSeriesCount(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (is *indexSearch) getSeriesCount(ctx context.Context) (uint64, error) {
-	ts := &is.ts
 	kb := &is.kb
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
+	return is.getSeriesCountByPrefix(ctx, kb.B)
+}
+
+func (is *indexSearch) getSeriesCountByPrefix(ctx context.Context, prefix []byte) (uint64, error) {
+	ts := &is.ts
 	loopsPaceLimiter := 0
 	var metricIDsLen uint64
-	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
-	ts.Seek(kb.B)
+
+	ts.Seek(prefix)
 	for ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
 			if err := ctx.Err(); err != nil {
@@ -1618,7 +1631,7 @@ func (is *indexSearch) getSeriesCount(ctx context.Context) (uint64, error) {
 		}
 		loopsPaceLimiter++
 		item := ts.Item
-		if !bytes.HasPrefix(item, kb.B) {
+		if !bytes.HasPrefix(item, prefix) {
 			break
 		}
 		// Take into account deleted timeseries too.
@@ -1627,7 +1640,7 @@ func (is *indexSearch) getSeriesCount(ctx context.Context) (uint64, error) {
 		metricIDsLen++
 	}
 	if err := ts.Error(); err != nil {
-		return 0, fmt.Errorf("error when counting unique timeseries: %w", err)
+		return 0, err
 	}
 	return metricIDsLen, nil
 }
