@@ -153,22 +153,22 @@ groups:
 
       - alert: StreamAggrFlushTimeout
         expr: |
-          increase(vm_streamaggr_flush_timeouts_total[5m]) > 0
+          increase(vm_streamaggr_flush_skipped_total[5m]) > 0
         labels:
           severity: warning
         annotations:
-          summary: "Streaming aggregation at \"{{ $labels.job }}\" (instance {{ $labels.instance }}) can't be finished within the configured aggregation interval."
-          description: "Stream aggregation process can't keep up with the load and might produce incorrect aggregation results. Check logs for more details.
+          summary: "Streaming aggregation at \"{{ $labels.job }}\" (instance {{ $labels.instance }}) skipped flushes because it can't be finished within the configured aggregation interval."
+          description: "Stream aggregation process can't keep up with the load, so samples from the skipped intervals are flushed together with the next interval and aggregation results might be incorrect. See more details in https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#flush-time-alignment and logs.
             Possible solutions: increase aggregation interval; aggregate smaller number of series; reduce samples' ingestion rate to stream aggregation."
 
       - alert: StreamAggrDedupFlushTimeout
         expr: |
-          increase(vm_streamaggr_dedup_flush_timeouts_total[5m]) > 0
+          increase(vm_streamaggr_dedup_flush_skipped_total[5m]) > 0
         labels:
           severity: warning
         annotations:
-          summary: "Deduplication \"{{ $labels.job }}\" (instance {{ $labels.instance }}) can't be finished within configured deduplication interval."
-          description: "Deduplication process can't keep up with the load and might produce incorrect results. Check docs https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication and logs for more details.
+          summary: "Deduplication \"{{ $labels.job }}\" (instance {{ $labels.instance }}) skipped flushes because it can't be finished within configured deduplication interval."
+          description: "Deduplication process can't keep up with the load, so samples from the skipped intervals are flushed together with the next interval and results might be incorrect. See more details in https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication, https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#flush-time-alignment and logs.
             Possible solutions: increase deduplication interval; deduplicate smaller number of series; reduce samples' ingestion rate."
 
       - alert: PersistentQueueRunsOutOfSpaceIn12Hours

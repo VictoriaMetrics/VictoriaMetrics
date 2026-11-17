@@ -6501,7 +6501,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows events when deduplication or aggregation couldn't be finished in the configured interval. Such events may result into bad accuracy of produced data.\n\nPossible solutions:\n* increase interval; \n* use match filter matching smaller number of series;\n* reduce samples ingestion rate to stream aggregation",
+          "description": "Shows skipped deduplication or aggregation flushes, which happen when the flush couldn't be finished in the configured interval. Samples from the skipped intervals are flushed together with the next interval, which may result into bad accuracy of produced data.\n\nPossible solutions:\n* increase interval; \n* use match filter matching smaller number of series;\n* reduce samples ingestion rate to stream aggregation\n\nSee more details in https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#flush-time-alignment",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6583,7 +6583,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "increase(vm_streamaggr_flush_timeouts_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
+              "expr": "increase(vm_streamaggr_flush_skipped_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
               "instant": false,
               "legendFormat": "aggregation: {{url}} ({{job}}): {{path}}:{{position}}",
               "range": true,
@@ -6595,7 +6595,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "increase(vm_streamaggr_dedup_flush_timeouts_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
+              "expr": "increase(vm_streamaggr_dedup_flush_skipped_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
               "hide": false,
               "instant": false,
               "legendFormat": "deduplication: {{url}} ({{job}}): {{path}}:{{position}}",
@@ -6603,7 +6603,7 @@
               "refId": "B"
             }
           ],
-          "title": "Flush timeouts ($instance)",
+          "title": "Skipped flushes ($instance)",
           "type": "timeseries"
         },
         {
@@ -6709,7 +6709,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "The 99th percentile of avg flush duration for the aggregated data. \n\nSmaller is better.\n\nAggregation can produce incorrect results ff flush duration exceeds configured deduplication interval. See \"Flush Timeouts\" panel.",
+          "description": "The 99th percentile of aggregation flush durations.\n\nSmaller is better.\n\nIf a flush takes longer than the configured aggregation `interval`, the next flush is skipped and its samples are flushed together with the following one, which may affect accuracy of produced data. See \"Skipped flushes\" panel.\n\nSee more details in https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#flush-time-alignment",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6771,6 +6771,103 @@
             "x": 12,
             "y": 4270
           },
+          "id": 173,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, rate(vm_streamaggr_flush_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]))",
+              "instant": false,
+              "legendFormat": "{{url}} ({{job}}): {{path}}:{{position}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Flush duration 0.99 quantile ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "The 99th percentile of deduplication flush durations.\n\nSmaller is better.\n\nIf a flush takes longer than the configured `dedup_interval`, the next flush is skipped and its samples are flushed together with the following one, which may affect accuracy of produced data. See \"Skipped flushes\" panel.\n\nSee more details in https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#flush-time-alignment",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "axisSoftMin": 0,
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 4278
+          },
           "id": 137,
           "options": {
             "legend": {
@@ -6793,7 +6890,7 @@
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, rate(vm_streamaggr_dedup_flush_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]))",
               "instant": false,
-              "legendFormat": "__auto",
+              "legendFormat": "{{url}} ({{job}}): {{path}}:{{position}}",
               "range": true,
               "refId": "A"
             }
