@@ -26,6 +26,33 @@ func (r *Reader) Close() (err error) {
 	return
 }
 
+// ReadSeeker wraps an io.ReadSeeker with progress tracking.
+// Reads advance the bar, and successful seeks set its current value to the
+// resulting position. Seeking may make speed and remaining-time estimates inaccurate.
+type ReadSeeker struct {
+	io.ReadSeeker
+	bar *ProgressBar
+}
+
+// Read reads bytes from the wrapped reader and advances the progress bar.
+func (r *ReadSeeker) Read(p []byte) (n int, err error) {
+	return (&Reader{r.ReadSeeker, r.bar}).Read(p)
+}
+
+// Seek seeks in the wrapped reader and updates progress only on success.
+func (r *ReadSeeker) Seek(offset int64, whence int) (int64, error) {
+	position, err := r.ReadSeeker.Seek(offset, whence)
+	if err == nil {
+		r.bar.SetCurrent(position)
+	}
+	return position, err
+}
+
+// Close finishes the bar and closes the wrapped reader when it implements io.Closer.
+func (r *ReadSeeker) Close() error {
+	return (&Reader{r.ReadSeeker, r.bar}).Close()
+}
+
 // Writer it's a wrapper for given writer, but with progress handle
 type Writer struct {
 	io.Writer

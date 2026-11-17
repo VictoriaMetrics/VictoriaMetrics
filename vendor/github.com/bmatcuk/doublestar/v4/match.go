@@ -95,7 +95,7 @@ func matchWithSeparator(pattern, name string, separator rune, validate bool, cas
 func doMatchWithSeparator(pattern, name string, separator rune, validate bool, caseInsensitive bool, doublestarPatternBacktrack, doublestarNameBacktrack, starPatternBacktrack, starNameBacktrack, patIdx, nameIdx int) (matched bool, err error) {
 	patLen := len(pattern)
 	nameLen := len(name)
-	startOfSegment := true
+	startOfSegment := patIdx == 0 || rune(pattern[patIdx-1]) == separator
 MATCH:
 	for nameIdx < nameLen {
 		if patIdx < patLen {
@@ -176,7 +176,7 @@ MATCH:
 						patRune, patRuneLen = utf8.DecodeRuneInString(pattern[patIdx:])
 						patIdx += patRuneLen
 
-						if last <= nameRune && nameRune <= patRune {
+						if matchRuneRange(last, patRune, nameRune, caseInsensitive) {
 							matched = true
 							break
 						}
@@ -314,6 +314,14 @@ MATCH:
 	// reached the end of `pattern`, or if the rest of `pattern` can match a
 	// zero-length string
 	return isZeroLengthPattern(pattern[patIdx:], separator, validate)
+}
+
+func matchRuneRange(lo, hi, r rune, caseInsensitive bool) bool {
+	if caseInsensitive {
+		rl := unicode.ToLower(r)
+		return unicode.ToLower(lo) <= rl && rl <= unicode.ToLower(hi)
+	}
+	return lo <= r && r <= hi
 }
 
 func matchRune(a, b rune, caseInsensitive bool) bool {

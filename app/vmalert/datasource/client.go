@@ -104,6 +104,9 @@ func (c *Client) ApplyParams(params QuerierParams) *Client {
 		c.dataSourceType = toDatasourceType(params.DataSourceType)
 	}
 	c.evaluationInterval = params.EvaluationInterval
+	if params.QueryStep > 0 {
+		c.queryStep = params.QueryStep
+	}
 	c.applyIntervalAsTimeFilter = params.ApplyIntervalAsTimeFilter
 	if params.QueryParams != nil {
 		if c.extraParams == nil {

@@ -16,41 +16,55 @@ func (p *Pool) print(first bool) bool {
 	defer p.m.Unlock()
 	var out string
 	if !first {
-		coords, err := termutil.GetCursorPos()
-		if err != nil {
-			log.Panic(err)
-		}
-		coords.Y -= int16(p.lastBarsCount)
-		if coords.Y < 0 {
-			coords.Y = 0
-		}
-		coords.X = 0
-
-		err = termutil.SetCursorPos(coords)
-		if err != nil {
-			log.Panic(err)
-		}
+		moveCursorUp(p.lastBarsCount)
 	}
 	cols, err := termutil.TerminalWidth()
-	if err != nil {
+	if err != nil || cols <= 0 {
 		cols = defaultBarWidth
 	}
-	isFinished := true
-	for _, bar := range p.bars {
-		if !bar.IsFinished() {
-			isFinished = false
-		}
+	bars, isFinished := p.visibleBars(0)
+	for _, bar := range bars {
 		result := bar.String()
 		if r := cols - CellCount(result); r > 0 {
 			result += strings.Repeat(" ", r)
 		}
 		out += fmt.Sprintf("\r%s\n", result)
 	}
+	// blank the lines of the bars that left the frame
+	var blanks int
+	if !first {
+		blanks = p.lastBarsCount - len(bars)
+	}
+	for i := 0; i < blanks; i++ {
+		out += fmt.Sprintf("\r%s\n", strings.Repeat(" ", cols))
+	}
 	if p.Output != nil {
 		fmt.Fprint(p.Output, out)
 	} else {
 		fmt.Print(out)
 	}
-	p.lastBarsCount = len(p.bars)
+	moveCursorUp(blanks)
+	p.lastBarsCount = len(bars)
 	return isFinished
+}
+
+// moveCursorUp moves the cursor to the start of the line n rows above
+func moveCursorUp(n int) {
+	if n <= 0 {
+		return
+	}
+	coords, err := termutil.GetCursorPos()
+	if err != nil {
+		log.Panic(err)
+	}
+	coords.Y -= int16(n)
+	if coords.Y < 0 {
+		coords.Y = 0
+	}
+	coords.X = 0
+
+	err = termutil.SetCursorPos(coords)
+	if err != nil {
+		log.Panic(err)
+	}
 }

@@ -16,11 +16,14 @@ import useDeviceDetect from "../../hooks/useDeviceDetect";
 import classNames from "classnames";
 import useStateSearchParams from "../../hooks/useStateSearchParams";
 import { useTopQueriesColumns } from "./hooks/useTopQueriesColumns";
+import { useAppState } from "../../state/common/StateContext";
+import useEventListener from "../../hooks/useEventListener";
 
 const exampleDuration = "30ms, 15s, 3d4h, 1y2w";
 
 const TopQueries: FC = () => {
   const { isMobile } = useDeviceDetect();
+  const { serverUrl } = useAppState();
 
   const [topN, setTopN] = useStateSearchParams(10, "topN");
   const [maxLifetime, setMaxLifetime] = useStateSearchParams("10m", "maxLifetime");
@@ -68,13 +71,10 @@ const TopQueries: FC = () => {
   }, [data]);
 
   useEffect(() => {
-    fetch();
-    window.addEventListener("popstate", fetch);
+    void fetch();
+  }, [serverUrl]);
 
-    return () => {
-      window.removeEventListener("popstate", fetch);
-    };
-  }, []);
+  useEventListener("popstate", fetch);
 
   return (
     <div

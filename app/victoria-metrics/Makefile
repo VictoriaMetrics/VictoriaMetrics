@@ -109,6 +109,12 @@ victoria-metrics-freebsd-amd64:
 victoria-metrics-openbsd-amd64:
 	APP_NAME=victoria-metrics CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
+victoria-metrics-netbsd-amd64:
+	APP_NAME=victoria-metrics CGO_ENABLED=0 GOOS=netbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+victoria-metrics-solaris-amd64:
+	APP_NAME=victoria-metrics CGO_ENABLED=0 GOOS=solaris GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
 victoria-metrics-windows-amd64:
 	GOARCH=amd64 APP_NAME=victoria-metrics $(MAKE) app-local-windows-goarch
 
