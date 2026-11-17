@@ -578,12 +578,20 @@ func TestStorage_ConcurrentMergesRespectDiskSpace(t *testing.T) {
 	selected := make([][]*partWrapper, partitions)
 	for i := range partitions {
 		ts := time.Date(2025, time.Month(i+1), 15, 0, 0, 0, 0, time.UTC).UnixMilli()
-		ptws[i], _ = newTestPartitionWithBigParts(s, ts, 10, 50, 10, maxOut/10, i*10, false)
+		partSize := maxOut / 10
+		if i < partitions/2 {
+			partSize = maxOut / 50
+		}
+		ptws[i], _ = newTestPartitionWithBigParts(s, ts, 10, 50, 10, partSize, i*10, false)
 		ptws[i].pt.partsLock.Lock()
 		selected[i] = getPartsToMerge(ptws[i].pt.bigParts, ptws[i].pt.getMaxBigPartSize())
 		ptws[i].pt.partsLock.Unlock()
 	}
 	defer putTestPartitions(s, ptws)
+	hold := fs.MustGetFreeSpace(s.path) - maxOut/2
+	if !s.tryReserveDiskSpace(s.path, hold) {
+		t.Fatalf("expected tryReserveDiskSpace(%d) to succeed", hold)
+	}
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 	if peak := runConcurrentlyWithPeak(t, partitions, func(i int) error {
@@ -591,15 +599,29 @@ func TestStorage_ConcurrentMergesRespectDiskSpace(t *testing.T) {
 	}, s.reservedDiskSpace.Load); peak > free {
 		t.Fatalf("concurrent merges reserved %d bytes > free %d", peak, free)
 	}
+	s.releaseDiskSpace(hold)
+	merged, declined := 0, 0
 	for _, ptw := range ptws {
 		assertNoPartsInMerge(t, ptw.pt)
+		_, small, big := testPartitionPartCounts(ptw.pt)
+		switch {
+		case small+big == 1:
+			merged++
+		case small == 0 && big == 10:
+			declined++
+		default:
+			t.Fatalf("unexpected part counts after concurrent merge: small=%d big=%d", small, big)
+		}
+	}
+	if merged < 2 || declined < 4 {
+		t.Fatalf("expected at least 2 merged and 4 declined partitions, got merged=%d declined=%d", merged, declined)
 	}
 
 	// Deterministic TOCTOU decline and recovery via bigPartsMerger.
 	ptwD, pwsD := newTestPartitionWithBigParts(s, time.Date(2025, 9, 15, 0, 0, 0, 0, time.UTC).UnixMilli(), 10, 50, 10, maxOut/10, 100, true)
 	defer s.tb.PutPartition(ptwD)
 	ptD := ptwD.pt
-	hold := fs.MustGetFreeSpace(ptD.bigPartsPath) - maxOut/2
+	hold = fs.MustGetFreeSpace(ptD.bigPartsPath) - maxOut/2
 	if !s.tryReserveDiskSpace(ptD.bigPartsPath, hold) {
 		t.Fatalf("expected tryReserveDiskSpace(%d) to succeed", hold)
 	}
