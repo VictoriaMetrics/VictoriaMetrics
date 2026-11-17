@@ -183,6 +183,7 @@ For example:
 
 * `rate({__name__=~"foo|bar"}) keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
 * `({__name__=~"foo|bar"} / 10) keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
+
 ## MetricsQL functions
 
 If you are unfamiliar with PromQL, then please read [this tutorial](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085) at first.
