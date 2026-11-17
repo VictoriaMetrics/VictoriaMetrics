@@ -49,7 +49,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 2,
+  "id": 6,
   "links": [
     {
       "asDropdown": false,
@@ -1536,7 +1536,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 39
+            "y": 71
           },
           "id": 25,
           "options": {
@@ -1674,7 +1674,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 39
+            "y": 71
           },
           "id": 26,
           "options": {
@@ -1817,7 +1817,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 47
+            "y": 79
           },
           "id": 49,
           "options": {
@@ -1847,7 +1847,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(rate(process_pressure_cpu_waiting_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job, instance)",
+              "expr": "max(rate(process_pressure_cpu_waiting_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job, instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -1862,7 +1862,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(rate(process_pressure_cpu_stalled_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job, instance)",
+              "expr": "max(rate(process_pressure_cpu_stalled_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job, instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -1877,7 +1877,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(rate(process_cgroup_cpu_throttled_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job, instance)",
+              "expr": "max(rate(process_cgroup_cpu_throttled_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job, instance)",
               "hide": false,
               "instant": false,
               "legendFormat": "{{job}} - throttled",
@@ -1955,7 +1955,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 47
+            "y": 79
           },
           "id": 24,
           "options": {
@@ -2067,7 +2067,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 55
+            "y": 87
           },
           "id": 23,
           "options": {
@@ -2180,7 +2180,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 55
+            "y": 87
           },
           "id": 21,
           "options": {
@@ -2293,7 +2293,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 63
+            "y": 95
           },
           "id": 29,
           "options": {
@@ -2423,7 +2423,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 63
+            "y": 95
           },
           "id": 20,
           "options": {
@@ -2549,7 +2549,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 158
+            "y": 249
           },
           "id": 34,
           "options": {
@@ -2668,7 +2668,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 158
+            "y": 249
           },
           "id": 8,
           "options": {
@@ -2774,7 +2774,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 166
+            "y": 257
           },
           "id": 41,
           "options": {
@@ -2884,7 +2884,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 166
+            "y": 257
           },
           "id": 39,
           "links": [
@@ -3024,7 +3024,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 159
+            "y": 250
           },
           "id": 28,
           "options": {
@@ -3151,7 +3151,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 159
+            "y": 250
           },
           "id": 27,
           "options": {
