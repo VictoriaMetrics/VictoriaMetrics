@@ -131,6 +131,47 @@ The list of MetricsQL features on top of PromQL:
   and [binary operators](https://prometheus.io/docs/prometheus/latest/querying/operators/#binary-operators).
   This modifier prevents from dropping metric names in function results. See [these docs](#keep_metric_names).
 
+## WITH templates
+
+WITH templates (aka Common Table Expressions) allow defining and reusing parts of the MetricsQL query.
+
+A template can be a query expression, a set of label filters, a string or a function with arguments. Templates can be nested.
+
+For example, a query for CPU utilization from [Node Exporter dashboard](https://grafana.com/grafana/dashboards/1860) has the following form:
+```metricsql
+(
+  (
+    count(count(node_cpu_seconds_total{instance=~"$node:$port",job=~"$job"}) by (cpu))
+    -
+    avg(sum by (mode) (rate(node_cpu_seconds_total{mode='idle',instance=~"$node:$port",job=~"$job"}[5m])))
+  ) * 100
+)
+/
+count(count(node_cpu_seconds_total{instance=~"$node:$port",job=~"$job"}) by (cpu))
+```
+
+This query repeats the same metric name and labels filter in each selector and looks verbose, so its meaning might be hard to understand.
+Using WITH templates, we can simplify it to the following form:
+```metricsql
+WITH (
+    cpuSeconds = node_cpu_seconds_total{instance=~"$node:$port",job=~"$job"},
+    cpuCount = count(count(cpuSeconds) by (cpu)),
+    cpuIdle = sum(rate(cpuSeconds{mode='idle'}[5m]))
+)
+((cpuCount - cpuIdle) * 100) / cpuCount
+```
+
+Now, filter `cpuSeconds` is defined once and then reused multiple times. `cpuCount` and `cpuIdle` are defined in a simple form,
+so the math `((cpuCount - cpuIdle) * 100) / cpuCount` becomes more readable. You can use this query form in your dashboards,
+rules, ad-hoc queries and so on. On receiving, VictoriaMetrics will expand such a query into the canonical form.
+
+Try `WITH` templates on the [playground](https://play.victoriametrics.com/select/0/prometheus/graph/#/expand-with-exprs).
+It shows how templates expand into a query and contains a step-by-step tutorial.
+
+A template is available only in the query where it is defined.
+The [VictoriaMetrics datasource for Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/datasource/#how-to-use-with-templates)
+allows defining templates per dashboard, so all the panels of the dashboard can use them.
+
 ## keep_metric_names
 
 By default, metric names are dropped after applying functions or [binary operators](https://prometheus.io/docs/prometheus/latest/querying/operators/#binary-operators),
@@ -142,35 +183,6 @@ For example:
 
 * `rate({__name__=~"foo|bar"}) keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
 * `({__name__=~"foo|bar"} / 10) keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
-
-## WITH templates
-
-`WITH` templates allow you to set a name to a part of a query and reuse it in the rest of the query.
-A template can be a query expression, a set of label filters, a string or a function with arguments. Templates can be nested.
-
-A function template works as a macro: every call is replaced with the template body, where the arguments are substituted with the passed values.
-For example, the following query returns three series with cached, buffered and free memory as a percentage of total memory.
-Each series has a `name` label with the value `cache`, `buffers` or `free`:
-
-```metricsql
-WITH (
-    commonFilters = {job="node-exporter", instance="host1:9100"},
-    memUsage(name, freev) = label_set(sum(freev) / sum(node_memory_MemTotal_bytes{commonFilters}) * 100, "name", name)
-)
-union(
-    memUsage("cache", node_memory_Cached_bytes{commonFilters}),
-    memUsage("buffers", node_memory_Buffers_bytes{commonFilters}),
-    memUsage("free", node_memory_MemFree_bytes{commonFilters})
-)
-```
-
-A template is available only in the query where it is defined.
-The [VictoriaMetrics datasource for Grafana](https://github.com/VictoriaMetrics/victoriametrics-datasource#how-to-use-with-templates)
-stores templates per dashboard, so all the panels of the dashboard can use them.
-
-Try `WITH` templates in the [playground](https://play.victoriametrics.com/select/0/prometheus/graph/#/expand-with-exprs),
-which shows the expanded query and contains a step-by-step tutorial.
-
 ## MetricsQL functions
 
 If you are unfamiliar with PromQL, then please read [this tutorial](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085) at first.
