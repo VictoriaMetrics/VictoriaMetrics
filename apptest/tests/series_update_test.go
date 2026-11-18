@@ -33,7 +33,7 @@ func TestSingleSeriesUpdate(t *testing.T) {
 				},
 				Samples: originSamples,
 			},
-			// patches must be applied in revision order, so rev=2 overrides rev=1 at minute 2
+			// updates must be applied in revision order, so rev=2 overrides rev=1 at minute 2
 			{
 				Labels: []prompb.Label{
 					{Name: "__name__", Value: "up"},
@@ -50,7 +50,7 @@ func TestSingleSeriesUpdate(t *testing.T) {
 				},
 				Samples: []prompb.Sample{{Timestamp: millis("2024-01-01T00:01:00Z"), Value: 10}, {Timestamp: millis("2024-01-01T00:02:00Z"), Value: 10}},
 			},
-			// patch adds new points after the origin series end
+			// update adds new points after the origin series end
 			{
 				Labels: []prompb.Label{
 					{Name: "__name__", Value: "up"},
@@ -59,7 +59,7 @@ func TestSingleSeriesUpdate(t *testing.T) {
 				},
 				Samples: []prompb.Sample{{Timestamp: millis("2024-01-01T00:05:00Z"), Value: 30}, {Timestamp: millis("2024-01-01T00:06:00Z"), Value: 30}},
 			},
-			// series without patches must be returned as is
+			// series without updates must be returned as is
 			{
 				Labels: []prompb.Label{
 					{Name: "__name__", Value: "up"},
@@ -67,7 +67,7 @@ func TestSingleSeriesUpdate(t *testing.T) {
 				},
 				Samples: originSamples,
 			},
-			// patch without origin series is dropped
+			// update without origin series is dropped
 			{
 				Labels: []prompb.Label{
 					{Name: "__name__", Value: "up"},
@@ -135,7 +135,7 @@ func TestClusterSeriesUpdate(t *testing.T) {
 				},
 				Samples: originSamples,
 			},
-			// patches must be applied in revision order, so rev=2 overrides rev=1 at minute 2
+			// updates must be applied in revision order, so rev=2 overrides rev=1 at minute 2
 			{
 				Labels: []prompb.Label{
 					{Name: "__name__", Value: "up"},
@@ -152,7 +152,7 @@ func TestClusterSeriesUpdate(t *testing.T) {
 				},
 				Samples: []prompb.Sample{{Timestamp: millis("2024-01-01T00:01:00Z"), Value: 10}, {Timestamp: millis("2024-01-01T00:02:00Z"), Value: 10}},
 			},
-			// patch adds new points after the origin series end
+			// update adds new points after the origin series end
 			{
 				Labels: []prompb.Label{
 					{Name: "__name__", Value: "up"},
@@ -161,7 +161,7 @@ func TestClusterSeriesUpdate(t *testing.T) {
 				},
 				Samples: []prompb.Sample{{Timestamp: millis("2024-01-01T00:05:00Z"), Value: 30}, {Timestamp: millis("2024-01-01T00:06:00Z"), Value: 30}},
 			},
-			// series without patches must be returned as is
+			// series without updates must be returned as is
 			{
 				Labels: []prompb.Label{
 					{Name: "__name__", Value: "up"},
@@ -169,7 +169,7 @@ func TestClusterSeriesUpdate(t *testing.T) {
 				},
 				Samples: originSamples,
 			},
-			// patch without origin series is dropped
+			// update without origin series is dropped
 			{
 				Labels: []prompb.Label{
 					{Name: "__name__", Value: "up"},

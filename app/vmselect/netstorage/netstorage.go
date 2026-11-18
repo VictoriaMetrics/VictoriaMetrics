@@ -345,7 +345,7 @@ type packedTimeseries struct {
 	metricName string
 	brs        []blockRef
 
-	// updates contains blocks of series updates sorted by revision in ascending order.
+	// updates contains blocks of series updates sorted by update id in ascending order.
 	updates [][]blockRef
 }
 
@@ -460,24 +460,24 @@ func (pts *packedTimeseries) Unpack(ctx context.Context, dst *Result, tbf *tmpBl
 	if len(pts.updates) == 0 || len(dst.Timestamps) == 0 {
 		return nil
 	}
-	// slow path apply updates to time series.
-	patches := pts.updates
-	var patch Result
+	// Slow path - apply updates to time series.
+	updateBrss := pts.updates
+	var updateResult Result
 	rowsSkipped := dst.rowsSkipped
 	sbh = getSortBlocksHeap()
 
 	var tmpPts packedTimeseries
-	for _, brs := range patches {
+	for _, brs := range updateBrss {
 		tmpPts.brs = brs
 		sbh.sbs, err = tmpPts.unpackTo(ctx, sbh.sbs[:0], tbf, tr)
 		if err != nil {
 			putSortBlocksHeap(sbh)
 			return err
 		}
-		patch.reset()
-		mergeSortBlocks(&patch, sbh, dedupInterval)
-		rowsSkipped += patch.rowsSkipped
-		mergeResult(dst, &patch)
+		updateResult.reset()
+		mergeSortBlocks(&updateResult, sbh, dedupInterval)
+		rowsSkipped += updateResult.rowsSkipped
+		mergeResult(dst, &updateResult)
 	}
 	putSortBlocksHeap(sbh)
 
@@ -1121,7 +1121,7 @@ func ProcessSearchQuery(ctx context.Context, qt *querytracer.Tracer, sq *storage
 
 // ProcessSearchQueryWithMergeLabel performs sq with given optional mergeLabel.
 //
-// If mergeLabel is set, timeseries with mergeLables are treated as updates for corresponding timeseries without it.
+// If mergeLabel is set, timeseries with mergeLabel are treated as updates for corresponding timeseries without that label.
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.
 func ProcessSearchQueryWithMergeLabel(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, mergeLabel string) (*Results, error) {
@@ -1170,7 +1170,7 @@ func ProcessSearchQueryWithMergeLabel(ctx context.Context, qt *querytracer.Trace
 
 	var suc *seriesUpdateContext[blockRef]
 	if len(mergeLabel) > 0 {
-		suc = newSeriesUpdateContext(mergeLabel, maxSeriesCount)
+		suc = newSeriesUpdateContext[blockRef](mergeLabel, maxSeriesCount)
 	}
 
 	var brsIdx int
@@ -1204,7 +1204,7 @@ func ProcessSearchQueryWithMergeLabel(ctx context.Context, qt *querytracer.Trace
 		}
 
 		metricName := sr.MetricBlockRef.MetricName
-		isPatch, err := suc.tryAddUpdate(metricName, blockRef{
+		ok, err := suc.tryAddUpdate(metricName, blockRef{
 			partRef: br.PartRef(),
 			addr:    addr,
 		})
@@ -1213,7 +1213,7 @@ func ProcessSearchQueryWithMergeLabel(ctx context.Context, qt *querytracer.Trace
 			vmstorage.PutSearch(sr)
 			return nil, err
 		}
-		if isPatch {
+		if ok {
 			continue
 		}
 
@@ -1361,14 +1361,16 @@ func ResetMetricNamesStats(ctx context.Context, qt *querytracer.Tracer) error {
 	return vmstorage.VMSelectAPI.ResetMetricNamesUsageStats(ctx, qt)
 }
 
-// mergeResults expects that timestamps are sorted.
-func mergeResult(dst, patch *Result) {
-	if len(patch.Timestamps) == 0 {
+// mergeResult replaces dst samples with update samples within the update time range.
+//
+// The function expects that both dst and update timestamps are sorted.
+func mergeResult(dst, update *Result) {
+	if len(update.Timestamps) == 0 {
 		return
 	}
-	// search for patch.Timestamps[0]-1 in order to get first timestamp greater or equal first timestamp at patch.
-	start := binarySearchTimestamps(dst.Timestamps, patch.Timestamps[0]-1)
-	end := start + binarySearchTimestamps(dst.Timestamps[start:], patch.Timestamps[len(patch.Timestamps)-1])
-	dst.Timestamps = slices.Replace(dst.Timestamps, start, end, patch.Timestamps...)
-	dst.Values = slices.Replace(dst.Values, start, end, patch.Values...)
+	// search for update.Timestamps[0]-1 in order to get first timestamp greater or equal to the first update timestamp.
+	startIdx := binarySearchTimestamps(dst.Timestamps, update.Timestamps[0]-1)
+	endIdx := startIdx + binarySearchTimestamps(dst.Timestamps[startIdx:], update.Timestamps[len(update.Timestamps)-1])
+	dst.Timestamps = slices.Replace(dst.Timestamps, startIdx, endIdx, update.Timestamps...)
+	dst.Values = slices.Replace(dst.Values, startIdx, endIdx, update.Values...)
 }

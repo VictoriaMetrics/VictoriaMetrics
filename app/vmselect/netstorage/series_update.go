@@ -10,13 +10,13 @@ import (
 )
 
 // seriesUpdateContext holds context values for timeseries updates
-// grouped by given revisionLabel.
+// grouped by given updateIDLabel.
 //
-// T generic type is needed to reduce code diff between single and cluster branches.
-type seriesUpdateContext[T blockRef] struct {
-	revisionLabel string
+// T generic update type is needed to reduce code diff between single and cluster branches.
+type seriesUpdateContext[T any] struct {
+	updateRevisionLabel string
 
-	// temporary values below allows to reduce memory allocations
+	// Temporary values below allow to reduce memory allocations
 	// for subsequent tryAddUpdate calls.
 	mn             storage.MetricName
 	metricNamePrev []byte
@@ -27,26 +27,26 @@ type seriesUpdateContext[T blockRef] struct {
 	metricNamesBuf      []byte
 	updatesByMetricName map[string]map[int64][]T
 
-	revsBuf []int64
+	updateRevisionsBuf []int64
 }
 
-func newSeriesUpdateContext[T blockRef](mergeLabel string, maxSeriesCount int) *seriesUpdateContext[T] {
+func newSeriesUpdateContext[T any](updateRevisionLabel string, maxSeriesCount int) *seriesUpdateContext[T] {
 	metricNamesBufCap := min(maxSeriesCount*100, maxFastAllocBlockSize)
 	return &seriesUpdateContext[T]{
-		revisionLabel:       mergeLabel,
+		updateRevisionLabel: updateRevisionLabel,
 		metricNamesBuf:      make([]byte, 0, metricNamesBufCap),
 		updatesByMetricName: make(map[string]map[int64][]T, maxSeriesCount),
 	}
 }
 
-func (suc *seriesUpdateContext[T]) tryAddUpdate(metricName []byte, patch T) (bool, error) {
+func (suc *seriesUpdateContext[T]) tryAddUpdate(metricName []byte, update T) (bool, error) {
 	if suc == nil {
 		return false, nil
 	}
 	if string(metricName) != string(suc.metricNamePrev) {
 		suc.metricNamePrev = append(suc.metricNamePrev[:0], metricName...)
 		var err error
-		suc.metricNameCurr, suc.updateRevision, err = getMetricNameRevisionValue(suc.metricNameCurr[:0], &suc.mn, metricName, suc.revisionLabel)
+		suc.metricNameCurr, suc.updateRevision, err = getSeriesUpdateRevision(suc.metricNameCurr[:0], &suc.mn, metricName, suc.updateRevisionLabel)
 		if err != nil {
 			return false, err
 		}
@@ -54,15 +54,15 @@ func (suc *seriesUpdateContext[T]) tryAddUpdate(metricName []byte, patch T) (boo
 	if len(suc.metricNameCurr) == 0 {
 		return false, nil
 	}
-	revs := suc.updatesByMetricName[string(suc.metricNameCurr)]
-	if revs == nil {
+	updatesByRevision := suc.updatesByMetricName[string(suc.metricNameCurr)]
+	if updatesByRevision == nil {
 		var metricNameStr string
 		suc.metricNamesBuf, metricNameStr = cloneMetricNameWithBuf(suc.metricNamesBuf, suc.metricNameCurr)
-		revs = make(map[int64][]T)
-		suc.updatesByMetricName[metricNameStr] = revs
+		updatesByRevision = make(map[int64][]T)
+		suc.updatesByMetricName[metricNameStr] = updatesByRevision
 	}
 	// TODO: reduce allocations if needed.
-	revs[suc.updateRevision] = append(revs[suc.updateRevision], patch)
+	updatesByRevision[suc.updateRevision] = append(updatesByRevision[suc.updateRevision], update)
 	return true, nil
 }
 
@@ -70,26 +70,26 @@ func (suc *seriesUpdateContext[T]) getUpdatesByMetricName(metricName string) [][
 	if suc == nil || len(suc.updatesByMetricName) == 0 {
 		return nil
 	}
-	revs := suc.updatesByMetricName[metricName]
-	if len(revs) == 0 {
+	updates := suc.updatesByMetricName[metricName]
+	if len(updates) == 0 {
 		return nil
 	}
-	return suc.getUpdatesByRevision(revs)
+	return suc.sortUpdates(updates)
 }
 
-func (suc *seriesUpdateContext[T]) getUpdatesByRevision(revs map[int64][]T) [][]T {
-	revsBuf := suc.revsBuf[:0]
-	for rev := range revs {
-		revsBuf = append(revsBuf, rev)
+func (suc *seriesUpdateContext[T]) sortUpdates(updateRevisions map[int64][]T) [][]T {
+	updateIDsBuf := suc.updateRevisionsBuf[:0]
+	for rev := range updateRevisions {
+		updateIDsBuf = append(updateIDsBuf, rev)
 	}
+	slices.Sort(updateIDsBuf)
 	// TODO: reduce allocations if needed.
-	results := make([][]T, 0, len(revs))
-	slices.Sort(revsBuf)
-	for _, rev := range revsBuf {
-		// TODO: make a shallow copy of revs[rev] to remove reference for suc.
-		results = append(results, revs[rev])
+	results := make([][]T, 0, len(updateRevisions))
+	for _, rev := range updateIDsBuf {
+		// TODO: make a shallow copy of updateRevisions[rev] in order to remove reference for suc.
+		results = append(results, updateRevisions[rev])
 	}
-	suc.revsBuf = revsBuf
+	suc.updateRevisionsBuf = updateIDsBuf
 	return results
 }
 
@@ -105,7 +105,7 @@ func cloneMetricNameWithBuf(metricNamesBuf []byte, metricName []byte) ([]byte, s
 	return metricNamesBuf, metricNameStr
 }
 
-func getMetricNameRevisionValue(dst []byte, mn *storage.MetricName, metricName []byte, mergeLabel string) ([]byte, int64, error) {
+func getSeriesUpdateRevision(dst []byte, mn *storage.MetricName, metricName []byte, mergeLabel string) ([]byte, int64, error) {
 	if err := mn.Unmarshal(metricName); err != nil {
 		return dst, 0, fmt.Errorf("cannot unmarshal metricName %q: %w", metricName, err)
 	}
@@ -113,10 +113,10 @@ func getMetricNameRevisionValue(dst []byte, mn *storage.MetricName, metricName [
 	if len(v) == 0 {
 		return dst, 0, nil
 	}
-	rev, err := strconv.ParseInt(string(v), 10, 64)
+	revision, err := strconv.ParseInt(string(v), 10, 64)
 	if err != nil {
-		return dst, 0, fmt.Errorf("cannot parse revision from %q label value of series %s: %w", mergeLabel, mn.String(), err)
+		return dst, 0, fmt.Errorf("cannot parse update revision from %q label value of series %s: %w", mergeLabel, mn.String(), err)
 	}
 	mn.RemoveTag(mergeLabel)
-	return mn.Marshal(dst), rev, nil
+	return mn.Marshal(dst), revision, nil
 }

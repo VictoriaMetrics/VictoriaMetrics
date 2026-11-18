@@ -481,7 +481,7 @@ See [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) and [vmga
 VictoriaMetrics accepts multiple formats for `time`, `start` and `end` query args - see [these docs](#timestamp-formats).
 
 VictoriaMetrics accepts `merge_latest_label` query arg for [/api/v1/query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query)
-and [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) handlers. It applies updates (patches)
+and [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) handlers. It applies updates
 to the selected time series based on the given revision label. See [series updates](#series-updates).
 
 VictoriaMetrics accepts `round_digits` query arg for [/api/v1/query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query)
@@ -2511,7 +2511,7 @@ See [series updates](#series-updates).
 ## Series updates
 
 VictoriaMetrics can apply updates to already stored [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series)
-at query time. An update  is a regular time series with the same labels as the original series plus an extra revision label
+at query time. An update is a regular time series with the same labels as the original series plus an extra revision label
 with an integer value. Pass the name of the revision label via `merge_latest_label` query arg
 to [/api/v1/query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query)
 and [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) in order to apply it.
@@ -2519,8 +2519,7 @@ and [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyco
 Updates are applied in the following way:
 
 * Updates are applied to the original series in ascending order of revision label values.
-  A sample from a update replaces the sample with the same timestamp from the original series or from update with lower revisions.
-* Samples from a update with timestamps missing in the original series are added to the result.
+* Each update replaces the original samples from its first through last timestamp with the update's samples; timestamps present only in the update are added.
 * The revision label is removed from the resulting series.
 * Series without updates are returned as is.
 * Updates without the original series (the series without revision label) are ignored.
@@ -2531,18 +2530,17 @@ For example, the original series `temperature{sensor="1"}` was ingested with the
 ```sh
 curl http://<victoriametrics-addr>:8428/api/v1/import/prometheus -d '
 temperature{sensor="1"} 10 1704067200000
-temperature{sensor="1"} -1000 1704067260000
+temperature{sensor="1"} 11 1704067260000
 temperature{sensor="1"} 50000 1704067320000
 temperature{sensor="1"} 13 1704067380000
 '
 ```
 
-Later it turned out that the samples at `1704067260000` and `1704067320000` timestamps are invalid.
-It could be updated with a new series that has a corrected values and `rev="1"` label:
+Later it turned out that the sample at timestamp `1704067320000` is invalid.
+The invalid time series could be updated with a new series that has corrected values and a `rev="1"` label:
 
 ```sh
 curl http://<victoriametrics-addr>:8428/api/v1/import/prometheus -d '
-temperature{sensor="1",rev="1"} 11 1704067260000
 temperature{sensor="1",rev="1"} 12 1704067320000
 '
 ```
@@ -2558,20 +2556,47 @@ Without `merge_latest_label` query arg the original series and the updates are r
 ```text
 {"status":"success","data":{"resultType":"matrix","result":[
     {"metric":{"__name__":"temperature","rev":"1","sensor":"1"},"values":[[1704067260,"11"],[1704067320,"12"],[1704067380,"12"]]},
-    {"metric":{"__name__":"temperature","sensor":"1"},"values":[[1704067200,"10"],[1704067260,"-1000"],[1704067320,"50000"],[1704067380,"13"]]}]},
+    {"metric":{"__name__":"temperature","sensor":"1"},"values":[[1704067200,"10"],[1704067260,"11"],[1704067320,"50000"],[1704067380,"13"]]}]},
 "stats":{"seriesFetched": "2","executionTimeMsec":1}}
 ```
+ Series update works on time series and replaces the whole specific timestamp range
+For example, the original series `temperature{sensor="2"}` was ingested with the following samples:
+
+```sh
+curl http://<victoriametrics-addr>:8428/api/v1/import/prometheus -d '
+temperature{sensor="2"} 10 1704067200000
+temperature{sensor="2"} 11 1704067260000
+temperature{sensor="2"} -50000 1704067320000
+temperature{sensor="2"} 50000 1704067321234
+temperature{sensor="2"} 13 1704067380000
+'
+```
+ Time series has incorrect sample value at `1704067320000` and extra sample at `1704067321234`.
+The invalid time series could be updated with a new series that has corrected values at specific timestamp range and a `rev="2"` label:
+
+```sh
+curl http://<victoriametrics-addr>:8428/api/v1/import/prometheus -d '
+temperature{sensor="2",rev="2"} 12 1704067320000
+temperature{sensor="2",rev="2"} 13 1704067380000
+'
+```
+Query the series with `merge_latest_label=rev` query arg:
+
+```sh
+curl http://<victoriametrics-addr>:8428/api/v1/query -d 'query=max_over_time(temperature{sensor="2"}[3m])' -d 'time=1704067380'  -d 'merge_latest_label=rev'
+```
+The response contains a single `temperature{sensor="2"}` series with correct max value `13`.
 
 `merge_latest_label` query arg is supported only by `/api/v1/query` and `/api/v1/query_range` handlers.
 Other handlers such as [/api/v1/export](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1export)
 and [/api/v1/series](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series) ignore it
-and return the original series and the patches as separate series.
+and return the original series and the updates as separate series.
 
-Note that updates aren't free and it's not recommend to perform it frequently:
+Note that updates aren't free and it's not recommended to perform them frequently:
 
 * Every update is stored as a separate time series. This increases disk space usage and the number of entries in [IndexDB](#indexdb).
 * Updates are merged with the original series on every query. This could slightly increase query duration and resource usage
-  proportionally to the number of update for the selected series.
+  proportionally to the number of updates for the selected series.
 
 ## Replication
 

@@ -161,9 +161,9 @@ type EvalConfig struct {
 	// The caller must initialize QueryStats, otherwise it isn't collected.
 	QueryStats *QueryStats
 
-	// MergeLatestLabel is the name of the label with the revision of series patches.
+	// MergeLatestLabel is the name of the label with the update id of series updates.
 	//
-	// If it is non-empty, then series patches are applied to the selected series.
+	// If it is non-empty, then series updates are applied to the selected series.
 	MergeLatestLabel string
 
 	timestamps     []int64

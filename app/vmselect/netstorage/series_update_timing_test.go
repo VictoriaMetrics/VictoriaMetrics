@@ -37,22 +37,23 @@ func BenchmarkSeriesUpdateContext(b *testing.B) {
 func benchmarkSeriesUpdateContext(b *testing.B, metricNames [][]byte, lookup []string) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(metricNames)))
+	type update struct {
+		value int
+	}
 	for b.Loop() {
-		suc := newSeriesUpdateContext("rev", len(lookup))
+		suc := newSeriesUpdateContext[update]("rev", len(lookup))
 		for i, metricName := range metricNames {
-			isPatch, err := suc.tryAddUpdate(metricName, blockRef{
-				addr: tmpBlockAddr{offset: uint64(i)},
-			})
+			isUpdate, err := suc.tryAddUpdate(metricName, update{i})
 			if err != nil {
 				b.Fatalf("unexpected error: %s", err)
 			}
-			if !isPatch {
-				b.Fatalf("expecting patch for series #%d", i)
+			if !isUpdate {
+				b.Fatalf("expecting update for series #%d", i)
 			}
 		}
 		for _, metricName := range lookup {
 			if len(suc.getUpdatesByMetricName(metricName)) == 0 {
-				b.Fatalf("missing patches for series %q", metricName)
+				b.Fatalf("missing updates for series %q", metricName)
 			}
 		}
 	}

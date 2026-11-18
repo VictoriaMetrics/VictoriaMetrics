@@ -567,6 +567,7 @@ func marshalRollupResultCacheKeyForSeries(dst []byte, expr metricsql.Expr, windo
 	dst = encoding.MarshalInt64(dst, step)
 	dst = marshalTagFiltersForRollupResultCacheKey(dst, etfs)
 	dst = expr.AppendString(dst)
+	dst = encoding.MarshalInt64(dst, int64(len(mergeLatestLabel)))
 	dst = append(dst, mergeLatestLabel...)
 	return dst
 }
@@ -579,6 +580,7 @@ func marshalRollupResultCacheKeyForInstantValues(dst []byte, expr metricsql.Expr
 	dst = encoding.MarshalInt64(dst, step)
 	dst = marshalTagFiltersForRollupResultCacheKey(dst, etfs)
 	dst = expr.AppendString(dst)
+	dst = encoding.MarshalInt64(dst, int64(len(mergeLatestLabel)))
 	dst = append(dst, mergeLatestLabel...)
 	return dst
 }

@@ -18,33 +18,35 @@ func TestSeriesUpdateContext(t *testing.T) {
 		return mn
 	}
 
+	type update struct {
+		value int
+	}
+
 	// Every series gets blockRef with addr.offset equal to its index at series.
-	// expected contains addr.offsets of patches returned for each lookup.
-	f := func(series []storage.MetricName, isPatchExpected []bool, lookup []storage.MetricName, expected [][][]uint64) {
+	// expected contains addr.offsets of updates returned for each lookup.
+	f := func(series []storage.MetricName, isUpdateExpected []bool, lookup []storage.MetricName, expected [][][]int) {
 		t.Helper()
-		suc := newSeriesUpdateContext("rev", len(series))
+		suc := newSeriesUpdateContext[update]("rev", len(series))
 		for i := range series {
-			isPatch, err := suc.tryAddUpdate(series[i].Marshal(nil), blockRef{
-				addr: tmpBlockAddr{offset: uint64(i)},
-			})
+			isUpdate, err := suc.tryAddUpdate(series[i].Marshal(nil), update{i})
 			if err != nil {
 				t.Fatalf("unexpected error at series #%d: %s", i, err)
 			}
-			if isPatch != isPatchExpected[i] {
-				t.Fatalf("unexpected isPatch at series #%d; got %v; want %v", i, isPatch, isPatchExpected[i])
+			if isUpdate != isUpdateExpected[i] {
+				t.Fatalf("unexpected isUpdate at series #%d; got %v; want %v", i, isUpdate, isUpdateExpected[i])
 			}
 		}
 		for i := range lookup {
-			var got [][]uint64
-			for _, brs := range suc.getUpdatesByMetricName(string(lookup[i].Marshal(nil))) {
-				offsets := make([]uint64, 0, len(brs))
-				for _, br := range brs {
-					offsets = append(offsets, br.addr.offset)
+			var got [][]int
+			for _, updates := range suc.getUpdatesByMetricName(string(lookup[i].Marshal(nil))) {
+				values := make([]int, 0, len(updates))
+				for _, update := range updates {
+					values = append(values, update.value)
 				}
-				got = append(got, offsets)
+				got = append(got, values)
 			}
 			if !reflect.DeepEqual(got, expected[i]) {
-				t.Fatalf("unexpected patches for lookup %s;\ngot\n%v\nwant\n%v", lookup[i].String(), got, expected[i])
+				t.Fatalf("unexpected updates for lookup %s;\ngot\n%v\nwant\n%v", lookup[i].String(), got, expected[i])
 			}
 		}
 	}
@@ -52,7 +54,7 @@ func TestSeriesUpdateContext(t *testing.T) {
 	// no series
 	f(nil, nil, []storage.MetricName{
 		newMetricName("foo"),
-	}, [][][]uint64{nil})
+	}, [][][]int{nil})
 
 	// series without revision label
 	f([]storage.MetricName{
@@ -60,17 +62,17 @@ func TestSeriesUpdateContext(t *testing.T) {
 		newMetricName("bar"),
 	}, []bool{false, false}, []storage.MetricName{
 		newMetricName("foo", "job", "a"),
-	}, [][][]uint64{nil})
+	}, [][][]int{nil})
 
-	// single patch
+	// single update
 	f([]storage.MetricName{
 		newMetricName("foo", "job", "a"),
 		newMetricName("foo", "job", "a", "rev", "1"),
 	}, []bool{false, true}, []storage.MetricName{
 		newMetricName("foo", "job", "a"),
-	}, [][][]uint64{{{1}}})
+	}, [][][]int{{{1}}})
 
-	// patches are sorted by revision and blocks with the same revision are grouped
+	// updates are sorted by revision and updates with the same revision are grouped
 	f([]storage.MetricName{
 		newMetricName("foo", "rev", "10"),
 		newMetricName("foo", "rev", "10"),
@@ -80,9 +82,9 @@ func TestSeriesUpdateContext(t *testing.T) {
 		newMetricName("foo", "rev", "2"),
 	}, []bool{true, true, true, false, true, true}, []storage.MetricName{
 		newMetricName("foo"),
-	}, [][][]uint64{{{4}, {2, 5}, {0, 1}}})
+	}, [][][]int{{{4}, {2, 5}, {0, 1}}})
 
-	// patches are returned per series
+	// updates are returned per series
 	f([]storage.MetricName{
 		newMetricName("foo", "rev", "1"),
 		newMetricName("bar", "rev", "1"),
@@ -92,12 +94,12 @@ func TestSeriesUpdateContext(t *testing.T) {
 		newMetricName("bar"),
 		newMetricName("foo"),
 		newMetricName("foo", "job", "b"),
-	}, [][][]uint64{{{1}}, {{3}, {0}}, {{2}}})
+	}, [][][]int{{{1}}, {{3}, {0}}, {{2}}})
 
 	// lookup of unknown series
 	f([]storage.MetricName{
 		newMetricName("foo", "rev", "1"),
 	}, []bool{true}, []storage.MetricName{
 		newMetricName("bar"),
-	}, [][][]uint64{nil})
+	}, [][][]int{nil})
 }

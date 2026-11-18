@@ -124,4 +124,5 @@ var transformFuncs = map[string]bool{
 func IsTransformFunc(funcName string) bool {
 	s := strings.ToLower(funcName)
 	return transformFuncs[s]
+
 }

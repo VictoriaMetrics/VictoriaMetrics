@@ -307,20 +307,20 @@ func TestEqualSamplesPrefix(t *testing.T) {
 }
 
 func TestMergeResult(t *testing.T) {
-	f := func(dstTimestamps []int64, patchTimestamps []int64, expectedTimestamps []int64, expectedValues []float64) {
+	f := func(dstTimestamps []int64, updateTimestamps []int64, expectedTimestamps []int64, expectedValues []float64) {
 		t.Helper()
 		dst := &Result{
 			Timestamps: dstTimestamps,
 			Values:     make([]float64, len(dstTimestamps)),
 		}
-		patch := &Result{
-			Timestamps: patchTimestamps,
-			Values:     make([]float64, len(patchTimestamps)),
+		update := &Result{
+			Timestamps: updateTimestamps,
+			Values:     make([]float64, len(updateTimestamps)),
 		}
-		for i := range patch.Values {
-			patch.Values[i] = 1
+		for i := range update.Values {
+			update.Values[i] = 1
 		}
-		mergeResult(dst, patch)
+		mergeResult(dst, update)
 		if !reflect.DeepEqual(dst.Timestamps, expectedTimestamps) {
 			t.Fatalf("unexpected timestamps; got %v; want %v", dst.Timestamps, expectedTimestamps)
 		}
@@ -329,26 +329,26 @@ func TestMergeResult(t *testing.T) {
 		}
 	}
 
-	// empty patch
+	// empty update
 	f([]int64{1, 2}, nil, []int64{1, 2}, []float64{0, 0})
 
 	// empty origin
 	f(nil, []int64{1, 2}, []int64{1, 2}, []float64{1, 1})
 
-	// patch before origin
+	// update before origin
 	f([]int64{5, 6}, []int64{1, 2}, []int64{1, 2, 5, 6}, []float64{1, 1, 0, 0})
 
-	// patch after origin
+	// update after origin
 	f([]int64{1, 2}, []int64{5, 6}, []int64{1, 2, 5, 6}, []float64{0, 0, 1, 1})
 
-	// patch touches origin edges
+	// update touches origin edges
 	f([]int64{1, 2, 3}, []int64{3, 4}, []int64{1, 2, 3, 4}, []float64{0, 0, 1, 1})
 	f([]int64{3, 4, 5}, []int64{1, 3}, []int64{1, 3, 4, 5}, []float64{1, 1, 0, 0})
 
-	// patch inside origin replaces the whole covered range
+	// update inside origin replaces the whole covered range
 	f([]int64{1, 2, 3, 4, 5, 6}, []int64{2, 5}, []int64{1, 2, 5, 6}, []float64{0, 1, 1, 0})
 	f([]int64{1, 3, 5}, []int64{2, 4}, []int64{1, 2, 4, 5}, []float64{0, 1, 1, 0})
 
-	// patch covers origin
+	// update covers origin
 	f([]int64{2, 3}, []int64{1, 4}, []int64{1, 4}, []float64{1, 1})
 }
