@@ -683,12 +683,7 @@ func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
 	// otherwise they are marshaled on the fly.
 	var namesRight []byte
 	var namesRightStarts []int
-	if len(tssRight) == 1 {
-		// Avoid allocations in the common case of a single right series.
-		nameRight.B = marshalMetricNameSorted(nameRight.B[:0], &tssRight[0].MetricName)
-		namesRight = nameRight.B
-		namesRightStarts = []int{0, len(namesRight)}
-	} else if len(tssLeft)*len(tssLeft[0].Values) > 1 {
+	if len(tssLeft)*len(tssLeft[0].Values) > 1 {
 		namesRight = make([]byte, 0, 50*len(tssRight))
 		namesRightStarts = make([]int, len(tssRight)+1)
 		for j, tsRight := range tssRight {
