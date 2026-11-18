@@ -704,7 +704,8 @@ func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
 			nameRight.B = marshalMetricNameSorted(nameRight.B[:0], &tssRight[idx].MetricName)
 			return nameRight.B
 		}
-		return namesRight[namesRightStarts[idx]:namesRightStarts[idx+1]]
+		start, end := namesRightStarts[idx], namesRightStarts[idx+1]
+		return namesRight[start:end]
 	}
 
 	for _, tsLeft := range tssLeft {
