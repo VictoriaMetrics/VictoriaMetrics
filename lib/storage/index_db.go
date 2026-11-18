@@ -759,12 +759,7 @@ func (db *indexDB) searchLabelNamesByDateAndFilters(ctx context.Context, qt *que
 
 func (is *indexSearch) getLabelNamesForMetricIDs(ctx context.Context, qt *querytracer.Tracer, metricIDs *uint64set.Set, maxLabelNames int) (map[string]struct{}, error) {
 	lns := make(map[string]struct{})
-	if metricIDs.Len() > 0 {
-		lns["__name__"] = struct{}{}
-	}
-
 	dmis := is.db.getDeletedMetricIDs()
-
 	var mn MetricName
 	foundLabelNames := 0
 	var buf []byte
@@ -807,6 +802,9 @@ func (is *indexSearch) getLabelNamesForMetricIDs(ctx context.Context, qt *queryt
 	})
 	if err != nil {
 		return nil, err
+	}
+	if len(lns) > 0 {
+		lns["__name__"] = struct{}{}
 	}
 	qt.Printf("get %d distinct label names from %d metricIDs", foundLabelNames, metricIDs.Len())
 	return lns, nil
