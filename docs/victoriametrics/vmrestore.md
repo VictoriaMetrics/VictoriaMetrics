@@ -57,15 +57,19 @@ of production data into a test environment.
 
 > **Warning:** local partitions in `-storageDataPath` that are not restored are removed.
 
-> **Note:** partial restore never restores the legacy, non-partitioned IndexDB, which storage created before
-> [v1.133.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11330) keeps until retention rotates it out
-> (see [#7599](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7599)). It covers all partitions, so it can't be
-> restored partially, and it is usually large, so restoring it in full would defeat the purpose of partial restore.
-> Data indexed only in the legacy IndexDB isn't searchable after a partial restore; restore the backup in full if you need it.
+Partial restore never restores the legacy IndexDB.
+Storage created before [v1.133.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11330) has a single,
+non-partitioned IndexDB. It is kept until retention rotates it out
+(see [#7599](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7599)).
+It covers all partitions, so it can't be restored partially.
+It is also usually large, so restoring it in full would defeat the purpose of partial restore.
 
-> **Note:** partial restore fails if the backup contains the legacy IndexDB folder.
-> Pass `-allowPartialRestoreWithoutLegacyIndex` to restore anyway, e.g. when the backup has a long retention period, so the legacy IndexDB
-> isn't rotated out yet, but all the selected partitions were written after the upgrade to v1.133.0.
+Data indexed only in the legacy IndexDB isn't searchable after a partial restore.
+That's why partial restore fails if the backup contains the legacy IndexDB folder.
+Pass `-allowPartialRestoreWithoutLegacyIndex` to restore anyway.
+This is safe when all the selected partitions were written after the upgrade to v1.133.0,
+e.g. when a backup with a long retention period still contains the legacy IndexDB.
+Otherwise, restore the backup in full.
 
 [`-restoreSince`](https://docs.victoriametrics.com/victoriametrics/vmrestore/#restore-only-recent-data) and
 [`-restorePartitions`](https://docs.victoriametrics.com/victoriametrics/vmrestore/#restore-specific-partitions)
