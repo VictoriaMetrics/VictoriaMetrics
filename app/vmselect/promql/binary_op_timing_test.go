@@ -22,17 +22,37 @@ func BenchmarkBinaryOpOr(b *testing.B) {
 		return be
 	}
 	ts := func(name string) *timeseries {
-		mg := []byte(name)
 		if len(name) == 0 {
-			mg = nil
+			// scalar
+			return &timeseries{
+				Timestamps: []int64{1},
+				Values:     []float64{1},
+			}
 		}
 		return &timeseries{
 			MetricName: storage.MetricName{
-				MetricGroup: mg,
+				MetricGroup: []byte(name),
+				// Real series have labels, which make metric name marshaling noticeably more expensive.
+				// The labels are the same for all series, so they don't change how series are grouped.
+				Tags: []storage.Tag{
+					{Key: []byte("job"), Value: []byte("node-exporter")},
+					{Key: []byte("instance"), Value: []byte("10.0.0.1:9100")},
+					{Key: []byte("env"), Value: []byte("prod")},
+				},
 			},
 			Timestamps: []int64{1},
 			Values:     []float64{1},
 		}
+	}
+	tsWithPoints := func(name string, points int) *timeseries {
+		t := ts(name)
+		t.Timestamps = make([]int64, points)
+		t.Values = make([]float64, points)
+		for i := range points {
+			t.Timestamps[i] = int64(i)
+			t.Values[i] = 1
+		}
+		return t
 	}
 
 	b.Run("tss:1 or tss:1", func(b *testing.B) {
@@ -40,6 +60,14 @@ func BenchmarkBinaryOpOr(b *testing.B) {
 			be:    mustParseMetricsQL("a or b"),
 			left:  []*timeseries{ts("a")},
 			right: []*timeseries{ts("b")},
+		}
+		benchmarkBinaryOpOr(b, bfa)
+	})
+	b.Run("tss:1 or tss:1 points:1000", func(b *testing.B) {
+		bfa := &binaryOpFuncArg{
+			be:    mustParseMetricsQL("a or b"),
+			left:  []*timeseries{tsWithPoints("a", 1000)},
+			right: []*timeseries{tsWithPoints("b", 1000)},
 		}
 		benchmarkBinaryOpOr(b, bfa)
 	})
