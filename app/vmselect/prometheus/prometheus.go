@@ -225,7 +225,11 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 				if err := writeCSVLine(xb, workerID); err != nil {
 					return err
 				}
-				xb.reset()
+				// Do not use xb.reset() here
+				// and manually reset fields for performance reasons.
+				xb.mn = nil
+				xb.timestamps = nil
+				xb.values = nil
 				exportBlockPool.Put(xb)
 				return nil
 			})
@@ -447,7 +451,11 @@ func exportHandler(ctx context.Context, qt *querytracer.Tracer, w http.ResponseW
 				if err := writeLineFunc(xb, workerID); err != nil {
 					return err
 				}
-				xb.reset()
+				// Do not use xb.reset() here
+				// and manually reset fields for performance reasons.
+				xb.mn = nil
+				xb.timestamps = nil
+				xb.values = nil
 				exportBlockPool.Put(xb)
 				return nil
 			})
