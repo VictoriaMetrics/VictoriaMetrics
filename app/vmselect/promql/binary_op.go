@@ -698,13 +698,13 @@ func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
 		namesRightStarts[len(tssRight)] = len(namesRight)
 	}
 
-	// canBeMerged reports whether the current left series and tssRight[j] have identical names.
-	canBeMerged := func(j int) bool {
-		if namesRightStarts == nil {
-			nameRight.B = marshalMetricNameSorted(nameRight.B[:0], &tssRight[j].MetricName)
-			return bytes.Equal(nameLeft.B, nameRight.B)
+	// getRightName returns the marshaled name of tssRight[idx].
+	getRightName := func(idx int) []byte {
+		if len(namesRightStarts) == 0 {
+			nameRight.B = marshalMetricNameSorted(nameRight.B[:0], &tssRight[idx].MetricName)
+			return nameRight.B
 		}
-		return bytes.Equal(nameLeft.B, namesRight[namesRightStarts[j]:namesRightStarts[j+1]])
+		return namesRight[namesRightStarts[idx]:namesRightStarts[idx+1]]
 	}
 
 	for _, tsLeft := range tssLeft {
@@ -713,13 +713,13 @@ func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
 		for i, v := range valuesLeft {
 			leftIsNaN := math.IsNaN(v)
 			for j, tsRight := range tssRight {
-				merge := canBeMerged(j)
+				canBeMerged := bytes.Equal(nameLeft.B, getRightName(j))
 				valueRight := tsRight.Values[i]
-				if leftIsNaN && merge {
+				if leftIsNaN && canBeMerged {
 					// fill NaNs with valueRight if labels match
 					valuesLeft[i] = valueRight
 				}
-				if !leftIsNaN || merge {
+				if !leftIsNaN || canBeMerged {
 					// set NaN to valueRight if valueLeft is not NaN
 					// or if left and right can be merged
 					tsRight.Values[i] = nan
