@@ -166,7 +166,7 @@ func (rwctx *remoteWriteCtx) initStreamAggrConfig() {
 		if streamAggrDropInputLabels.GetOptionalArg(idx) != "" {
 			dropLabels = strings.Split(streamAggrDropInputLabels.GetOptionalArg(idx), "^^")
 		}
-		rwctx.deduplicator = streamaggr.NewDeduplicator(rwctx.pushInternalTrackDropped, *streamAggrGlobalEnableWindows, dedupInterval, dropLabels, alias)
+		rwctx.deduplicator = streamaggr.NewDeduplicator(rwctx.pushInternalTrackDropped, streamAggrEnableWindows.GetOptionalArg(idx), dedupInterval, dropLabels, alias)
 	}
 }
 
