@@ -63,8 +63,8 @@ type Restore struct {
 	// this setting.
 	RestorePartitions *regexp.Regexp
 
-	// SkipPartialRestoreLegacyIndexDBCheck allows a partial restore of a backup containing the legacy non-partitioned indexdb.
-	SkipPartialRestoreLegacyIndexDBCheck bool
+	// AllowPartialRestoreWithoutLegacyIndex allows a partial restore of a backup containing the legacy non-partitioned indexdb.
+	AllowPartialRestoreWithoutLegacyIndex bool
 }
 
 // Run runs r with the provided settings.
@@ -118,13 +118,13 @@ func (r *Restore) Run(ctx context.Context) error {
 		if slices.ContainsFunc(srcParts, func(p common.Part) bool {
 			return strings.HasPrefix(p.Path, "indexdb/")
 		}) {
-			if !r.SkipPartialRestoreLegacyIndexDBCheck {
+			if !r.AllowPartialRestoreWithoutLegacyIndex {
 				return fmt.Errorf("the backup contains the legacy non-partitioned IndexDB, which isn't restored when -restoreSince or -restorePartitions is set; " +
 					"data written before the upgrade to v1.133.0 won't be searchable after the restore; " +
-					"run a full restore if you need such data, or pass -skipPartialRestoreLegacyIndexDBCheck if all the selected partitions were written after the upgrade; " +
+					"run a full restore if you need such data, or pass -allowPartialRestoreWithoutLegacyIndex if all the selected partitions were written after the upgrade; " +
 					"see https://docs.victoriametrics.com/victoriametrics/vmrestore/#partial-restore")
 			}
-			logger.Warnf("skipping the legacy non-partitioned IndexDB, since -skipPartialRestoreLegacyIndexDBCheck is set; " +
+			logger.Warnf("skipping the legacy non-partitioned IndexDB, since -allowPartialRestoreWithoutLegacyIndex is set; " +
 				"data in the selected partitions written before the upgrade to v1.133.0 won't be searchable after the restore")
 		}
 		srcParts, err = filterPartitions(srcParts, r.RestoreSince, r.RestorePartitions, time.Now().UTC())

@@ -41,9 +41,9 @@ var (
 		"Non-partition files (metadata, etc.) are always restored. "+
 		"For example, -restorePartitions='2026_0[1-6]' restores 2026_01 through 2026_06. "+
 		"Local partitions in -storageDataPath that are not restored are removed.")
-	skipPartialRestoreLegacyIndexDBCheck = flag.Bool("skipPartialRestoreLegacyIndexDBCheck", false, "Whether to skip the check that fails a partial restore (-restoreSince or -restorePartitions) "+
-		"when the backup contains the legacy non-partitioned IndexDB created before v1.133.0. The legacy IndexDB is never restored in a partial restore, "+
-		"so data written before the upgrade to v1.133.0 isn't searchable after it")
+	allowPartialRestoreWithoutLegacyIndex = flag.Bool("allowPartialRestoreWithoutLegacyIndex", false, "Whether to allow a partial restore (-restoreSince or -restorePartitions) of a backup containing the legacy non-partitioned IndexDB created before v1.133.0. "+
+		"The legacy IndexDB is never restored in a partial restore, so data written before the upgrade to v1.133.0 isn't searchable after it. "+
+		"Without this flag, such a partial restore fails")
 )
 
 func main() {
@@ -63,8 +63,8 @@ func main() {
 		}
 		restorePartitionsRe = re
 	}
-	if *skipPartialRestoreLegacyIndexDBCheck && restorePartitionsRe == nil && (*restoreSince).Duration() == 0 {
-		logger.Fatalf("invalid flag combination: -skipPartialRestoreLegacyIndexDBCheck can only be set for partial restore, i.e. when either of -restoreSince or -restorePartitions is set")
+	if *allowPartialRestoreWithoutLegacyIndex && restorePartitionsRe == nil && (*restoreSince).Duration() == 0 {
+		logger.Fatalf("invalid flag combination: -allowPartialRestoreWithoutLegacyIndex can only be set for partial restore, i.e. when either of -restoreSince or -restorePartitions is set")
 	}
 
 	listenAddrs := []string{*httpListenAddr}
@@ -87,14 +87,14 @@ func main() {
 		logger.Fatalf("%s", err)
 	}
 	a := &actions.Restore{
-		Concurrency:                          *concurrency,
-		Src:                                  srcFS,
-		Dst:                                  dstFS,
-		SkipBackupCompleteCheck:              *skipBackupCompleteCheck,
-		SkipPreallocation:                    *SkipPreallocation,
-		RestoreSince:                         restoreSince.Duration(),
-		RestorePartitions:                    restorePartitionsRe,
-		SkipPartialRestoreLegacyIndexDBCheck: *skipPartialRestoreLegacyIndexDBCheck,
+		Concurrency:                           *concurrency,
+		Src:                                   srcFS,
+		Dst:                                   dstFS,
+		SkipBackupCompleteCheck:               *skipBackupCompleteCheck,
+		SkipPreallocation:                     *SkipPreallocation,
+		RestoreSince:                          restoreSince.Duration(),
+		RestorePartitions:                     restorePartitionsRe,
+		AllowPartialRestoreWithoutLegacyIndex: *allowPartialRestoreWithoutLegacyIndex,
 	}
 	pushmetrics.Init()
 	if err := a.Run(ctx); err != nil {

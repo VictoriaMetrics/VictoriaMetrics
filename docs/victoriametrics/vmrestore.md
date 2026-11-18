@@ -64,7 +64,7 @@ of production data into a test environment.
 > Data indexed only in the legacy IndexDB isn't searchable after a partial restore; restore the backup in full if you need it.
 
 > **Note:** partial restore fails if the backup contains the legacy IndexDB folder.
-> Pass `-skipPartialRestoreLegacyIndexDBCheck` to restore anyway, e.g. when the backup has a long retention period, so the legacy IndexDB
+> Pass `-allowPartialRestoreWithoutLegacyIndex` to restore anyway, e.g. when the backup has a long retention period, so the legacy IndexDB
 > isn't rotated out yet, but all the selected partitions were written after the upgrade to v1.133.0.
 
 [`-restoreSince`](https://docs.victoriametrics.com/victoriametrics/vmrestore/#restore-only-recent-data) and
