@@ -20,7 +20,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
@@ -415,9 +414,21 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 	var getRemoteReadQuerier func(enableDebug bool) datasource.Querier
 	if rr != nil {
 		getRemoteReadQuerier = func(enableDebug bool) datasource.Querier {
+			// restore query must look back for -remoteRead.lookback for both VictoriaMetrics and Prometheus.
+			// VictoriaMetrics uses `step` as the lookbehind window for instant queries, capped by `max_lookback`,
+			// while Prometheus uses `lookback_delta`.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11574
+			lookback := fmt.Sprintf("%ds", int(remoteReadLookBack.Seconds()))
+			params := url.Values{
+				"max_lookback":   {lookback},
+				"lookback_delta": {lookback},
+			}
+			// custom group params are prior to default ones
+			maps.Copy(params, g.Params)
 			return rr.BuildWithParams(datasource.QuerierParams{
 				EvaluationInterval: g.Interval,
-				QueryParams:        g.Params,
+				QueryStep:          *remoteReadLookBack,
+				QueryParams:        params,
 				Headers:            g.Headers,
 				Debug:              enableDebug,
 			})
@@ -769,7 +780,7 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 		return fmt.Errorf("rule %q: failed to execute: %w", r, err)
 	}
 
-	var errG vmalertutil.ErrGroup
+	var errs []error
 	if e.Rw != nil {
 		pushToRW := func(tss []prompb.TimeSeries) error {
 			var lastErr error
@@ -781,26 +792,26 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 			return lastErr
 		}
 		if err := pushToRW(tss); err != nil {
-			errG.Add(err)
+			errs = append(errs, err)
 		}
 	}
 
 	ar, ok := r.(*AlertingRule)
 	if !ok {
-		return errG.Err()
+		return errors.Join(errs...)
 	}
 
 	alerts := ar.alertsToSend(resolveDuration, *resendDelay)
 	if len(alerts) < 1 {
-		return errG.Err()
+		return errors.Join(errs...)
 	}
 
 	notifierErr := notifier.Send(ctx, alerts, e.notifierHeaders)
 	for err := range notifierErr {
 		if err != nil {
-			errG.Add(fmt.Errorf("rule %q: notifier failure: %w", r, err))
+			errs = append(errs, fmt.Errorf("rule %q: notifier failure: %w", r, err))
 		}
 	}
 
-	return errG.Err()
+	return errors.Join(errs...)
 }

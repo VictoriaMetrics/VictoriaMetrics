@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/actions"
@@ -32,6 +33,17 @@ var (
 	maxBytesPerSecond       = flagutil.NewBytes("maxBytesPerSecond", 0, "The maximum download speed. There is no limit if it is set to 0")
 	skipBackupCompleteCheck = flag.Bool("skipBackupCompleteCheck", false, "Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file")
 	SkipPreallocation       = flag.Bool("skipFilePreallocation", false, "Whether to skip pre-allocated files. This will likely be slower in most cases, but allows restores to resume mid file on failure")
+	restoreSince            = flagutil.NewRetentionDuration("restoreSince", "", "If set, restores every monthly partition that overlaps the last restoreSince. Partitions are restored whole, so they may contain data older than restoreSince. "+
+		"For example, -restoreSince=5d run on 2026-11-03 restores two partitions: 2026_10 and 2026_11. "+
+		"This reduces the download size when only recent data is needed and helps avoid over-provisioning disk space. "+
+		"Local partitions in -storageDataPath that are not restored are removed.")
+	restorePartitions = flag.String("restorePartitions", "", "If set, restores every monthly partition whose name (YYYY_MM) matches the restorePartitions regular expression. "+
+		"Non-partition files (metadata, etc.) are always restored. "+
+		"For example, -restorePartitions='2026_0[1-6]' restores 2026_01 through 2026_06. "+
+		"Local partitions in -storageDataPath that are not restored are removed.")
+	allowPartialRestoreWithoutLegacyIndex = flag.Bool("allowPartialRestoreWithoutLegacyIndex", false, "Whether to allow a partial restore (-restoreSince or -restorePartitions) of a backup containing the legacy non-partitioned IndexDB created before v1.133.0. "+
+		"The legacy IndexDB is never restored in a partial restore, so data written before the upgrade to v1.133.0 isn't searchable after it. "+
+		"Without this flag, such a partial restore fails")
 )
 
 func main() {
@@ -43,7 +55,20 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
+	var restorePartitionsRe *regexp.Regexp
+	if *restorePartitions != "" {
+		re, err := regexp.Compile(*restorePartitions)
+		if err != nil {
+			logger.Fatalf("invalid -restorePartitions=%q: %s", *restorePartitions, err)
+		}
+		restorePartitionsRe = re
+	}
+	if *allowPartialRestoreWithoutLegacyIndex && restorePartitionsRe == nil && (*restoreSince).Duration() == 0 {
+		logger.Fatalf("invalid flag combination: -allowPartialRestoreWithoutLegacyIndex can only be set for partial restore, i.e. when either of -restoreSince or -restorePartitions is set")
+	}
+
 	listenAddrs := []string{*httpListenAddr}
+	httpserver.CheckHealth(listenAddrs)
 	go httpserver.Serve(listenAddrs, nil, httpserver.ServeOptions{})
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -62,11 +87,14 @@ func main() {
 		logger.Fatalf("%s", err)
 	}
 	a := &actions.Restore{
-		Concurrency:             *concurrency,
-		Src:                     srcFS,
-		Dst:                     dstFS,
-		SkipBackupCompleteCheck: *skipBackupCompleteCheck,
-		SkipPreallocation:       *SkipPreallocation,
+		Concurrency:                           *concurrency,
+		Src:                                   srcFS,
+		Dst:                                   dstFS,
+		SkipBackupCompleteCheck:               *skipBackupCompleteCheck,
+		SkipPreallocation:                     *SkipPreallocation,
+		RestoreSince:                          restoreSince.Duration(),
+		RestorePartitions:                     restorePartitionsRe,
+		AllowPartialRestoreWithoutLegacyIndex: *allowPartialRestoreWithoutLegacyIndex,
 	}
 	pushmetrics.Init()
 	if err := a.Run(ctx); err != nil {

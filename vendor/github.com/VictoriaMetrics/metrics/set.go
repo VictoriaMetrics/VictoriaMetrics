@@ -574,9 +574,9 @@ func (s *Set) registerMetric(name string, m metric) {
 //
 // Panics if the given name was already registered before.
 func (s *Set) mustRegisterLocked(name string, m metric, isAux bool) {
-	nm, ok := s.m[name]
+	_, ok := s.m[name]
 	if !ok {
-		nm = &namedMetric{
+		nm := &namedMetric{
 			name:   name,
 			metric: m,
 			isAux:  isAux,

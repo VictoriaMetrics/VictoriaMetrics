@@ -282,27 +282,31 @@ func decompress(dctx, dctxDict *dctxWrapper, dst, src []byte, dd *DDict, limit i
 	}
 
 	// Slow path - resize dst to fit decompressed data.
-	decompressBound := int(C.ZSTD_findDecompressedSize_wrapper(
+	decompressBound := uint64(C.ZSTD_findDecompressedSize_wrapper(
 		C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))), C.size_t(len(src))))
 	// Prevent from GC'ing of src during CGO call above.
 	runtime.KeepAlive(src)
-	switch uint64(decompressBound) {
+	switch decompressBound {
 	case uint64(C.ZSTD_CONTENTSIZE_UNKNOWN):
 		return streamDecompress(dst, src, dd, limit)
 	case uint64(C.ZSTD_CONTENTSIZE_ERROR):
 		return dst, fmt.Errorf("cannot decompress invalid src")
 	}
-	if limit > 0 && decompressBound > limit {
+	if limit > 0 && decompressBound > uint64(limit) {
 		return dst, fmt.Errorf("decompressed source size: %d exceeds limit: %d", decompressBound, limit)
 	}
-	decompressBound++
+	const maxInt = int(^uint(0) >> 1)
+	if decompressBound >= uint64(maxInt-dstLen) {
+		return dst, fmt.Errorf("decompressed source size: %d exceeds maximum slice size", decompressBound)
+	}
+	decompressSize := int(decompressBound) + 1
 
-	if n := dstLen + decompressBound - cap(dst); n > 0 {
+	if n := dstLen + decompressSize - cap(dst); n > 0 {
 		// This should be optimized since go 1.11 - see https://golang.org/doc/go1.11#performance-compiler.
 		dst = append(dst[:cap(dst)], make([]byte, n)...)
 	}
 
-	result := decompressInternal(dctx, dctxDict, dst[dstLen:dstLen+decompressBound], src, dd)
+	result := decompressInternal(dctx, dctxDict, dst[dstLen:dstLen+decompressSize], src, dd)
 	decompressedSize := int(result)
 	if decompressedSize >= 0 {
 		dst = dst[:dstLen+decompressedSize]

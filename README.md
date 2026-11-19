@@ -128,3 +128,11 @@ The provided [ZIP file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/
 * You may resize the logo as needed, but ensure all proportions remain intact.
 
 Thank you for your cooperation!
+
+## Join the team
+
+We're hiring engineers who share the same [development goals](https://docs.victoriametrics.com/victoriametrics/goals/) as we do: practical improvements, simple solutions, and happy users.
+
+Already contributing to VictoriaMetrics? We'd be especially happy to hear from you.
+
+[Explore open roles.](https://careers.victoriametrics.com/)

@@ -295,7 +295,7 @@ func (s *Storage) legacyDeleteSeries(ctx context.Context, qt *querytracer.Tracer
 			return nil, err
 		}
 		qt.Printf("deleted %d metricIDs from previous legacy indexDB", dmis.Len())
-		all.UnionMayOwn(dmis)
+		all.Union(dmis)
 	}
 
 	if idbCurr := legacyIDBs.getIDBCurr(); idbCurr != nil {
@@ -305,7 +305,7 @@ func (s *Storage) legacyDeleteSeries(ctx context.Context, qt *querytracer.Tracer
 			return nil, err
 		}
 		qt.Printf("deleted %d metricIDs from current legacy indexDB", dmis.Len())
-		all.UnionMayOwn(dmis)
+		all.Union(dmis)
 	}
 
 	return all, nil

@@ -546,6 +546,11 @@ func (vms *VMStorage) writeStorageMetrics(w io.Writer) {
 	metrics.WriteCounterUint64(w, `vm_tsid_lookup_filter_fallbacks_total{reason="checksum"}`, idbm.TSIDLookupFilterFallbackVerify)
 	metrics.WriteGaugeUint64(w, `vm_indexdb_part_filter_segments`, idbm.PartFilterSegmentsCount)
 
+	metrics.WriteGaugeUint64(w, `vm_cache_mode{type="storage/tsid"}`, m.TSIDCacheMode)
+	metrics.WriteGaugeUint64(w, `vm_cache_mode{type="storage/metricIDs"}`, m.MetricIDCacheMode)
+	metrics.WriteGaugeUint64(w, `vm_cache_mode{type="storage/metricName"}`, m.MetricNameCacheMode)
+	metrics.WriteGaugeUint64(w, `vm_cache_mode{type="indexdb/tagFiltersLoops"}`, idbm.LoopsPerDateTagFilterCacheMode)
+
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/indexBlocks"}`, tm.IndexBlocksCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/tsid"}`, m.TSIDCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/metricIDs"}`, m.MetricIDCacheSize)

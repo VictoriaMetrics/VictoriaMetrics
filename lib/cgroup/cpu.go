@@ -86,8 +86,8 @@ func updateGOMAXPROCSToCPUQuota(cpuQuota float64) {
 // getCPUQuotaGeneric returns the cgroup CPU quota in CPU cores.
 // It returns -1 if the quota cannot be read, is invalid, or is unset.
 func getCPUQuotaGeneric() float64 {
-	quota, err := getCPUQuotaV1()
-	if err == nil {
+	quota, err := getCPUQuotaV1("/sys/fs/cgroup/cpu", "/proc/self/cgroup")
+	if err == nil && quota > 0 {
 		return quota
 	}
 
@@ -96,10 +96,6 @@ func getCPUQuotaGeneric() float64 {
 		return -1
 	}
 	return quota
-}
-
-func getCPUStat(statName string) (int64, error) {
-	return getStatGeneric(statName, "/sys/fs/cgroup/cpu", "/proc/self/cgroup", "cpu,")
 }
 
 func getOnlineCPUCount() float64 {
@@ -115,44 +111,53 @@ func getOnlineCPUCount() float64 {
 	return n
 }
 
-func getCPUQuotaV1() (float64, error) {
-	quotaUS, err := getCPUStat("cpu.cfs_quota_us")
-	if err != nil {
-		return -1, err
+func getCPUQuotaV1(sysfsPrefix, cgroupPath string) (float64, error) {
+	subPath := readCgroupSubPath(cgroupPath, "cpu,")
+	var minQuota float64 = -1
+	for _, dir := range cgroupDirs(sysfsPrefix, subPath) {
+		quotaUS, err := readInt64(path.Join(dir, "cpu.cfs_quota_us"))
+		if err != nil {
+			continue
+		}
+		periodUS, err := readInt64(path.Join(dir, "cpu.cfs_period_us"))
+		if err != nil {
+			continue
+		}
+		if quotaUS <= 0 || periodUS <= 0 {
+			continue
+		}
+		quota := float64(quotaUS) / float64(periodUS)
+		if minQuota < 0 || quota < minQuota {
+			minQuota = quota
+		}
 	}
-	periodUS, err := getCPUStat("cpu.cfs_period_us")
-	if err != nil {
-		return -1, err
-	}
-	if quotaUS <= 0 || periodUS <= 0 {
-		return -1, nil
-	}
-	return float64(quotaUS) / float64(periodUS), nil
+	return minQuota, nil
 }
 
-// See https://www.freedesktop.org/software/systemd/man/latest/systemd.slice.html
-func getCPUQuotaV2(sysfsPrefix, cgroupPath string) (float64, error) {
-	subPath, err := readCgroupV2SubPath(cgroupPath)
+func readInt64(filePath string) (int64, error) {
+	data, err := os.ReadFile(filePath)
 	if err != nil {
-		subPath = "/"
+		return 0, err
 	}
+	return strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
+}
+
+func getCPUQuotaV2(sysfsPrefix, cgroupPath string) (float64, error) {
+	// cgroupv2 has a single line file, there is no need to grep anything.
+	subPath := readCgroupSubPath(cgroupPath, "")
 	var minQuota float64 = -1
-	for {
-		// travers sub path hierarchy and use a minimal value for stat
-		data, err := os.ReadFile(path.Join(sysfsPrefix, subPath, "cpu.max"))
-		if err == nil {
-			quota, err := parseCPUMax(strings.TrimSpace(string(data)))
-			if err != nil {
-				return 0, fmt.Errorf("cannot parse cpu.max at %s: %w", subPath, err)
-			}
-			if quota > 0 && (minQuota < 0 || quota < minQuota) {
-				minQuota = quota
-			}
+	for _, dir := range cgroupDirs(sysfsPrefix, subPath) {
+		data, err := os.ReadFile(path.Join(dir, "cpu.max"))
+		if err != nil {
+			continue
 		}
-		if subPath == "/" || subPath == "." {
-			break
+		quota, err := parseCPUMax(strings.TrimSpace(string(data)))
+		if err != nil {
+			return 0, fmt.Errorf("cannot parse cpu.max at %s: %w", dir, err)
 		}
-		subPath = path.Dir(subPath)
+		if quota > 0 && (minQuota < 0 || quota < minQuota) {
+			minQuota = quota
+		}
 	}
 	return minQuota, nil
 }

@@ -27,9 +27,10 @@ type Deduplicator struct {
 	wg     sync.WaitGroup
 	stopCh chan struct{}
 
+	// flushLag tracks the max lag of samples pushed since the previous flush tick.
+	flushLag flushLag
+
 	ms *metrics.Set
-	// flushAfterMsec is the max sample lag (in milliseconds) observed in the current flush interval.
-	flushAfterMsec atomic.Int64
 }
 
 // NewDeduplicator returns new deduplicator, which deduplicates samples per each time series.
@@ -91,7 +92,8 @@ func (d *Deduplicator) Push(tss []prompb.TimeSeries) {
 	cs := d.cs.Load()
 	nowMsec := time.Now().UnixMilli()
 	minDeadline := d.minDeadline.Load()
-	var maxLagMsec int64
+	var maxLagMsec, maxDroppedLagMsec int64
+	hasAccepted := false
 
 	dropLabels := d.dropLabels
 	for _, ts := range tss {
@@ -109,10 +111,18 @@ func (d *Deduplicator) Push(tss []prompb.TimeSeries) {
 		buf = lc.Compress(buf, labels.Labels)
 		key := bytesutil.ToUnsafeString(buf[bufLen:])
 		for _, s := range ts.Samples {
+			lagMsec := nowMsec - s.Timestamp
 			if d.enableWindows && minDeadline > s.Timestamp {
 				d.da.droppedSamples.Inc()
+				maxDroppedLagMsec = max(maxDroppedLagMsec, lagMsec)
 				continue
-			} else if d.enableWindows && s.Timestamp <= cs.maxDeadline == cs.isGreen {
+			}
+			maxLagMsec = max(maxLagMsec, lagMsec)
+			hasAccepted = true
+			// Aggregation windows use two buffers, which swap roles on every flush.
+			// If cs.isGreen, green collects the current window and blue collects the next one; otherwise the reverse.
+			inCurrentWindow := s.Timestamp <= cs.maxDeadline
+			if d.enableWindows && inCurrentWindow == cs.isGreen {
 				ctx.green = append(ctx.green, pushSample{
 					key:       key,
 					value:     s.Value,
@@ -125,23 +135,12 @@ func (d *Deduplicator) Push(tss []prompb.TimeSeries) {
 					timestamp: s.Timestamp,
 				})
 			}
-			lagMsec := nowMsec - s.Timestamp
-			if lagMsec > maxLagMsec {
-				maxLagMsec = lagMsec
-			}
 		}
 	}
-
-	if d.enableWindows && maxLagMsec > 0 {
-		for {
-			old := d.flushAfterMsec.Load()
-			if maxLagMsec <= old {
-				break
-			}
-			if d.flushAfterMsec.CompareAndSwap(old, maxLagMsec) {
-				break
-			}
-		}
+	if d.enableWindows {
+		// Update the lag before pushing samples: if this batch has the biggest lag since the last flush tick,
+		// a concurrent flush then waits this lag for the samples that follow.
+		d.flushLag.update(hasAccepted, maxLagMsec, maxDroppedLagMsec)
 	}
 
 	if len(ctx.blue) > 0 {
@@ -171,9 +170,14 @@ func (d *Deduplicator) runFlusher(pushFunc PushFunc) {
 		select {
 		case <-d.stopCh:
 			return
-		case <-t.C:
+		case ct := <-t.C:
+			// check if the current tick is stale and should be ignored,
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11904.
+			if isStaleTick(ct, d.cs.Load().maxDeadline, d.interval) {
+				continue
+			}
 			if d.enableWindows {
-				delay := time.Duration(d.flushAfterMsec.Swap(0)) * time.Millisecond
+				delay := d.flushLag.takeFlushDelay(d.interval)
 				time.Sleep(delay)
 			}
 			d.flush(pushFunc)
@@ -223,8 +227,11 @@ func (d *Deduplicator) flush(pushFunc PushFunc) {
 			"possible solutions: increase dedupInterval; reduce samples' ingestion rate", d.interval, duration.Seconds())
 	}
 	deadlineTime = deadlineTime.Add(d.interval)
+	// If the flush delay and the flush took longer than the interval, the next flush time has already passed.
+	// Skip the passed flush times, and their samples will be flushed together at the next upcoming one.
 	for time.Now().After(deadlineTime) {
 		deadlineTime = deadlineTime.Add(d.interval)
+		d.da.flushSkipped.Inc()
 	}
 	cs.maxDeadline = deadlineTime.UnixMilli()
 	if d.enableWindows {

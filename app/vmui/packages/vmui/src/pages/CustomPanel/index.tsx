@@ -1,8 +1,9 @@
+import { useStep } from "../../state/step/StepStateContext";
 import { FC, useEffect, useState, useMemo, useRef, useCallback } from "preact/compat";
 import QueryConfigurator from "./QueryConfigurator/QueryConfigurator";
 import { useFetchQuery } from "../../hooks/useFetchQuery";
 import { DisplayTypeSwitch } from "./DisplayTypeSwitch";
-import { useGraphDispatch, useGraphState } from "../../state/graph/GraphStateContext";
+import { useGraphDispatch } from "../../state/graph/GraphStateContext";
 import LineLoader from "../../components/Main/LineLoader/LineLoader";
 import { useCustomPanelState } from "../../state/customPanel/CustomPanelStateContext";
 import { useQueryState } from "../../state/query/QueryStateContext";
@@ -30,7 +31,7 @@ const CustomPanel: FC = () => {
 
   const { displayType } = useCustomPanelState();
   const { query } = useQueryState();
-  const { customStep } = useGraphState();
+  const { effective: customStep } = useStep();
   const graphDispatch = useGraphDispatch();
 
   const [hideQuery, setHideQuery] = useState<number[]>([]);

@@ -107,6 +107,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default 16x CPU cores, capped at 256)
   -group.maxStartDelay duration
      Defines the max delay before starting the group evaluation. Group's start is artificially delayed for random duration on interval [0..min(--group.maxStartDelay, group.interval)]. This helps smoothing out the load on the configured datasource, so evaluations aren't executed too close to each other. (default 5m0s)
+  -healthcheck
+     Whether to check that the running process accepts connections at -httpListenAddr and exit. The exit code is non-zero if the check fails. This is useful for Docker HEALTHCHECK in images without curl or wget. Pass the same -httpListenAddr as the checked process has
   -http.connTimeout duration
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableCORS
@@ -236,6 +238,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Optional OAuth2 tokenURL to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -notifier.sanitizeLabelNames
+     Whether to replace characters outside [a-zA-Z0-9_:] in alert label names with underscores before sending alerts to notifiers. Set it to false only if all notifiers support UTF-8 label names, e.g. Alertmanager >= v0.27.0 not running in classic-mode. (default true)
   -notifier.sendTimeout array
      Timeout when sending alerts to the corresponding -notifier.url (default 10s)
      Supports array of values separated by comma or specified via multiple flags.
@@ -347,7 +351,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -remoteRead.tlsServerName string
      Optional TLS server name to use for connections to -remoteRead.url. By default, the server name from -remoteRead.url is used
   -remoteRead.url string
-     Optional URL to datasource compatible with MetricsQL. It can be single node VictoriaMetrics or vmselect. Remote read is used to restore alerts state. This configuration makes sense only if vmalert was configured with '-remoteWrite.url' before and has been successfully persisted its state. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. See also '-remoteRead.disablePathAppend', '-remoteRead.showURL'.
+     Optional URL to datasource compatible with Prometheus querying API. It can be single node VictoriaMetrics, vmselect or Prometheus. Remote read is used to restore alerts state. This configuration makes sense only if vmalert was configured with '-remoteWrite.url' before and has been successfully persisted its state. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. See also '-remoteRead.disablePathAppend', '-remoteRead.showURL'.
   -remoteWrite.basicAuth.password string
      Optional basic auth password for -remoteWrite.url
   -remoteWrite.basicAuth.passwordFile string

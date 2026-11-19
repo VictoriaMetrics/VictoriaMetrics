@@ -3,7 +3,6 @@ import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateCont
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import { displayTypeTabs } from "../DisplayTypeSwitch";
-import { useGraphDispatch, useGraphState } from "../../../state/graph/GraphStateContext";
 import { useSearchParams } from "react-router-dom";
 import { useCallback } from "preact/compat";
 import { getInitialDisplayType } from "../../../state/customPanel/reducer";
@@ -16,12 +15,10 @@ import { isEqualURLSearchParams } from "../../../utils/url";
 export const useSetQueryParams = () => {
   const { displayType } = useCustomPanelState();
   const { query } = useQueryState();
-  const { duration, relativeTime, period: { date, step } } = useTimeState();
-  const { customStep } = useGraphState();
+  const { duration, relativeTime, period: { date } } = useTimeState();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const timeDispatch = useTimeDispatch();
-  const graphDispatch = useGraphDispatch();
   const queryDispatch = useQueryDispatch();
   const customPanelDispatch = useCustomPanelDispatch();
 
@@ -60,11 +57,6 @@ export const useSetQueryParams = () => {
         newSearchParams.set("expr.hide", exprHide);
       }
 
-      const stepFromUrl = searchParams.get(`${group}.step_input`) || step;
-      if (stepFromUrl && (stepFromUrl !== customStep)) {
-        newSearchParams.set(`${group}.step_input`, customStep);
-      }
-
       const displayTypeCode = `${displayTypeTabs.find(t => t.value === displayType)?.prometheusCode || 0}`;
       if (searchParams.get(`${group}.tab`) !== displayTypeCode) {
         newSearchParams.set(`${group}.tab`, `${displayTypeCode}`);
@@ -82,7 +74,7 @@ export const useSetQueryParams = () => {
 
     if (isEqualURLSearchParams(newSearchParams, searchParams) || !newSearchParams.size) return;
     setSearchParams(newSearchParams);
-  }, [displayType, query, duration, relativeTime, date, step, customStep]);
+  }, [displayType, query, duration, relativeTime, date, searchParams, isPopstate]);
 
   useEffect(() => {
     const timer = setTimeout(setterSearchParams, 200);
@@ -113,15 +105,6 @@ export const useSetQueryParams = () => {
       timeDispatch({ type: "RUN_QUERY" });
     }
 
-    // Timer prevents customStep reset on time range change.
-    const timer = setTimeout(() => {
-      const customStepFromUrl = searchParams.get("g0.step_input") || step;
-      if (customStepFromUrl && customStepFromUrl !== customStep) {
-        graphDispatch({ type: "SET_CUSTOM_STEP", payload: customStepFromUrl });
-      }
-    }, 50);
-
-    return () => clearTimeout(timer);
   }, [searchParams, isPopstate]);
 
   useEventListener("popstate", () => {

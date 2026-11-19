@@ -336,6 +336,7 @@ If you need multi-AZ setup, then it is recommended running independent clusters 
 [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) in front of these clusters, so it could replicate incoming data
 into all the cluster - see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) for details.
 Then an additional `vmselect` nodes can be configured for reading the data from multiple clusters according to [these docs](#multi-level-cluster-setup).
+If one cluster misses samples that are available in another, see [how to recover missing metrics](https://docs.victoriametrics.com/guides/recovering-missing-metrics/).
 
 See [VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) Kubernetes operator resource for an example.
 
@@ -435,13 +436,14 @@ Please note that migrating big volumes of data is a time- and resource-consuming
   --vm-native-dst-addr=http://<vminsert>:8480/ \
   --vm-native-filter-match='{__name__!=""}' \
   --vm-native-filter-time-start='2026-08-01T00:00:00Z' \
+  --vm-native-filter-time-end='2026-09-01T00:00:00Z' \
   --vm-native-step-interval=day \
   --vm-intercluster
 ```
 
   - Run vmctl in the same network as cluster for the best performance
   - If you have load balancer like vmauth in front of vminsert nodes, specify its address in `--vm-native-dst-addr`. This will ensure that import requests will be distributed across all vminserts.
-  - Specify `--vm-native-filter-match` or `--vm-native-filter-time-start` if you want to migrate only a subset of data. See more about [vmctl configuration](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/#configuration).
+  - The `--vm-native-filter-time-start` and `--vm-native-filter-time-end` flags are required. Specify `--vm-native-filter-match` to migrate only a subset of time series. See more about [vmctl configuration](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/#configuration).
 4. Wait for migration to complete. See how to [monitor migration process](https://docs.victoriametrics.com/victoriametrics/vmctl/#monitoring-the-migration-process) and [migration tips](https://docs.victoriametrics.com/victoriametrics/vmctl/#migration-tips). It is OK to restart migration and re-ingest the same data again if main `vmselect` and `vmstorage` nodes have deduplication enabled.
 5. Once migration is completed, remove `vmstorage` from [`-storageNode` command-line flag](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup) on all `vmselect` nodes. Verify that read queries are still returning expected results.
 6. Remove and decommission the temporary `vmselect` node, and `vmstorage` that had to be removed.
@@ -677,7 +679,8 @@ Also in the cluster version the `/prometheus/api/v1` endpoint ingests  `jsonl`, 
   be used on a regular basis, since it carries non-zero overhead.
 
 - URL for listing [tenants](#multitenancy) with the ingested data on the given time range: `http://<vmselect>:8481/admin/tenants?start=...&end=...`.
-  The `start` and `end` query args are optional. If they are missing, then all the tenants with at least one sample stored in VictoriaMetrics are returned.
+  The `start` and `end` query args must be specified together. If both are missing, then only the tenants for the current day are returned.
+  In order to get all tenants, specify both `start` and `end` so that the resulting time range includes the entire `-retentionPeriod`.
 
 - URL for accessing [vmalerts](https://docs.victoriametrics.com/victoriametrics/vmalert/) UI: `http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/`.
   This URL works only when `-vmalert.proxyURL` flag is set. See more about [vmalert](#vmalert).
