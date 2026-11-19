@@ -895,7 +895,7 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, isIncom
 		pf := pushFunc
 		if a.enableWindows {
 			delay := a.flushLag.takeFlushDelay(interval)
-			time.Sleep(delay)
+			sleepWithStopCh(a.stopCh, delay)
 		}
 
 		cs := a.cs.Load().newState()
@@ -958,6 +958,21 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, isIncom
 		pf = nil
 	}
 	a.flush(pf, flushTime, cs, true)
+}
+
+// sleepWithStopCh sleeps for d.
+//
+// It immediately returns if stopCh is closed, without waiting for d.
+func sleepWithStopCh(stopCh <-chan struct{}, d time.Duration) {
+	if d <= 0 {
+		return
+	}
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-stopCh:
+	case <-t.C:
+	}
 }
 
 // isStaleTick checks if the tickTime belongs to a stale flush interval.
