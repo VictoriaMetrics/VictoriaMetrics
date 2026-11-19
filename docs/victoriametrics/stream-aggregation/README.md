@@ -467,6 +467,9 @@ just after the restart of `vmagent` or single-node VictoriaMetrics. This can be 
 
 - The `ignore_first_intervals: N` option at the particular [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
 
+Only complete aggregation intervals are counted. If `N > 0`, then the incomplete first interval after the start is ignored as well,
+even if `flush_on_shutdown: true` is set. See [flush time alignment](#flush-time-alignment).
+
 See also:
 
 - [Flush time alignment](#flush-time-alignment)
@@ -481,12 +484,18 @@ For example:
 - if `interval: 1m` is set, then the aggregated data is flushed to the storage at the end of every minute
 - if `interval: 1h` is set, then the aggregated data is flushed to the storage at the end of every hour
 
-If you do not need such an alignment, then set the `no_align_flush_to_interval: true` option in the [aggregate config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
-In this case, aggregated data flushes will be aligned to the `vmagent` start time or to [config reload](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#configuration-update) time.
+If a flush takes longer than the `interval`, the next interval is skipped, and its samples are flushed together with the following one
+(see `vm_streamaggr_flush_skipped_total` and `vm_streamaggr_dedup_flush_skipped_total` metrics).
+See [high resource usage](#high-resource-usage) for how to make flushes faster.
 
-The aggregated data on the first and the last interval is dropped during `vmagent` start, restart, or [config reload](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#configuration-update),
+If you do not need such an alignment, then set the `no_align_flush_to_interval: true` option in the [aggregate config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
+In this case, aggregated data flushes will be aligned to the `vmagent` start time or to the time the aggregation config was changed during [config reload](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#configuration-update).
+
+The aggregated data on the first and the last interval is dropped during `vmagent` start, restart, or when the aggregation config is changed during [config reload](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#configuration-update),
 since the first and last aggregation intervals are incomplete, they usually contain incomplete, confusing data.
+For example, if `vmagent` starts at `00:00:10` with `interval: 1m`, then the first interval covers `00:00:10 - 00:01:00`, and its aggregated data is dropped at `00:01:00`.
 If you need to preserve the aggregated data on these intervals, then set `flush_on_shutdown: true` option in the [aggregate config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
+In this case the incomplete intervals are flushed with the timestamp of the end of the interval.
 
 See also:
 
@@ -656,24 +665,27 @@ See also [why you shouldn't put an aggregator behind a load balancer](https://do
 
 ## Aggregation windows
 
-By default, stream aggregation and deduplication store a single state for each aggregation output result
-and assign incoming samples to the aggregation interval by their ingestion time, not by their timestamps.
-So there's no guarantee that samples with timestamps close to the aggregation interval's end will get into it.
-For example, when aggregating with `interval: 1m`, a data sample with timestamp 1739473078 (18:57:59) can fall into
-the aggregation round `18:58:00` or `18:59:00`. It depends on network lag, load, clock synchronization, etc.
-In most scenarios, it doesn't impact aggregation or deduplication results, which are consistent within the margin of error.
+By default, stream aggregation and deduplication assign incoming samples to an aggregation interval by the time they are received,
+not by their timestamps. So a sample with a timestamp close to the end of an interval may be received after that interval is flushed,
+and get into the next interval instead. For example, with `interval: 1m`, a sample with timestamp `18:57:59` may get into
+the interval flushed at `18:58:00` or the one flushed at `18:59:00`, depending on network lag, load, clock synchronization, etc.
+In most scenarios, it doesn’t impact aggregation or deduplication results, which are consistent within the margin of error.
 But for metrics represented as a collection of series, like [histograms](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram),
 such inaccuracy leads to invalid aggregation results, since buckets of the same histogram may end up in different aggregation rounds.
 
-Aggregation windows solve this issue. {{% available_from "v1.112.0" %}} In this mode, samples are assigned to the aggregation interval by their timestamps,
-and the current and the previous intervals are aggregated separately. The previous interval isn't flushed
-immediately at its end, but after a delay equal to the max lag of the samples received during the previous interval
-(see `vm_streamaggr_samples_lag_seconds` metric). This gives delayed samples a chance to get into the correct aggregation interval.
+Aggregation windows solve this issue. {{% available_from "v1.112.0" %}} In this mode, samples are assigned to aggregation intervals by their timestamps,
+and the current and the previous intervals are aggregated separately.
 
-Aggregation windows are intended for samples delayed by less than the aggregation `interval` (or `dedup_interval` for deduplication),
-so the flush delay is capped at 90% of the interval. Samples for already flushed intervals are dropped
-(see `vm_streamaggr_ignored_samples_total{reason="too_old"}` and `vm_streamaggr_dedup_dropped_samples_total` metrics).
-If samples are constantly delayed by more than the interval, then increase the `interval` or perform stream aggregation closer to the data source.
+When an interval ends, it isn't flushed immediately,
+but after a delay equal to the max lag of the samples received since the previous flush, i.e. how late they arrived compared to their timestamps
+(see `vm_streamaggr_samples_lag_seconds` metric). This gives delayed samples a chance to get into the correct interval.
+This delay is capped at 90% of the aggregation `interval` (or `dedup_interval` for deduplication),
+so aggregation windows only work for samples delayed by less than the interval.
+Samples that arrive after their interval has been flushed are dropped (see `vm_streamaggr_ignored_samples_total{reason="too_old"}` and `vm_streamaggr_dedup_dropped_samples_total` metrics).
+
+If samples are often delayed by more than the interval, or intervals are often skipped
+(see `vm_streamaggr_flush_skipped_total` and `vm_streamaggr_dedup_flush_skipped_total` metrics), increase the `interval`
+or run stream aggregation closer to the data source.
 See also [data delay and staleness](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#staleness).
 
 This mode doubles the memory used for the aggregation state, since two states (for the current and previous intervals) are stored per series simultaneously. Aggregation windows can be enabled via

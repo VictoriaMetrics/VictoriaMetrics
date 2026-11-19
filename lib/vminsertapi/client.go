@@ -20,8 +20,8 @@ import (
 // Client must close connection to the server.
 var ErrRpcIsNotSupported = errors.New("rpcName is not supported by server")
 
-// SendRPCRequestToConn sends given buf over provided bc to the server
-func SendRPCRequestToConn(bc *handshake.BufferedConn, rpcName string, buf []byte) error {
+// SendRPCRequestToConn sends given buf over provided bc to the server.
+func SendRPCRequestToConn(bc *handshake.BufferedConn, rpcName string, buf []byte, compressLevel int) error {
 	var err error
 	sizeBuf := sizeBufPool.Get()
 	defer sizeBufPool.Put(sizeBuf)
@@ -42,7 +42,7 @@ func SendRPCRequestToConn(bc *handshake.BufferedConn, rpcName string, buf []byte
 	zb := zbPool.Get()
 	defer zbPool.Put(zb)
 
-	zb.B = zstd.CompressLevel(zb.B[:0], buf, 1)
+	zb.B = zstd.CompressLevel(zb.B[:0], buf, compressLevel)
 	sizeBuf.B, err = sendData(sizeBuf.B, bc, zb.B)
 	if err != nil {
 		return fmt.Errorf("cannot write buf with size %d: %w", len(zb.B), err)

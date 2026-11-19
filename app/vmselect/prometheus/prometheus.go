@@ -45,7 +45,7 @@ var (
 		"It can be overridden on per-query basis via latency_offset arg. "+
 		"Too small value can result in incomplete last points for query results")
 	maxLookback = flag.Duration("search.maxLookback", 0, "Synonym to -query.lookback-delta from Prometheus. "+
-		"The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. "+
+		"The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback or lookback_delta arg. "+
 		"See also '-search.maxStalenessInterval' flag, which has the same meaning due to historical reasons")
 	maxStalenessInterval = flag.Duration("search.maxStalenessInterval", 0, "The maximum interval for staleness calculations. "+
 		"By default, it is automatically calculated from the median interval between samples. This flag could be useful for tuning "+
@@ -251,7 +251,11 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 				if err := writeCSVLine(xb, workerID); err != nil {
 					return err
 				}
-				xb.reset()
+				// Do not use xb.reset() here
+				// and manually reset fields for performance reasons.
+				xb.mn = nil
+				xb.timestamps = nil
+				xb.values = nil
 				exportBlockPool.Put(xb)
 				return nil
 			})
@@ -483,7 +487,11 @@ func exportHandler(ctx context.Context, qt *querytracer.Tracer, at *auth.Token, 
 				if err := writeLineFunc(xb, workerID); err != nil {
 					return err
 				}
-				xb.reset()
+				// Do not use xb.reset() here
+				// and manually reset fields for performance reasons.
+				xb.mn = nil
+				xb.timestamps = nil
+				xb.values = nil
 				exportBlockPool.Put(xb)
 				return nil
 			})
@@ -1376,7 +1384,13 @@ func getMaxLookback(r *http.Request) (int64, error) {
 	if d == 0 {
 		d = maxStalenessInterval.Milliseconds()
 	}
-	maxLookback, err := httputil.GetDuration(r, "max_lookback", d)
+	// lookback_delta is the Prometheus name for max_lookback.
+	// max_lookback takes precedence if both args are set.
+	argKey := "max_lookback"
+	if r.FormValue(argKey) == "" && r.FormValue("lookback_delta") != "" {
+		argKey = "lookback_delta"
+	}
+	maxLookback, err := httputil.GetDuration(r, argKey, d)
 	if err != nil {
 		return 0, err
 	}

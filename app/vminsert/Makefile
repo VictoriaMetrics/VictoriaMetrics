@@ -42,6 +42,9 @@ vminsert-openbsd-amd64-prod:
 vminsert-windows-amd64-prod:
 	APP_NAME=vminsert $(MAKE) app-via-docker-windows-amd64
 
+vminsert-windows-arm64-prod:
+	APP_NAME=vminsert $(MAKE) app-via-docker-windows-arm64
+
 vminsert-darwin-amd64-prod:
 	APP_NAME=vminsert $(MAKE) app-via-docker-darwin-amd64
 
@@ -113,6 +116,9 @@ vminsert-solaris-amd64:
 
 vminsert-windows-amd64:
 	GOARCH=amd64 APP_NAME=vminsert $(MAKE) app-local-windows-goarch
+
+vminsert-windows-arm64:
+	GOARCH=arm64 APP_NAME=vminsert $(MAKE) app-local-windows-goarch
 
 vminsert-darwin-amd64:
 	APP_NAME=vminsert CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(MAKE) app-local-goos-goarch
