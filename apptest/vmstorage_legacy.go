@@ -9,7 +9,7 @@ import (
 // StartVmstorage_v1_132_0 starts vmstorage-v1.132.0 (the last version that uses
 // legacy index).
 //
-// This binary is used in apptests that check the compatility of v1.132.0 with
+// This binary is used in apptests that check the compatibility of v1.132.0 with
 // later versions.
 //
 // The path to the binary must be provided via VMSTORAGE_V1_132_0_PATH
