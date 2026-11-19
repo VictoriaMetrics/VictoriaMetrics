@@ -549,7 +549,7 @@ func (pt *partition) inmemoryPartsMerger() {
 		}
 
 		inmemoryPartsConcurrencyCh <- struct{}{}
-		err := pt.mergeParts(pws, pt.stopCh, false, false)
+		err := pt.mergeParts(pws, pt.stopCh, false, false, mergeDiskReserveRequired)
 		<-inmemoryPartsConcurrencyCh
 
 		if err == nil {
@@ -582,7 +582,7 @@ func (pt *partition) smallPartsMerger() {
 		}
 
 		smallPartsConcurrencyCh <- struct{}{}
-		err := pt.mergeParts(pws, pt.stopCh, false, false)
+		err := pt.mergeParts(pws, pt.stopCh, false, false, mergeDiskReserveRequired)
 		<-smallPartsConcurrencyCh
 
 		if err == nil {
@@ -615,7 +615,7 @@ func (pt *partition) bigPartsMerger() {
 		}
 
 		bigPartsConcurrencyCh <- struct{}{}
-		err := pt.mergeParts(pws, pt.stopCh, false, false)
+		err := pt.mergeParts(pws, pt.stopCh, false, false, mergeDiskReserveRequired)
 		<-bigPartsConcurrencyCh
 
 		if err == nil {
@@ -1041,13 +1041,16 @@ func (pt *partition) flushInmemoryPartsToFiles(isFinal bool) {
 	}
 	pt.partsLock.Unlock()
 
-	if err := pt.mergePartsToFiles(pws, nil, inmemoryPartsConcurrencyCh, false); err != nil {
+	if err := pt.mergePartsToFiles(pws, nil, inmemoryPartsConcurrencyCh, false, mergeDiskReserveBestEffort, 0); err != nil {
 		logger.Panicf("FATAL: cannot merge in-memory parts: %s", err)
 	}
 }
 
-func (pt *partition) mergePartsToFiles(pws []*partWrapper, stopCh <-chan struct{}, concurrencyCh chan struct{}, useSparseCache bool) error {
+func (pt *partition) mergePartsToFiles(pws []*partWrapper, stopCh <-chan struct{}, concurrencyCh chan struct{}, useSparseCache bool, reserveMode mergeDiskReserveMode, preReservedBytes uint64) error {
 	pwsLen := len(pws)
+	defer func() {
+		pt.s.releaseDiskSpace(preReservedBytes)
+	}()
 
 	var errGlobal error
 	var errGlobalLock sync.Mutex
@@ -1055,9 +1058,16 @@ func (pt *partition) mergePartsToFiles(pws []*partWrapper, stopCh <-chan struct{
 	for len(pws) > 0 {
 		pwsToMerge, pwsRemaining := getPartsForOptimalMerge(pws)
 		concurrencyCh <- struct{}{}
+		if reserveMode == mergeDiskPreReserved {
+			chunkSize := getPartsSize(pwsToMerge)
+			if preReservedBytes < chunkSize {
+				logger.Panicf("BUG: chunkSize=%d exceeds preReservedBytes=%d", chunkSize, preReservedBytes)
+			}
+			preReservedBytes -= chunkSize
+		}
 
 		wg.Go(func() {
-			if err := pt.mergeParts(pwsToMerge, stopCh, true, useSparseCache); err != nil && !errors.Is(err, errForciblyStopped) {
+			if err := pt.mergeParts(pwsToMerge, stopCh, true, useSparseCache, reserveMode); err != nil && !errors.Is(err, errForciblyStopped) {
 				errGlobalLock.Lock()
 				if errGlobal == nil {
 					errGlobal = err
@@ -1086,11 +1096,14 @@ func (pt *partition) ForceMergeAllParts(stopCh <-chan struct{}) error {
 		return nil
 	}
 
-	// Check whether there is enough disk space for merging pws.
+	// Atomically reserve disk space needed for merging pws across concurrent merges.
 	newPartSize := getPartsSize(pws)
-	maxOutBytes := fs.MustGetFreeSpace(pt.bigPartsPath)
-	if newPartSize > maxOutBytes {
-		freeSpaceNeededBytes := newPartSize - maxOutBytes
+	if !pt.s.tryReserveDiskSpace(pt.bigPartsPath, newPartSize) {
+		available := pt.s.availableDiskSpace(pt.bigPartsPath)
+		freeSpaceNeededBytes := uint64(0)
+		if newPartSize > available {
+			freeSpaceNeededBytes = newPartSize - available
+		}
 		forceMergeLogger.Warnf("cannot initiate force merge for the partition %s; additional space needed: %d bytes", pt.name, freeSpaceNeededBytes)
 		pt.releasePartsToMerge(pws)
 		return nil
@@ -1099,7 +1112,7 @@ func (pt *partition) ForceMergeAllParts(stopCh <-chan struct{}) error {
 	// If len(pws) == 1, then the merge must run anyway.
 	// This allows applying the configured retention, removing the deleted series
 	// and performing de-duplication if needed.
-	if err := pt.mergePartsToFiles(pws, stopCh, bigPartsConcurrencyCh, true); err != nil {
+	if err := pt.mergePartsToFiles(pws, stopCh, bigPartsConcurrencyCh, true, mergeDiskPreReserved, newPartSize); err != nil {
 		return fmt.Errorf("cannot force merge %d parts from partition %q: %w", len(pws), pt.name, err)
 	}
 
@@ -1152,7 +1165,8 @@ func (pt *partition) getMaxSmallPartSize() uint64 {
 	mem := memory.Remaining()
 	n := max(uint64(mem)/defaultPartsToMerge, 10e6)
 	// Make sure the output part fits available disk space for small parts.
-	sizeLimit := getMaxOutBytes(pt.smallPartsPath, cap(smallPartsConcurrencyCh))
+	available := pt.s.availableDiskSpace(pt.smallPartsPath)
+	sizeLimit := getMaxOutBytes(available, cap(smallPartsConcurrencyCh))
 	if n > sizeLimit {
 		n = sizeLimit
 	}
@@ -1163,16 +1177,16 @@ func (pt *partition) getMaxBigPartSize() uint64 {
 	// Always use 4 workers for big merges due to historical reasons.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4915#issuecomment-1733922830
 	workersCount := 4
-	return getMaxOutBytes(pt.bigPartsPath, workersCount)
+	available := pt.s.availableDiskSpace(pt.bigPartsPath)
+	return getMaxOutBytes(available, workersCount)
 }
 
-func getMaxOutBytes(path string, workersCount int) uint64 {
-	n := fs.MustGetFreeSpace(path)
-	// Do not subtract freeDiskSpaceLimitBytes from n before calculating the maxOutBytes,
+func getMaxOutBytes(availableBytes uint64, workersCount int) uint64 {
+	// Do not subtract freeDiskSpaceLimitBytes from availableBytes before calculating the maxOutBytes,
 	// since this will result in sub-optimal merges - e.g. many small parts will be left unmerged.
 
 	// Divide free space by the max number of concurrent merges.
-	maxOutBytes := min(n/uint64(workersCount), maxBigPartSize)
+	maxOutBytes := min(availableBytes/uint64(workersCount), maxBigPartSize)
 	return maxOutBytes
 }
 
@@ -1219,6 +1233,14 @@ func getMinDedupInterval(pws []*partWrapper) int64 {
 	return dMin
 }
 
+type mergeDiskReserveMode int
+
+const (
+	mergeDiskReserveRequired mergeDiskReserveMode = iota
+	mergeDiskReserveBestEffort
+	mergeDiskPreReserved
+)
+
 // mergeParts merges pws to a single resulting part.
 //
 // It is expected that pws contains at least a single part.
@@ -1231,7 +1253,7 @@ func getMinDedupInterval(pws []*partWrapper) int64 {
 //
 // All the parts inside pws must have isInMerge field set to true.
 // The isInMerge field inside pws parts is set to false before returning from the function.
-func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal, useSparseCache bool) error {
+func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal, useSparseCache bool, reserveMode mergeDiskReserveMode) error {
 	if len(pws) == 0 {
 		logger.Panicf("BUG: empty pws cannot be passed to mergeParts()")
 	}
@@ -1243,6 +1265,38 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 
 	// Initialize destination paths.
 	dstPartType := pt.getDstPartType(pws, isFinal)
+	var reservedSize uint64
+	releaseReservation := func() {
+		if reservedSize > 0 {
+			pt.s.releaseDiskSpace(reservedSize)
+			reservedSize = 0
+		}
+	}
+	defer releaseReservation()
+
+	if dstPartType == partInmemory {
+		if reserveMode == mergeDiskPreReserved {
+			logger.Panicf("BUG: mergeDiskPreReserved cannot be used for in-memory destination part")
+		}
+	} else {
+		partsSize := getPartsSize(pws)
+		switch reserveMode {
+		case mergeDiskReserveRequired:
+			if !pt.s.tryReserveDiskSpace(pt.getDstDirPath(dstPartType), partsSize) {
+				return nil
+			}
+			reservedSize = partsSize
+		case mergeDiskReserveBestEffort:
+			if pt.s.tryReserveDiskSpace(pt.getDstDirPath(dstPartType), partsSize) {
+				reservedSize = partsSize
+			}
+		case mergeDiskPreReserved:
+			reservedSize = partsSize
+		default:
+			logger.Panicf("BUG: unknown mergeDiskReserveMode=%d", reserveMode)
+		}
+	}
+
 	mergeIdx := pt.nextMergeIdx()
 	dstPartPath := pt.getDstPartPath(dstPartType, mergeIdx)
 
@@ -1251,6 +1305,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 		mp := pws[0].mp
 		mp.MustStoreToDisk(dstPartPath)
 		pwNew := pt.openCreatedPart(&mp.ph, pws, nil, dstPartPath)
+		releaseReservation()
 		pt.swapSrcWithDstParts(pws, pwNew, dstPartType)
 		return nil
 	}
@@ -1316,6 +1371,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 		dstSize = pDst.size
 	}
 
+	releaseReservation()
 	pt.swapSrcWithDstParts(pws, pwNew, dstPartType)
 
 	d := time.Since(startTime)
@@ -1366,23 +1422,24 @@ func (pt *partition) getDstPartType(pws []*partWrapper, isFinal bool) partType {
 	return partInmemory
 }
 
-func (pt *partition) getDstPartPath(dstPartType partType, mergeIdx uint64) string {
-	ptPath := ""
+func (pt *partition) getDstDirPath(dstPartType partType) string {
 	switch dstPartType {
-	case partSmall:
-		ptPath = pt.smallPartsPath
+	case partSmall, partInmemory:
+		return pt.smallPartsPath
 	case partBig:
-		ptPath = pt.bigPartsPath
-	case partInmemory:
-		ptPath = pt.smallPartsPath
+		return pt.bigPartsPath
 	default:
 		logger.Panicf("BUG: unknown partType=%d", dstPartType)
+		return ""
 	}
-	dstPartPath := ""
-	if dstPartType != partInmemory {
-		dstPartPath = filepath.Join(ptPath, fmt.Sprintf("%016X", mergeIdx))
+}
+
+func (pt *partition) getDstPartPath(dstPartType partType, mergeIdx uint64) string {
+	if dstPartType == partInmemory {
+		return ""
 	}
-	return dstPartPath
+	ptPath := pt.getDstDirPath(dstPartType)
+	return filepath.Join(ptPath, fmt.Sprintf("%016X", mergeIdx))
 }
 
 func mustOpenBlockStreamReaders(pws []*partWrapper) []*blockStreamReader {

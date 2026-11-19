@@ -160,6 +160,9 @@ type Storage struct {
 	logNewSeriesUntil atomic.Uint64
 
 	metadataStorage *metricsmetadata.Storage
+
+	// reservedDiskSpace tracks disk space in bytes reserved by active merges.
+	reservedDiskSpace atomic.Uint64
 }
 
 // OpenOptions optional args for MustOpenStorage
@@ -783,6 +786,56 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 func (s *Storage) notifyReadWriteMode() {
 	s.tb.NotifyReadWriteMode()
 	s.legacyNotifyReadWriteMode()
+}
+
+// availableDiskSpace returns the estimated free disk space at path
+// minus disk space reserved for in-flight merges.
+//
+// The full estimated merge size remains reserved until the merge finishes
+// even while destination parts grow on disk, so the estimate is conservative.
+func (s *Storage) availableDiskSpace(path string) uint64 {
+	available := fs.MustGetFreeSpace(path)
+	reserved := s.reservedDiskSpace.Load()
+	return availableDiskSpaceForFree(available, reserved)
+}
+
+func (s *Storage) tryReserveDiskSpace(path string, n uint64) bool {
+	available := fs.MustGetFreeSpace(path)
+	for {
+		reserved := s.reservedDiskSpace.Load()
+		if !canReserveDiskSpace(available, reserved, n) {
+			return false
+		}
+		if s.reservedDiskSpace.CompareAndSwap(reserved, reserved+n) {
+			return true
+		}
+	}
+}
+
+func (s *Storage) releaseDiskSpace(n uint64) {
+	if n == 0 {
+		return
+	}
+	for {
+		reserved := s.reservedDiskSpace.Load()
+		if reserved < n {
+			logger.Panicf("BUG: cannot release %d bytes of disk space when only %d bytes are reserved", n, reserved)
+		}
+		if s.reservedDiskSpace.CompareAndSwap(reserved, reserved-n) {
+			return
+		}
+	}
+}
+
+func availableDiskSpaceForFree(free, reserved uint64) uint64 {
+	if free < reserved {
+		return 0
+	}
+	return free - reserved
+}
+
+func canReserveDiskSpace(free, reserved, n uint64) bool {
+	return n <= free && reserved <= free-n
 }
 
 func (s *Storage) startCurrHourMetricIDsUpdater() {

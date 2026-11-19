@@ -1,9 +1,13 @@
 package storage
 
 import (
+	"errors"
+	"math"
 	"math/rand"
 	"path/filepath"
 	"reflect"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -11,9 +15,12 @@ import (
 )
 
 func TestPartitionGetMaxOutBytes(t *testing.T) {
-	n := getMaxOutBytes(".", 1)
+	n := getMaxOutBytes(fs.MustGetFreeSpace("."), 1)
 	if n < 1e3 {
 		t.Fatalf("too small free space remained in the current directory: %d", n)
+	}
+	if got := getMaxOutBytes(40<<20, 4); got != 10<<20 {
+		t.Fatalf("unexpected getMaxOutBytes(40MiB, 4): got %d, want %d", got, uint64(10<<20))
 	}
 }
 
@@ -404,4 +411,358 @@ func TestMustOpenPartition_smallAndBigPartsPathsAreNotTheSame(t *testing.T) {
 
 	s := &Storage{}
 	_ = mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath, s)
+}
+
+func newTestDiskSpacePartWrappers(baseTS int64, count, metricsCount, rowsPerTS int, partSize uint64, idOffset int) []*partWrapper {
+	pws := make([]*partWrapper, 0, count)
+	for j := range count {
+		rows := make([]rawRow, 0, metricsCount*rowsPerTS)
+		for m := range metricsCount {
+			for r := range rowsPerTS {
+				rows = append(rows, rawRow{TSID: TSID{MetricID: uint64((idOffset+j)*metricsCount + m + 1)}, Value: float64(r), Timestamp: baseTS + int64(r*1000), PrecisionBits: 64})
+			}
+		}
+		var mp inmemoryPart
+		mp.InitFromRows(rows)
+		pw := newPartWrapperFromInmemoryPart(&mp, time.Time{})
+		pw.p.size = partSize
+		pws = append(pws, pw)
+	}
+	return pws
+}
+
+func newTestPartitionWithBigParts(s *Storage, ts int64, count, metricsCount, rowsPerTS int, partSize uint64, idOffset int, inMerge bool) (*partitionWrapper, []*partWrapper) {
+	ptw := s.tb.MustGetPartition(ts)
+	pws := newTestDiskSpacePartWrappers(ts, count, metricsCount, rowsPerTS, partSize, idOffset)
+	ptw.pt.partsLock.Lock()
+	for _, pw := range pws {
+		pw.isInMerge = inMerge
+	}
+	ptw.pt.bigParts = append(ptw.pt.bigParts, pws...)
+	ptw.pt.partsLock.Unlock()
+	return ptw, pws
+}
+
+func testPartitionPartCounts(pt *partition) (inmem, small, big int) {
+	pt.partsLock.Lock()
+	defer pt.partsLock.Unlock()
+	return len(pt.inmemoryParts), len(pt.smallParts), len(pt.bigParts)
+}
+
+func putTestPartitions(s *Storage, ptws []*partitionWrapper) {
+	for _, ptw := range ptws {
+		s.tb.PutPartition(ptw)
+	}
+}
+
+func assertNoPartsInMerge(t *testing.T, pt *partition) {
+	t.Helper()
+	pt.partsLock.Lock()
+	defer pt.partsLock.Unlock()
+	for _, pws := range [][]*partWrapper{pt.inmemoryParts, pt.smallParts, pt.bigParts} {
+		for _, pw := range pws {
+			if pw.isInMerge {
+				t.Fatalf("unexpected part %q left with isInMerge=true", pw.p.path)
+			}
+		}
+	}
+}
+
+func mustPanic(t *testing.T, msg string, fn func()) {
+	t.Helper()
+	defer func() {
+		if recover() == nil {
+			t.Fatalf("%s", msg)
+		}
+	}()
+	fn()
+}
+
+func runConcurrentlyWithPeak(t *testing.T, workers int, work func(i int) error, sample func() uint64) uint64 {
+	t.Helper()
+	startCh, obsStop := make(chan struct{}), make(chan struct{})
+	var wg, obsWG sync.WaitGroup
+	errs := make(chan error, workers)
+	for i := range workers {
+		wg.Go(func() { <-startCh; errs <- work(i) })
+	}
+	var peak atomic.Uint64
+	obsWG.Go(func() {
+		for {
+			cur := sample()
+			for prev := peak.Load(); cur > prev && !peak.CompareAndSwap(prev, cur); prev = peak.Load() {
+			}
+			select {
+			case <-obsStop:
+				return
+			default:
+			}
+		}
+	})
+	close(startCh)
+	wg.Wait()
+	close(obsStop)
+	obsWG.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent worker failed: %s", err)
+		}
+	}
+	return peak.Load()
+}
+
+func TestDiskSpaceReservationArithmetic(t *testing.T) {
+	if availableDiskSpaceForFree(100, 40) != 60 || availableDiskSpaceForFree(100, 150) != 0 ||
+		!canReserveDiskSpace(100, 40, 60) || canReserveDiskSpace(100, 40, 61) ||
+		canReserveDiskSpace(100, 10, math.MaxUint64) || canReserveDiskSpace(100, 120, 1) {
+		t.Fatalf("unexpected disk space reservation arithmetic result")
+	}
+	defer testRemoveAll(t)
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	if !s.tryReserveDiskSpace(s.path, 1<<20) || s.reservedDiskSpace.Load() != 1<<20 {
+		t.Fatalf("expected tryReserveDiskSpace(1MiB) to succeed")
+	}
+	s.releaseDiskSpace(1 << 20)
+	if s.reservedDiskSpace.Load() != 0 {
+		t.Fatalf("unexpected reservedDiskSpace after release: %d", s.reservedDiskSpace.Load())
+	}
+	mustPanic(t, "expected releaseDiskSpace underflow to panic", func() { s.releaseDiskSpace(1) })
+}
+
+func TestForceMergeAllParts_ConcurrentDiskSpaceLimit(t *testing.T) {
+	defer testRemoveAll(t)
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+
+	free := fs.MustGetFreeSpace(t.Name())
+	partSize := free / 3
+	ptws := make([]*partitionWrapper, 4)
+	for i := range ptws {
+		ts := time.Date(2025, time.Month(i+1), 15, 0, 0, 0, 0, time.UTC).UnixMilli()
+		ptws[i], _ = newTestPartitionWithBigParts(s, ts, 2, 500, 100, partSize, i*2, false)
+	}
+	defer putTestPartitions(s, ptws)
+
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+	peak := runConcurrentlyWithPeak(t, len(ptws),
+		func(i int) error { return ptws[i].pt.ForceMergeAllParts(stopCh) },
+		func() uint64 {
+			var active uint64
+			for _, ptw := range ptws {
+				if ptw.pt.activeBigMerges.Load() > 0 {
+					active += 2 * partSize
+				}
+			}
+			return active
+		},
+	)
+	if peak > free || s.reservedDiskSpace.Load() != 0 {
+		t.Fatalf("unexpected peak=%d (free=%d) or reserved=%d", peak, free, s.reservedDiskSpace.Load())
+	}
+	for _, ptw := range ptws {
+		assertNoPartsInMerge(t, ptw.pt)
+	}
+}
+
+func TestStorage_ConcurrentMergesRespectDiskSpace(t *testing.T) {
+	defer testRemoveAll(t)
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	free := fs.MustGetFreeSpace(t.Name())
+	maxOut := getMaxOutBytes(free, 4)
+	const partitions = 8
+	ptws := make([]*partitionWrapper, partitions)
+	selected := make([][]*partWrapper, partitions)
+	for i := range partitions {
+		ts := time.Date(2025, time.Month(i+1), 15, 0, 0, 0, 0, time.UTC).UnixMilli()
+		partSize := maxOut / 10
+		if i < partitions/2 {
+			partSize = maxOut / 50
+		}
+		ptws[i], _ = newTestPartitionWithBigParts(s, ts, 10, 50, 10, partSize, i*10, false)
+		ptws[i].pt.partsLock.Lock()
+		selected[i] = getPartsToMerge(ptws[i].pt.bigParts, ptws[i].pt.getMaxBigPartSize())
+		ptws[i].pt.partsLock.Unlock()
+	}
+	defer putTestPartitions(s, ptws)
+	hold := fs.MustGetFreeSpace(s.path) - maxOut/2
+	if !s.tryReserveDiskSpace(s.path, hold) {
+		t.Fatalf("expected tryReserveDiskSpace(%d) to succeed", hold)
+	}
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+	if peak := runConcurrentlyWithPeak(t, partitions, func(i int) error {
+		return ptws[i].pt.mergeParts(selected[i], stopCh, false, false, mergeDiskReserveRequired)
+	}, s.reservedDiskSpace.Load); peak > free {
+		t.Fatalf("concurrent merges reserved %d bytes > free %d", peak, free)
+	}
+	s.releaseDiskSpace(hold)
+	merged, declined := 0, 0
+	for _, ptw := range ptws {
+		assertNoPartsInMerge(t, ptw.pt)
+		_, small, big := testPartitionPartCounts(ptw.pt)
+		switch {
+		case small+big == 1:
+			merged++
+		case small == 0 && big == 10:
+			declined++
+		default:
+			t.Fatalf("unexpected part counts after concurrent merge: small=%d big=%d", small, big)
+		}
+	}
+	if merged < 2 || declined < 4 {
+		t.Fatalf("expected at least 2 merged and 4 declined partitions, got merged=%d declined=%d", merged, declined)
+	}
+
+	// Deterministic TOCTOU decline and recovery via bigPartsMerger.
+	ptwD, pwsD := newTestPartitionWithBigParts(s, time.Date(2025, 9, 15, 0, 0, 0, 0, time.UTC).UnixMilli(), 10, 50, 10, maxOut/10, 100, true)
+	defer s.tb.PutPartition(ptwD)
+	ptD := ptwD.pt
+	hold = fs.MustGetFreeSpace(ptD.bigPartsPath) - maxOut/2
+	if !s.tryReserveDiskSpace(ptD.bigPartsPath, hold) {
+		t.Fatalf("expected tryReserveDiskSpace(%d) to succeed", hold)
+	}
+	if err := ptD.mergeParts(pwsD, stopCh, false, false, mergeDiskReserveRequired); err != nil {
+		t.Fatalf("declined mergeParts failed: %s", err)
+	}
+	assertNoPartsInMerge(t, ptD)
+	ptD.bigPartsMerger()
+	if _, _, big := testPartitionPartCounts(ptD); big != 10 {
+		t.Fatalf("expected 10 unmerged parts while space is held, got %d", big)
+	}
+	s.releaseDiskSpace(hold)
+	ptD.bigPartsMerger()
+	if _, small, big := testPartitionPartCounts(ptD); small+big != 1 || s.reservedDiskSpace.Load() != 0 {
+		t.Fatalf("expected 1 merged part and 0 reserved, got parts=%d reserved=%d", small+big, s.reservedDiskSpace.Load())
+	}
+}
+
+func TestForceMergeAllParts_ConcurrentWithBackgroundMerge(t *testing.T) {
+	defer testRemoveAll(t)
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+
+	free := fs.MustGetFreeSpace(t.Name())
+	ptw1, _ := newTestPartitionWithBigParts(s, time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC).UnixMilli(), 2, 50, 10, free/4, 0, false)
+	defer s.tb.PutPartition(ptw1)
+	pt1 := ptw1.pt
+	bgReserve := fs.MustGetFreeSpace(pt1.bigPartsPath) - free/8
+	if !s.tryReserveDiskSpace(pt1.bigPartsPath, bgReserve) {
+		t.Fatalf("expected background reservation to succeed")
+	}
+	if err := pt1.ForceMergeAllParts(stopCh); err != nil {
+		t.Fatalf("skipped ForceMergeAllParts returned error: %s", err)
+	}
+	if _, _, big := testPartitionPartCounts(pt1); big != 2 || s.reservedDiskSpace.Load() != bgReserve {
+		t.Fatalf("unexpected skipped state: big=%d reserved=%d", big, s.reservedDiskSpace.Load())
+	}
+	assertNoPartsInMerge(t, pt1)
+	s.releaseDiskSpace(bgReserve)
+	if err := pt1.ForceMergeAllParts(stopCh); err != nil {
+		t.Fatalf("ForceMergeAllParts after release failed: %s", err)
+	}
+
+	// Multi-chunk ForceMergeAllParts (> defaultPartsToMerge=15) releases all pre-reserved chunks.
+	ptw2, _ := newTestPartitionWithBigParts(s, time.Date(2025, 2, 15, 0, 0, 0, 0, time.UTC).UnixMilli(), 20, 50, 10, free/40, 10, false)
+	defer s.tb.PutPartition(ptw2)
+	if err := ptw2.pt.ForceMergeAllParts(stopCh); err != nil {
+		t.Fatalf("multi-chunk ForceMergeAllParts failed: %s", err)
+	}
+	if _, small, big := testPartitionPartCounts(ptw2.pt); small+big != 2 || s.reservedDiskSpace.Load() != 0 {
+		t.Fatalf("expected 2 merged chunks and 0 reserved, got parts=%d reserved=%d", small+big, s.reservedDiskSpace.Load())
+	}
+	assertNoPartsInMerge(t, ptw2.pt)
+}
+
+func TestMergeParts_ReservationReleasePaths(t *testing.T) {
+	defer testRemoveAll(t)
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	free := fs.MustGetFreeSpace(t.Name())
+
+	ptw1, pws := newTestPartitionWithBigParts(s, time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC).UnixMilli(), 20, 50, 10, free/40, 0, false)
+	defer s.tb.PutPartition(ptw1)
+	stopCh := make(chan struct{})
+	close(stopCh)
+	ptw1.pt.partsLock.Lock()
+	pws[0].isInMerge, pws[1].isInMerge = true, true
+	ptw1.pt.partsLock.Unlock()
+	if err := ptw1.pt.mergeParts(pws[:2], stopCh, true, false, mergeDiskReserveRequired); !errors.Is(err, errForciblyStopped) {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if err := ptw1.pt.ForceMergeAllParts(stopCh); err != nil {
+		t.Fatalf("stopped ForceMergeAllParts failed: %s", err)
+	}
+	assertNoPartsInMerge(t, ptw1.pt)
+	if s.reservedDiskSpace.Load() != 0 {
+		t.Fatalf("unexpected reservedDiskSpace: %d", s.reservedDiskSpace.Load())
+	}
+
+	// Final flush of in-memory parts proceeds even when disk reservation fails.
+	ts2 := time.Date(2025, 2, 15, 0, 0, 0, 0, time.UTC).UnixMilli()
+	ptw2 := s.tb.MustGetPartition(ts2)
+	defer s.tb.PutPartition(ptw2)
+	pt2 := ptw2.pt
+	partSize := free / 4
+	hold := fs.MustGetFreeSpace(pt2.smallPartsPath) - partSize/2
+	if !s.tryReserveDiskSpace(pt2.smallPartsPath, hold) {
+		t.Fatalf("expected tryReserveDiskSpace to succeed")
+	}
+	for _, count := range []int{1, 2} {
+		pt2.partsLock.Lock()
+		pt2.inmemoryParts = append(pt2.inmemoryParts, newTestDiskSpacePartWrappers(ts2, count, 50, 10, partSize, count*10)...)
+		pt2.partsLock.Unlock()
+		pt2.flushInmemoryPartsToFiles(true)
+	}
+	if inmem, small, big := testPartitionPartCounts(pt2); inmem != 0 || small+big != 2 || s.reservedDiskSpace.Load() != hold {
+		t.Fatalf("unexpected flush state: inmem=%d disk=%d reserved=%d", inmem, small+big, s.reservedDiskSpace.Load())
+	}
+	s.releaseDiskSpace(hold)
+
+	// Reservation releases before swapSrcWithDstParts so spawned bigPartsMerger merges queued parts.
+	ts3 := time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC).UnixMilli()
+	ptw3, pwsMerge := newTestPartitionWithBigParts(s, ts3, 2, 50, 10, free/3, 0, true)
+	defer s.tb.PutPartition(ptw3)
+	pt3 := ptw3.pt
+	pt3.partsLock.Lock()
+	pt3.bigParts = append(pt3.bigParts, newTestDiskSpacePartWrappers(ts3, 10, 50, 10, free/40, 10)...)
+	pt3.partsLock.Unlock()
+	stopOpen := make(chan struct{})
+	defer close(stopOpen)
+	if err := pt3.mergeParts(pwsMerge, stopOpen, true, false, mergeDiskReserveRequired); err != nil {
+		t.Fatalf("mergeParts failed: %s", err)
+	}
+	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(5 * time.Millisecond) {
+		if _, _, big := testPartitionPartCounts(pt3); big <= 2 && s.reservedDiskSpace.Load() == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for spawned bigPartsMerger; reserved=%d", s.reservedDiskSpace.Load())
+		}
+	}
+	pwsInmem := newTestDiskSpacePartWrappers(ts3, 1, 10, 5, 1024, 100)
+	pt3.partsLock.Lock()
+	pwsInmem[0].isInMerge = true
+	pt3.inmemoryParts = append(pt3.inmemoryParts, pwsInmem...)
+	pt3.partsLock.Unlock()
+	mustPanic(t, "expected mergeDiskPreReserved with partInmemory to panic", func() {
+		_ = pt3.mergeParts(pwsInmem, stopOpen, false, false, mergeDiskPreReserved)
+	})
+	assertNoPartsInMerge(t, pt3)
+	// Empty retention result removes parts and releases reservation.
+	sRet := MustOpenStorage(filepath.Join(t.Name(), "ret"), OpenOptions{Retention: 24 * time.Hour})
+	defer sRet.MustClose()
+	ptwR, pwsR := newTestPartitionWithBigParts(sRet, time.Date(2020, 1, 15, 0, 0, 0, 0, time.UTC).UnixMilli(), 2, 50, 10, free/8, 0, true)
+	defer sRet.tb.PutPartition(ptwR)
+	if err := ptwR.pt.mergeParts(pwsR, stopOpen, true, false, mergeDiskReserveRequired); err != nil {
+		t.Fatalf("empty retention merge failed: %s", err)
+	}
+	if _, small, big := testPartitionPartCounts(ptwR.pt); small+big != 0 || sRet.reservedDiskSpace.Load() != 0 {
+		t.Fatalf("expected 0 parts and 0 reserved, got parts=%d reserved=%d", small+big, sRet.reservedDiskSpace.Load())
+	}
 }
