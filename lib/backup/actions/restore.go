@@ -252,9 +252,11 @@ func (r *Restore) runParallelPerPath(ctx context.Context, concurrency int, perPa
 
 func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency int, perPath map[string][]common.Part, bytesDownloaded *atomic.Uint64) error {
 	concurrency = max(concurrency, 1)
+	_, supportsRanges := r.Src.(common.RangeDownloader)
 	perFile := concurrency
-	if r.SkipPreallocation {
-		// Resuming by file size is safe only when completed writes form a contiguous prefix.
+	if !supportsRanges || r.SkipPreallocation {
+		// Keep non-range sources sequential per file. Resuming by file size also
+		// requires completed writes to form a contiguous prefix.
 		perFile = 1
 	}
 
@@ -265,7 +267,6 @@ func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency in
 		prepareOnce sync.Once
 		prepareErr  error
 	}
-	_, supportsRanges := r.Src.(common.RangeDownloader)
 	var workers []*fileToRestore
 	for _, parts := range perPath {
 		if len(parts) == 0 {

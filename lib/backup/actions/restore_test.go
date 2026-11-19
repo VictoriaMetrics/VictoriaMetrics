@@ -29,14 +29,16 @@ func TestRestoreDownloadConcurrency(t *testing.T) {
 		concurrency       int
 		files             int
 		skipPreallocation bool
+		wholeObjects      bool
 		wantActive        int
 		wantPerFile       int
 	}{
-		{"same-file", 4, 1, false, 4, 4},
-		{"multiple-files", 6, 2, false, 6, 4},
-		{"global-limit", 3, 2, false, 3, 3},
-		{"sequential-resume", 4, 2, true, 2, 1},
-		{"zero-limit", 0, 1, false, 1, 1},
+		{"same-file", 4, 1, false, false, 4, 4},
+		{"multiple-files", 6, 2, false, false, 6, 4},
+		{"global-limit", 3, 2, false, false, 3, 3},
+		{"sequential-resume", 4, 2, true, false, 2, 1},
+		{"non-range-source", 4, 2, false, true, 2, 1},
+		{"zero-limit", 0, 1, false, false, 1, 1},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -59,8 +61,12 @@ func TestRestoreDownloadConcurrency(t *testing.T) {
 				<-release
 				return nil
 			}
+			var source common.RemoteFS = src
+			if tc.wholeObjects {
+				source = struct{ common.RemoteFS }{src}
+			}
 			r := &Restore{
-				Src:               src,
+				Src:               source,
 				Dst:               &fslocal.FS{Dir: t.TempDir(), UseTmpFiles: !tc.skipPreallocation},
 				SkipPreallocation: tc.skipPreallocation,
 			}
@@ -104,7 +110,7 @@ func TestRestoreDownloadConcurrency(t *testing.T) {
 					t.Fatalf("unexpected restored contents: %q", data)
 				}
 			}
-			if tc.skipPreallocation {
+			if tc.skipPreallocation || tc.wholeObjects {
 				nextOffset := make(map[string]uint64)
 				for _, p := range src.downloaded {
 					if p.Offset != nextOffset[p.Path] {
@@ -256,7 +262,7 @@ func TestRestoreRangedDownloads(t *testing.T) {
 }
 
 func TestRestoreLargeBackupObject(t *testing.T) {
-	data := bytes.Repeat([]byte("vmrestore"), (50<<20)/9+1)
+	data := bytes.Repeat([]byte("vmrestore"), (100<<20)/9+1)
 	p := common.Part{Path: "data/big/2026_11/file", FileSize: uint64(len(data)), Size: uint64(len(data)), ActualSize: uint64(len(data))}
 	src := &fsremote.FS{Dir: t.TempDir()}
 	if err := src.UploadPart(p, bytes.NewReader(data)); err != nil {

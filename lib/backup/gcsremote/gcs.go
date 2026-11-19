@@ -179,30 +179,10 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 
 // DownloadPart downloads part p from fs to w.
 func (fs *FS) DownloadPart(p common.Part, w io.Writer) error {
-	return fs.DownloadPartRange(p, 0, p.Size, w)
-}
-
-// DownloadPartRange downloads a range within the original backup object p.
-func (fs *FS) DownloadPartRange(p common.Part, offset, size uint64, w io.Writer) error {
-	if err := p.ValidateRange(offset, size); err != nil {
-		return err
-	}
 	o := fs.object(p)
-	partial := offset != 0 || size != p.Size
-	var r *storage.Reader
-	var err error
-	if partial {
-		r, err = o.NewRangeReader(fs.ctx, int64(offset), int64(size))
-	} else {
-		r, err = o.NewReader(fs.ctx)
-	}
+	r, err := o.NewReader(fs.ctx)
 	if err != nil {
 		return fmt.Errorf("cannot open reader for %q at %s (remote path %q): %w", p.Path, fs, o.ObjectName(), err)
-	}
-	if partial && (r.Attrs.StartOffset != int64(offset) || r.Attrs.Size != int64(p.Size)) {
-		_ = r.Close()
-		return fmt.Errorf("unexpected range response for %q at %s; got offset=%d, object size=%d; want offset=%d, object size=%d",
-			p.Path, fs, r.Attrs.StartOffset, r.Attrs.Size, offset, p.Size)
 	}
 	n, err := io.Copy(w, r)
 	if err1 := r.Close(); err1 != nil && err == nil {
@@ -211,8 +191,8 @@ func (fs *FS) DownloadPartRange(p common.Part, offset, size uint64, w io.Writer)
 	if err != nil {
 		return fmt.Errorf("cannot download %q from at %s (remote path %q): %w", p.Path, fs, o.ObjectName(), err)
 	}
-	if uint64(n) != size {
-		return fmt.Errorf("wrong data size downloaded from %q at %s; got %d bytes; want %d bytes", p.Path, fs, n, size)
+	if uint64(n) != p.Size {
+		return fmt.Errorf("wrong data size downloaded from %q at %s; got %d bytes; want %d bytes", p.Path, fs, n, p.Size)
 	}
 	return nil
 }
