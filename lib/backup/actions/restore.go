@@ -351,7 +351,7 @@ type downloadTask struct {
 
 func buildDownloadTasks(parts []common.Part, concurrency int, supportsRanges bool) []downloadTask {
 	const (
-		minRangeSize = 50 * 1024 * 1024
+		minRangeSize = 64 * 1024 * 1024
 		maxRangeSize = 256 * 1024 * 1024
 	)
 	var tasks []downloadTask

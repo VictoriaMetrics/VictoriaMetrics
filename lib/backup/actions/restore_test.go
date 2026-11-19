@@ -131,12 +131,12 @@ func TestBuildDownloadTasks(t *testing.T) {
 		wantTasks   int
 	}{
 		{0, 10, true, 1},
-		{100<<20 - 1, 10, true, 1},
-		{100 << 20, 10, true, 2},
-		{100<<20 + 1, 10, true, 2},
+		{128<<20 - 1, 10, true, 1},
+		{128 << 20, 10, true, 2},
+		{128<<20 + 1, 10, true, 2},
 		{1 << 30, 2, true, 4},
-		{1 << 30, 10, true, 20},
-		{1 << 30, 1000, true, 20},
+		{1 << 30, 10, true, 16},
+		{1 << 30, 1000, true, 16},
 		{1 << 30, 1, true, 1},
 		{1 << 30, 0, true, 1},
 		{1 << 30, 10, false, 1},
@@ -152,7 +152,7 @@ func TestBuildDownloadTasks(t *testing.T) {
 			if task.part != p || task.offset != offset {
 				t.Fatalf("object identity changed or range coverage has a gap: %+v", task)
 			}
-			if len(tasks) > 1 && (task.size < 50<<20 || task.size > 256<<20) {
+			if len(tasks) > 1 && (task.size < 64<<20 || task.size > 256<<20) {
 				t.Fatalf("range size outside request bounds: %d", task.size)
 			}
 			offset += task.size
@@ -167,7 +167,7 @@ func TestRestoreRangedDownloads(t *testing.T) {
 	for _, skipPreallocation := range []bool{false, true} {
 		t.Run(fmt.Sprintf("skipPreallocation=%v", skipPreallocation), func(t *testing.T) {
 			const prefix = "prefix"
-			data := bytes.Repeat([]byte("range data"), (200<<20)/10+1)
+			data := bytes.Repeat([]byte("range data"), (256<<20)/10+1)
 			p := common.Part{
 				Path: "data/file", FileSize: uint64(len(prefix) + len(data)),
 				Offset: uint64(len(prefix)), Size: uint64(len(data)), ActualSize: uint64(len(data)),
@@ -262,7 +262,7 @@ func TestRestoreRangedDownloads(t *testing.T) {
 }
 
 func TestRestoreLargeBackupObject(t *testing.T) {
-	data := bytes.Repeat([]byte("vmrestore"), (100<<20)/9+1)
+	data := bytes.Repeat([]byte("vmrestore"), (128<<20)/9+1)
 	p := common.Part{Path: "data/big/2026_11/file", FileSize: uint64(len(data)), Size: uint64(len(data)), ActualSize: uint64(len(data))}
 	src := &fsremote.FS{Dir: t.TempDir()}
 	if err := src.UploadPart(p, bytes.NewReader(data)); err != nil {

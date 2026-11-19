@@ -42,11 +42,11 @@ func testRestoreFinalizesAfterAllParts(t *testing.T, ranged bool) {
 				wantData := []byte("datadatadata")
 				wantDownloaded := uint64(8)
 				if ranged {
-					wantData = bytes.Repeat([]byte("data"), (150<<20)/4)
+					wantData = bytes.Repeat([]byte("data"), (192<<20)/4)
 					p := common.Part{Path: "data/file", FileSize: uint64(len(wantData)), Size: uint64(len(wantData)), ActualSize: uint64(len(wantData))}
 					parts = []common.Part{p}
 					src.data = map[common.Part][]byte{p: wantData}
-					wantDownloaded = 100 << 20
+					wantDownloaded = 128 << 20
 				}
 				releaseFirst := make(chan struct{})
 				downloadErr := errors.New("first part failed")

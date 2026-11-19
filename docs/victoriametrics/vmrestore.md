@@ -118,7 +118,7 @@ Non-partition files (metadata etc.) are always restored regardless of this flag.
 * `-concurrency` limits all concurrent downloads, including downloads belonging to the same file.
   When multiple workers are available, large backup objects in S3 and S3-compatible storage are divided into balanced byte-range requests,
   keeping the original object keys unchanged. Ranges target multiple tasks per worker and are sized
-  between 50 MiB and 256 MiB to balance worker utilization and request overhead. Objects smaller than 100 MiB aren't split.
+  between 64 MiB and 256 MiB to balance worker utilization and request overhead. Objects smaller than 128 MiB aren't split.
   GCS, Azure, and local filesystem backups retain whole-object downloads in sequential order per file;
   different files can still download concurrently. Additional byte-range splitting is enabled only for S3.
   With `-skipFilePreallocation`, each file's objects are downloaded whole and sequentially in offset order
