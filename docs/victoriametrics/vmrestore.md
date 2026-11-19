@@ -116,7 +116,10 @@ Non-partition files (metadata etc.) are always restored regardless of this flag.
 * See [Connecting VM components to cloud storage](https://docs.victoriametrics.com/guides/connecting-vm-components-to-cloud-storage/) for instructions on configuring credentials.
 * If `vmrestore` consumes all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
 * If restore speed drops near the end when only a few big files remain, then increase `-concurrencyPerFile`.
+  This downloads multiple existing backup objects for the same file concurrently; individual objects aren't split.
   The total number of concurrent downloads is still limited by `-concurrency`.
+  With `-skipFilePreallocation`, objects for each file are downloaded sequentially in offset order
+  so an interrupted restore can safely resume within the file.
 * If `vmrestore` has been interrupted due to temporary error, then just restart it with the same args. It will resume the restore process.
 
 ## Advanced usage
@@ -130,7 +133,7 @@ Run `vmrestore -help` in order to see all the available options:
   -concurrency int
      The number of concurrent workers. Higher concurrency may reduce restore duration (default 10)
   -concurrencyPerFile int
-     The maximum number of concurrent workers per restored file. Higher values may reduce restore duration for big files (default 4)
+     The maximum number of concurrent workers per restored file. Higher values may reduce restore duration for big files. Objects for each file are downloaded sequentially when -skipFilePreallocation is set (default 4)
   -configFilePath string
      Path to file with S3 configs. Configs are loaded from default location if not set.
      See https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html

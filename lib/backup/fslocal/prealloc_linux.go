@@ -6,8 +6,6 @@ import (
 	"syscall"
 )
 
-const canPreallocate = true
-
 func preallocateFile(path string, size int64) error {
 	if size <= 0 {
 		return nil

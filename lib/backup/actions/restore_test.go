@@ -1,151 +1,244 @@
 package actions
 
 import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fsremote"
 )
 
-func TestAdaptiveWorkQueueSplitsLargeParts(t *testing.T) {
-	const (
-		path     = "big/file"
-		fileSize = 1000 * 1024 * 1024 // 1GB file
-	)
-	parts := []common.Part{
-		{
-			Path:       path,
-			FileSize:   fileSize,
-			Offset:     0,
-			Size:       fileSize,
-			ActualSize: fileSize,
-		},
-	}
-	src := &concurrencyTrackingRemoteFS{
-		parts: parts,
-		data:  make(map[uint64][]byte),
-	}
-	
-	r := &Restore{
-		Src: src,
-		Dst: &fslocal.FS{Dir: t.TempDir()},
-	}
-
-	perPath := map[string][]common.Part{
-		path: parts,
-	}
-
-	// Build work queue with 4 concurrent workers
-	workQueue := r.buildAdaptiveWorkQueue(perPath, 4)
-
-	if len(workQueue) == 0 {
-		t.Fatalf("expected work queue items, got none")
-	}
-
-	// Verify large file was split into multiple parts
-	// With concurrency=4 and optimal size calculation, should create multiple chunks
-	if len(workQueue) < 2 {
-		t.Fatalf("expected file to be split into multiple parts; got %d", len(workQueue))
-	}
-
-	// Verify first part has preallocation flag, last has finalization flag
-	firstItem := workQueue[0]
-	lastItem := workQueue[len(workQueue)-1]
-
-	if !firstItem.isFirstPart {
-		t.Fatalf("expected first item to have isFirstPart=true")
-	}
-	if !lastItem.isLastPart {
-		t.Fatalf("expected last item to have isLastPart=true")
-	}
-
-	// Verify all parts are within the file bounds
-	totalDownloaded := uint64(0)
-	for _, item := range workQueue {
-		if item.part.Offset+item.part.Size > fileSize {
-			t.Fatalf("part exceeds file bounds: offset=%d, size=%d, fileSize=%d",
-				item.part.Offset, item.part.Size, fileSize)
-		}
-		totalDownloaded += item.part.Size
-	}
-	if totalDownloaded != fileSize {
-		t.Fatalf("unexpected total downloaded size; got %d; want %d", totalDownloaded, fileSize)
-	}
-}
-
-func TestAdaptiveWorkQueueSmallPartsNotSplit(t *testing.T) {
-	const (
-		path     = "small/file"
-		fileSize = 10 * 1024 * 1024 // 10MB file
-	)
-	parts := []common.Part{
-		{
-			Path:       path,
-			FileSize:   fileSize,
-			Offset:     0,
-			Size:       fileSize,
-			ActualSize: fileSize,
-		},
-	}
-	src := &concurrencyTrackingRemoteFS{
-		parts: parts,
-		data:  make(map[uint64][]byte),
-	}
-	
-	r := &Restore{
-		Src: src,
-		Dst: &fslocal.FS{Dir: t.TempDir()},
-	}
-
-	perPath := map[string][]common.Part{
-		path: parts,
-	}
-
-	// Build work queue with 4 concurrent workers
-	workQueue := r.buildAdaptiveWorkQueue(perPath, 4)
-
-	// Small file should not be split
-	if len(workQueue) != 1 {
-		t.Fatalf("expected single work item for small file; got %d", len(workQueue))
-	}
-
-	item := workQueue[0]
-	if item.part.Size != fileSize {
-		t.Fatalf("expected part size %d; got %d", fileSize, item.part.Size)
-	}
-}
-
-func TestOptimalPartSizeCalculation(t *testing.T) {
-	tests := []struct {
-		concurrency int
-		expectedMin uint64
-		expectedMax uint64
+func TestRestoreDownloadConcurrency(t *testing.T) {
+	testCases := []struct {
+		name              string
+		concurrency       int
+		perFile           int
+		files             int
+		skipPreallocation bool
+		wantActive        int
+		wantPerFile       int
 	}{
-		{1, 500 * 1024 * 1024, 500 * 1024 * 1024},     // 1 worker: max size
-		{2, 500 * 1024 * 1024, 500 * 1024 * 1024},     // 2 workers: max size
-		{4, 100 * 1024 * 1024, 100 * 1024 * 1024},     // 4 workers: 100MB
-		{10, 50 * 1024 * 1024, 50 * 1024 * 1024},      // 10 workers: min size
-		{16, 50 * 1024 * 1024, 50 * 1024 * 1024},      // 16 workers: min size
+		{"same-file", 4, 3, 1, false, 3, 3},
+		{"per-file-limit", 4, 2, 2, false, 4, 2},
+		{"global-limit", 3, 4, 2, false, 3, 3},
+		{"sequential-resume", 4, 4, 2, true, 2, 1},
+		{"zero-limits", 0, 0, 1, false, 1, 1},
 	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			src := &concurrencyTrackingRemoteFS{data: make(map[common.Part][]byte)}
+			perPath := make(map[string][]common.Part)
+			for i := range tc.files {
+				path := fmt.Sprintf("big/file%d", i)
+				for j := 3; j >= 0; j-- {
+					p := common.Part{Path: path, FileSize: 16, Offset: uint64(j * 4), Size: 4, ActualSize: 4}
+					src.data[p] = bytes.Repeat([]byte{byte('a' + j)}, 4)
+					perPath[path] = append(perPath[path], p)
+				}
+			}
+			started := make(chan common.Part, len(src.data))
+			release := make(chan struct{})
+			var releaseOnce sync.Once
+			unblock := func() { releaseOnce.Do(func() { close(release) }) }
+			t.Cleanup(unblock)
+			src.beforeDownload = func(p common.Part) error {
+				started <- p
+				<-release
+				return nil
+			}
+			r := &Restore{
+				Src:                src,
+				Dst:                &fslocal.FS{Dir: t.TempDir(), UseTmpFiles: !tc.skipPreallocation},
+				ConcurrencyPerFile: tc.perFile,
+				SkipPreallocation:  tc.skipPreallocation,
+			}
+			var downloaded atomic.Uint64
+			done := make(chan error, 1)
+			go func() {
+				done <- r.runParallelPerPathInternal(context.Background(), tc.concurrency, perPath, &downloaded)
+			}()
+			for range tc.wantActive {
+				select {
+				case <-started:
+				case err := <-done:
+					t.Fatalf("restore finished before reaching expected concurrency: %v", err)
+				case <-time.After(5 * time.Second):
+					t.Fatal("timed out waiting for concurrent downloads")
+				}
+			}
+			unblock()
+			select {
+			case err := <-done:
+				if err != nil {
+					t.Fatalf("unexpected restore error: %s", err)
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("timed out waiting for restore")
+			}
+			if src.maxActiveTotal != tc.wantActive || src.maxActivePerPath != tc.wantPerFile {
+				t.Fatalf("unexpected maximum concurrency: total=%d, per file=%d; want %d, %d",
+					src.maxActiveTotal, src.maxActivePerPath, tc.wantActive, tc.wantPerFile)
+			}
+			if downloaded.Load() != uint64(tc.files*16) {
+				t.Fatalf("unexpected downloaded bytes: %d", downloaded.Load())
+			}
+			for path := range perPath {
+				data, err := os.ReadFile(filepath.Join(r.Dst.Dir, filepath.FromSlash(path)))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if string(data) != "aaaabbbbccccdddd" {
+					t.Fatalf("unexpected restored contents: %q", data)
+				}
+			}
+			if tc.skipPreallocation {
+				nextOffset := make(map[string]uint64)
+				for _, p := range src.downloaded {
+					if p.Offset != nextOffset[p.Path] {
+						t.Fatalf("out-of-order resumable download: %s", &p)
+					}
+					nextOffset[p.Path] += p.Size
+				}
+			}
+		})
+	}
+}
 
-	for _, tt := range tests {
-		size := calculateOptimalPartSize(tt.concurrency)
-		if size < tt.expectedMin || size > tt.expectedMax {
-			t.Fatalf("concurrency=%d: expected size in [%d, %d], got %d",
-				tt.concurrency, tt.expectedMin, tt.expectedMax, size)
+func TestRestoreLargeBackupObject(t *testing.T) {
+	data := bytes.Repeat([]byte("vmrestore"), (50<<20)/9+1)
+	p := common.Part{Path: "data/big/2026_11/file", FileSize: uint64(len(data)), Size: uint64(len(data)), ActualSize: uint64(len(data))}
+	src := &fsremote.FS{Dir: t.TempDir()}
+	if err := src.UploadPart(p, bytes.NewReader(data)); err != nil {
+		t.Fatal(err)
+	}
+	empty := common.Part{Path: "metadata/empty"}
+	if err := src.UploadPart(empty, bytes.NewReader(nil)); err != nil {
+		t.Fatal(err)
+	}
+	if err := src.CreateFile(backupnames.BackupCompleteFilename, nil); err != nil {
+		t.Fatal(err)
+	}
+	r := &Restore{
+		Src:                src,
+		Dst:                &fslocal.FS{Dir: t.TempDir()},
+		Concurrency:        10,
+		ConcurrencyPerFile: 4,
+	}
+	if err := r.Run(context.Background()); err != nil {
+		t.Fatalf("cannot restore original backup object: %s", err)
+	}
+	f, err := os.Open(p.LocalPath(r.Dst.Dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	h := sha256.New()
+	n, err := io.Copy(h, f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantHash := sha256.Sum256(data)
+	if n != int64(len(data)) || !bytes.Equal(h.Sum(nil), wantHash[:]) {
+		t.Fatal("restored file differs from backup")
+	}
+	fi, err := os.Stat(empty.LocalPath(r.Dst.Dir))
+	if err != nil || fi.Size() != 0 {
+		t.Fatalf("empty file wasn't restored: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(r.Dst.Dir, backupnames.RestoreInProgressFilename)); !os.IsNotExist(err) {
+		t.Fatalf("incomplete restore marker remains after success: %v", err)
+	}
+}
+
+func TestRestoreDownloadFailureAndResume(t *testing.T) {
+	data := []byte("restored data")
+	p := common.Part{Path: "data/file", FileSize: uint64(len(data)), Size: uint64(len(data)), ActualSize: uint64(len(data))}
+	src := &concurrencyTrackingRemoteFS{parts: []common.Part{p}, data: map[common.Part][]byte{p: data}}
+	downloadErr := errors.New("interrupted download")
+	src.downloadPart = func(_ common.Part, w io.Writer) error {
+		if _, err := w.Write(data[:3]); err != nil {
+			return err
 		}
+		return downloadErr
+	}
+	r := &Restore{
+		Src:                     src,
+		Dst:                     &fslocal.FS{Dir: t.TempDir()},
+		Concurrency:             2,
+		ConcurrencyPerFile:      2,
+		SkipBackupCompleteCheck: true,
+	}
+	if err := r.Run(context.Background()); !errors.Is(err, downloadErr) {
+		t.Fatalf("unexpected restore error: %v", err)
+	}
+	if _, err := os.Stat(p.LocalPath(r.Dst.Dir)); !os.IsNotExist(err) {
+		t.Fatalf("failed download was finalized: %v", err)
+	}
+	lockPath := filepath.Join(r.Dst.Dir, backupnames.RestoreInProgressFilename)
+	if _, err := os.Stat(lockPath); err != nil {
+		t.Fatalf("missing incomplete restore marker: %s", err)
+	}
+	src.downloadPart = nil
+	if err := r.Run(context.Background()); err != nil {
+		t.Fatalf("cannot resume failed restore: %s", err)
+	}
+	got, err := os.ReadFile(p.LocalPath(r.Dst.Dir))
+	if err != nil || !bytes.Equal(got, data) {
+		t.Fatalf("unexpected resumed file: %q; err=%v", got, err)
+	}
+	if _, err := os.Stat(lockPath); !os.IsNotExist(err) {
+		t.Fatalf("incomplete restore marker remains after success: %v", err)
+	}
+}
+
+func TestRestoreDownloadCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	src := &concurrencyTrackingRemoteFS{data: make(map[common.Part][]byte)}
+	var parts []common.Part
+	for i := range 3 {
+		p := common.Part{Path: "data/file", FileSize: 12, Offset: uint64(i * 4), Size: 4, ActualSize: 4}
+		parts = append(parts, p)
+		src.data[p] = []byte("data")
+	}
+	src.beforeDownload = func(_ common.Part) error {
+		cancel()
+		return nil
+	}
+	r := &Restore{Src: src, Dst: &fslocal.FS{Dir: t.TempDir(), UseTmpFiles: true}, ConcurrencyPerFile: 1}
+	var downloaded atomic.Uint64
+	err := r.runParallelPerPathInternal(ctx, 1, map[string][]common.Part{parts[0].Path: parts}, &downloaded)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("unexpected cancellation error: %v", err)
+	}
+	if len(src.downloaded) != 1 {
+		t.Fatalf("downloads continued after cancellation: %d", len(src.downloaded))
+	}
+	if _, err := os.Stat(parts[0].LocalPath(r.Dst.Dir)); !os.IsNotExist(err) {
+		t.Fatalf("canceled file was finalized: %v", err)
 	}
 }
 
 type concurrencyTrackingRemoteFS struct {
-	parts []common.Part
-	data  map[uint64][]byte
+	parts          []common.Part
+	data           map[common.Part][]byte
+	beforeDownload func(common.Part) error
+	downloadPart   func(common.Part, io.Writer) error
+	downloaded     []common.Part
 
 	mu               sync.Mutex
 	activeTotal      int
@@ -178,6 +271,10 @@ func (fs *concurrencyTrackingRemoteFS) CopyPart(_ common.OriginFS, _ common.Part
 }
 
 func (fs *concurrencyTrackingRemoteFS) DownloadPart(p common.Part, w io.Writer) error {
+	data, ok := fs.data[p]
+	if !ok {
+		return fmt.Errorf("unknown backup object: %s", &p)
+	}
 	fs.mu.Lock()
 	if fs.activePerPath == nil {
 		fs.activePerPath = make(map[string]int)
@@ -186,16 +283,23 @@ func (fs *concurrencyTrackingRemoteFS) DownloadPart(p common.Part, w io.Writer) 
 	fs.activePerPath[p.Path]++
 	fs.maxActiveTotal = max(fs.maxActiveTotal, fs.activeTotal)
 	fs.maxActivePerPath = max(fs.maxActivePerPath, fs.activePerPath[p.Path])
+	fs.downloaded = append(fs.downloaded, p)
 	fs.mu.Unlock()
-
-	time.Sleep(50 * time.Millisecond)
-	_, err := w.Write(fs.data[p.Offset])
-
-	fs.mu.Lock()
-	fs.activeTotal--
-	fs.activePerPath[p.Path]--
-	fs.mu.Unlock()
-
+	defer func() {
+		fs.mu.Lock()
+		fs.activeTotal--
+		fs.activePerPath[p.Path]--
+		fs.mu.Unlock()
+	}()
+	if fs.beforeDownload != nil {
+		if err := fs.beforeDownload(p); err != nil {
+			return err
+		}
+	}
+	if fs.downloadPart != nil {
+		return fs.downloadPart(p, w)
+	}
+	_, err := w.Write(data)
 	return err
 }
 

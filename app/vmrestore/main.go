@@ -29,8 +29,9 @@ var (
 	storageDataPath = flag.String("storageDataPath", "victoria-metrics-data", "Destination path where backup must be restored. "+
 		"VictoriaMetrics must be stopped when restoring from backup. -storageDataPath dir can be non-empty. In this case the contents of -storageDataPath dir "+
 		"is synchronized with -src contents, i.e. it works like 'rsync --delete'")
-	concurrency             = flag.Int("concurrency", 10, "The number of concurrent workers. Higher concurrency may reduce restore duration")
-	concurrencyPerFile      = flag.Int("concurrencyPerFile", 4, "The maximum number of concurrent workers per restored file. Higher values may reduce restore duration for big files")
+	concurrency        = flag.Int("concurrency", 10, "The number of concurrent workers. Higher concurrency may reduce restore duration")
+	concurrencyPerFile = flag.Int("concurrencyPerFile", 4, "The maximum number of concurrent workers per restored file. Higher values may reduce restore duration for big files. "+
+		"Objects for each file are downloaded sequentially when -skipFilePreallocation is set")
 	maxBytesPerSecond       = flagutil.NewBytes("maxBytesPerSecond", 0, "The maximum download speed. There is no limit if it is set to 0")
 	skipBackupCompleteCheck = flag.Bool("skipBackupCompleteCheck", false, "Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file")
 	SkipPreallocation       = flag.Bool("skipFilePreallocation", false, "Whether to skip pre-allocated files. This will likely be slower in most cases, but allows restores to resume mid file on failure")
