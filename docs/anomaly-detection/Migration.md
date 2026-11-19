@@ -94,7 +94,7 @@ Read each row as **source persisted state → target runtime**. The upgrade and 
 
 | Source state | Target runtime | Action and compatibility boundary |
 | --- | --- | --- |
-| v1.33.0 | v1.32.0 | Reinitialize/refit on rollback: the older runtime does not recognize v1.33.0 state provenance, although it can read the new Parquet encoding. Restore [valid licensing](#eula-based-licensing) and remove or adapt [unsupported holiday configuration](#stateless-mode). |
+| v1.33.0 | v1.32.0 | Reinitialize/refit on rollback: the older runtime does not recognize v1.33.0 state provenance. Restore [valid licensing](#eula-based-licensing) and remove or adapt [unsupported holiday configuration](#stateless-mode). |
 | v1.32.0 | v1.31.1 or earlier | Reinitialize/refit on rollback: older runtimes do not recognize the newer provenance, compressed Temporal Envelope snapshots or the v2 implementation. Remove unsupported configuration options. |
 | v1.31.1 | v1.31.0 or earlier | The older shipped runtime does not recognize v1.31.1 provenance. Reinitialize/refit on rollback. |
 | v1.31.0 | v1.30.7 or earlier | The older shipped runtime does not recognize v1.31.0 provenance. Reinitialize/refit on rollback, and replace peer-model configurations unsupported by the target version. |
@@ -134,7 +134,7 @@ However, for releases [v1.24.0](https://docs.victoriametrics.com/anomaly-detecti
 
 In stateless mode, the migration process is almost straightforward as there are no persistent states to manage. One may simply upgrade the `vmanomaly` service to the latest version and restart it, up to a slight change in the config .YAML files for backward-incompatible changes, see the list below.
 
-**Configuration changes**
+**Breaking and configuration changes**
 
 - [v1.33.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1330): on rollback, remove [`is_holiday`](https://docs.victoriametrics.com/anomaly-detection/components/models/#holiday-output) from `provide_series` and adapt [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) top-level `holidays` to the target version's supported calendar configuration. Update alert rules that use the flag; a missing series is not an explicit zero. Review [licensing](#eula-based-licensing) in either direction.
 

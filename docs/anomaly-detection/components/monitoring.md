@@ -910,7 +910,7 @@ and the [command-line arguments](https://docs.victoriametrics.com/anomaly-detect
 Startup logs summarize the version, license, effective storage mode, state restoration, process-pool mode,
 server addresses, hot-reload state, and active schedulers. The most useful prefixes are:
 
-- **ESA acceptance** (v1.33.0 or newer): startup reports whether the ESA was accepted. See [licensing](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing) for supported flags. Earlier versions log license verification instead.
+- **ESA acceptance** (v1.33.0 or newer): look for `vmanomaly runs with the ESA` on acceptance or `vmanomaly requires accepting the ESA` when acceptance is missing. See [licensing](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing) for supported flags. Before v1.33.0, license verification used `Please provide a license code`, `failed to read file` and `Licensed to`; these prefixes no longer apply.
 - **Config validation**: `Config validation failed`, `Config read failed`, and the fatal
   `Config validation failed, shutting down`. Successful startup ends with `Config has been loaded successfully`.
 - **Model and data directory setup**: `Using ENV VMANOMALY_MODEL_DUMPS_DIR`,

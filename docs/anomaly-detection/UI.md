@@ -470,7 +470,7 @@ The plot groups model output by input series and compares actual values (`y`) wi
 
 Toggle individual output series from the legend.
 
-{{< available_from "v1.29.2" anomaly >}} Enable **Business Boundaries** to overlay the configured [detection direction](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) and combined [absolute](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) and [relative](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-relative-deviation-from-expected) minimum-deviation bands. Toggle individual bands from the legend or all bands with the main control.
+{{< available_from "v1.33.0" anomaly >}} Configured **Business Boundaries** appear automatically, showing [detection direction](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) and combined [absolute](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) and [relative](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-relative-deviation-from-expected) minimum-deviation bands. Use legend controls in single-series charts; for multivariate results, expand a signal to see its bounds. Earlier UI versions require enabling **Business Boundaries** manually.
 
 [Back to UI navigation](#ui-navigation)
 
@@ -585,18 +585,7 @@ After that, accessing `http://<vmanomaly-host>:<port>/vmui/` (e.g. `http://local
 
 ### YAML Configuration
 
-Once the configuration is set up and saved in the UI (selected model type and validated hyperparameters), equivalent configuration in production-ready YAML format can be obtained by:
-
-Accessing the "YAML" Tab in the model configuration section
-![vmanomaly-ui-model-config-menu](vmanomaly-ui-model-config-menu.webp)
-![vmanomaly-ui-model-config-yaml-tab](vmanomaly-ui-model-config-menu-yaml-tab.webp)
-
-
-Clicking the "Show Config" button to access (model-only or full) configuration and hitting "Download" button to get the configuration as a YAML file.
-
-![vmanomaly-ui-open-config-btn](vmanomaly-ui-open-config-btn.webp)
-
-![vmanomaly-ui-open-config-menu](vmanomaly-ui-open-config-menu.webp)
+{{< available_from "v1.33.0" anomaly >}} After choosing a model and validating its settings, open **More → Export config (YAML)**. Turn **Model only** on to export the `models` section for an existing configuration, or off for a complete configuration. Select **Copy** or **Download** to save the YAML.
 
 ## Optimize Resource Usage
 
@@ -768,7 +757,7 @@ If the **results** do not look good, the model hyperparameters and domain knowle
 
 If the **results** look good, but should be shared with others first, {{< available_from "v1.32.0" anomaly >}} use **More → Download results** to export query or anomaly results as JSON. Choose the current range and, when needed, privacy replacements that stay consistent within the loaded results. See also [configuration sharing](#configuration-sharing) section for details.
 
-If the **results** look good and the **model configuration should be deployed in production jobs of anomaly detection**, the equivalent configuration in production-ready YAML format can be obtained by accessing the "YAML" Tab in the model configuration section and hitting the "Show Config" button to access (model-only or full) configuration to download/copy as a YAML file.
+If the results look good, export a production configuration through **More → Export config (YAML)**. See [YAML Configuration](#yaml-configuration) for model-only and full configuration options.
 
 ![vmanomaly-ui-open-config-menu](vmanomaly-ui-open-config-menu.webp)
 

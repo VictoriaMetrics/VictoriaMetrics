@@ -142,7 +142,7 @@ models:
     provide_series: ['anomaly_score']  # only `anomaly_score` metric will be available for writing back to the database
 ```
 
-> If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). Even if `timestamp` column is omitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
+> If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). `anomaly_score` is not mandatory: a supported model can emit only `is_holiday` with `provide_series: [is_holiday]`. Even if `timestamp` column is omitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
 
 {{% available_from "v1.33.0" anomaly %}} Prophet and Temporal Envelope v1/v2 (univariate and multivariate) support optional `is_holiday` output. Request it explicitly with `provide_series: [anomaly_score, is_holiday]`; it is off by default to avoid extra computation and stored series. Unsupported models reject this selection. An empty calendar logs a validation warning and produces zeros. See [holiday output](#holiday-output).
 
@@ -1378,6 +1378,7 @@ models:
 {{% available_from "v1.33.0" anomaly %}} To emit the calendar flag alongside the anomaly score:
 
 ```yaml
+# Other components (reader, writer, schedulers, etc.) are omitted.
 models:
   holiday_prophet:
     class: prophet
@@ -1411,9 +1412,6 @@ Resulting metrics of the model are described [here](#vmanomaly-output)
 > `IsolationForestModel` is a [univariate](#univariate-models), [offline](#offline-models) model.
 
 > `IsolationForestMultivariateModel` is a [multivariate](#multivariate-models), [offline](#offline-models) model.
-
-> [!NOTE]
-> Both univariate `isolation_forest` and multivariate `isolation_forest_multivariate` are planned for deprecation in a future release. For new deployments, use the corresponding univariate or multivariate online [Temporal Envelope](#temporal-envelope) model.
 
 Detects anomalies using binary trees. The algorithm has a linear time complexity and a low memory requirement, which works well with high-volume data. It can be used on both univariate and multivariate data, but it is more effective in multivariate case.
 
@@ -1481,9 +1479,6 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 {{% deprecated_from "v1.33.0" anomaly %}} `holtwinters` is scheduled for removal in v1.34.0. Existing configurations, including AutoTuned targets, still run with a warning. Migrate to [Temporal Envelope](#temporal-envelope).
 
 > `HoltWinters` is a [univariate](#univariate-models), [offline](#offline-models) model.
-
-> [!NOTE]
-> Holt-Winters is planned for deprecation in a future release. For new deployments, prefer the online [Temporal Envelope](#temporal-envelope) model.
 
 Here we use Holt-Winters Exponential Smoothing implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing). All parameters from this library can be passed to the model.
 
