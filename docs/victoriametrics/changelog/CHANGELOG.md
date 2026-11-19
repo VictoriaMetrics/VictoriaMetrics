@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards): update the `Ingestion rate` panels of the [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/) dashboard to account for samples ingested directly into `vmstorage` via the remote write protocol with `-enableIngestionAPI` enabled. Previously, these panels counted only samples received from `vminsert`. See [#11809](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11809). Thanks to @sarankumar1325 for contribution.
+
 **Update Note 1:** `vmctl` in [vm-native](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/) mode: `--vm-native-filter-time-end` is now a required parameter. See [#11830](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11830) for details.
 
 **Update Note 2:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) change for [Vultr service discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#vultr_sd_configs): Vultr service discovery params now should be provided via `vultr_sd_configs` field. Previously, vmagent was expecting `vultr_configs` field to be set, which didn't match vmagent's documentation and Prometheus service discovery settings for Vultr. See [#11950](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11950) for details.
