@@ -118,9 +118,9 @@ type Options struct {
 	// The alignment of flushes can be disabled individually per each aggregation via no_align_flush_to_interval option.
 	NoAlignFlushToInterval bool
 
-	// FlushOnShutdown enables flush of incomplete aggregation state on startup and shutdown.
+	// FlushOnShutdown enables flush of the incomplete first interval after the start and the incomplete last interval on shutdown.
 	//
-	// By default incomplete state is dropped.
+	// By default the incomplete intervals are dropped.
 	//
 	// The flush of incomplete state can be enabled individually per each aggregation via flush_on_shutdown option.
 	FlushOnShutdown bool
@@ -142,6 +142,10 @@ type Options struct {
 	IgnoreOldSamples bool
 
 	// IgnoreFirstIntervals sets the number of aggregation intervals to be ignored on start.
+	//
+	// Only complete intervals are counted.
+	// If IgnoreFirstIntervals > 0, then the incomplete first interval after the start
+	// is ignored as well, even if FlushOnShutdown is set.
 	//
 	// By default, zero intervals are ignored.
 	//
@@ -178,8 +182,8 @@ type Config struct {
 	// See also FlushOnShutdown.
 	NoAlignFlushToInterval *bool `yaml:"no_align_flush_to_interval,omitempty"`
 
-	// FlushOnShutdown defines whether to flush incomplete aggregation state on startup and shutdown.
-	// By default incomplete aggregation state is dropped, since it may confuse users.
+	// FlushOnShutdown defines whether to flush the incomplete first interval after the start and the incomplete last interval on shutdown.
+	// By default the incomplete intervals are dropped, since they may confuse users.
 	FlushOnShutdown *bool `yaml:"flush_on_shutdown,omitempty"`
 
 	// DedupInterval is an optional interval for deduplication.
@@ -232,6 +236,9 @@ type Config struct {
 	IgnoreOldSamples *bool `yaml:"ignore_old_samples,omitempty"`
 
 	// IgnoreFirstIntervals sets number of aggregation intervals to be ignored on start.
+	// Only complete intervals are counted.
+	// If IgnoreFirstIntervals > 0, then the incomplete first interval after the start
+	// is ignored as well, even if FlushOnShutdown is set.
 	IgnoreFirstIntervals *int `yaml:"ignore_first_intervals,omitempty"`
 
 	// By is an optional list of labels for grouping input series.
@@ -734,16 +741,18 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, opts *Options, a
 
 	startTime := time.Now()
 	minTime := startTime
+	dedupStartTime := startTime
 	if alignFlushToInterval {
-		minTime = minTime.Truncate(a.interval)
-		if !startTime.Equal(minTime) {
-			minTime = minTime.Add(interval)
+		minTime = startTime.Truncate(a.interval)
+		if a.dedupInterval > 0 {
+			dedupStartTime = startTime.Truncate(a.dedupInterval)
 		}
 	}
+	isIncompleteFirstInterval := !startTime.Equal(minTime)
 	a.minDeadline.Store(minTime.UnixMilli())
 	cs := &currentState{}
 	if a.dedupInterval > 0 {
-		cs.maxDeadline = minTime.Add(a.dedupInterval).UnixMilli()
+		cs.maxDeadline = dedupStartTime.Add(a.dedupInterval).UnixMilli()
 	} else {
 		cs.maxDeadline = minTime.Add(a.interval).UnixMilli()
 	}
@@ -752,7 +761,7 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, opts *Options, a
 	metrics.RegisterSet(ms)
 
 	a.wg.Go(func() {
-		a.runFlusher(pushFunc, alignFlushToInterval, skipFlushOnShutdown, ignoreFirstIntervals)
+		a.runFlusher(pushFunc, alignFlushToInterval, isIncompleteFirstInterval, skipFlushOnShutdown, ignoreFirstIntervals)
 	})
 
 	return a, nil
@@ -836,23 +845,30 @@ func newOutputConfig(ms *metrics.Set, metricLabels, output string, outputsSeen m
 	}
 }
 
-func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlushOnShutdown bool, ignoreFirstIntervals int) {
+func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, isIncompleteFirstInterval, skipFlushOnShutdown bool, ignoreFirstIntervals int) {
+	// The incomplete first interval happens only when the aggregator starts in the middle of the interval with aligned flushes.
+	// It is flushed only if both conditions are met:
+	//   - flush_on_shutdown is set, the same way as for the incomplete last interval on shutdown;
+	//   - ignore_first_intervals is 0.
+	// Otherwise it is dropped.
+	// Also it isn't counted by ignore_first_intervals, so at least ignore_first_intervals complete intervals
+	// are still ignored after the start.
+	dropIncompleteFirstInterval := isIncompleteFirstInterval && (skipFlushOnShutdown || ignoreFirstIntervals > 0)
 	minTime := time.UnixMilli(a.minDeadline.Load())
 	flushTime := minTime.Add(a.interval)
 	interval := a.interval
 	if a.dedupInterval > 0 {
 		interval = a.dedupInterval
 	}
-	alignedSleep := func() {
-		dSleep := time.Until(minTime)
-		if dSleep <= 0 {
-			return
-		}
-		timer := time.NewTimer(dSleep)
+
+	firstFlushWait := func() bool {
+		timer := time.NewTimer(time.Until(time.UnixMilli(a.cs.Load().maxDeadline)))
 		defer timer.Stop()
 		select {
 		case <-a.stopCh:
+			return false
 		case <-timer.C:
+			return true
 		}
 	}
 
@@ -871,12 +887,11 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlu
 		}
 	}
 
-	alignedSleep()
-
+	ok := firstFlushWait()
 	t := time.NewTicker(interval)
 	defer t.Stop()
 
-	for tickerWait(t) {
+	for ; ok; ok = tickerWait(t) {
 		pf := pushFunc
 		if a.enableWindows {
 			delay := a.flushLag.takeFlushDelay(interval)
@@ -889,10 +904,14 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlu
 
 		if !flushTime.After(deadlineTime) {
 			// It is time to flush the aggregated state
-			if ignoreFirstIntervals > 0 {
+			switch {
+			case dropIncompleteFirstInterval:
+				a.flush(nil, flushTime, cs, false)
+				dropIncompleteFirstInterval = false
+			case ignoreFirstIntervals > 0:
 				a.flush(nil, flushTime, cs, false)
 				ignoreFirstIntervals--
-			} else {
+			default:
 				a.flush(pf, flushTime, cs, false)
 			}
 			flushTime = flushTime.Add(a.interval)

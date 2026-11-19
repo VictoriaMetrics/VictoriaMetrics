@@ -467,6 +467,9 @@ just after the restart of `vmagent` or single-node VictoriaMetrics. This can be 
 
 - The `ignore_first_intervals: N` option at the particular [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
 
+Only complete aggregation intervals are counted. If `N > 0`, then the incomplete first interval after the start is ignored as well,
+even if `flush_on_shutdown: true` is set. See [flush time alignment](#flush-time-alignment).
+
 See also:
 
 - [Flush time alignment](#flush-time-alignment)
@@ -490,7 +493,9 @@ In this case, aggregated data flushes will be aligned to the `vmagent` start tim
 
 The aggregated data on the first and the last interval is dropped during `vmagent` start, restart, or when the aggregation config is changed during [config reload](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#configuration-update),
 since the first and last aggregation intervals are incomplete, they usually contain incomplete, confusing data.
+For example, if `vmagent` starts at `00:00:10` with `interval: 1m`, then the first interval covers `00:00:10 - 00:01:00`, and its aggregated data is dropped at `00:01:00`.
 If you need to preserve the aggregated data on these intervals, then set `flush_on_shutdown: true` option in the [aggregate config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
+In this case the incomplete intervals are flushed with the timestamp of the end of the interval.
 
 See also:
 
