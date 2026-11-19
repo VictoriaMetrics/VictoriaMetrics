@@ -11,16 +11,19 @@ This allows running OpenTelemetry-based observability pipeline with VictoriaMetr
 
 VictoriaMetrics provides a dedicated database for each [signal type](https://opentelemetry.io/docs/concepts/signals/):
 
-- [VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/) for [Metrics](https://opentelemetry.io/docs/concepts/signals/metrics/);
-- [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) for [Logs](https://opentelemetry.io/docs/concepts/signals/logs/);
-- [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) for [Traces](https://opentelemetry.io/docs/concepts/signals/traces/).
+- [VictoriaMetrics](https://docs.victoriametrics.com/opentelemetry/#metrics-victoriametrics) for [Metrics OTel signal](https://opentelemetry.io/docs/concepts/signals/metrics/);
+- [VictoriaLogs](https://docs.victoriametrics.com/opentelemetry/#logs-victorialogs) for [Logs OTel signal](https://opentelemetry.io/docs/concepts/signals/logs/);
+- [VictoriaTraces](https://docs.victoriametrics.com/opentelemetry/#traces-victoriatraces) for [Traces OTel signal](https://opentelemetry.io/docs/concepts/signals/traces/).
 
 ![README.webp](README.webp)
 {width="700"}
 
+> See [OTeL collector integration with VictoriaStack](https://docs.victoriametrics.com/victoriastack/ingestion/#opentelemetry) for more details.
+
 Each database is optimized for its own signal and usage scenario to improve maintainability and efficiency.
 
 Resources:
+* [VictoriaStack practical integration](https://docs.victoriametrics.com/victoriastack/) with OpenTelemetry for ingestion and Grafana for visualization.
 * [OpenTelemetry Astronomy Shop demo](https://github.com/VictoriaMetrics-Community/opentelemetry-demo) with integrated VictoriaMetrics backends.
 * Live [Grafana Playground](https://play-grafana.victoriametrics.com/) with OTeL demo and VictoriaMetrics components.
 * [Full-Stack Observability with VictoriaMetrics in the OTel Demo](https://victoriametrics.com/blog/victoriametrics-full-stack-observability-otel-demo/) blogpost.
@@ -29,7 +32,7 @@ Resources:
 
 ## Metrics (VictoriaMetrics)
 
-VictoriaMetrics single-node, vmagent and vminsert components support ingestion of metrics via OpenTelemetry Protocol (OTLP) 
+[VictoriaMetrics single-node](https://docs.victoriametrics.com/victoriametrics/), [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vminsert in cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) support ingestion of metrics via OpenTelemetry Protocol (OTLP) 
 from [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) and applications instrumented with [OpenTelemetry SDKs](https://opentelemetry.io/docs/languages/). 
 
 See the detailed description about protocol support [here](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/).
@@ -50,8 +53,7 @@ Once metrics are ingested into VictoriaMetrics, they can be read via the followi
    
 ## Logs (VictoriaLogs)
 
-VictoriaLogs single-node, vlagent and vlinsert components support ingestion of logs via OpenTelemetry Protocol (OTLP) from [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/)
-and applications instrumented with [OpenTelemetry SDKs](https://opentelemetry.io/docs/languages/). 
+[VictoriaLogs single-node](https://docs.victoriametrics.com/victorialogs/), [vlagent](https://docs.victoriametrics.com/victorialogs/vlagent/) and [vlinsert in cluster version](https://docs.victoriametrics.com/victorialogs/cluster/) support ingestion of logs via OpenTelemetry Protocol (OTLP) from [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) and applications instrumented with [OpenTelemetry SDKs](https://opentelemetry.io/docs/languages/). 
 
 See the detailed description about protocol support [here](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/).
 
@@ -71,8 +73,7 @@ Once logs are ingested into Victorialogs, they can be read via the following too
 
 ## Traces (VictoriaTraces)
 
-VictoriaTraces single-node and vtinsert components support ingestion of traces via OpenTelemetry Protocol (OTLP) from [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/)
-and applications instrumented with [OpenTelemetry SDKs](https://opentelemetry.io/docs/languages/).
+[VictoriaTraces single-node](https://docs.victoriametrics.com/victoriatraces/), [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/) and [vtinsert in cluster version](https://docs.victoriametrics.com/victoriatraces/cluster/) support ingestion of traces via OpenTelemetry РЕЕЗ Protocol (OTLP) from [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) and applications instrumented with [OpenTelemetry SDKs](https://opentelemetry.io/docs/languages/).
 
 See the detailed description about protocol support [here](https://docs.victoriametrics.com/victoriatraces/data-ingestion/opentelemetry/).
 
