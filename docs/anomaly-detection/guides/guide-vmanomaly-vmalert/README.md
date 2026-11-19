@@ -8,7 +8,7 @@ sitemap:
 ---
 **Prerequisites**:
 
-- To use *vmanomaly*, part of the enterprise package, a license key is required. Obtain your key [here](https://victoriametrics.com/products/enterprise/trial/) for this tutorial or for enterprise use.
+- Review the [licensing requirements](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing) for *vmanomaly*. This example uses `-eula` to accept the [Enterprise Software Agreement](https://victoriametrics.com/legal/esa/).
 - In the tutorial, we'll be using the following VictoriaMetrics components:
   -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) (v1.156.0)
   -  [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) (v1.156.0)
@@ -302,7 +302,7 @@ scrape_configs:
 
 ### vmanomaly licensing
 
-We will utilize the license key stored locally in the file `vmanomaly_license`.
+The Compose example passes `-eula`; no license-file mount is needed. See [licensing](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing) for permitted use and compatibility with existing license settings.
 
 For additional licensing options, please refer to the [VictoriaMetrics Anomaly Detection documentation on licensing](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing).
 
@@ -400,7 +400,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.32.0
+    image: victoriametrics/vmanomaly:v1.33.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -410,11 +410,10 @@ services:
     restart: always
     volumes:
       - ./vmanomaly_config.yml:/config.yaml
-      - ./vmanomaly_license:/license
     platform: "linux/amd64"
     command:
       - "/config.yaml"
-      - "--licenseFile=/license"
+      - "-eula"
   alertmanager:
     container_name: alertmanager
     image: prom/alertmanager:v0.28.1
