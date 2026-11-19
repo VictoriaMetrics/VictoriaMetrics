@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"reflect"
 	"strings"
@@ -80,6 +81,96 @@ func TestDropPrefixParts(t *testing.T) {
 	f("/foo/", 4, "")
 	f("/foo/bar/", 4, "")
 	f("/foo/bar/baz/", 4, "")
+}
+
+func TestUserInfoGetURLPrefixBySrcHeadersAndQueryArgs(t *testing.T) {
+	f := func(cfg, requestURI string, requestHeaders []string, expectedBackendURL string) {
+		t.Helper()
+
+		ac, err := parseAuthConfig([]byte(cfg))
+		if err != nil {
+			t.Fatalf("cannot parse config: %s", err)
+		}
+		ui := ac.UnauthorizedUser
+
+		u, err := url.Parse(requestURI)
+		if err != nil {
+			t.Fatalf("cannot parse %q: %s", requestURI, err)
+		}
+		h := make(http.Header)
+		for _, rh := range requestHeaders {
+			name, value, ok := strings.Cut(rh, ":")
+			if !ok {
+				t.Fatalf("missing ':' in request header %q", rh)
+			}
+			h.Add(name, strings.TrimSpace(value))
+		}
+
+		up, _, denied := ui.getURLPrefixAndHeaders(u, u.Host, h)
+		if denied {
+			t.Fatalf("unexpected denied request for %q", requestURI)
+		}
+		backendURL := ""
+		if up != nil {
+			backendURL = up.getBackendURL().url.String()
+		}
+		if backendURL != expectedBackendURL {
+			t.Fatalf("unexpected backend url; got %q; want %q", backendURL, expectedBackendURL)
+		}
+	}
+
+	headersAny := `
+unauthorized_user:
+  url_map:
+  - src_headers: ["AccountID: 1", "ProjectID: 0"]
+    url_prefix: http://backend
+`
+	f(headersAny, "/select", []string{"AccountID: 1", "ProjectID: 0"}, "http://backend")
+	f(headersAny, "/select", []string{"AccountID: 1", "ProjectID: 2"}, "http://backend")
+	f(headersAny, "/select", []string{"AccountID: 2", "ProjectID: 0"}, "http://backend")
+	f(headersAny, "/select", []string{"AccountID: 1"}, "http://backend")
+	f(headersAny, "/select", []string{"AccountID: 2", "ProjectID: 2"}, "")
+	f(headersAny, "/select", nil, "")
+
+	headersAll := `
+unauthorized_user:
+  url_map:
+  - src_headers: ["AccountID: 1", "ProjectID: 0"]
+    src_headers_match_all: true
+    url_prefix: http://backend
+`
+	f(headersAll, "/select", []string{"AccountID: 1", "ProjectID: 0"}, "http://backend")
+	f(headersAll, "/select", []string{"AccountID: 1", "ProjectID: 2"}, "")
+	f(headersAll, "/select", []string{"AccountID: 2", "ProjectID: 0"}, "")
+	f(headersAll, "/select", []string{"AccountID: 1"}, "")
+	f(headersAll, "/select", []string{"ProjectID: 0"}, "")
+	f(headersAll, "/select", nil, "")
+
+	queryArgsAny := `
+unauthorized_user:
+  url_map:
+  - src_query_args: ["foo=1", "bar=~b.+"]
+    url_prefix: http://backend
+`
+	f(queryArgsAny, "/select?foo=1&bar=baz", nil, "http://backend")
+	f(queryArgsAny, "/select?foo=1", nil, "http://backend")
+	f(queryArgsAny, "/select?bar=baz", nil, "http://backend")
+	f(queryArgsAny, "/select?foo=2&bar=x", nil, "")
+	f(queryArgsAny, "/select", nil, "")
+
+	queryArgsAll := `
+unauthorized_user:
+  url_map:
+  - src_query_args: ["foo=1", "bar=~b.+"]
+    src_query_args_match_all: true
+    url_prefix: http://backend
+`
+	f(queryArgsAll, "/select?foo=1&bar=baz", nil, "http://backend")
+	f(queryArgsAll, "/select?foo=2&foo=1&bar=baz", nil, "http://backend")
+	f(queryArgsAll, "/select?foo=1", nil, "")
+	f(queryArgsAll, "/select?bar=baz", nil, "")
+	f(queryArgsAll, "/select?foo=1&bar=x", nil, "")
+	f(queryArgsAll, "/select", nil, "")
 }
 
 func TestCreateTargetURLSuccess(t *testing.T) {
