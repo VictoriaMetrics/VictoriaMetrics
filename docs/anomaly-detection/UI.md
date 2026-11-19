@@ -402,14 +402,22 @@ docker run -it --rm \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
-  victoriametrics/vmanomaly:v1.32.0 \
-  vmanomaly_config.yaml
+  victoriametrics/vmanomaly:v1.33.0 \
+  vmanomaly_config.yaml -eula
 ```
 
 
 ## Guided tours
 
-{{< available_from "v1.32.0" anomaly >}} Use **Take a tour** in the header to explore the UI with built-in demo data, without connecting a datasource. **Get started** walks through queries, model settings and detection; **Tune a model with marks** demonstrates marking a missed anomaly and reviewing a tuned candidate. Tours start only when selected and restore your previous workspace when they end. Demo data is for exploration, not a production datasource.
+Use **Take a tour** in the header to explore the UI with built-in demo data, without connecting a datasource. Follow the tours in workflow order:
+
+- {{< available_from "v1.32.0" anomaly >}} **Get started** — Add queries, configure a model and run anomaly detection.
+- {{< available_from "v1.32.0" anomaly >}} **Tune a model with marks** — Mark what’s anomalous to guide model tuning toward the patterns and deviations that matter to you.
+- {{< available_from "v1.33.0" anomaly >}} **Work with results** — Review the last-run summary, export configuration and explore example alert rules.
+- {{< available_from "v1.33.0" anomaly >}} **Share results** — Share links and download results with privacy options.
+
+> [!NOTE]
+> Tours start only when selected and restore your previous workspace when they end. Demo data is for exploration, not a production datasource.
 
 ## UI Navigation
 
@@ -535,6 +543,9 @@ Based on the needs, either
 [Default state](#default-state) can simplify both sharing and experimentation by preconfiguring the UI state on vmanomaly startup.
 
 ### URL Sharing
+
+> [!TIP]
+> From VMUI v1.12.0 (vmanomaly v1.33.0), use the header **Copy link** button to copy a URL for the current view.
 
 Similarly to vmui, vmanomaly UI supports **configuration sharing via URL** by encoding the UI state in the URL. This allows users to share their UI state (including queries, time ranges, model type and hyperparameters, and other settings) by copying and sharing the URL from the browser's address bar.
 
@@ -806,6 +817,16 @@ In multivariate results, **Channels outside expected range** is a diagnostic vie
 <div class="collapse-group mb-3">
 
 {{% collapse name="Release history" %}}
+
+### v1.12.0
+Released: 2026-11-19
+
+Recommended vmanomaly version: [v1.33.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1330)
+
+- IMPROVEMENT: Place **Advanced settings** and **More** beside **Detect anomalies** in the model row. Rename **Show current config** to **Last run summary**, and **Generated YAML** to **Export config (YAML)**.
+- IMPROVEMENT: Always show configured business boundaries, with legend controls in single-series charts and bounds on expanded multivariate signals. **Streaks** remains in Advanced settings; a minimum length of `1` flags each anomalous point.
+- FEATURE: Add **Work with results** and **Share results** [guided tours](#guided-tours), and a header **Copy link** button for the current view.
+- BUGFIX: Improve tour positioning and recovery when a menu closes, and avoid scrolling to detection results after the user starts interacting with the page.
 
 ### v1.11.0
 Released: 2026-11-04

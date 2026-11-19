@@ -397,14 +397,14 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 <span style="white-space: nowrap;">`vm_license_expires_at`</span>
             </td>
             <td>Gauge</td>
-            <td>License expiration time as a Unix timestamp in seconds. See the [licensing section](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing) for example alerts.</td>
+            <td>Before v1.33.0 only: license expiration time as a Unix timestamp in seconds. Removed in v1.33.0; see [licensing](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing).</td>
         </tr>
         <tr>
             <td>
 <span style="white-space: nowrap;">`vm_license_expires_in_seconds`</span>
             </td>
             <td>Gauge</td>
-            <td>Time remaining until license expiration in seconds. See the [licensing section](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing) for warning and critical alert examples.</td>
+            <td>Before v1.33.0 only: time remaining until license expiration in seconds. Removed in v1.33.0; remove dependent alerts on upgrade.</td>
         </tr>
     </tbody>
 </table>
@@ -910,7 +910,7 @@ and the [command-line arguments](https://docs.victoriametrics.com/anomaly-detect
 Startup logs summarize the version, license, effective storage mode, state restoration, process-pool mode,
 server addresses, hot-reload state, and active schedulers. The most useful prefixes are:
 
-- **License check**: `Please provide a license code`, `failed to read file`, and `Licensed to`.
+- **ESA acceptance** (v1.33.0 or newer): startup reports whether the ESA was accepted. See [licensing](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing) for supported flags. Earlier versions log license verification instead.
 - **Config validation**: `Config validation failed`, `Config read failed`, and the fatal
   `Config validation failed, shutting down`. Successful startup ends with `Config has been loaded successfully`.
 - **Model and data directory setup**: `Using ENV VMANOMALY_MODEL_DUMPS_DIR`,

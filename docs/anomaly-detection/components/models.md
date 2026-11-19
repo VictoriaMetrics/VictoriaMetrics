@@ -142,7 +142,9 @@ models:
     provide_series: ['anomaly_score']  # only `anomaly_score` metric will be available for writing back to the database
 ```
 
-> If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). The output can't be less than `['anomaly_score']`. Even if `timestamp` column is omitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
+> If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). Even if `timestamp` column is omitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
+
+{{% available_from "v1.33.0" anomaly %}} Prophet and Temporal Envelope v1/v2 (univariate and multivariate) support optional `is_holiday` output. Request it explicitly with `provide_series: [anomaly_score, is_holiday]`; it is off by default to avoid extra computation and stored series. Unsupported models reject this selection. An empty calendar logs a validation warning and produces zeros. See [holiday output](#holiday-output).
 
 {{% /collapse %}}
 
@@ -945,6 +947,8 @@ For simple profiles without strong trend or seasonality, prefer [Online MAD](#on
 
 Preset suffixes describe expected profile shape: `smooth` represents gradual recurring curves, `spiky` represents narrow phase peaks, and `plateau` represents sustained calendar levels. Choose only profiles supported by the data. Calendar and holiday features use civil time from the configured query timezone, so hour/day profiles remain aligned across daylight-saving-time transitions.
 
+{{% available_from "v1.33.0" anomaly %}} Both Envelope versions and topologies can emit `is_holiday` through `provide_series`. It marks exact country-holiday or special-event dates, including events unseen in training; learned before/after response shoulders do not extend the flag. See [holiday output](#holiday-output).
+
 Temporal Envelope also supports the [common model arguments](#common-args), including `queries`, `schedulers`, `provide_series`, `scale`, and `clip_predictions`. Configure `data_range`, `detection_direction`, `min_dev_from_expected`, `min_rel_dev_from_expected`, and query timezone under the corresponding [reader query](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters). The multivariate variant applies these business policies independently to each input channel {{% available_from "v1.30.2" anomaly %}}, so one model can represent combinations such as temperature above expected, power above expected, and clock below expected.
 
 The multivariate variant uses `class: temporal_envelope_multivariate` or `model.online.TemporalEnvelopeMultivariateModel` and adds:
@@ -979,7 +983,7 @@ models:
       special_events: ['12-24']
       group: true
     forecast_at: [1h, 1d]
-    provide_series: [anomaly_score, yhat, yhat_lower, yhat_upper]
+    provide_series: [anomaly_score, yhat, yhat_lower, yhat_upper, is_holiday]
 ```
 
 Multivariate monitoring with one dependency model per cluster:
@@ -1269,6 +1273,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 - `class` (string) - model class name `"model.prophet.ProphetModel"` (or `prophet` with class alias support{{% available_from "v1.13.0" anomaly %}})
 - `seasonalities` (list[dict], optional): Additional seasonal components to include in Prophet. See Prophet’s [`add_seasonality()`](https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors#modeling-holidays-and-special-events:~:text=modeling%20the%20cycle-,Specifying,-Custom%20Seasonalities) documentation for details.
 - `scale`{{% available_from "v1.18.0" anomaly %}} (float): Is used to adjust the margins between `yhat` and [`yhat_lower`, `yhat_upper`]. New margin = `|yhat_* - yhat_lower| * scale`. Defaults to 1 (no scaling is applied). See `scale`[common arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#scale) section for detailed instructions and 2-sided option.
+- `holidays`{{% available_from "v1.33.0" anomaly %}} (object, default `{}`): Structured calendar with `countries`, `special_events` and `group`, as in Temporal Envelope. Existing `args.country_holidays` and custom Prophet `args.holidays` remain supported. Nonempty structured and legacy calendar sources cannot be combined.
 - `tz_aware`{{% available_from "v1.18.0" anomaly %}} (bool): Enables handling of timezone-aware timestamps. Default is `False`. Should be used with `tz_seasonalities` and `tz_use_cyclical_encoding` parameters.
 - `tz_seasonalities`{{% available_from "v1.18.0" anomaly %}} (list[dict]): Specifies timezone-aware seasonal components. Requires `tz_aware=True`. Supported options include `minute`, `hod` (hour of day), `dow` (day of week), and `month` (month of year). {{% available_from "v1.18.2" anomaly %}} users can configure additional parameters for each seasonality, such as `fourier_order`, `prior_scale`, and `mode`. For more details, please refer to the **Timezone-unaware** configuration example below.
   > {{% available_from "v1.18.2" anomaly %}} the format for `tz_seasonalities` has been updated to enhance flexibility. Previously, it accepted a list of strings (e.g., `['hod', 'minute']`). Now, it follows the same structure as custom seasonalities defined in the `seasonalities` argument (e.g., `{"name": "hod", "fourier_order": 5, "mode": "additive"}`). This change is backward-compatible, so older configurations will be automatically converted to the new format using default values.
@@ -1370,6 +1375,23 @@ models:
 
 > Apart from standard [`vmanomaly` output](#vmanomaly-output), Prophet model can provide additional metrics.
 
+{{% available_from "v1.33.0" anomaly %}} To emit the calendar flag alongside the anomaly score:
+
+```yaml
+models:
+  holiday_prophet:
+    class: prophet
+    provide_series: [anomaly_score, yhat, is_holiday]
+    holidays:
+      countries: [US, CA]
+      special_events: ['12-24', '2026-11-19']
+      group: true
+```
+
+Set the reader/query timezone to your operation's civil calendar. With the structured calendar, Prophet's holiday regressors and `is_holiday` use the same local dates even though Prophet internally predicts with timezone-naive UTC timestamps. The flag uses the restored output timezone; `tz_aware` controls seasonal regressors and is not required for the calendar flag. Legacy Prophet calendar fitting retains its existing behavior. For custom legacy holidays, the flag marks declared `ds` dates only: `lower_window=-1` and `upper_window=1` let Prophet learn effects on the preceding and following day, but do not mark those days as holidays.
+
+The flag is independent of the learned contribution: a zero effect or an unseen holiday can still produce `is_holiday=1`. It has no `forecast_at` variants. See [holiday output](#holiday-output).
+
 **Additional output metrics produced by FB Prophet**
 Depending on chosen `seasonality` parameter FB Prophet can return additional metrics such as:
 - `trend`, `trend_lower`, `trend_upper`
@@ -1383,6 +1405,8 @@ Depending on chosen `seasonality` parameter FB Prophet can return additional met
 Resulting metrics of the model are described [here](#vmanomaly-output)
 
 ### [Isolation forest](https://en.wikipedia.org/wiki/Isolation_forest) (Multivariate)
+
+{{% deprecated_from "v1.33.0" anomaly %}} This model is scheduled for removal in v1.34.0. Existing configurations, including AutoTuned targets, still run with a warning. Migrate to the corresponding [Temporal Envelope](#temporal-envelope) model. For Isolation Forest, this applies to both `isolation_forest_univariate` and `isolation_forest_multivariate`.
 
 > `IsolationForestModel` is a [univariate](#univariate-models), [offline](#offline-models) model.
 
@@ -1453,6 +1477,8 @@ models:
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### [Holt-Winters](https://en.wikipedia.org/wiki/Exponential_smoothing)
+
+{{% deprecated_from "v1.33.0" anomaly %}} `holtwinters` is scheduled for removal in v1.34.0. Existing configurations, including AutoTuned targets, still run with a warning. Migrate to [Temporal Envelope](#temporal-envelope).
 
 > `HoltWinters` is a [univariate](#univariate-models), [offline](#offline-models) model.
 
@@ -1594,6 +1620,18 @@ The default metrics produced by `vmanomaly` include:
 
 > If an `infer` call receives `NaN` or infinite input values, the corresponding `anomaly_score` is `NaN`.
 
+
+### Holiday output
+
+{{% available_from "v1.33.0" anomaly %}} `is_holiday` is an opt-in numeric output: `1` on a configured holiday or special-event date and `0` otherwise. [Prophet](#prophet) and [Temporal Envelope](#temporal-envelope) v1/v2 support it. It is aligned to the output timestamp and model identity labels. For univariate models it follows the labels of `y`, `yhat` and `anomaly_score`; for multivariate Envelope it is one shared flag with the aggregate anomaly-score labels, not one flag per channel.
+
+{{% collapse name="How it works" %}}
+
+Country calendars use the [`holidays` package](https://pypi.org/project/holidays/), including its observed dates. Membership is the union of all configured countries and special dates: with `countries: [US, CA]`, either country's holiday is sufficient for `1`. Dates use the output's local timezone, including local-midnight and daylight-saving transitions. Recurring `02-29` applies only in leap years. Subdivisions and forecast-horizon flags are not supported in this version.
+
+Only exact event dates count; learned Envelope shoulders and Prophet holiday windows do not extend membership. The flag does not depend on training coverage or learned effects. Requesting it with an empty calendar logs a validation warning and emits zeros. Omitting it from `provide_series` skips flag generation; a missing series must not be treated as an explicit zero.
+
+{{% /collapse %}}
 
 ## vmanomaly monitoring metrics
 
@@ -1778,19 +1816,18 @@ See the [component configuration reference](https://docs.victoriametrics.com/ano
 Pull the `vmanomaly` image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.32.0
+docker pull victoriametrics/vmanomaly:v1.33.0
 ```
 
 Mount the module at `/vmanomaly/src/model/custom.py`, which matches the configured import path `model.custom.CustomModel`. Validate the complete configuration with `--dryRun` before starting the long-running service.
 
 ```sh
 docker run --rm \
-  -v "$PWD/license:/license:ro" \
   -v "$PWD/custom_model.py:/vmanomaly/src/model/custom.py:ro" \
   -v "$PWD/config.yaml:/config.yaml:ro" \
-  victoriametrics/vmanomaly:v1.32.0 \
+  victoriametrics/vmanomaly:v1.33.0 \
   /config.yaml \
-  --licenseFile=/license \
+  -eula \
   --dryRun
 ```
 
