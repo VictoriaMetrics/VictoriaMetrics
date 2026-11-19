@@ -4,6 +4,10 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 )
 
 func TestCleanDirectory(t *testing.T) {
@@ -119,6 +123,28 @@ func TestFSInit_Success(t *testing.T) {
 		"AZURE_STORAGE_DOMAIN":       "foo.bar",
 	}
 	f(envArgs)
+}
+
+// capturingCredential records the context it was called with instead of acquiring a real token.
+type capturingCredential struct {
+	ctx context.Context
+}
+
+func (c *capturingCredential) GetToken(ctx context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
+	c.ctx = ctx
+	return azcore.AccessToken{}, nil
+}
+
+// Only checks that GetToken is given a deadline
+func TestCredentialWithTimeout_GetToken(t *testing.T) {
+	cred := &capturingCredential{}
+	if _, err := (credentialWithTimeout{cred}).GetToken(context.Background(), policy.TokenRequestOptions{}); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	if deadline, ok := cred.ctx.Deadline(); !ok || time.Until(deadline) > credentialAcquisitionTimeout {
+		t.Fatalf("expected a deadline at most %s from now, got %v (ok=%v)", credentialAcquisitionTimeout, deadline, ok)
+	}
 }
 
 type testEnv map[string]string
