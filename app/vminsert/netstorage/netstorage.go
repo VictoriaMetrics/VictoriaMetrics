@@ -325,8 +325,11 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 	sn.sendDurationSeconds.Add(duration.Seconds())
 
 	now := time.Now()
-	saturation := float64(now.Sub(startTime)) / float64(now.Sub(sn.lastSendTime))
-	sn.avgSaturation.Add(saturation)
+	// Skip the sample if no time has elapsed since the previous send, since it would make avgSaturation NaN.
+	// This may happen on platforms with low timer resolution, e.g. Windows.
+	if elapsed := now.Sub(sn.lastSendTime); elapsed > 0 {
+		sn.avgSaturation.Add(float64(now.Sub(startTime)) / float64(elapsed))
+	}
 	sn.lastSendTime = now
 
 	if err == nil {
