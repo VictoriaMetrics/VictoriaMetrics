@@ -562,7 +562,10 @@ func (db *indexDB) containsDate(accountID, projectID uint32, date uint64) (bool,
 // searches in per-day index. The limit is shared across all indexDB methods
 // as well as across all indexDB instances. This should reduce cpu and memory
 // utilization for queries with long time ranges.
-var perDaySearchConcurrencyLimitCh = make(chan struct{}, 10*cgroup.AvailableCPUs())
+//
+// TODO(@rtm0): Use the value of -search.maxConcurrentRequests flag. See
+// https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11787#discussion_r4398615648
+var perDaySearchConcurrencyLimitCh = make(chan struct{}, 2*cgroup.AvailableCPUs())
 
 func beginConcurrentPerDaySearch(ctx context.Context) bool {
 	select {
@@ -1594,22 +1597,35 @@ func getRegexpPartsForGraphiteQuery(q string) ([]string, string) {
 //
 // It includes the deleted series.
 func (db *indexDB) GetSeriesCount(ctx context.Context, accountID, projectID uint32) (uint64, error) {
-	is := db.getIndexSearch(accountID, projectID)
-	defer db.putIndexSearch(is)
-	count, err := is.getSeriesCount(ctx)
+	count, err := db.getSeriesCount(ctx, accountID, projectID)
 	if err != nil {
 		return 0, db.wrapError("get series count", err)
 	}
 	return count, nil
 }
 
+func (db *indexDB) getSeriesCount(ctx context.Context, accountID, projectID uint32) (uint64, error) {
+	is := db.getIndexSearch(accountID, projectID)
+	defer db.putIndexSearch(is)
+	count, err := is.getSeriesCount(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (is *indexSearch) getSeriesCount(ctx context.Context) (uint64, error) {
-	ts := &is.ts
 	kb := &is.kb
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
+	return is.getSeriesCountByPrefix(ctx, kb.B)
+}
+
+func (is *indexSearch) getSeriesCountByPrefix(ctx context.Context, prefix []byte) (uint64, error) {
+	ts := &is.ts
 	loopsPaceLimiter := 0
 	var metricIDsLen uint64
-	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
-	ts.Seek(kb.B)
+
+	ts.Seek(prefix)
 	for ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
 			if err := ctx.Err(); err != nil {
@@ -1618,7 +1634,7 @@ func (is *indexSearch) getSeriesCount(ctx context.Context) (uint64, error) {
 		}
 		loopsPaceLimiter++
 		item := ts.Item
-		if !bytes.HasPrefix(item, kb.B) {
+		if !bytes.HasPrefix(item, prefix) {
 			break
 		}
 		// Take into account deleted timeseries too.
@@ -1627,7 +1643,7 @@ func (is *indexSearch) getSeriesCount(ctx context.Context) (uint64, error) {
 		metricIDsLen++
 	}
 	if err := ts.Error(); err != nil {
-		return 0, fmt.Errorf("error when counting unique timeseries: %w", err)
+		return 0, err
 	}
 	return metricIDsLen, nil
 }
@@ -2295,7 +2311,7 @@ func (db *indexDB) searchTSIDsByMetricIDs(ctx context.Context, qt *querytracer.T
 func (db *indexDB) searchMetricName(dst []byte, metricID uint64, accountID, projectID uint32, noCache bool) ([]byte, bool) {
 	is := db.getIndexSearchInternal(accountID, projectID, noCache)
 	defer db.putIndexSearch(is)
-	return is.searchMetricName(dst, metricID)
+	return is.getMetricNameByMetricID(dst, metricID)
 }
 
 func (db *indexDB) SearchMetricNames(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]string, error) {
@@ -2497,7 +2513,7 @@ func (is *indexSearch) searchMetricNameWithCache(dst []byte, metricID uint64) ([
 		return metricName, true
 	}
 	var ok bool
-	dst, ok = is.searchMetricName(dst, metricID)
+	dst, ok = is.getMetricNameByMetricID(dst, metricID)
 	if ok {
 		// There is no need in verifying whether the given metricID is deleted,
 		// since the filtering must be performed before calling this func.
@@ -2507,42 +2523,50 @@ func (is *indexSearch) searchMetricNameWithCache(dst []byte, metricID uint64) ([
 	return dst, false
 }
 
-func (is *indexSearch) searchMetricName(dst []byte, metricID uint64) ([]byte, bool) {
-	ts := &is.ts
+func (is *indexSearch) getMetricNameByMetricID(dst []byte, metricID uint64) ([]byte, bool) {
 	kb := &is.kb
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToMetricName)
 	kb.B = encoding.MarshalUint64(kb.B, metricID)
-	if err := ts.FirstItemWithPrefix(kb.B); err != nil {
+	return is.getMetricNameByPrefix(dst, kb.B)
+}
+
+func (is *indexSearch) getMetricNameByPrefix(dst []byte, prefix []byte) ([]byte, bool) {
+	ts := &is.ts
+	if err := ts.FirstItemWithPrefix(prefix); err != nil {
 		if err == io.EOF {
 			return dst, false
 		}
-		logger.Panicf("FATAL: error when searching metricName by metricID; searchPrefix %q: %s", kb.B, err)
+		logger.Panicf("FATAL: error when searching metricName by prefix %q: %s", prefix, err)
 	}
-	v := ts.Item[len(kb.B):]
+	v := ts.Item[len(prefix):]
 	dst = append(dst, v...)
 	return dst, true
 }
 
 func (is *indexSearch) getTSIDByMetricID(dst *TSID, metricID uint64) bool {
-	// There is no need in checking for deleted metricIDs here, since they
-	// must be checked by the caller.
-	ts := &is.ts
 	kb := &is.kb
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
 	kb.B = encoding.MarshalUint64(kb.B, metricID)
-	if err := ts.FirstItemWithPrefix(kb.B); err != nil {
+	return is.getTSIDByPrefix(dst, kb.B)
+}
+
+func (is *indexSearch) getTSIDByPrefix(dst *TSID, prefix []byte) bool {
+	// There is no need in checking for deleted metricIDs here, since they
+	// must be checked by the caller.
+	ts := &is.ts
+	if err := ts.FirstItemWithPrefix(prefix); err != nil {
 		if err == io.EOF {
 			return false
 		}
-		logger.Panicf("FATAL: error when searching TSID by metricID=%d; searchPrefix %q: %s", metricID, kb.B, err)
+		logger.Panicf("FATAL: error when searching TSID by prefix %q: %s", prefix, err)
 	}
-	v := ts.Item[len(kb.B):]
+	v := ts.Item[len(prefix):]
 	tail, err := dst.Unmarshal(v)
 	if err != nil {
-		logger.Panicf("FATAL: cannot unmarshal the found TSID=%X for metricID=%d: %s", v, metricID, err)
+		logger.Panicf("FATAL: cannot unmarshal the found TSID=%X for prefix %q: %s", v, prefix, err)
 	}
 	if len(tail) > 0 {
-		logger.Panicf("FATAL: unexpected non-zero tail left after unmarshaling TSID for metricID=%d: %X", metricID, tail)
+		logger.Panicf("FATAL: unexpected non-zero tail left after unmarshaling TSID for prefix %q: %X", prefix, tail)
 	}
 	return true
 }

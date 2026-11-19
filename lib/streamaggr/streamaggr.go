@@ -22,7 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 	"gopkg.in/yaml.v2"
 )
@@ -70,13 +69,27 @@ var (
 //
 // The returned Aggregators must be stopped with MustStop() when no longer needed.
 func LoadFromFile(path string, pushFunc PushFunc, opts *Options, alias string) (*Aggregators, error) {
+	return loadFromFile(path, pushFunc, opts, alias, nil)
+}
+
+// Reload re-reads the config file that the current Aggregators were created from and returns Aggregators built from it.
+//
+// If the config hasn't changed, the current Aggregators are returned as is.
+// Otherwise, aggregators whose config is unchanged and stays at the same position in the file
+// are carried over to the new Aggregators, so they keep their in-progress aggregation state across the reload.
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4810
+func (a *Aggregators) Reload() (*Aggregators, error) {
+	return loadFromFile(a.filePath, a.pushFunc, a.opts, a.alias, a)
+}
+
+func loadFromFile(path string, pushFunc PushFunc, opts *Options, alias string, prev *Aggregators) (*Aggregators, error) {
 	data, err := fscore.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot load aggregators: %w", err)
 	}
 	data = envtemplate.ReplaceBytes(data)
 
-	as, err := loadFromData(data, path, pushFunc, opts, alias)
+	as, err := loadFromData(data, path, pushFunc, opts, alias, prev)
 	if err != nil {
 		return nil, fmt.Errorf("cannot initialize aggregators from %q: %w; see https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#stream-aggregation-config", path, err)
 	}
@@ -105,9 +118,9 @@ type Options struct {
 	// The alignment of flushes can be disabled individually per each aggregation via no_align_flush_to_interval option.
 	NoAlignFlushToInterval bool
 
-	// FlushOnShutdown enables flush of incomplete aggregation state on startup and shutdown.
+	// FlushOnShutdown enables flush of the incomplete first interval after the start and the incomplete last interval on shutdown.
 	//
-	// By default incomplete state is dropped.
+	// By default the incomplete intervals are dropped.
 	//
 	// The flush of incomplete state can be enabled individually per each aggregation via flush_on_shutdown option.
 	FlushOnShutdown bool
@@ -129,6 +142,10 @@ type Options struct {
 	IgnoreOldSamples bool
 
 	// IgnoreFirstIntervals sets the number of aggregation intervals to be ignored on start.
+	//
+	// Only complete intervals are counted.
+	// If IgnoreFirstIntervals > 0, then the incomplete first interval after the start
+	// is ignored as well, even if FlushOnShutdown is set.
 	//
 	// By default, zero intervals are ignored.
 	//
@@ -165,8 +182,8 @@ type Config struct {
 	// See also FlushOnShutdown.
 	NoAlignFlushToInterval *bool `yaml:"no_align_flush_to_interval,omitempty"`
 
-	// FlushOnShutdown defines whether to flush incomplete aggregation state on startup and shutdown.
-	// By default incomplete aggregation state is dropped, since it may confuse users.
+	// FlushOnShutdown defines whether to flush the incomplete first interval after the start and the incomplete last interval on shutdown.
+	// By default the incomplete intervals are dropped, since they may confuse users.
 	FlushOnShutdown *bool `yaml:"flush_on_shutdown,omitempty"`
 
 	// DedupInterval is an optional interval for deduplication.
@@ -219,6 +236,9 @@ type Config struct {
 	IgnoreOldSamples *bool `yaml:"ignore_old_samples,omitempty"`
 
 	// IgnoreFirstIntervals sets number of aggregation intervals to be ignored on start.
+	// Only complete intervals are counted.
+	// If IgnoreFirstIntervals > 0, then the incomplete first interval after the start
+	// is ignored as well, even if FlushOnShutdown is set.
 	IgnoreFirstIntervals *int `yaml:"ignore_first_intervals,omitempty"`
 
 	// By is an optional list of labels for grouping input series.
@@ -259,14 +279,17 @@ type Aggregators struct {
 	as []*aggregator
 
 	// configData contains marshaled configs.
-	// It is used in Equal() for comparing Aggregators.
 	configData []byte
 
 	// filePath is the path to config file used for creating the Aggregators.
 	filePath string
+	pushFunc PushFunc
+	opts     *Options
+	alias    string
 
-	// ms contains metrics associated with the Aggregators.
-	ms *metrics.Set
+	// reusedAggrs stores aggregators, which were reused by the Aggregators returned from Reload().
+	// MustStop() skips them.
+	reusedAggrs map[*aggregator]struct{}
 }
 
 // FilePath returns path to file with the configuration used for creating the given Aggregators.
@@ -278,40 +301,73 @@ func (a *Aggregators) FilePath() string {
 //
 // opts can contain additional options. If opts is nil, then default options are used.
 func LoadFromData(data []byte, pushFunc PushFunc, opts *Options, alias string) (*Aggregators, error) {
-	return loadFromData(data, "inmemory", pushFunc, opts, alias)
+	return loadFromData(data, "inmemory", pushFunc, opts, alias, nil)
 }
 
-func loadFromData(data []byte, filePath string, pushFunc PushFunc, opts *Options, alias string) (*Aggregators, error) {
+// loadFromData loads aggregators from data.
+//
+// If prev isn't nil and data is unchanged, then prev is returned as is.
+// Otherwise, aggregators from prev with identical configs at the same positions are reused.
+func loadFromData(data []byte, filePath string, pushFunc PushFunc, opts *Options, alias string, prev *Aggregators) (*Aggregators, error) {
 	var cfgs []*Config
 	if err := yaml.UnmarshalStrict(data, &cfgs); err != nil {
 		return nil, fmt.Errorf("cannot parse stream aggregation config: %w", err)
-	}
-
-	ms := metrics.NewSet()
-	as := make([]*aggregator, len(cfgs))
-	for i, cfg := range cfgs {
-		a, err := newAggregator(cfg, filePath, pushFunc, ms, opts, alias, i+1)
-		if err != nil {
-			// Stop already initialized aggregators before returning the error.
-			for _, a := range as[:i] {
-				a.MustStop()
-			}
-			return nil, fmt.Errorf("cannot initialize aggregator #%d: %w", i, err)
-		}
-		as[i] = a
 	}
 	configData, err := json.Marshal(cfgs)
 	if err != nil {
 		logger.Panicf("BUG: cannot marshal the provided configs: %s", err)
 	}
+	if prev != nil && string(configData) == string(prev.configData) {
+		return prev, nil
+	}
 
-	metrics.RegisterSet(ms)
+	as := make([]*aggregator, len(cfgs))
+	isReused := make([]bool, len(cfgs))
+	for i, cfg := range cfgs {
+		if prev != nil && i < len(prev.as) && prev.as[i].configData == mustMarshalConfig(cfg) {
+			as[i] = prev.as[i]
+			isReused[i] = true
+			continue
+		}
+		a, err := newAggregator(cfg, filePath, pushFunc, opts, alias, i+1)
+		if err != nil {
+			// Stop already initialized aggregators before returning the error.
+			// Keep the reused aggregators running, since prev still uses them.
+			for j, a := range as[:i] {
+				if !isReused[j] {
+					a.MustStop()
+				}
+			}
+			return nil, fmt.Errorf("cannot initialize aggregator #%d: %w", i, err)
+		}
+		as[i] = a
+	}
+	for i, a := range as {
+		if !isReused[i] {
+			continue
+		}
+		if prev.reusedAggrs == nil {
+			prev.reusedAggrs = make(map[*aggregator]struct{})
+		}
+		prev.reusedAggrs[a] = struct{}{}
+	}
+
 	return &Aggregators{
 		as:         as,
 		configData: configData,
 		filePath:   filePath,
-		ms:         ms,
+		pushFunc:   pushFunc,
+		opts:       opts,
+		alias:      alias,
 	}, nil
+}
+
+func mustMarshalConfig(cfg *Config) string {
+	data, err := json.Marshal(cfg)
+	if err != nil {
+		logger.Panicf("BUG: cannot marshal the provided config: %s", err)
+	}
+	return string(data)
 }
 
 // IsEnabled returns true if Aggregators has at least one configured aggregator
@@ -326,26 +382,20 @@ func (a *Aggregators) IsEnabled() bool {
 }
 
 // MustStop stops a.
+//
+// aggregators stored in reusedAggrs aren't stopped, since they are owned by the new loaded Aggregators.
 func (a *Aggregators) MustStop() {
 	if a == nil {
 		return
 	}
 
-	metrics.UnregisterSet(a.ms, true)
-	a.ms = nil
-
 	for _, aggr := range a.as {
+		if _, ok := a.reusedAggrs[aggr]; ok {
+			continue
+		}
 		aggr.MustStop()
 	}
 	a.as = nil
-}
-
-// Equal returns true if a and b are initialized from identical configs.
-func (a *Aggregators) Equal(b *Aggregators) bool {
-	if a == nil || b == nil {
-		return a == nil && b == nil
-	}
-	return string(a.configData) == string(b.configData)
 }
 
 // Push pushes tss to a.
@@ -441,11 +491,18 @@ type aggregator struct {
 	wg     sync.WaitGroup
 	stopCh chan struct{}
 
+	// configData contains marshaled config used for creating the aggregator.
+	// It is used by Aggregators.Reload() for detecting unchanged aggregators.
+	configData string
+
+	ms *metrics.Set
+
 	flushDuration        *metrics.Histogram
 	samplesLag           *metrics.Histogram
 	ignoredOldSamplesLag *metrics.Summary
 
 	flushTimeouts     *metrics.Counter
+	flushSkipped      *metrics.Counter
 	ignoredOldSamples *metrics.Counter
 	ignoredNaNSamples *metrics.Counter
 	matchedSamples    *metrics.Counter
@@ -461,7 +518,7 @@ type aggrPushFunc func([]pushSample, int64, bool)
 // opts can contain additional options. If opts is nil, then default options are used.
 //
 // The returned aggregator must be stopped when no longer needed by calling MustStop().
-func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set, opts *Options, alias string, aggrID int) (*aggregator, error) {
+func newAggregator(cfg *Config, path string, pushFunc PushFunc, opts *Options, alias string, aggrID int) (*aggregator, error) {
 	// check cfg.Interval
 	if cfg.Interval == "" {
 		return nil, fmt.Errorf("missing `interval` option")
@@ -588,6 +645,8 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		name = "none"
 	}
 
+	ms := metrics.NewSet()
+
 	// initialize aggrOutputs
 	if len(cfg.Outputs) == 0 {
 		return nil, fmt.Errorf("`outputs` list must contain at least a single entry from the list %s; "+
@@ -652,12 +711,16 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 
 		stopCh: make(chan struct{}),
 
+		configData: mustMarshalConfig(cfg),
+		ms:         ms,
+
 		flushDuration:        ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_flush_duration_seconds{%s}`, metricLabels)),
 		samplesLag:           ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_samples_lag_seconds{%s}`, metricLabels)),
 		ignoredOldSamplesLag: ms.NewSummary(fmt.Sprintf(`vm_streamaggr_ignored_samples_lag_seconds{reason="too_old",%s}`, metricLabels)),
 
 		matchedSamples:    ms.NewCounter(fmt.Sprintf(`vm_streamaggr_matched_samples_total{%s}`, metricLabels)),
 		flushTimeouts:     ms.NewCounter(fmt.Sprintf(`vm_streamaggr_flush_timeouts_total{%s}`, metricLabels)),
+		flushSkipped:      ms.NewCounter(fmt.Sprintf(`vm_streamaggr_flush_skipped_total{%s}`, metricLabels)),
 		ignoredNaNSamples: ms.NewCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="nan",%s}`, metricLabels)),
 		ignoredOldSamples: ms.NewCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="too_old",%s}`, metricLabels)),
 	}
@@ -678,23 +741,27 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 
 	startTime := time.Now()
 	minTime := startTime
+	dedupStartTime := startTime
 	if alignFlushToInterval {
-		minTime = minTime.Truncate(a.interval)
-		if !startTime.Equal(minTime) {
-			minTime = minTime.Add(interval)
+		minTime = startTime.Truncate(a.interval)
+		if a.dedupInterval > 0 {
+			dedupStartTime = startTime.Truncate(a.dedupInterval)
 		}
 	}
+	isIncompleteFirstInterval := !startTime.Equal(minTime)
 	a.minDeadline.Store(minTime.UnixMilli())
 	cs := &currentState{}
 	if a.dedupInterval > 0 {
-		cs.maxDeadline = minTime.Add(a.dedupInterval).UnixMilli()
+		cs.maxDeadline = dedupStartTime.Add(a.dedupInterval).UnixMilli()
 	} else {
 		cs.maxDeadline = minTime.Add(a.interval).UnixMilli()
 	}
 	a.cs.Store(cs)
 
+	metrics.RegisterSet(ms)
+
 	a.wg.Go(func() {
-		a.runFlusher(pushFunc, alignFlushToInterval, skipFlushOnShutdown, ignoreFirstIntervals)
+		a.runFlusher(pushFunc, alignFlushToInterval, isIncompleteFirstInterval, skipFlushOnShutdown, ignoreFirstIntervals)
 	})
 
 	return a, nil
@@ -778,45 +845,57 @@ func newOutputConfig(ms *metrics.Set, metricLabels, output string, outputsSeen m
 	}
 }
 
-func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlushOnShutdown bool, ignoreFirstIntervals int) {
+func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, isIncompleteFirstInterval, skipFlushOnShutdown bool, ignoreFirstIntervals int) {
+	// The incomplete first interval happens only when the aggregator starts in the middle of the interval with aligned flushes.
+	// It is flushed only if both conditions are met:
+	//   - flush_on_shutdown is set, the same way as for the incomplete last interval on shutdown;
+	//   - ignore_first_intervals is 0.
+	// Otherwise it is dropped.
+	// Also it isn't counted by ignore_first_intervals, so at least ignore_first_intervals complete intervals
+	// are still ignored after the start.
+	dropIncompleteFirstInterval := isIncompleteFirstInterval && (skipFlushOnShutdown || ignoreFirstIntervals > 0)
 	minTime := time.UnixMilli(a.minDeadline.Load())
 	flushTime := minTime.Add(a.interval)
 	interval := a.interval
 	if a.dedupInterval > 0 {
 		interval = a.dedupInterval
 	}
-	alignedSleep := func() {
-		dSleep := time.Until(minTime)
-		if dSleep <= 0 {
-			return
-		}
-		timer := timerpool.Get(dSleep)
-		defer timerpool.Put(timer)
-		select {
-		case <-a.stopCh:
-		case <-timer.C:
-		}
-	}
 
-	tickerWait := func(t *time.Ticker) bool {
+	firstFlushWait := func() bool {
+		timer := time.NewTimer(time.Until(time.UnixMilli(a.cs.Load().maxDeadline)))
+		defer timer.Stop()
 		select {
 		case <-a.stopCh:
 			return false
-		case <-t.C:
+		case <-timer.C:
 			return true
 		}
 	}
 
-	alignedSleep()
+	tickerWait := func(t *time.Ticker) bool {
+		for {
+			select {
+			case <-a.stopCh:
+				return false
+			case ct := <-t.C:
+				// check if the current tick is stale and should be ignored,
+				// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11904.
+				if !isStaleTick(ct, a.cs.Load().maxDeadline, interval) {
+					return true
+				}
+			}
+		}
+	}
 
+	ok := firstFlushWait()
 	t := time.NewTicker(interval)
 	defer t.Stop()
 
-	for tickerWait(t) {
+	for ; ok; ok = tickerWait(t) {
 		pf := pushFunc
 		if a.enableWindows {
 			delay := a.flushLag.takeFlushDelay(interval)
-			time.Sleep(delay)
+			sleepWithStopCh(a.stopCh, delay)
 		}
 
 		cs := a.cs.Load().newState()
@@ -825,30 +904,39 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlu
 
 		if !flushTime.After(deadlineTime) {
 			// It is time to flush the aggregated state
-			if ignoreFirstIntervals > 0 {
+			switch {
+			case dropIncompleteFirstInterval:
+				a.flush(nil, flushTime, cs, false)
+				dropIncompleteFirstInterval = false
+			case ignoreFirstIntervals > 0:
 				a.flush(nil, flushTime, cs, false)
 				ignoreFirstIntervals--
-			} else {
+			default:
 				a.flush(pf, flushTime, cs, false)
 			}
 			flushTime = flushTime.Add(a.interval)
+			// If the flush delay and the flush took longer than the interval, the next flush time has already passed.
+			// Skip the passed flush times, and their samples will be flushed together at the next upcoming one.
 			for time.Now().After(flushTime) {
 				flushTime = flushTime.Add(a.interval)
+				a.flushSkipped.Inc()
 			}
 			if a.dedupInterval <= 0 {
 				cs.maxDeadline = flushTime.UnixMilli()
+			} else {
+				// The flush may take longer than dedupInterval, skip the passed dedup flush times as well.
+				dedupTime := time.UnixMilli(cs.maxDeadline)
+				for time.Now().After(dedupTime) {
+					dedupTime = dedupTime.Add(a.dedupInterval)
+					a.da.flushSkipped.Inc()
+				}
+				cs.maxDeadline = dedupTime.UnixMilli()
 			}
 		}
 		if a.enableWindows {
 			cs.isGreen = !cs.isGreen
 		}
 		a.cs.Store(cs)
-		if alignFlushToInterval {
-			select {
-			case <-t.C:
-			default:
-			}
-		}
 	}
 
 	cs := a.cs.Load()
@@ -872,6 +960,28 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlu
 	a.flush(pf, flushTime, cs, true)
 }
 
+// sleepWithStopCh sleeps for d.
+//
+// It immediately returns if stopCh is closed, without waiting for d.
+func sleepWithStopCh(stopCh <-chan struct{}, d time.Duration) {
+	if d <= 0 {
+		return
+	}
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-stopCh:
+	case <-t.C:
+	}
+}
+
+// isStaleTick checks if the tickTime belongs to a stale flush interval.
+// A valid tick should fire at about maxDeadline, while a stale tick can fire one or more intervals earlier.
+// The interval/2 margin should tolerate ticks firing slightly early or late.
+func isStaleTick(tickTime time.Time, maxDeadline int64, interval time.Duration) bool {
+	return tickTime.Add(interval / 2).Before(time.UnixMilli(maxDeadline))
+}
+
 func (a *aggregator) dedupFlush(dedupTime time.Time, cs *currentState) {
 	if a.dedupInterval <= 0 {
 		// The de-duplication is disabled.
@@ -892,8 +1002,12 @@ func (a *aggregator) dedupFlush(dedupTime time.Time, cs *currentState) {
 			"possible solutions: increase dedup_interval; use match filter matching smaller number of series; "+
 			"reduce samples' ingestion rate to stream aggregation", a.dedupInterval, d.Seconds())
 	}
+	dedupTime = dedupTime.Add(a.dedupInterval)
+	// If the flush delay and the flush took longer than the interval, the next flush time has already passed.
+	// Skip the passed flush times, and their samples will be flushed together at the next upcoming one.
 	for time.Now().After(dedupTime) {
 		dedupTime = dedupTime.Add(a.dedupInterval)
+		a.da.flushSkipped.Inc()
 	}
 	cs.maxDeadline = dedupTime.UnixMilli()
 }
@@ -930,6 +1044,9 @@ var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
 //
 // The aggregator stops pushing the aggregated metrics after this call.
 func (a *aggregator) MustStop() {
+	metrics.UnregisterSet(a.ms, true)
+	a.ms = nil
+
 	close(a.stopCh)
 	a.wg.Wait()
 }
