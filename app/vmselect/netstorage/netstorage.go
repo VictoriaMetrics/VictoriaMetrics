@@ -345,7 +345,7 @@ type packedTimeseries struct {
 	metricName string
 	brs        []blockRef
 
-	// updates contains blocks of series updates sorted by update id in ascending order.
+	// updates contains blocks of series updates sorted by update revision in ascending order.
 	updates [][]blockRef
 }
 

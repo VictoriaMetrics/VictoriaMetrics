@@ -10,7 +10,7 @@ import (
 )
 
 // seriesUpdateContext holds context values for timeseries updates
-// grouped by given updateIDLabel.
+// grouped by given updateRevisionLabel.
 //
 // T generic update type is needed to reduce code diff between single and cluster branches.
 type seriesUpdateContext[T any] struct {
@@ -78,18 +78,18 @@ func (suc *seriesUpdateContext[T]) getUpdatesByMetricName(metricName string) [][
 }
 
 func (suc *seriesUpdateContext[T]) sortUpdates(updateRevisions map[int64][]T) [][]T {
-	updateIDsBuf := suc.updateRevisionsBuf[:0]
+	revsBuf := suc.updateRevisionsBuf[:0]
 	for rev := range updateRevisions {
-		updateIDsBuf = append(updateIDsBuf, rev)
+		revsBuf = append(revsBuf, rev)
 	}
-	slices.Sort(updateIDsBuf)
+	slices.Sort(revsBuf)
 	// TODO: reduce allocations if needed.
 	results := make([][]T, 0, len(updateRevisions))
-	for _, rev := range updateIDsBuf {
+	for _, rev := range revsBuf {
 		// TODO: make a shallow copy of updateRevisions[rev] in order to remove reference for suc.
 		results = append(results, updateRevisions[rev])
 	}
-	suc.updateRevisionsBuf = updateIDsBuf
+	suc.updateRevisionsBuf = revsBuf
 	return results
 }
 
@@ -105,18 +105,18 @@ func cloneMetricNameWithBuf(metricNamesBuf []byte, metricName []byte) ([]byte, s
 	return metricNamesBuf, metricNameStr
 }
 
-func getSeriesUpdateRevision(dst []byte, mn *storage.MetricName, metricName []byte, mergeLabel string) ([]byte, int64, error) {
+func getSeriesUpdateRevision(dst []byte, mn *storage.MetricName, metricName []byte, updateRevisionLabel string) ([]byte, int64, error) {
 	if err := mn.Unmarshal(metricName); err != nil {
 		return dst, 0, fmt.Errorf("cannot unmarshal metricName %q: %w", metricName, err)
 	}
-	v := mn.GetTagValue(mergeLabel)
+	v := mn.GetTagValue(updateRevisionLabel)
 	if len(v) == 0 {
 		return dst, 0, nil
 	}
 	revision, err := strconv.ParseInt(string(v), 10, 64)
 	if err != nil {
-		return dst, 0, fmt.Errorf("cannot parse update revision from %q label value of series %s: %w", mergeLabel, mn.String(), err)
+		return dst, 0, fmt.Errorf("cannot parse update revision from %q label value of series %s: %w", updateRevisionLabel, mn.String(), err)
 	}
-	mn.RemoveTag(mergeLabel)
+	mn.RemoveTag(updateRevisionLabel)
 	return mn.Marshal(dst), revision, nil
 }
