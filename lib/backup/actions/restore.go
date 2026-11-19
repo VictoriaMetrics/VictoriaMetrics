@@ -263,77 +263,120 @@ func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency in
 		return nil
 	}
 
-	concurrencyPerFile := r.ConcurrencyPerFile
-	if concurrencyPerFile <= 0 {
-		concurrencyPerFile = 1
-	}
-	concurrencyPerFile = min(concurrencyPerFile, concurrency)
-
 	ctxLocal, cancelLocal := context.WithCancel(ctx)
 	defer cancelLocal()
 
-	globalConcurrencyCh := make(chan struct{}, concurrency)
-	pathConcurrencyCh := make(chan struct{}, concurrency)
-
-	var errMu sync.Mutex
-	var firstErr error
-	setErr := func(err error) {
-		if err == nil {
-			return
-		}
-		errMu.Lock()
-		if firstErr == nil {
-			firstErr = err
-			cancelLocal()
-		}
-		errMu.Unlock()
+	// Build work queue with intelligently split parts
+	workQueue := r.buildAdaptiveWorkQueue(perPath, concurrency)
+	if len(workQueue) == 0 {
+		return nil
 	}
 
-	var wg sync.WaitGroup
+	// Use global work queue with adaptive worker scheduling
+	return r.downloadWithGlobalQueue(ctxLocal, concurrency, workQueue, bytesDownloaded)
+}
+
+// workQueueItem represents a single part to download, including metadata for safe concurrent writes.
+type workQueueItem struct {
+	part common.Part
+	// fileWriteLock ensures sequential writes to the same file (for preallocation safety)
+	fileWriteLock *sync.Mutex
+	// isFirstPart indicates if this is the first part of a file (needs preallocation)
+	isFirstPart bool
+	// isLastPart indicates if this is the last part of a file (needs finalization)
+	isLastPart bool
+}
+
+// buildAdaptiveWorkQueue creates a work queue with intelligently split parts
+func (r *Restore) buildAdaptiveWorkQueue(perPath map[string][]common.Part, concurrency int) []*workQueueItem {
+	optimalPartSize := calculateOptimalPartSize(concurrency)
+	fileWriteLocks := make(map[string]*sync.Mutex)
+
+	var workQueue []*workQueueItem
 	for _, parts := range perPath {
-		parts := parts
-		if err := acquireRestoreSlot(ctxLocal, pathConcurrencyCh); err != nil {
-			setErr(err)
-			break
-		}
-		wg.Go(func() {
-			defer releaseRestoreSlot(pathConcurrencyCh)
-			if err := r.downloadPath(ctxLocal, parts, concurrencyPerFile, globalConcurrencyCh, bytesDownloaded); err != nil {
-				setErr(err)
+		common.SortParts(parts)
+		for _, p := range parts {
+			// Get or create lock for this file
+			if _, exists := fileWriteLocks[p.Path]; !exists {
+				fileWriteLocks[p.Path] = &sync.Mutex{}
 			}
+			fileLock := fileWriteLocks[p.Path]
+
+			// Split large parts for concurrent download
+			splitParts := splitPartAdaptive(p, optimalPartSize)
+			for i, splitPart := range splitParts {
+				item := &workQueueItem{
+					part:          splitPart,
+					fileWriteLock: fileLock,
+					isFirstPart:   (i == 0 && p == parts[0]),
+					isLastPart:    (i == len(splitParts)-1 && p == parts[len(parts)-1]),
+				}
+				workQueue = append(workQueue, item)
+			}
+		}
+	}
+	return workQueue
+}
+
+// calculateOptimalPartSize returns the ideal part size for concurrent downloads
+func calculateOptimalPartSize(concurrency int) uint64 {
+	const (
+		minPartSize = 50 * 1024 * 1024    // 50MB minimum (S3 request overhead)
+		maxPartSize = 500 * 1024 * 1024   // 500MB maximum
+	)
+
+	// Heuristic: smaller parts with more workers for better load balancing
+	if concurrency <= 2 {
+		return maxPartSize // Few workers, use big parts
+	}
+	if concurrency >= 10 {
+		return minPartSize // Many workers, use smaller parts for better balance
+	}
+	// 3-9 workers: use middle ground
+	return 100 * 1024 * 1024
+}
+
+// splitPartAdaptive intelligently splits a part if it's larger than optimal size
+func splitPartAdaptive(p common.Part, optimalSize uint64) []common.Part {
+	if p.Size <= optimalSize {
+		return []common.Part{p}
+	}
+
+	var result []common.Part
+	numSplits := (p.Size + optimalSize - 1) / optimalSize
+	partSize := (p.Size + numSplits - 1) / numSplits
+
+	for offset := uint64(0); offset < p.Size; offset += partSize {
+		size := partSize
+		if offset+size > p.Size {
+			size = p.Size - offset
+		}
+
+		result = append(result, common.Part{
+			Path:       p.Path,
+			FileSize:   p.FileSize,
+			Offset:     p.Offset + offset,
+			Size:       size,
+			ActualSize: size,
 		})
 	}
-	wg.Wait()
-
-	errMu.Lock()
-	err := firstErr
-	errMu.Unlock()
-	return err
+	return result
 }
 
-func (r *Restore) downloadPath(ctx context.Context, parts []common.Part, concurrencyPerFile int, globalConcurrencyCh chan struct{}, bytesDownloaded *atomic.Uint64) error {
-	// Sort parts in order to keep file preallocation and finalization tied to the file metadata.
-	common.SortParts(parts)
-	if !r.SkipPreallocation {
-		if err := r.Dst.PreallocateFile(parts[0]); err != nil {
-			return fmt.Errorf("cannot preallocate %s: %w", parts[0].Path, err)
-		}
+// downloadWithGlobalQueue manages a global work queue with adaptive worker scheduling
+func (r *Restore) downloadWithGlobalQueue(ctx context.Context, concurrency int, workQueue []*workQueueItem, bytesDownloaded *atomic.Uint64) error {
+	if len(workQueue) == 0 {
+		return nil
 	}
 
-	if err := r.downloadPathParts(ctx, parts, concurrencyPerFile, globalConcurrencyCh, bytesDownloaded); err != nil {
-		return err
-	}
-	if err := r.Dst.FinalizeFile(parts[0]); err != nil {
-		return fmt.Errorf("cannot finalize %s: %w", parts[0].Path, err)
-	}
-	return nil
-}
+	// Track which files need preallocation/finalization
+	filesPreallocated := make(map[string]bool)
+	filesFinalized := make(map[string]bool)
+	filePreallocLock := &sync.Mutex{}
 
-func (r *Restore) downloadPathParts(ctx context.Context, parts []common.Part, concurrencyPerFile int, globalConcurrencyCh chan struct{}, bytesDownloaded *atomic.Uint64) error {
 	ctxLocal, cancelLocal := context.WithCancel(ctx)
 	defer cancelLocal()
 
-	pathConcurrencyCh := make(chan struct{}, concurrencyPerFile)
 	var errMu sync.Mutex
 	var firstErr error
 	setErr := func(err error) {
@@ -348,23 +391,56 @@ func (r *Restore) downloadPathParts(ctx context.Context, parts []common.Part, co
 		errMu.Unlock()
 	}
 
+	// Semaphore to limit concurrent workers
+	concurrencyCh := make(chan struct{}, concurrency)
+
 	var wg sync.WaitGroup
-	for _, p := range parts {
-		if err := acquireRestoreSlot(ctxLocal, pathConcurrencyCh); err != nil {
+	for _, item := range workQueue {
+		item := item
+		if err := acquireRestoreSlot(ctxLocal, concurrencyCh); err != nil {
 			setErr(err)
 			break
 		}
-		if err := acquireRestoreSlot(ctxLocal, globalConcurrencyCh); err != nil {
-			releaseRestoreSlot(pathConcurrencyCh)
-			setErr(err)
-			break
-		}
+
 		wg.Go(func() {
-			defer releaseRestoreSlot(pathConcurrencyCh)
-			defer releaseRestoreSlot(globalConcurrencyCh)
-			logger.Infof("downloading %s from %s to %s", &p, r.Src, r.Dst)
-			if err := pipelinedDownload(r.Src, r.Dst, p, bytesDownloaded); err != nil {
+			defer releaseRestoreSlot(concurrencyCh)
+
+			// Handle preallocation
+			if item.isFirstPart && !r.SkipPreallocation {
+				filePreallocLock.Lock()
+				if !filesPreallocated[item.part.Path] {
+					if err := r.Dst.PreallocateFile(item.part); err != nil {
+						filePreallocLock.Unlock()
+						setErr(fmt.Errorf("cannot preallocate %s: %w", item.part.Path, err))
+						return
+					}
+					filesPreallocated[item.part.Path] = true
+				}
+				filePreallocLock.Unlock()
+			}
+
+			// Acquire file-level lock to ensure sequential writes
+			item.fileWriteLock.Lock()
+			err := pipelinedDownload(r.Src, r.Dst, item.part, bytesDownloaded)
+			item.fileWriteLock.Unlock()
+
+			if err != nil {
 				setErr(err)
+				return
+			}
+
+			// Handle finalization
+			if item.isLastPart {
+				filePreallocLock.Lock()
+				if !filesFinalized[item.part.Path] {
+					if err := r.Dst.FinalizeFile(item.part); err != nil {
+						filePreallocLock.Unlock()
+						setErr(fmt.Errorf("cannot finalize %s: %w", item.part.Path, err))
+						return
+					}
+					filesFinalized[item.part.Path] = true
+				}
+				filePreallocLock.Unlock()
 			}
 		})
 	}

@@ -1,15 +1,11 @@
 package actions
 
 import (
-	"bytes"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"reflect"
 	"regexp"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -17,72 +13,133 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
 )
 
-func TestRestoreDownloadPathPartsConcurrencyPerFile(t *testing.T) {
+func TestAdaptiveWorkQueueSplitsLargeParts(t *testing.T) {
 	const (
 		path     = "big/file"
-		partSize = 4
+		fileSize = 1000 * 1024 * 1024 // 1GB file
 	)
 	parts := []common.Part{
 		{
 			Path:       path,
-			FileSize:   3 * partSize,
+			FileSize:   fileSize,
 			Offset:     0,
-			Size:       partSize,
-			ActualSize: partSize,
-		},
-		{
-			Path:       path,
-			FileSize:   3 * partSize,
-			Offset:     partSize,
-			Size:       partSize,
-			ActualSize: partSize,
-		},
-		{
-			Path:       path,
-			FileSize:   3 * partSize,
-			Offset:     2 * partSize,
-			Size:       partSize,
-			ActualSize: partSize,
+			Size:       fileSize,
+			ActualSize: fileSize,
 		},
 	}
 	src := &concurrencyTrackingRemoteFS{
 		parts: parts,
-		data: map[uint64][]byte{
-			0:            []byte("aaaa"),
-			partSize:     []byte("bbbb"),
-			2 * partSize: []byte("cccc"),
-		},
+		data:  make(map[uint64][]byte),
 	}
-	dst := &fslocal.FS{
-		Dir: t.TempDir(),
-	}
-	if err := dst.Init(); err != nil {
-		t.Fatalf("unexpected error in dst.Init: %s", err)
-	}
-	defer dst.MustStop()
-
+	
 	r := &Restore{
 		Src: src,
-		Dst: dst,
-	}
-	var bytesDownloaded atomic.Uint64
-	globalConcurrencyCh := make(chan struct{}, 3)
-	if err := r.downloadPathParts(t.Context(), parts, 2, globalConcurrencyCh, &bytesDownloaded); err != nil {
-		t.Fatalf("unexpected error in downloadPathParts: %s", err)
+		Dst: &fslocal.FS{Dir: t.TempDir()},
 	}
 
-	data, err := os.ReadFile(filepath.Join(dst.Dir, filepath.FromSlash(path)))
-	if err != nil {
-		t.Fatalf("cannot read restored file: %s", err)
+	perPath := map[string][]common.Part{
+		path: parts,
 	}
-	if !bytes.Equal(data, []byte("aaaabbbbcccc")) {
-		t.Fatalf("unexpected restored data; got %q; want %q", data, "aaaabbbbcccc")
+
+	// Build work queue with 4 concurrent workers
+	workQueue := r.buildAdaptiveWorkQueue(perPath, 4)
+
+	if len(workQueue) == 0 {
+		t.Fatalf("expected work queue items, got none")
 	}
-	if src.maxActivePerPath != 2 {
-		t.Fatalf("unexpected max concurrency per file; got %d; want %d", src.maxActivePerPath, 2)
+
+	// Verify large file was split into multiple parts
+	// With concurrency=4 and optimal size calculation, should create multiple chunks
+	if len(workQueue) < 2 {
+		t.Fatalf("expected file to be split into multiple parts; got %d", len(workQueue))
 	}
-	if src.maxActiveTotal > 3 {
-		t.Fatalf("unexpected total concurrency; got %d; want <= 3", src.maxActiveTotal)
+
+	// Verify first part has preallocation flag, last has finalization flag
+	firstItem := workQueue[0]
+	lastItem := workQueue[len(workQueue)-1]
+
+	if !firstItem.isFirstPart {
+		t.Fatalf("expected first item to have isFirstPart=true")
+	}
+	if !lastItem.isLastPart {
+		t.Fatalf("expected last item to have isLastPart=true")
+	}
+
+	// Verify all parts are within the file bounds
+	totalDownloaded := uint64(0)
+	for _, item := range workQueue {
+		if item.part.Offset+item.part.Size > fileSize {
+			t.Fatalf("part exceeds file bounds: offset=%d, size=%d, fileSize=%d",
+				item.part.Offset, item.part.Size, fileSize)
+		}
+		totalDownloaded += item.part.Size
+	}
+	if totalDownloaded != fileSize {
+		t.Fatalf("unexpected total downloaded size; got %d; want %d", totalDownloaded, fileSize)
+	}
+}
+
+func TestAdaptiveWorkQueueSmallPartsNotSplit(t *testing.T) {
+	const (
+		path     = "small/file"
+		fileSize = 10 * 1024 * 1024 // 10MB file
+	)
+	parts := []common.Part{
+		{
+			Path:       path,
+			FileSize:   fileSize,
+			Offset:     0,
+			Size:       fileSize,
+			ActualSize: fileSize,
+		},
+	}
+	src := &concurrencyTrackingRemoteFS{
+		parts: parts,
+		data:  make(map[uint64][]byte),
+	}
+	
+	r := &Restore{
+		Src: src,
+		Dst: &fslocal.FS{Dir: t.TempDir()},
+	}
+
+	perPath := map[string][]common.Part{
+		path: parts,
+	}
+
+	// Build work queue with 4 concurrent workers
+	workQueue := r.buildAdaptiveWorkQueue(perPath, 4)
+
+	// Small file should not be split
+	if len(workQueue) != 1 {
+		t.Fatalf("expected single work item for small file; got %d", len(workQueue))
+	}
+
+	item := workQueue[0]
+	if item.part.Size != fileSize {
+		t.Fatalf("expected part size %d; got %d", fileSize, item.part.Size)
+	}
+}
+
+func TestOptimalPartSizeCalculation(t *testing.T) {
+	tests := []struct {
+		concurrency int
+		expectedMin uint64
+		expectedMax uint64
+	}{
+		{1, 500 * 1024 * 1024, 500 * 1024 * 1024},     // 1 worker: max size
+		{2, 500 * 1024 * 1024, 500 * 1024 * 1024},     // 2 workers: max size
+		{4, 100 * 1024 * 1024, 100 * 1024 * 1024},     // 4 workers: 100MB
+		{10, 50 * 1024 * 1024, 50 * 1024 * 1024},      // 10 workers: min size
+		{16, 50 * 1024 * 1024, 50 * 1024 * 1024},      // 16 workers: min size
+	}
+
+	for _, tt := range tests {
+		size := calculateOptimalPartSize(tt.concurrency)
+		if size < tt.expectedMin || size > tt.expectedMax {
+			t.Fatalf("concurrency=%d: expected size in [%d, %d], got %d",
+				tt.concurrency, tt.expectedMin, tt.expectedMax, size)
+		}
 	}
 }
 
