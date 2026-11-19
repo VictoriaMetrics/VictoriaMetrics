@@ -2,6 +2,7 @@ package datasource
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -862,4 +863,71 @@ func expectError(t *testing.T, err error, exp string) {
 	if !strings.Contains(err.Error(), exp) {
 		t.Fatalf("expected error %q to contain %q", err, exp)
 	}
+}
+
+func TestQueryTimeout(t *testing.T) {
+	// The server sends response headers for a gzipped chunked response,
+	// but never sends the body.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11940
+	stopCh := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+		select {
+		case <-stopCh:
+		case <-r.Context().Done():
+		}
+	}))
+	defer srv.Close()
+	defer close(stopCh)
+
+	f := func(timeoutFlag, evalInterval time.Duration, isRange bool) {
+		t.Helper()
+
+		origTimeout := *queryTimeout
+		*queryTimeout = timeoutFlag
+		defer func() { *queryTimeout = origTimeout }()
+
+		s := NewPrometheusClient(srv.URL, nil, false, srv.Client())
+		q := s.BuildWithParams(QuerierParams{
+			DataSourceType:     string(datasourcePrometheus),
+			EvaluationInterval: evalInterval,
+		})
+
+		errCh := make(chan error, 1)
+		go func() {
+			var err error
+			if isRange {
+				_, err = q.QueryRange(context.Background(), vmQuery, time.Now().Add(-time.Hour), time.Now())
+			} else {
+				_, _, err = q.Query(context.Background(), vmQuery, time.Now())
+			}
+			errCh <- err
+		}()
+		select {
+		case err := <-errCh:
+			if err == nil {
+				t.Fatalf("expecting non-nil error")
+			}
+			if !errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("expecting context.DeadlineExceeded error; got %s", err)
+			}
+			if !strings.Contains(err.Error(), "-datasource.queryTimeout") {
+				t.Fatalf("expecting a hint about -datasource.queryTimeout in error; got %s", err)
+			}
+		case <-time.After(10 * time.Second):
+			t.Fatalf("query didn't time out")
+		}
+	}
+
+	// instant query with timeout from the evaluation interval
+	f(0, 100*time.Millisecond, false)
+
+	// instant query with explicit timeout
+	f(100*time.Millisecond, time.Hour, false)
+
+	// range query with explicit timeout
+	f(100*time.Millisecond, time.Hour, true)
 }
