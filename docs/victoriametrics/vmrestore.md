@@ -115,11 +115,13 @@ Non-partition files (metadata etc.) are always restored regardless of this flag.
 
 * See [Connecting VM components to cloud storage](https://docs.victoriametrics.com/guides/connecting-vm-components-to-cloud-storage/) for instructions on configuring credentials.
 * If `vmrestore` consumes all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
-* If restore speed drops near the end when only a few big files remain, then increase `-concurrencyPerFile`.
-  This downloads multiple existing backup objects for the same file concurrently; individual objects aren't split.
-  The total number of concurrent downloads is still limited by `-concurrency`.
-  With `-skipFilePreallocation`, objects for each file are downloaded sequentially in offset order
-  so an interrupted restore can safely resume within the file.
+* `-concurrency` limits all concurrent downloads, including downloads belonging to the same file.
+  When multiple workers are available, large backup objects in S3, GCS, and Azure are divided into balanced byte-range requests,
+  keeping the original object keys unchanged. Ranges target multiple tasks per worker and are sized
+  between 50 MiB and 256 MiB to balance worker utilization and request overhead. Objects smaller than 100 MiB aren't split.
+  Local filesystem backups are copied as existing objects without additional range splitting.
+  With `-skipFilePreallocation`, each file's objects are downloaded whole and sequentially in offset order
+  so an interrupted restore can safely resume within the file; different files can still download concurrently.
 * If `vmrestore` has been interrupted due to temporary error, then just restart it with the same args. It will resume the restore process.
 
 ## Advanced usage
@@ -132,8 +134,6 @@ Run `vmrestore -help` in order to see all the available options:
 ```sh
   -concurrency int
      The number of concurrent workers. Higher concurrency may reduce restore duration (default 10)
-  -concurrencyPerFile int
-     The maximum number of concurrent workers per restored file. Higher values may reduce restore duration for big files. Objects for each file are downloaded sequentially when -skipFilePreallocation is set (default 4)
   -configFilePath string
      Path to file with S3 configs. Configs are loaded from default location if not set.
      See https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html

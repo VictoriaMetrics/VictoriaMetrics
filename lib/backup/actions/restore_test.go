@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -26,17 +27,16 @@ func TestRestoreDownloadConcurrency(t *testing.T) {
 	testCases := []struct {
 		name              string
 		concurrency       int
-		perFile           int
 		files             int
 		skipPreallocation bool
 		wantActive        int
 		wantPerFile       int
 	}{
-		{"same-file", 4, 3, 1, false, 3, 3},
-		{"per-file-limit", 4, 2, 2, false, 4, 2},
-		{"global-limit", 3, 4, 2, false, 3, 3},
-		{"sequential-resume", 4, 4, 2, true, 2, 1},
-		{"zero-limits", 0, 0, 1, false, 1, 1},
+		{"same-file", 4, 1, false, 4, 4},
+		{"multiple-files", 6, 2, false, 6, 4},
+		{"global-limit", 3, 2, false, 3, 3},
+		{"sequential-resume", 4, 2, true, 2, 1},
+		{"zero-limit", 0, 1, false, 1, 1},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -54,18 +54,17 @@ func TestRestoreDownloadConcurrency(t *testing.T) {
 			release := make(chan struct{})
 			var releaseOnce sync.Once
 			unblock := func() { releaseOnce.Do(func() { close(release) }) }
-			t.Cleanup(unblock)
 			src.beforeDownload = func(p common.Part) error {
 				started <- p
 				<-release
 				return nil
 			}
 			r := &Restore{
-				Src:                src,
-				Dst:                &fslocal.FS{Dir: t.TempDir(), UseTmpFiles: !tc.skipPreallocation},
-				ConcurrencyPerFile: tc.perFile,
-				SkipPreallocation:  tc.skipPreallocation,
+				Src:               src,
+				Dst:               &fslocal.FS{Dir: t.TempDir(), UseTmpFiles: !tc.skipPreallocation},
+				SkipPreallocation: tc.skipPreallocation,
 			}
+			t.Cleanup(unblock)
 			var downloaded atomic.Uint64
 			done := make(chan error, 1)
 			go func() {
@@ -118,6 +117,144 @@ func TestRestoreDownloadConcurrency(t *testing.T) {
 	}
 }
 
+func TestBuildDownloadTasks(t *testing.T) {
+	testCases := []struct {
+		size        uint64
+		concurrency int
+		ranged      bool
+		wantTasks   int
+	}{
+		{0, 10, true, 1},
+		{100<<20 - 1, 10, true, 1},
+		{100 << 20, 10, true, 2},
+		{100<<20 + 1, 10, true, 2},
+		{1 << 30, 2, true, 4},
+		{1 << 30, 10, true, 20},
+		{1 << 30, 1000, true, 20},
+		{1 << 30, 1, true, 1},
+		{1 << 30, 0, true, 1},
+		{1 << 30, 10, false, 1},
+	}
+	for _, tc := range testCases {
+		p := common.Part{Path: "data/file", FileSize: tc.size + 123, Offset: 123, Size: tc.size}
+		tasks := buildDownloadTasks([]common.Part{p}, tc.concurrency, tc.ranged)
+		if len(tasks) != tc.wantTasks {
+			t.Fatalf("size=%d, concurrency=%d, ranged=%v: got %d tasks; want %d", tc.size, tc.concurrency, tc.ranged, len(tasks), tc.wantTasks)
+		}
+		offset := uint64(0)
+		for _, task := range tasks {
+			if task.part != p || task.offset != offset {
+				t.Fatalf("object identity changed or range coverage has a gap: %+v", task)
+			}
+			if len(tasks) > 1 && (task.size < 50<<20 || task.size > 256<<20) {
+				t.Fatalf("range size outside request bounds: %d", task.size)
+			}
+			offset += task.size
+		}
+		if offset != p.Size {
+			t.Fatalf("incomplete range coverage: got %d; want %d", offset, p.Size)
+		}
+	}
+}
+
+func TestRestoreRangedDownloads(t *testing.T) {
+	for _, skipPreallocation := range []bool{false, true} {
+		t.Run(fmt.Sprintf("skipPreallocation=%v", skipPreallocation), func(t *testing.T) {
+			const prefix = "prefix"
+			data := bytes.Repeat([]byte("range data"), (200<<20)/10+1)
+			p := common.Part{
+				Path: "data/file", FileSize: uint64(len(prefix) + len(data)),
+				Offset: uint64(len(prefix)), Size: uint64(len(data)), ActualSize: uint64(len(data)),
+			}
+			src := &concurrencyTrackingRemoteFS{data: map[common.Part][]byte{p: data}}
+			started := make(chan struct{}, 16)
+			release := make(chan struct{})
+			var releaseOnce sync.Once
+			unblock := func() { releaseOnce.Do(func() { close(release) }) }
+			r := &Restore{
+				Src:               src,
+				Dst:               &fslocal.FS{Dir: t.TempDir(), UseTmpFiles: !skipPreallocation},
+				SkipPreallocation: skipPreallocation,
+			}
+			if err := os.MkdirAll(filepath.Dir(p.LocalPath(r.Dst.Dir)), 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(p.LocalPath(r.Dst.Dir), []byte(prefix), 0600); err != nil {
+				t.Fatal(err)
+			}
+			src.beforeRange = func(_ downloadTask) error {
+				started <- struct{}{}
+				<-release
+				return nil
+			}
+			var downloaded atomic.Uint64
+			done := make(chan error, 1)
+			go func() {
+				done <- r.runParallelPerPathInternal(context.Background(), 4, map[string][]common.Part{p.Path: {p}}, &downloaded)
+			}()
+			t.Cleanup(func() {
+				unblock()
+			})
+			wantActive := 4
+			if skipPreallocation {
+				wantActive = 1
+			}
+			for range wantActive {
+				select {
+				case <-started:
+				case err := <-done:
+					t.Fatalf("restore finished before filling workers: %v", err)
+				case <-time.After(5 * time.Second):
+					t.Fatal("single-object restore didn't fill the worker pool")
+				}
+			}
+			unblock()
+			select {
+			case err := <-done:
+				if err != nil {
+					t.Fatal(err)
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("ranged restore didn't finish")
+			}
+			if src.maxActiveTotal != wantActive || downloaded.Load() != p.Size {
+				t.Fatalf("unexpected concurrency=%d or downloaded bytes=%d", src.maxActiveTotal, downloaded.Load())
+			}
+			sort.Slice(src.ranges, func(i, j int) bool { return src.ranges[i].offset < src.ranges[j].offset })
+			offset := uint64(0)
+			minSize, maxSize := p.Size, uint64(0)
+			for _, task := range src.ranges {
+				if task.part != p || task.offset != offset {
+					t.Fatalf("object identity changed or range coverage has a gap: %+v", task)
+				}
+				minSize, maxSize = min(minSize, task.size), max(maxSize, task.size)
+				offset += task.size
+			}
+			if offset != p.Size || maxSize-minSize > 1 {
+				t.Fatalf("ranges don't cover the object evenly: offset=%d, min=%d, max=%d", offset, minSize, maxSize)
+			}
+			if skipPreallocation && len(src.ranges) != 1 {
+				t.Fatalf("resumable download was split into %d ranges", len(src.ranges))
+			}
+			f, err := os.Open(p.LocalPath(r.Dst.Dir))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer f.Close()
+			gotHash := sha256.New()
+			if _, err := io.Copy(gotHash, f); err != nil {
+				t.Fatal(err)
+			}
+			wantHash := sha256.New()
+			_, _ = io.WriteString(wantHash, prefix)
+			_, _ = wantHash.Write(data)
+			if !bytes.Equal(gotHash.Sum(nil), wantHash.Sum(nil)) {
+				t.Fatal("range downloads corrupted the file or its existing prefix")
+			}
+		})
+	}
+}
+
 func TestRestoreLargeBackupObject(t *testing.T) {
 	data := bytes.Repeat([]byte("vmrestore"), (50<<20)/9+1)
 	p := common.Part{Path: "data/big/2026_11/file", FileSize: uint64(len(data)), Size: uint64(len(data)), ActualSize: uint64(len(data))}
@@ -133,10 +270,9 @@ func TestRestoreLargeBackupObject(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := &Restore{
-		Src:                src,
-		Dst:                &fslocal.FS{Dir: t.TempDir()},
-		Concurrency:        10,
-		ConcurrencyPerFile: 4,
+		Src:         src,
+		Dst:         &fslocal.FS{Dir: t.TempDir()},
+		Concurrency: 10,
 	}
 	if err := r.Run(context.Background()); err != nil {
 		t.Fatalf("cannot restore original backup object: %s", err)
@@ -179,7 +315,6 @@ func TestRestoreDownloadFailureAndResume(t *testing.T) {
 		Src:                     src,
 		Dst:                     &fslocal.FS{Dir: t.TempDir()},
 		Concurrency:             2,
-		ConcurrencyPerFile:      2,
 		SkipBackupCompleteCheck: true,
 	}
 	if err := r.Run(context.Background()); !errors.Is(err, downloadErr) {
@@ -219,7 +354,7 @@ func TestRestoreDownloadCancellation(t *testing.T) {
 		cancel()
 		return nil
 	}
-	r := &Restore{Src: src, Dst: &fslocal.FS{Dir: t.TempDir(), UseTmpFiles: true}, ConcurrencyPerFile: 1}
+	r := &Restore{Src: src, Dst: &fslocal.FS{Dir: t.TempDir(), UseTmpFiles: true}}
 	var downloaded atomic.Uint64
 	err := r.runParallelPerPathInternal(ctx, 1, map[string][]common.Part{parts[0].Path: parts}, &downloaded)
 	if !errors.Is(err, context.Canceled) {
@@ -237,8 +372,10 @@ type concurrencyTrackingRemoteFS struct {
 	parts          []common.Part
 	data           map[common.Part][]byte
 	beforeDownload func(common.Part) error
+	beforeRange    func(downloadTask) error
 	downloadPart   func(common.Part, io.Writer) error
 	downloaded     []common.Part
+	ranges         []downloadTask
 
 	mu               sync.Mutex
 	activeTotal      int
@@ -271,6 +408,13 @@ func (fs *concurrencyTrackingRemoteFS) CopyPart(_ common.OriginFS, _ common.Part
 }
 
 func (fs *concurrencyTrackingRemoteFS) DownloadPart(p common.Part, w io.Writer) error {
+	return fs.DownloadPartRange(p, 0, p.Size, w)
+}
+
+func (fs *concurrencyTrackingRemoteFS) DownloadPartRange(p common.Part, offset, size uint64, w io.Writer) error {
+	if err := p.ValidateRange(offset, size); err != nil {
+		return err
+	}
 	data, ok := fs.data[p]
 	if !ok {
 		return fmt.Errorf("unknown backup object: %s", &p)
@@ -284,6 +428,8 @@ func (fs *concurrencyTrackingRemoteFS) DownloadPart(p common.Part, w io.Writer) 
 	fs.maxActiveTotal = max(fs.maxActiveTotal, fs.activeTotal)
 	fs.maxActivePerPath = max(fs.maxActivePerPath, fs.activePerPath[p.Path])
 	fs.downloaded = append(fs.downloaded, p)
+	task := downloadTask{part: p, offset: offset, size: size}
+	fs.ranges = append(fs.ranges, task)
 	fs.mu.Unlock()
 	defer func() {
 		fs.mu.Lock()
@@ -296,10 +442,15 @@ func (fs *concurrencyTrackingRemoteFS) DownloadPart(p common.Part, w io.Writer) 
 			return err
 		}
 	}
+	if fs.beforeRange != nil {
+		if err := fs.beforeRange(task); err != nil {
+			return err
+		}
+	}
 	if fs.downloadPart != nil {
 		return fs.downloadPart(p, w)
 	}
-	_, err := w.Write(data)
+	_, err := w.Write(data[offset : offset+size])
 	return err
 }
 

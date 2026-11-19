@@ -258,11 +258,30 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 
 // DownloadPart downloads part p from fs to w.
 func (fs *FS) DownloadPart(p common.Part, w io.Writer) error {
-	bc := fs.clientForPart(p)
+	return fs.DownloadPartRange(p, 0, p.Size, w)
+}
 
-	r, err := bc.DownloadStream(fs.ctx, &blob.DownloadStreamOptions{})
+// DownloadPartRange downloads a range within the original backup object p.
+func (fs *FS) DownloadPartRange(p common.Part, offset, size uint64, w io.Writer) error {
+	if err := p.ValidateRange(offset, size); err != nil {
+		return err
+	}
+	bc := fs.clientForPart(p)
+	opts := &blob.DownloadStreamOptions{}
+	partial := offset != 0 || size != p.Size
+	if partial {
+		opts.Range = blob.HTTPRange{Offset: int64(offset), Count: int64(size)}
+	}
+	r, err := bc.DownloadStream(fs.ctx, opts)
 	if err != nil {
 		return fmt.Errorf("cannot open reader for %q at %s (remote path %q): %w", p.Path, fs, bc.URL(), err)
+	}
+	if partial {
+		wantRange := fmt.Sprintf("bytes %d-%d/%d", offset, offset+size-1, p.Size)
+		if r.ContentRange == nil || *r.ContentRange != wantRange {
+			_ = r.Body.Close()
+			return fmt.Errorf("unexpected Content-Range for %q at %s; want %q", p.Path, fs, wantRange)
+		}
 	}
 
 	body := r.NewRetryReader(fs.ctx, &azblob.RetryReaderOptions{})
@@ -273,8 +292,8 @@ func (fs *FS) DownloadPart(p common.Part, w io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("cannot download %q from at %s (remote path %q): %w", p.Path, fs, bc.URL(), err)
 	}
-	if uint64(n) != p.Size {
-		return fmt.Errorf("wrong data size downloaded from %q at %s; got %d bytes; want %d bytes", p.Path, fs, n, p.Size)
+	if uint64(n) != size {
+		return fmt.Errorf("wrong data size downloaded from %q at %s; got %d bytes; want %d bytes", p.Path, fs, n, size)
 	}
 	return nil
 }

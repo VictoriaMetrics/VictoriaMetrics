@@ -38,6 +38,15 @@ type Part struct {
 	ActualSize uint64
 }
 
+// ValidateRange checks that a non-empty range is inside p.
+// An empty range is allowed only for an empty part.
+func (p *Part) ValidateRange(offset, size uint64) error {
+	if offset > p.Size || size > p.Size-offset || size == 0 && p.Size != 0 {
+		return fmt.Errorf("invalid range offset=%d, size=%d for %s", offset, size, p)
+	}
+	return nil
+}
+
 // key returns a string, which uniquely identifies p.
 func (p *Part) key() string {
 	if strings.HasSuffix(p.Path, "/parts.json") ||

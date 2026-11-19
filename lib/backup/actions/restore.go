@@ -32,9 +32,6 @@ type Restore struct {
 	// Concurrency is the number of concurrent workers to run during restore.
 	Concurrency int
 
-	// ConcurrencyPerFile is the maximum number of concurrent workers to run for a single restored file.
-	ConcurrencyPerFile int
-
 	// Src is the source containing backed up data.
 	Src common.RemoteFS
 
@@ -255,29 +252,30 @@ func (r *Restore) runParallelPerPath(ctx context.Context, concurrency int, perPa
 
 func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency int, perPath map[string][]common.Part, bytesDownloaded *atomic.Uint64) error {
 	concurrency = max(concurrency, 1)
-	perFile := min(max(r.ConcurrencyPerFile, 1), concurrency)
+	perFile := concurrency
 	if r.SkipPreallocation {
 		// Resuming by file size is safe only when completed writes form a contiguous prefix.
 		perFile = 1
 	}
 
 	type fileToRestore struct {
-		parts       []common.Part
-		nextPart    atomic.Int64
+		tasks       []downloadTask
+		nextTask    atomic.Int64
 		remaining   atomic.Int64
 		prepareOnce sync.Once
 		prepareErr  error
 	}
+	_, supportsRanges := r.Src.(common.RangeDownloader)
 	var workers []*fileToRestore
 	for _, parts := range perPath {
 		if len(parts) == 0 {
 			continue
 		}
-		// Keep the original part boundaries, since offsets and sizes identify remote objects.
 		common.SortParts(parts)
-		f := &fileToRestore{parts: parts}
-		f.remaining.Store(int64(len(parts)))
-		for range min(perFile, len(parts)) {
+		tasks := buildDownloadTasks(parts, concurrency, supportsRanges && !r.SkipPreallocation)
+		f := &fileToRestore{tasks: tasks}
+		f.remaining.Store(int64(len(tasks)))
+		for range min(perFile, len(tasks)) {
 			workers = append(workers, f)
 		}
 	}
@@ -308,29 +306,29 @@ func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency in
 				}
 				f.prepareOnce.Do(func() {
 					if !r.SkipPreallocation {
-						f.prepareErr = r.Dst.PreallocateFile(f.parts[0])
+						f.prepareErr = r.Dst.PreallocateFile(f.tasks[0].part)
 					}
 				})
 				if f.prepareErr != nil {
-					setErr(fmt.Errorf("cannot preallocate %s: %w", f.parts[0].Path, f.prepareErr))
+					setErr(fmt.Errorf("cannot preallocate %s: %w", f.tasks[0].part.Path, f.prepareErr))
 					return
 				}
 				for {
 					if ctxLocal.Err() != nil {
 						return
 					}
-					i := f.nextPart.Add(1) - 1
-					if i >= int64(len(f.parts)) {
+					i := f.nextTask.Add(1) - 1
+					if i >= int64(len(f.tasks)) {
 						break
 					}
-					p := f.parts[i]
-					if err := pipelinedDownload(r.Src, r.Dst, p, bytesDownloaded); err != nil {
+					task := f.tasks[i]
+					if err := pipelinedDownload(r.Src, r.Dst, task, bytesDownloaded); err != nil {
 						setErr(err)
 						return
 					}
 					if f.remaining.Add(-1) == 0 {
-						if err := r.Dst.FinalizeFile(p); err != nil {
-							setErr(fmt.Errorf("cannot finalize %s: %w", p.Path, err))
+						if err := r.Dst.FinalizeFile(task.part); err != nil {
+							setErr(fmt.Errorf("cannot finalize %s: %w", task.part.Path, err))
 							return
 						}
 					}
@@ -343,6 +341,38 @@ func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency in
 		return firstErr
 	}
 	return ctx.Err()
+}
+
+type downloadTask struct {
+	part         common.Part
+	offset, size uint64
+}
+
+func buildDownloadTasks(parts []common.Part, concurrency int, supportsRanges bool) []downloadTask {
+	const (
+		minRangeSize = 50 * 1024 * 1024
+		maxRangeSize = 256 * 1024 * 1024
+	)
+	var tasks []downloadTask
+	for _, p := range parts {
+		n := uint64(1)
+		if supportsRanges && concurrency > 1 && p.Size >= 2*minRangeSize {
+			// Leave multiple tasks per worker for tail balancing without issuing tiny requests.
+			n = min(uint64(concurrency)*2, p.Size/minRangeSize)
+			n = max(n, 1+(p.Size-1)/maxRangeSize)
+		}
+		size, extra := p.Size/n, p.Size%n
+		offset := uint64(0)
+		for i := uint64(0); i < n; i++ {
+			s := size
+			if i < extra {
+				s++
+			}
+			tasks = append(tasks, downloadTask{part: p, offset: offset, size: s})
+			offset += s
+		}
+	}
+	return tasks
 }
 
 const writeBufSize = 2 * 1024 * 1024
@@ -362,8 +392,13 @@ var readBufPool = sync.Pool{
 	},
 }
 
-func pipelinedDownload(src common.RemoteFS, dst *fslocal.FS, p common.Part, bytesDownloaded *atomic.Uint64) error {
-	wc, err := dst.NewDirectWriteCloser(p)
+func pipelinedDownload(src common.RemoteFS, dst *fslocal.FS, task downloadTask, bytesDownloaded *atomic.Uint64) error {
+	p := task.part
+	localPart := p
+	localPart.Offset += task.offset
+	localPart.Size = task.size
+	localPart.ActualSize = task.size
+	wc, err := dst.NewDirectWriteCloser(localPart)
 	if err != nil {
 		return fmt.Errorf("cannot create writer for %q to %s: %w", &p, dst, err)
 	}
@@ -374,7 +409,14 @@ func pipelinedDownload(src common.RemoteFS, dst *fslocal.FS, p common.Part, byte
 	go func() {
 		buf := readBufPool.Get().(*bufio.Writer)
 		buf.Reset(pw)
-		err := src.DownloadPart(p, buf)
+		var err error
+		if task.offset == 0 && task.size == p.Size {
+			err = src.DownloadPart(p, buf)
+		} else if ranged, ok := src.(common.RangeDownloader); ok {
+			err = ranged.DownloadPartRange(p, task.offset, task.size, buf)
+		} else {
+			err = fmt.Errorf("source %s doesn't support ranged downloads", src)
+		}
 		if err == nil {
 			err = buf.Flush()
 		}
