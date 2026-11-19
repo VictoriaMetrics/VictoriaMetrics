@@ -14,6 +14,20 @@ func (tc *TestCase) MustStartVmsingle_v1_132_0(instance string, flags []string) 
 	return app
 }
 
+// MustStartVmsingle_v1_156_0 is a test helper function that starts an instance
+// of vmsingle-v1.156.0 (the last version that writes and reads both global and
+// per-day indexes when -disablePerDayIndex is false)
+func (tc *TestCase) MustStartVmsingle_v1_156_0(instance string, flags []string) *Vmsingle {
+	tc.t.Helper()
+
+	app, err := StartVmsingle_v1_156_0(instance, flags, tc.cli, tc.output)
+	if err != nil {
+		tc.t.Fatalf("Could not start %s: %v", instance, err)
+	}
+	tc.addApp(instance, app)
+	return app
+}
+
 // MustStartVmstorage_v1_132_0 is a test helper function that starts an instance
 // of vmstorage-v1.132.0 (last version that uses legacy index)  and fails the
 // test if the app fails to start.
