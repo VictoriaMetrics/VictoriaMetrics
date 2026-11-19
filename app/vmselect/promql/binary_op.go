@@ -671,15 +671,51 @@ func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
 		return
 	}
 
-	nameLeft, nameRight := bbPool.Get(), bbPool.Get()
+	if len(tssLeft) == 0 {
+		return
+	}
+
+	nameLeft := make([]byte, 0, 64)
+	nameRight := make([]byte, 0, 64)
+
+	// namesRight holds marshaled tssRight names back to back.
+	// The name for tssRight[j] is namesRight[namesRightStarts[j]:namesRightStarts[j+1]].
+	// The names are precomputed only if they are compared more than once,
+	// otherwise they are marshaled on the fly.
+	var namesRight []byte
+	var namesRightStarts []int
+	if len(tssLeft) > 1 {
+		namesRight = make([]byte, 0, 64*len(tssRight))
+		namesRightStarts = make([]int, len(tssRight)+1)
+		for j, tsRight := range tssRight {
+			namesRightStarts[j] = len(namesRight)
+			namesRight = marshalMetricNameSorted(namesRight, &tsRight.MetricName)
+		}
+		namesRightStarts[len(tssRight)] = len(namesRight)
+	}
+
+	// getRightName returns the marshaled name of tssRight[idx].
+	getRightName := func(idx int) []byte {
+		if len(namesRightStarts) == 0 {
+			nameRight = marshalMetricNameSorted(nameRight[:0], &tssRight[idx].MetricName)
+			return nameRight
+		}
+		start, end := namesRightStarts[idx], namesRightStarts[idx+1]
+		return namesRight[start:end]
+	}
+
+	// canMergeRight[j] reports whether the current tsLeft can be merged with tssRight[j].
+	canMergeRight := make([]bool, len(tssRight))
 	for _, tsLeft := range tssLeft {
 		valuesLeft := tsLeft.Values
-		nameLeft.B = marshalMetricNameSorted(nameLeft.B[:0], &tsLeft.MetricName)
+		nameLeft = marshalMetricNameSorted(nameLeft[:0], &tsLeft.MetricName)
+		for j := range tssRight {
+			canMergeRight[j] = bytes.Equal(nameLeft, getRightName(j))
+		}
 		for i, v := range valuesLeft {
 			leftIsNaN := math.IsNaN(v)
-			for _, tsRight := range tssRight {
-				nameRight.B = marshalMetricNameSorted(nameRight.B[:0], &tsRight.MetricName)
-				canBeMerged := bytes.Equal(nameLeft.B, nameRight.B)
+			for j, tsRight := range tssRight {
+				canBeMerged := canMergeRight[j]
 				valueRight := tsRight.Values[i]
 				if leftIsNaN && canBeMerged {
 					// fill NaNs with valueRight if labels match
@@ -693,8 +729,6 @@ func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
 			}
 		}
 	}
-	bbPool.Put(nameLeft)
-	bbPool.Put(nameRight)
 }
 
 func binaryOpIfnot(bfa *binaryOpFuncArg) ([]*timeseries, error) {
