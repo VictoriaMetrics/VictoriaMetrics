@@ -956,12 +956,13 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
 This can reduce write-path CPU and disk reads when a workload creates many new series. The filter is enabled by default and only skips
 lookups for definite negatives; existing-series resolution and deleted metric ID handling continue through the regular index logic.
 
-For file-backed parts each part filter is split into fixed-size segments. Only the small filter directory is kept in memory, while the
-segments are read from disk on demand and are shared between all parts under the `indexdb/partFilterSegments` cache budget, so the memory
-occupied by these filters does not grow with the number of parts or with the retention period. Filters of in-memory parts keep their
-segments in memory, since the part data itself resides in memory at that point. When the budget is exhausted, a segment cannot be read, or a segment
-checksum doesn't match, the part is searched with the regular index logic instead of being filtered, so such cases only reduce the
-optimization, they cannot change the returned result.
+For file-backed parts each part filter is split into fixed-size segments. Segment bitmaps are read from disk on demand and are shared
+between all parts under the `indexdb/partFilterSegments` cache budget, so their memory is bounded independently of the number of parts and
+the retention period. Each file part also keeps its small filter directory in memory outside this cache budget. The directory has at most
+128 entries of 24 bytes, about 3 KiB per part. Filters of in-memory parts keep their segments in memory, since the part data itself
+resides in memory at that point. When the budget is exhausted, a segment cannot be read, or a segment checksum doesn't match, the part is
+searched with the regular index logic instead of being filtered, so such cases only reduce the optimization, they cannot change the
+returned result.
 
 Set `-storage.disableTSIDLookupBloomFilter` on `vmstorage` to disable this optimization if it causes a regression. The filter decision
 counters are exposed as `vm_tsid_lookup_filter_*` metrics: `skipped_total` counts definite negatives that avoided the index,
@@ -969,9 +970,9 @@ counters are exposed as `vm_tsid_lookup_filter_*` metrics: `skipped_total` count
 that returned no index entry, and `fallbacks_total{reason="unfiltered|budget|read|checksum"}` counts lookups which had to search a part
 which couldn't be filtered. A high skip rate with low possible, false-positive, and fallback rates indicates that the workload is getting
 the intended benefit; positive lookups are expected to remain in the possible count. The `vm_cache_*{type="indexdb/partFilterSegments"}`
-metrics show the filter cache usage, while `vm_data_size_bytes{type="indexdb/partFilterFile"}` and
-`vm_data_size_bytes{type="indexdb/partFilterMemory"}` show the disk space and the memory occupied by the filter files and by the in-memory
-part filters.
+metrics show segment bitmap cache usage. `vm_data_size_bytes{type="indexdb/partFilterFile"}` shows filter file size, and
+`vm_data_size_bytes{type="indexdb/partFilterMemory"}` shows in-memory part filter segments. The per-part resident directory is not
+included in the latter or in the cache metrics; its size is at most about 3 KiB per file part.
 
 See also [capacity planning docs](#capacity-planning) and [cardinality limiter in vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter).
 
