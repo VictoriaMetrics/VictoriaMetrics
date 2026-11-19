@@ -51,9 +51,10 @@ import (
 )
 
 var (
-	httpListenAddrs = flagutil.NewArrayString("httpListenAddr", "TCP address to listen for incoming http requests. "+
+	httpListenAddrs = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. "+
 		"Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. "+
-		"Note that /targets and /metrics pages aren't available if -httpListenAddr=''. See also -tls and -httpListenAddr.useProxyProtocol")
+		"Note that /targets and /metrics pages aren't available if -httpListenAddr=''. "+
+		"Use unix:/path/to/socket to listen on Unix domain socket. Note that -tls and -httpListenAddr.useProxyProtocol cannot be used with Unix sockets")
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
@@ -83,6 +84,9 @@ var (
 	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 0, "The maximum number of labels per time series to be accepted. Series with superfluous labels are ignored. In this case the vm_rows_ignored_total{reason=\"too_many_labels\"} metric at /metrics page is incremented")
 	maxLabelNameLen        = flag.Int("maxLabelNameLen", 0, "The maximum length of label names in the accepted time series. Series with longer label name are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_name\"} metric at /metrics page is incremented")
 	maxLabelValueLen       = flag.Int("maxLabelValueLen", 0, "The maximum length of label values in the accepted time series. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_value\"} metric at /metrics page is incremented")
+
+	enableMultitenancyViaHeaders = flag.Bool("enableMultitenancyViaHeaders", true, "Enables multitenancy via HTTP headers. "+
+		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy")
 )
 
 var (
@@ -112,9 +116,10 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
-	remotewrite.InitSecretFlags()
+	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
+	opentelemetry.Init()
 	timeserieslimits.Init(*maxLabelsPerTimeseries, *maxLabelNameLen, *maxLabelValueLen)
 
 	if promscrape.IsDryRun() {
@@ -142,6 +147,7 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8429"}
 	}
+	httpserver.CheckHealth(listenAddrs)
 	logger.Infof("starting vmagent at %q...", listenAddrs)
 	startTime := time.Now()
 	remotewrite.StartIngestionRateLimiter()
@@ -165,6 +171,9 @@ func main() {
 	}
 
 	promscrape.Init(remotewrite.PushDropSamplesOnFailure)
+
+	// Register paths which could be protected by their own -*AuthKey flag.
+	httpserver.RegisterAuthKeyProtectedPathsFunc(isAuthKeyProtectedPath)
 
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
@@ -216,7 +225,7 @@ func getOpenTSDBHTTPInsertHandler() func(req *http.Request) error {
 	}
 	return func(req *http.Request) error {
 		path := strings.ReplaceAll(req.URL.Path, "//", "/")
-		at, err := getAuthTokenFromPath(path)
+		at, err := getAuthTokenFromPath(path, req.Header)
 		if err != nil {
 			return fmt.Errorf("cannot obtain auth token from path %q: %w", path, err)
 		}
@@ -224,8 +233,15 @@ func getOpenTSDBHTTPInsertHandler() func(req *http.Request) error {
 	}
 }
 
-func getAuthTokenFromPath(path string) (*auth.Token, error) {
-	p, err := httpserver.ParsePath(path)
+func parsePath(path string, header http.Header) (*httpserver.Path, error) {
+	if *enableMultitenancyViaHeaders {
+		return httpserver.ParsePathAndHeaders(path, header)
+	}
+	return httpserver.ParsePath(path)
+}
+
+func getAuthTokenFromPath(path string, header http.Header) (*auth.Token, error) {
+	p, err := parsePath(path, header)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse multitenant path: %w", err)
 	}
@@ -236,6 +252,23 @@ func getAuthTokenFromPath(path string) (*auth.Token, error) {
 		return nil, fmt.Errorf("unsupported path requested: %q; expecting 'opentsdb/api/put'", p.Suffix)
 	}
 	return auth.NewTokenPossibleMultitenant(p.AuthToken)
+}
+
+// isAuthKeyProtectedPath returns true for paths, which verify -configAuthKey or -reloadAuthKey
+// on their own at requestHandler().
+func isAuthKeyProtectedPath(r *http.Request) bool {
+	// path normalization is needed here because it exists in requestHandler() as well
+	path := strings.ReplaceAll(r.URL.Path, "//", "/")
+	switch path {
+	case "/prometheus/config", "/config",
+		"/prometheus/api/v1/status/config", "/api/v1/status/config",
+		"/remotewrite-relabel-config", "/api/v1/status/remotewrite-relabel-config",
+		"/remotewrite-url-relabel-config", "/api/v1/status/remotewrite-url-relabel-config",
+		"/prometheus/-/reload", "/-/reload":
+		return true
+	default:
+		return false
+	}
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
@@ -328,6 +361,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/influx/write", "/influx/api/v2/write", "/write", "/api/v2/write":
 		influxWriteRequests.Inc()
+		addInfluxResponseHeaders(w)
 		if err := influx.InsertHandlerForHTTP(nil, r); err != nil {
 			influxWriteErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -337,11 +371,18 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/influx/query", "/query":
 		influxQueryRequests.Inc()
+		addInfluxResponseHeaders(w)
 		influxutil.WriteDatabaseNames(w)
 		return true
 	case "/influx/health":
 		influxHealthRequests.Inc()
+		addInfluxResponseHeaders(w)
 		influxutil.WriteHealthCheckResponse(w)
+		return true
+	case "/influx/ping":
+		influxPingRequests.Inc()
+		addInfluxResponseHeaders(w)
+		w.WriteHeader(http.StatusNoContent)
 		return true
 	case "/opentelemetry/api/v1/push", "/opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
@@ -451,7 +492,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/prometheus/metric-relabel-debug", "/metric-relabel-debug":
 		promscrapeMetricRelabelDebugRequests.Inc()
-		promscrape.WriteMetricRelabelDebug(w, r)
+		rwGlobalRelabelConfigs := remotewrite.GetRemoteWriteRelabelConfigString()
+		rwURLRelabelConfigss := remotewrite.GetURLRelabelConfigString()
+		promscrape.WriteMetricRelabelDebug(w, r, rwGlobalRelabelConfigs, rwURLRelabelConfigss)
 		return true
 	case "/prometheus/target-relabel-debug", "/target-relabel-debug":
 		promscrapeTargetRelabelDebugRequests.Inc()
@@ -559,14 +602,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path string) bool {
-	p, err := httpserver.ParsePath(path)
+	p, err := parsePath(path, r.Header)
 	if err != nil {
 		// Cannot parse multitenant path. Skip it - probably it will be parsed later.
 		return false
 	}
 	if p.Prefix != "insert" {
-		httpserver.Errorf(w, r, `unsupported multitenant prefix: %q; expected "insert"`, p.Prefix)
-		return true
+		// processMultitenantRequest is called for all unmatched path variants,
+		// but we should try parsing only /insert prefixed to avoid catching all possible paths.
+		return false
 	}
 	at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
 	if err != nil {
@@ -646,7 +690,13 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		return true
 	case "influx/health":
 		influxHealthRequests.Inc()
+		addInfluxResponseHeaders(w)
 		influxutil.WriteHealthCheckResponse(w)
+		return true
+	case "/influx/ping":
+		influxPingRequests.Inc()
+		addInfluxResponseHeaders(w)
+		w.WriteHeader(http.StatusNoContent)
 		return true
 	case "opentelemetry/api/v1/push", "opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
@@ -750,6 +800,12 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 	}
 }
 
+func addInfluxResponseHeaders(w http.ResponseWriter) {
+	// This is needed for some clients, which expect InfluxDB version header.
+	// See, for example, https://github.com/ntop/ntopng/issues/5449#issuecomment-1005347597
+	w.Header().Set("X-Influxdb-Version", "1.8.0")
+}
+
 var (
 	prometheusWriteRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/write", protocol="promremotewrite"}`)
 	prometheusWriteErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/api/v1/write", protocol="promremotewrite"}`)
@@ -771,6 +827,7 @@ var (
 
 	influxQueryRequests  = metrics.NewCounter(`vmagent_http_requests_total{path="/influx/query", protocol="influx"}`)
 	influxHealthRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/influx/health", protocol="influx"}`)
+	influxPingRequests   = metrics.NewCounter(`vmagent_http_requests_total{path="/influx/ping", protocol="influx"}`)
 
 	datadogv1WriteRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/api/v1/series", protocol="datadog"}`)
 	datadogv1WriteErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/datadog/api/v1/series", protocol="datadog"}`)
@@ -828,4 +885,10 @@ vmagent collects metrics data via popular data ingestion protocols and routes it
 See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
 `
 	flagutil.Usage(s)
+}
+
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
+func initSecretFlags() {
+	remotewrite.InitSecretFlags()
+	pushmetrics.InitSecretFlags()
 }

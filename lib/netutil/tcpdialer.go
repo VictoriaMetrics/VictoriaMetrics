@@ -23,7 +23,11 @@ func NewTCPDialer(ms *metrics.Set, name, addr string, dialTimeout, userTimeout t
 		Timeout: dialTimeout,
 
 		// How frequently to send keep-alive packets over established TCP connections.
-		KeepAlive: time.Second,
+		KeepAliveConfig: net.KeepAliveConfig{
+			Enable:   true,
+			Idle:     time.Second,
+			Interval: time.Second,
+		},
 	}
 	d := &TCPDialer{
 		d:    nd,

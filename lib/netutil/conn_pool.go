@@ -1,7 +1,11 @@
 package netutil
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"net"
+	"os"
 	"sync"
 	"time"
 
@@ -133,7 +137,7 @@ func (cp *ConnPool) Addr() string {
 }
 
 // Get returns free connection from the pool.
-func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
+func (cp *ConnPool) Get(ctx context.Context) (*handshake.BufferedConn, error) {
 	bc, err := cp.tryGetConn()
 	if err != nil {
 		return nil, err
@@ -142,18 +146,27 @@ func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
 		// Fast path - obtained the connection from pool.
 		return bc, nil
 	}
-	return cp.getConnSlow()
+	return cp.getConnSlow(ctx)
 }
 
 // Dial returns a newly established connection.
-func (cp *ConnPool) Dial() (*handshake.BufferedConn, error) {
-	cp.concurrentDialsCh <- struct{}{}
+func (cp *ConnPool) Dial(ctx context.Context) (*handshake.BufferedConn, error) {
+	select {
+	case cp.concurrentDialsCh <- struct{}{}:
+		if err := ctx.Err(); err != nil {
+			<-cp.concurrentDialsCh
+			return nil, err
+		}
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
 	conn, err := cp.dialAndHandshake()
 	<-cp.concurrentDialsCh
 	return conn, err
 }
 
-func (cp *ConnPool) getConnSlow() (*handshake.BufferedConn, error) {
+func (cp *ConnPool) getConnSlow(ctx context.Context) (*handshake.BufferedConn, error) {
 	for {
 		select {
 		// Limit the number of concurrent dials.
@@ -164,6 +177,9 @@ func (cp *ConnPool) getConnSlow() (*handshake.BufferedConn, error) {
 			<-cp.concurrentDialsCh
 			return conn, err
 		default:
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 			// Make attempt to get already established connections from the pool.
 			// It may appear there while waiting for cp.concurrentDialsCh.
 			bc, err := cp.tryGetConn()
@@ -202,20 +218,34 @@ func (cp *ConnPool) dialAndHandshake() (*handshake.BufferedConn, error) {
 }
 
 func (cp *ConnPool) tryGetConn() (*handshake.BufferedConn, error) {
-	cp.mu.Lock()
-	defer cp.mu.Unlock()
+	for {
+		cp.mu.Lock()
+		if cp.isStopped {
+			cp.mu.Unlock()
+			return nil, fmt.Errorf("conn pool to %s cannot be used, since it is stopped", cp.d.addr)
+		}
+		if len(cp.conns) == 0 {
+			err := cp.lastDialError
+			cp.mu.Unlock()
+			return nil, err
+		}
+		c := cp.conns[len(cp.conns)-1]
+		cp.conns = cp.conns[:len(cp.conns)-1]
+		cp.mu.Unlock()
 
-	if cp.isStopped {
-		return nil, fmt.Errorf("conn pool to %s cannot be used, since it is stopped", cp.d.addr)
+		now := fasttime.UnixTimestamp()
+		if now-c.lastActiveTime < 5 {
+			// the conn is fresh enough, let's reuse without alive check
+			return c.bc, nil
+		}
+
+		if !isConnAlive(c.bc.Conn) {
+			_ = c.bc.Close()
+			continue
+		}
+
+		return c.bc, nil
 	}
-	if len(cp.conns) == 0 {
-		return nil, cp.lastDialError
-	}
-	c := cp.conns[len(cp.conns)-1]
-	bc := c.bc
-	c.bc = nil
-	cp.conns = cp.conns[:len(cp.conns)-1]
-	return bc, nil
 }
 
 // Put puts bc back to the pool.
@@ -324,4 +354,19 @@ func forEachConnPool(f func(cp *ConnPool)) {
 	}
 	wg.Wait()
 	connPoolsMu.Unlock()
+}
+
+func isConnAlive(c net.Conn) bool {
+	if err := c.SetReadDeadline(time.Now().Add(time.Millisecond * 5)); err != nil {
+		return false
+	}
+	defer c.SetReadDeadline(time.Time{}) //nolint:errcheck
+
+	var buf [1]byte
+	_, err := c.Read(buf[:])
+	if err == nil {
+		// Unexpected data on an idle connection - treat as broken.
+		return false
+	}
+	return errors.Is(err, os.ErrDeadlineExceeded)
 }

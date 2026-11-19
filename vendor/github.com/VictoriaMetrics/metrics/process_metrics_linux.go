@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"time"
 )
 
@@ -49,7 +50,7 @@ type procStat struct {
 
 func writeProcessMetrics(w io.Writer) {
 	statFilepath := "/proc/self/stat"
-	data, err := ioutil.ReadFile(statFilepath)
+	data, err := os.ReadFile(statFilepath)
 	if err != nil {
 		log.Printf("ERROR: metrics: cannot open %s: %s", statFilepath, err)
 		return
@@ -96,13 +97,14 @@ func writeProcessMetrics(w io.Writer) {
 	writeProcessMemMetrics(w)
 	writeIOMetrics(w)
 	writePSIMetrics(w)
+	writeProcessCPUThrottleMetrics(w)
 }
 
 var procSelfIOErrLogged uint32
 
 func writeIOMetrics(w io.Writer) {
 	ioFilepath := "/proc/self/io"
-	data, err := ioutil.ReadFile(ioFilepath)
+	data, err := os.ReadFile(ioFilepath)
 	if err != nil {
 		// Do not spam the logs with errors - this error cannot be fixed without process restart.
 		// See https://github.com/VictoriaMetrics/metrics/issues/42
@@ -163,7 +165,7 @@ func writeFDMetrics(w io.Writer) {
 	}
 	maxOpenFDs, err := getMaxFilesLimit("/proc/self/limits")
 	if err != nil {
-		log.Printf("ERROR: metrics: cannot determine the limit on open file descritors: %s", err)
+		log.Printf("ERROR: metrics: cannot determine the limit on open file descriptors: %s", err)
 		return
 	}
 	WriteGaugeUint64(w, "process_max_fds", maxOpenFDs)
@@ -191,7 +193,7 @@ func getOpenFDsCount(path string) (uint64, error) {
 }
 
 func getMaxFilesLimit(path string) (uint64, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return 0, err
 	}
@@ -243,7 +245,7 @@ func writeProcessMemMetrics(w io.Writer) {
 }
 
 func getMemStats(path string) (*memStats, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -320,7 +322,6 @@ func psiTotalSecs(microsecs uint64) float64 {
 var psiMetricsStart = func() *psiMetrics {
 	m, err := getPSIMetrics()
 	if err != nil {
-		log.Printf("INFO: metrics: disable exposing PSI metrics because of failed init: %s", err)
 		return nil
 	}
 	return m
@@ -336,23 +337,22 @@ type psiMetrics struct {
 }
 
 func getPSIMetrics() (*psiMetrics, error) {
-	cgroupPath := getCgroupV2Path()
-	if cgroupPath == "" {
+	if cgroupV2Path == "" {
 		// Do nothing, since PSI requires cgroup v2, and the process doesn't run under cgroup v2.
 		return nil, nil
 	}
 
-	cpuSome, cpuFull, err := readPSITotals(cgroupPath, "cpu.pressure")
+	cpuSome, cpuFull, err := readPSITotals(cgroupV2Path, "cpu.pressure")
 	if err != nil {
 		return nil, err
 	}
 
-	ioSome, ioFull, err := readPSITotals(cgroupPath, "io.pressure")
+	ioSome, ioFull, err := readPSITotals(cgroupV2Path, "io.pressure")
 	if err != nil {
 		return nil, err
 	}
 
-	memSome, memFull, err := readPSITotals(cgroupPath, "memory.pressure")
+	memSome, memFull, err := readPSITotals(cgroupV2Path, "memory.pressure")
 	if err != nil {
 		return nil, err
 	}
@@ -370,7 +370,7 @@ func getPSIMetrics() (*psiMetrics, error) {
 
 func readPSITotals(cgroupPath, statsName string) (uint64, uint64, error) {
 	filePath := cgroupPath + "/" + statsName
-	data, err := ioutil.ReadFile(filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -403,17 +403,175 @@ func readPSITotals(cgroupPath, statsName string) (uint64, uint64, error) {
 	return some, full, nil
 }
 
-func getCgroupV2Path() string {
-	data, err := ioutil.ReadFile("/proc/self/cgroup")
-	if err != nil {
-		return ""
-	}
-	tmp := strings.SplitN(string(data), "::", 2)
-	if len(tmp) != 2 {
-		return ""
-	}
-	path := "/sys/fs/cgroup" + strings.TrimSpace(tmp[1])
+type cgroupCPUStat struct {
+	throttledNanosecs uint64
+}
 
-	// Drop trailing slash if it exsits. This prevents from '//' in the constructed paths by the caller.
-	return strings.TrimSuffix(path, "/")
+var cgroupCPUStatMetricsStart = func() *cgroupCPUStat {
+	cpuStat, err := getCgroupCPUStats()
+	if err != nil {
+		return nil
+	}
+	return cpuStat
+}()
+
+// cgroupV2Path is the cgroup v2 directory of the process used for PSI metrics.
+// cgroupCPUStatPath is the cpu.stat file of the process used for CPU throttling metrics.
+// Both are empty if not available.
+var cgroupV2Path, cgroupCPUStatPath = initCgroupPaths()
+
+func initCgroupPaths() (string, string) {
+	cgroupData, err := os.ReadFile("/proc/self/cgroup")
+	if err != nil {
+		return "", ""
+	}
+	var v2Mountpoint string
+	for _, mp := range []string{"/sys/fs/cgroup", "/sys/fs/cgroup/unified"} {
+		if isCgroup2Mount(mp) {
+			v2Mountpoint = mp
+			break
+		}
+	}
+	return getCgroupPaths(string(cgroupData), v2Mountpoint)
+}
+
+func isCgroup2Mount(mountpoint string) bool {
+	var st syscall.Statfs_t
+	if err := syscall.Statfs(mountpoint, &st); err != nil {
+		return false
+	}
+	// cgroup2SuperMagic is the cgroup v2 filesystem type returned by statfs.
+	// See CGROUP2_SUPER_MAGIC in https://man7.org/linux/man-pages/man2/statfs.2.html
+	const cgroup2SuperMagic = 0x63677270
+	return st.Type == cgroup2SuperMagic
+}
+
+// getCgroupPaths returns the cgroup v2 and the cpu.stat paths for the given cgroupData
+// and optional cgroup v2 mountpoint.
+//
+// See "Hierarchy and Controller Support" at https://systemd.io/CGROUP_DELEGATION/
+// and https://github.com/opencontainers/cgroups/blob/v0.0.6/manager/new.go#L37-L54
+func getCgroupPaths(cgroupData, v2Mountpoint string) (string, string) {
+	var v2Path string
+	if len(v2Mountpoint) > 0 {
+		if rel := getCgroupV2RelativePath(cgroupData); len(rel) > 0 {
+			v2Path = path.Join(v2Mountpoint, rel)
+		}
+	}
+	if v2Mountpoint == "/sys/fs/cgroup" {
+		if len(v2Path) == 0 {
+			return "", ""
+		}
+		// fast path cgroupv2.
+		return v2Path, v2Path + "/cpu.stat"
+	}
+	// slow path legacy or hybrid cgroup.
+	var cpuPath string
+	if rel := getCgroupV1RelativePath(cgroupData); len(rel) > 0 {
+		// systemd and runc symlink /sys/fs/cgroup/cpu to the mountpoint of the cpu controller.
+		// Also, VM lib/cgroup ignores mountpoint too:
+		// https://github.com/VictoriaMetrics/VictoriaMetrics/blob/bb84352804bc4ec0619706acd1de1cb832bfc769/lib/cgroup/cpu.go#L101
+		cpuPath = path.Join("/sys/fs/cgroup/cpu", rel, "/cpu.stat")
+	}
+	return v2Path, cpuPath
+}
+
+func getCgroupCPUStats() (*cgroupCPUStat, error) {
+	if cgroupCPUStatPath == "" {
+		return nil, nil
+	}
+	data, err := os.ReadFile(cgroupCPUStatPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// The cpu controller isn't enabled for the cgroup.
+			return nil, nil
+		}
+		return nil, fmt.Errorf("cannot read cpu.stat: %w", err)
+	}
+	ccs, err := parseCgroupCPUStat(string(data))
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse %s: %w", cgroupCPUStatPath, err)
+	}
+	return ccs, nil
+}
+
+func parseCgroupCPUStat(data string) (*cgroupCPUStat, error) {
+	var ccs cgroupCPUStat
+	lines := strings.Split(data, "\n")
+	for _, s := range lines {
+		field := strings.Fields(s)
+		if len(field) != 2 {
+			continue
+		}
+
+		fieldKey := field[0]
+		fieldValue := field[1]
+		value, err := strconv.ParseUint(fieldValue, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse number from %s: %q: %w", fieldKey, s, err)
+		}
+		switch fieldKey {
+		case "throttled_usec":
+			// In cgroup v2, the field is in microseconds.
+			// See https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#cpu-interface-files
+			ccs.throttledNanosecs = value * 1000
+		case "throttled_time":
+			// In cgroup v1, the field is in nanoseconds.
+			// See https://docs.kernel.org/scheduler/sched-bwc.html#statistics
+			ccs.throttledNanosecs = value
+		}
+	}
+	return &ccs, nil
+}
+
+func writeProcessCPUThrottleMetrics(w io.Writer) {
+	if cgroupCPUStatMetricsStart == nil {
+		return
+	}
+	ccs, err := getCgroupCPUStats()
+	if err != nil {
+		log.Printf("ERROR: metrics: cannot determine cpu.stat: %s", err)
+		return
+	}
+	if ccs == nil {
+		return
+	}
+	WriteCounterFloat64(w, "process_cgroup_cpu_throttled_seconds_total", float64(ccs.throttledNanosecs-cgroupCPUStatMetricsStart.throttledNanosecs)/1e9)
+}
+
+// getCgroupV2RelativePath returns the cgroup v2 path of the process relative to
+// the cgroup v2 mountpoint, or an empty string if the process doesn't run under cgroup v2.
+//
+// The cgroup v2 entry in /proc/self/cgroup has an empty controllers field, e.g. "0::/the/path".
+// See https://man7.org/linux/man-pages/man7/cgroups.7.html
+func getCgroupV2RelativePath(cgroupData string) string {
+	for _, line := range strings.Split(cgroupData, "\n") {
+		// Each line has the form "hierarchy-ID:controller-list:cgroup-path".
+		// The cgroup v2 line has an empty hierarchy-ID and controller-list, i.e. it starts with "0::".
+		tmp := strings.SplitN(line, "::", 2)
+		if len(tmp) == 2 && strings.HasPrefix(line, "0::") {
+			return strings.TrimSpace(tmp[1])
+		}
+	}
+	return ""
+}
+
+func getCgroupV1RelativePath(cgroupData string) string {
+	lines := strings.Split(cgroupData, "\n")
+	// each line will be in the format of "hierarchy-ID:controller-list:cgroup-path"
+	// e.g. 5:cpuacct,cpu,cpuset:/daemons
+	// https://man7.org/linux/man-pages/man7/cgroups.7.html
+	for _, line := range lines {
+		parts := strings.SplitN(line, ":", 3)
+		if len(parts) != 3 {
+			continue
+		}
+		controllers := strings.Split(parts[1], ",")
+		for _, ctrl := range controllers {
+			if strings.TrimSpace(ctrl) == "cpu" {
+				return strings.TrimSpace(parts[2])
+			}
+		}
+	}
+	return ""
 }

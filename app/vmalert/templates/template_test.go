@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 	textTpl "text/template"
+	"time"
 )
 
 func TestTemplateFuncs_StringConversion(t *testing.T) {
@@ -101,6 +102,26 @@ func TestTemplateFuncs_Formatting(t *testing.T) {
 	f("humanizePercentage", 0.015, "1.5%")
 
 	f("humanizeTimestamp", 1679055557, "2023-03-17 12:19:17 +0000 UTC")
+}
+
+func TestTemplateFuncs_FormatTime(t *testing.T) {
+	funcs := templateFuncs()
+	formatTime := funcs["formatTime"].(func(layout string, i any) (string, error))
+
+	f := func(layout string, input any, expected string) {
+		t.Helper()
+		result, err := formatTime(layout, input)
+		if err != nil {
+			t.Fatalf("unexpected error for formatTime(%q, %v): %s", layout, input, err)
+		}
+		if result != expected {
+			t.Fatalf("unexpected result for formatTime(%q, %v); got\n%s\nwant\n%s", layout, input, result, expected)
+		}
+	}
+
+	f(time.RFC3339, float64(1679055557), "2023-03-17T12:19:17Z")
+	f("2006-01-02T15:04:05", int64(1679055557), "2023-03-17T12:19:17")
+	f(time.RFC822, int(1679055557), "17 Mar 23 12:19 UTC")
 }
 
 func mkTemplate(current, replacement any) textTemplate {

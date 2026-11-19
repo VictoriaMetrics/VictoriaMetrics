@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -25,7 +26,11 @@ func TestSingleMetricsMetadata(t *testing.T) {
 	if len(resp.Data) != 0 {
 		t.Fatalf("unexpected resp Records: %d, want: %d", len(resp.Data), 0)
 	}
-
+	generateValueExceedLimit := func(prefix string) string {
+		buf := make([]byte, math.MaxUint16+len(prefix))
+		copy(buf, prefix)
+		return string(buf)
+	}
 	const ingestTimestamp = 1707123456700
 	prometheusTextDataSet := []string{
 		`# HELP metric_name_1 some help message`,
@@ -40,16 +45,27 @@ func TestSingleMetricsMetadata(t *testing.T) {
 		`# TYPE metric_name_3 gauge`,
 		`metric_name_3{label="baz"} 30`,
 	}
+	prometheusTextDataSet = append(prometheusTextDataSet,
+		`# HELP metric_name_4 `+generateValueExceedLimit("large help"),
+		`# TYPE metric_name_4 gauge`,
+		`metric_name_4{label="baz"} 30`,
+	)
+
 	prometheusRemoteWriteDataSet := prompb.WriteRequest{
 		Timeseries: []prompb.TimeSeries{
 			{Labels: []prompb.Label{{Name: "__name__", Value: "metric_name_4"}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
 			{Labels: []prompb.Label{{Name: "__name__", Value: "metric_name_5"}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
 			{Labels: []prompb.Label{{Name: "__name__", Value: "metric_name_6"}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
+			{Labels: []prompb.Label{{Name: "__name__", Value: `metric_name_7_!@"_suffix`}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
 		},
 		Metadata: []prompb.MetricMetadata{
 			{MetricFamilyName: "metric_name_4", Help: "some help message", Type: prompb.MetricTypeSummary},
 			{MetricFamilyName: "metric_name_5", Help: "some help message", Type: prompb.MetricTypeSummary},
 			{MetricFamilyName: "metric_name_6", Help: "some help message", Type: prompb.MetricTypeStateset},
+			{MetricFamilyName: `metric_name_7_!@"_suffix`, Help: "some help message", Type: prompb.MetricTypeStateset},
+			{MetricFamilyName: "metric_name_8", Help: generateValueExceedLimit("large_help"), Type: prompb.MetricTypeStateset},
+			{MetricFamilyName: "metric_name_9", Help: "some help message", Type: prompb.MetricTypeStateset, Unit: generateValueExceedLimit("large_unit")},
+			{MetricFamilyName: generateValueExceedLimit("metric_name_10"), Help: "some help message", Type: prompb.MetricTypeStateset},
 		},
 	}
 
@@ -59,12 +75,13 @@ func TestSingleMetricsMetadata(t *testing.T) {
 	expected := &apptest.PrometheusAPIV1Metadata{
 		Status: "success",
 		Data: map[string][]apptest.MetadataEntry{
-			"metric_name_1": {{Help: "some help message", Type: "gauge"}},
-			"metric_name_2": {{Help: "some help message", Type: "counter"}},
-			"metric_name_3": {{Help: "some help message", Type: "gauge"}},
-			"metric_name_4": {{Help: "some help message", Type: "summary"}},
-			"metric_name_5": {{Help: "some help message", Type: "summary"}},
-			"metric_name_6": {{Help: "some help message", Type: "stateset"}},
+			"metric_name_1":            {{Help: "some help message", Type: "gauge"}},
+			"metric_name_2":            {{Help: "some help message", Type: "counter"}},
+			"metric_name_3":            {{Help: "some help message", Type: "gauge"}},
+			"metric_name_4":            {{Help: "some help message", Type: "summary"}},
+			"metric_name_5":            {{Help: "some help message", Type: "summary"}},
+			"metric_name_6":            {{Help: "some help message", Type: "stateset"}},
+			`metric_name_7_!@"_suffix`: {{Help: "some help message", Type: "stateset"}},
 		},
 	}
 	gotStats := sut.PrometheusAPIV1Metadata(t, "", 0, apptest.QueryOpts{})
@@ -116,16 +133,19 @@ func TestClusterMetricsMetadata(t *testing.T) {
 		"-storageDataPath=" + tc.Dir() + "/vmstorage-2",
 		"-retentionPeriod=100y",
 	})
-
+	vmstorages := []*apptest.Vmstorage{vmstorage1, vmstorage2}
 	vminsert1 := tc.MustStartVminsert("vminsert1", []string{
 		fmt.Sprintf("-storageNode=%s,%s", vmstorage1.VminsertAddr(), vmstorage2.VminsertAddr()),
 	})
+	apptest.EnsureBlockingIngestion(t, vminsert1, vmstorages)
 	vminsert2 := tc.MustStartVminsert("vminsert-2", []string{
 		fmt.Sprintf("-storageNode=%s,%s", vmstorage1.VminsertAddr(), vmstorage2.VminsertAddr()),
 	})
+	apptest.EnsureBlockingIngestion(t, vminsert2, vmstorages)
 	vminsertGlobal := tc.MustStartVminsert("vminsert-global", []string{
 		fmt.Sprintf("-storageNode=%s,%s", vminsert1.ClusternativeListenAddr(), vminsert2.ClusternativeListenAddr()),
 	})
+	apptest.EnsureBlockingIngestion(t, vminsertGlobal, vmstorages)
 	vmselect := tc.MustStartVmselect("vmselect", []string{
 		fmt.Sprintf("-storageNode=%s,%s", vmstorage1.VmselectAddr(), vmstorage2.VmselectAddr()),
 	})
@@ -133,6 +153,11 @@ func TestClusterMetricsMetadata(t *testing.T) {
 	resp := vmselect.PrometheusAPIV1Metadata(t, "", 0, apptest.QueryOpts{Tenant: "0:0"})
 	if len(resp.Data) != 0 {
 		t.Fatalf("unexpected resp Records: %d, want: %d", len(resp.Data), 0)
+	}
+	generateValueExceedLimit := func(prefix string) string {
+		buf := make([]byte, math.MaxUint16+len(prefix))
+		copy(buf, prefix)
+		return string(buf)
 	}
 
 	const ingestTimestamp = 1707123456700
@@ -149,16 +174,26 @@ func TestClusterMetricsMetadata(t *testing.T) {
 		`# TYPE metric_name_3 gauge`,
 		`metric_name_3{label="baz"} 30`,
 	}
+	prometheusTextDataSet = append(prometheusTextDataSet,
+		`# HELP metric_name_4 `+generateValueExceedLimit("large help"),
+		`# TYPE metric_name_4 gauge`,
+		`metric_name_4{label="baz"} 30`,
+	)
 	prometheusRemoteWriteDataSet := prompb.WriteRequest{
 		Timeseries: []prompb.TimeSeries{
 			{Labels: []prompb.Label{{Name: "__name__", Value: "metric_name_4"}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
 			{Labels: []prompb.Label{{Name: "__name__", Value: "metric_name_5"}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
 			{Labels: []prompb.Label{{Name: "__name__", Value: "metric_name_6"}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
+			{Labels: []prompb.Label{{Name: "__name__", Value: `metric_name_7_!@"_suffix`}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
 		},
 		Metadata: []prompb.MetricMetadata{
 			{MetricFamilyName: "metric_name_4", Help: "some help message", Type: prompb.MetricTypeSummary},
 			{MetricFamilyName: "metric_name_5", Help: "some help message", Type: prompb.MetricTypeSummary},
 			{MetricFamilyName: "metric_name_6", Help: "some help message", Type: prompb.MetricTypeStateset},
+			{MetricFamilyName: `metric_name_7_!@"_suffix`, Help: "some help message", Type: prompb.MetricTypeStateset},
+			{MetricFamilyName: "metric_name_8", Help: generateValueExceedLimit("large_help"), Type: prompb.MetricTypeStateset},
+			{MetricFamilyName: "metric_name_9", Help: "some help message", Type: prompb.MetricTypeStateset, Unit: generateValueExceedLimit("large_unit")},
+			{MetricFamilyName: generateValueExceedLimit("metric_name_10"), Help: "some help message", Type: prompb.MetricTypeStateset},
 		},
 	}
 
@@ -171,12 +206,13 @@ func TestClusterMetricsMetadata(t *testing.T) {
 		expected := &apptest.PrometheusAPIV1Metadata{
 			Status: "success",
 			Data: map[string][]apptest.MetadataEntry{
-				"metric_name_1": {{Help: "some help message", Type: "gauge"}},
-				"metric_name_2": {{Help: "some help message", Type: "counter"}},
-				"metric_name_3": {{Help: "some help message", Type: "gauge"}},
-				"metric_name_4": {{Help: "some help message", Type: "summary"}},
-				"metric_name_5": {{Help: "some help message", Type: "summary"}},
-				"metric_name_6": {{Help: "some help message", Type: "stateset"}},
+				"metric_name_1":            {{Help: "some help message", Type: "gauge"}},
+				"metric_name_2":            {{Help: "some help message", Type: "counter"}},
+				"metric_name_3":            {{Help: "some help message", Type: "gauge"}},
+				"metric_name_4":            {{Help: "some help message", Type: "summary"}},
+				"metric_name_5":            {{Help: "some help message", Type: "summary"}},
+				"metric_name_6":            {{Help: "some help message", Type: "stateset"}},
+				`metric_name_7_!@"_suffix`: {{Help: "some help message", Type: "stateset"}},
 			},
 		}
 		gotStats := vmselect.PrometheusAPIV1Metadata(t, "", 0, apptest.QueryOpts{Tenant: tenantID})

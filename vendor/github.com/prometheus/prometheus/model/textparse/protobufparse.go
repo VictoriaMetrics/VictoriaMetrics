@@ -404,11 +404,11 @@ func (p *ProtobufParser) StartTimestamp() int64 {
 	var st *types.Timestamp
 	switch p.dec.GetType() {
 	case dto.MetricType_COUNTER:
-		st = p.dec.GetCounter().GetCreatedTimestamp()
+		st = p.dec.GetCounter().GetStartTimestamp()
 	case dto.MetricType_SUMMARY:
-		st = p.dec.GetSummary().GetCreatedTimestamp()
+		st = p.dec.GetSummary().GetStartTimestamp()
 	case dto.MetricType_HISTOGRAM, dto.MetricType_GAUGE_HISTOGRAM:
-		st = p.dec.GetHistogram().GetCreatedTimestamp()
+		st = p.dec.GetHistogram().GetStartTimestamp()
 	default:
 	}
 	if st == nil {
@@ -484,6 +484,9 @@ func (p *ProtobufParser) Next() (Entry, error) {
 				p.fieldPos = -3 // We have not returned anything, let p.Next() increment it to -2.
 				return p.Next()
 			}
+			if err := checkNativeHistogramConsistency(p.dec.GetHistogram()); err != nil {
+				return EntryInvalid, fmt.Errorf("histogram %q: %w", p.dec.GetName(), err)
+			}
 			p.state = EntryHistogram
 		} else {
 			p.state = EntrySeries
@@ -495,6 +498,7 @@ func (p *ProtobufParser) Next() (Entry, error) {
 		// Potentially a second series in the metric family.
 		t := p.dec.GetType()
 		decodeNext := true
+		mustCheckNextSeriesKind := false
 		if t == dto.MetricType_SUMMARY ||
 			t == dto.MetricType_HISTOGRAM ||
 			t == dto.MetricType_GAUGE_HISTOGRAM {
@@ -520,15 +524,13 @@ func (p *ProtobufParser) Next() (Entry, error) {
 			p.fieldsDone = false
 			p.exemplarPos = 0
 
-			// If this is a metric family containing native
-			// histograms, it means we are here thanks to redoClassic state.
-			// Return to native histograms for the consistent flow.
-			// If this is a metric family containing classic histograms,
-			// it means we might need to do NHCB conversion.
+			// If this is a metric family containing classic histograms
+			// and NHCB conversion is enabled, emit the NHCB for the
+			// current series without advancing. We do not advance
+			// because the NHCB is derived from the current series and
+			// must be emitted before moving to the next one.
 			if t == dto.MetricType_HISTOGRAM || t == dto.MetricType_GAUGE_HISTOGRAM {
-				if !isClassicHistogram {
-					p.state = EntryHistogram
-				} else if p.convertClassicHistogramsToNHCB {
+				if isClassicHistogram && p.convertClassicHistogramsToNHCB {
 					// We still need to spit out the NHCB.
 					var err error
 					p.nhcbH, p.nhcbFH, err = p.convertToNHCB(t)
@@ -538,6 +540,10 @@ func (p *ProtobufParser) Next() (Entry, error) {
 					p.state = EntryHistogram
 					// We have an NHCB to emit, no need to decode the next series.
 					decodeNext = false
+				} else {
+					// The next series in this metric family may be native or
+					// classic-only, and we cannot tell which without advancing it.
+					mustCheckNextSeriesKind = true
 				}
 			}
 		}
@@ -549,6 +555,25 @@ func (p *ProtobufParser) Next() (Entry, error) {
 					return p.Next()
 				}
 				return EntryInvalid, err
+			}
+			if mustCheckNextSeriesKind {
+				// The previous series was a native histogram whose
+				// classic fields were emitted via redoClassic.
+				//
+				// If the current series is classic only then we need to
+				// iterate _count, _sum, and all buckets, emitting a
+				// series per each.
+				if p.ignoreNativeHistograms || !isNativeHistogram(p.dec.GetHistogram()) {
+					p.fieldPos = -3
+					p.fieldsDone = false
+					return p.Next()
+				}
+				// If the current series is a native histogram then we
+				// simply emit it.
+				if err := checkNativeHistogramConsistency(p.dec.GetHistogram()); err != nil {
+					return EntryInvalid, fmt.Errorf("histogram %q: %w", p.dec.GetName(), err)
+				}
+				p.state = EntryHistogram
 			}
 		}
 		if err := p.onSeriesOrHistogramUpdate(); err != nil {
@@ -674,6 +699,10 @@ func (p *ProtobufParser) getMagicLabel() (bool, string, string) {
 	switch p.dec.GetType() {
 	case dto.MetricType_SUMMARY:
 		qq := p.dec.GetSummary().GetQuantile()
+		if p.fieldPos >= len(qq) {
+			p.fieldsDone = true
+			return false, "", ""
+		}
 		q := qq[p.fieldPos]
 		p.fieldsDone = p.fieldPos == len(qq)-1
 		return true, model.QuantileLabel, labels.FormatOpenMetricsFloat(q.GetQuantile())
@@ -743,4 +772,37 @@ func (p *ProtobufParser) convertToNHCB(t dto.MetricType) (*histogram.Histogram, 
 		}
 	}
 	return ch, cfh, nil
+}
+
+// checkNativeHistogramConsistency returns an error if the span bucket counts
+// do not match the number of bucket values in a native histogram protobuf
+// message. It catches malformed input before it reaches compactBuckets, where
+// a mismatch would cause a panic.
+func checkNativeHistogramConsistency(h *dto.Histogram) error {
+	isFloat := h.GetSampleCountFloat() > 0 || h.GetZeroCountFloat() > 0
+	var positiveBuckets, negativeBuckets int
+	if isFloat {
+		positiveBuckets = len(h.GetPositiveCount())
+		negativeBuckets = len(h.GetNegativeCount())
+	} else {
+		positiveBuckets = len(h.GetPositiveDelta())
+		negativeBuckets = len(h.GetNegativeDelta())
+	}
+	if err := checkProtoSpanBucketConsistency("positive", h.GetPositiveSpan(), positiveBuckets); err != nil {
+		return err
+	}
+	return checkProtoSpanBucketConsistency("negative", h.GetNegativeSpan(), negativeBuckets)
+}
+
+// checkProtoSpanBucketConsistency returns an error when the total length
+// described by spans does not match numBuckets.
+func checkProtoSpanBucketConsistency(side string, spans []dto.BucketSpan, numBuckets int) error {
+	var total int
+	for _, s := range spans {
+		total += int(s.GetLength())
+	}
+	if total != numBuckets {
+		return fmt.Errorf("%s side: spans require %d buckets, have %d", side, total, numBuckets)
+	}
+	return nil
 }

@@ -8,6 +8,8 @@ import (
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/tsdb"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vmctlutil"
 )
 
 // Config contains a list of params needed
@@ -57,16 +59,16 @@ func (f filter) inRange(minV, maxV int64) bool {
 func NewClient(cfg Config) (*Client, error) {
 	db, err := tsdb.OpenDBReadOnly(cfg.Snapshot, cfg.TemporaryDir, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open snapshot %q: %s", cfg.Snapshot, err)
+		return nil, fmt.Errorf("failed to open snapshot %q: %w", cfg.Snapshot, err)
 	}
 	c := &Client{DBReadOnly: db}
-	minTime, maxTime, err := parseTime(cfg.Filter.TimeMin, cfg.Filter.TimeMax)
+	timeMin, timeMax, err := parseTime(cfg.Filter.TimeMin, cfg.Filter.TimeMax)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse time in filter: %s", err)
+		return nil, fmt.Errorf("failed to parse time in filter: %w", err)
 	}
 	c.filter = filter{
-		min:        minTime,
-		max:        maxTime,
+		min:        timeMin,
+		max:        timeMax,
 		label:      cfg.Filter.Label,
 		labelValue: cfg.Filter.LabelValue,
 	}
@@ -81,9 +83,9 @@ func NewClient(cfg Config) (*Client, error) {
 func (c *Client) Explore() ([]tsdb.BlockReader, error) {
 	blocks, err := c.Blocks()
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch blocks: %s", err)
+		return nil, fmt.Errorf("failed to fetch blocks: %w", err)
 	}
-	s := &Stats{
+	s := &vmctlutil.Stats{
 		Filtered: c.filter.min != 0 || c.filter.max != 0 || c.filter.label != "",
 		Blocks:   len(blocks),
 	}
@@ -108,9 +110,15 @@ func (c *Client) Explore() ([]tsdb.BlockReader, error) {
 	return blocksToImport, nil
 }
 
+// CloseableSeriesSet defines a SeriesSet with Close method
+type CloseableSeriesSet struct {
+	SeriesSet storage.SeriesSet
+	Close     func() error
+}
+
 // Read reads the given BlockReader according to configured
 // time and label filters.
-func (c *Client) Read(block tsdb.BlockReader) (storage.SeriesSet, error) {
+func (c *Client) Read(ctx context.Context, block tsdb.BlockReader) (*CloseableSeriesSet, error) {
 	minTime, maxTime := block.Meta().MinTime, block.Meta().MaxTime
 	if c.filter.min != 0 {
 		minTime = c.filter.min
@@ -122,8 +130,8 @@ func (c *Client) Read(block tsdb.BlockReader) (storage.SeriesSet, error) {
 	if err != nil {
 		return nil, err
 	}
-	ss := q.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchRegexp, c.filter.label, c.filter.labelValue))
-	return ss, nil
+	ss := q.Select(ctx, false, nil, labels.MustNewMatcher(labels.MatchRegexp, c.filter.label, c.filter.labelValue))
+	return &CloseableSeriesSet{ss, q.Close}, nil
 }
 
 func parseTime(start, end string) (int64, int64, error) {
@@ -134,14 +142,14 @@ func parseTime(start, end string) (int64, int64, error) {
 	if start != "" {
 		v, err := time.Parse(time.RFC3339, start)
 		if err != nil {
-			return 0, 0, fmt.Errorf("failed to parse %q: %s", start, err)
+			return 0, 0, fmt.Errorf("failed to parse %q: %w", start, err)
 		}
 		s = v.UnixNano() / int64(time.Millisecond)
 	}
 	if end != "" {
 		v, err := time.Parse(time.RFC3339, end)
 		if err != nil {
-			return 0, 0, fmt.Errorf("failed to parse %q: %s", end, err)
+			return 0, 0, fmt.Errorf("failed to parse %q: %w", end, err)
 		}
 		e = v.UnixNano() / int64(time.Millisecond)
 	}

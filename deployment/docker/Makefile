@@ -3,11 +3,11 @@
 DOCKER_REGISTRIES ?= docker.io quay.io
 DOCKER_NAMESPACE ?= victoriametrics
 
-ROOT_IMAGE ?= alpine:3.23.3
+ROOT_IMAGE ?= alpine:3.24.3
 ROOT_IMAGE_SCRATCH ?= scratch
-CERTS_IMAGE := alpine:3.23.3
+CERTS_IMAGE := alpine:3.24.3
 
-GO_BUILDER_IMAGE := golang:1.26.2
+GO_BUILDER_IMAGE := golang:1.27.4
 
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
@@ -201,6 +201,11 @@ app-via-docker-openbsd-amd64:
 app-via-docker-windows-amd64:
 	APP_SUFFIX='-amd64' \
 	DOCKER_OPTS='--env CGO_ENABLED=0 --env GOOS=windows --env GOARCH=amd64' \
+	$(MAKE) app-via-docker-windows
+
+app-via-docker-windows-arm64:
+	APP_SUFFIX='-arm64' \
+	DOCKER_OPTS='--env CGO_ENABLED=0 --env GOOS=windows --env GOARCH=arm64' \
 	$(MAKE) app-via-docker-windows
 
 package-via-docker-goarch:

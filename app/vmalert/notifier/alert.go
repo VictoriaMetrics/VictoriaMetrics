@@ -2,6 +2,7 @@ package notifier
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
@@ -31,6 +31,8 @@ type Alert struct {
 	State AlertState
 	// Expr contains expression that was executed to generate the Alert
 	Expr string
+	// Interval contains the evaluation interval of the Alert's group
+	Interval time.Duration
 	// ActiveAt defines the moment of time when Alert has become active
 	ActiveAt time.Time
 	// Start defines the moment of time when Alert has become firing
@@ -84,6 +86,7 @@ type AlertTplData struct {
 	Labels    map[string]string
 	Value     float64
 	Expr      string
+	Interval  time.Duration
 	AlertID   uint64
 	GroupID   uint64
 	ActiveAt  time.Time
@@ -96,6 +99,7 @@ var tplHeaders = []string{
 	"{{ $type := .Type }}",
 	"{{ $labels := .Labels }}",
 	"{{ $expr := .Expr }}",
+	"{{ $interval := .Interval }}",
 	"{{ $externalLabels := .ExternalLabels }}",
 	"{{ $externalURL := .ExternalURL }}",
 	"{{ $alertID := .AlertID }}",
@@ -115,6 +119,7 @@ func (a *Alert) ExecTemplate(q templates.QueryFn, labels, annotations map[string
 		Type:     a.Type,
 		Labels:   labels,
 		Expr:     a.Expr,
+		Interval: a.Interval,
 		AlertID:  a.ID,
 		GroupID:  a.GroupID,
 		ActiveAt: a.ActiveAt,
@@ -148,7 +153,7 @@ func ValidateTemplates(annotations map[string]string) error {
 func templateAnnotations(annotations map[string]string, data AlertTplData, tmpl *textTpl.Template, execute bool) (map[string]string, error) {
 	var builder strings.Builder
 	var buf bytes.Buffer
-	eg := new(vmalertutil.ErrGroup)
+	var errs []error
 	r := make(map[string]string, len(annotations))
 	tData := tplData{data, externalLabels, externalURL}
 	header := strings.Join(tplHeaders, "")
@@ -169,12 +174,12 @@ func templateAnnotations(annotations map[string]string, data AlertTplData, tmpl 
 		ctmpl = ctmpl.Option("missingkey=zero")
 		if err := templateAnnotation(&buf, builder.String(), tData, ctmpl, execute); err != nil {
 			r[key] = err.Error()
-			eg.Add(fmt.Errorf("(key: %q, value: %q): %w", key, text, err))
+			errs = append(errs, fmt.Errorf("(key: %q, value: %q): %w", key, text, err))
 			continue
 		}
 		r[key] = buf.String()
 	}
-	return r, eg.Err()
+	return r, errors.Join(errs...)
 }
 
 type tplData struct {
@@ -200,8 +205,11 @@ func templateAnnotation(dst io.Writer, text string, data tplData, tpl *textTpl.T
 func (a Alert) applyRelabelingIfNeeded(relabelCfg *promrelabel.ParsedConfigs) []prompb.Label {
 	var labels []prompb.Label
 	for k, v := range a.Labels {
+		if *sanitizeLabelNames {
+			k = promrelabel.SanitizeMetricName(k)
+		}
 		labels = append(labels, prompb.Label{
-			Name:  promrelabel.SanitizeMetricName(k),
+			Name:  k,
 			Value: v,
 		})
 	}

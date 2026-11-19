@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !(go1.27 && !http2legacy)
+
 // TODO: turn off the serve goroutine when idle, so
 // an idle conn only has the readFrames goroutine active. (which could
 // also be optimized probably to pin less memory in crypto/tls). This
@@ -88,98 +90,6 @@ var (
 	testHookOnPanic       func(sc *serverConn, panicVal interface{}) (rePanic bool)
 )
 
-// Server is an HTTP/2 server.
-type Server struct {
-	// MaxHandlers limits the number of http.Handler ServeHTTP goroutines
-	// which may run at a time over all connections.
-	// Negative or zero no limit.
-	// TODO: implement
-	MaxHandlers int
-
-	// MaxConcurrentStreams optionally specifies the number of
-	// concurrent streams that each client may have open at a
-	// time. This is unrelated to the number of http.Handler goroutines
-	// which may be active globally, which is MaxHandlers.
-	// If zero, MaxConcurrentStreams defaults to at least 100, per
-	// the HTTP/2 spec's recommendations.
-	MaxConcurrentStreams uint32
-
-	// MaxDecoderHeaderTableSize optionally specifies the http2
-	// SETTINGS_HEADER_TABLE_SIZE to send in the initial settings frame. It
-	// informs the remote endpoint of the maximum size of the header compression
-	// table used to decode header blocks, in octets. If zero, the default value
-	// of 4096 is used.
-	MaxDecoderHeaderTableSize uint32
-
-	// MaxEncoderHeaderTableSize optionally specifies an upper limit for the
-	// header compression table used for encoding request headers. Received
-	// SETTINGS_HEADER_TABLE_SIZE settings are capped at this limit. If zero,
-	// the default value of 4096 is used.
-	MaxEncoderHeaderTableSize uint32
-
-	// MaxReadFrameSize optionally specifies the largest frame
-	// this server is willing to read. A valid value is between
-	// 16k and 16M, inclusive. If zero or otherwise invalid, a
-	// default value is used.
-	MaxReadFrameSize uint32
-
-	// PermitProhibitedCipherSuites, if true, permits the use of
-	// cipher suites prohibited by the HTTP/2 spec.
-	PermitProhibitedCipherSuites bool
-
-	// IdleTimeout specifies how long until idle clients should be
-	// closed with a GOAWAY frame. PING frames are not considered
-	// activity for the purposes of IdleTimeout.
-	// If zero or negative, there is no timeout.
-	IdleTimeout time.Duration
-
-	// ReadIdleTimeout is the timeout after which a health check using a ping
-	// frame will be carried out if no frame is received on the connection.
-	// If zero, no health check is performed.
-	ReadIdleTimeout time.Duration
-
-	// PingTimeout is the timeout after which the connection will be closed
-	// if a response to a ping is not received.
-	// If zero, a default of 15 seconds is used.
-	PingTimeout time.Duration
-
-	// WriteByteTimeout is the timeout after which a connection will be
-	// closed if no data can be written to it. The timeout begins when data is
-	// available to write, and is extended whenever any bytes are written.
-	// If zero or negative, there is no timeout.
-	WriteByteTimeout time.Duration
-
-	// MaxUploadBufferPerConnection is the size of the initial flow
-	// control window for each connections. The HTTP/2 spec does not
-	// allow this to be smaller than 65535 or larger than 2^32-1.
-	// If the value is outside this range, a default value will be
-	// used instead.
-	MaxUploadBufferPerConnection int32
-
-	// MaxUploadBufferPerStream is the size of the initial flow control
-	// window for each stream. The HTTP/2 spec does not allow this to
-	// be larger than 2^32-1. If the value is zero or larger than the
-	// maximum, a default value will be used instead.
-	MaxUploadBufferPerStream int32
-
-	// NewWriteScheduler constructs a write scheduler for a connection.
-	// If nil, a default scheduler is chosen.
-	//
-	// Deprecated: User-provided write schedulers are deprecated.
-	NewWriteScheduler func() WriteScheduler
-
-	// CountError, if non-nil, is called on HTTP/2 server errors.
-	// It's intended to increment a metric for monitoring, such
-	// as an expvar or Prometheus metric.
-	// The errType consists of only ASCII word characters.
-	CountError func(errType string)
-
-	// Internal state. This is a pointer (rather than embedded directly)
-	// so that we don't embed a Mutex in this struct, which will make the
-	// struct non-copyable, which might break some callers.
-	state *serverInternalState
-}
-
 type serverInternalState struct {
 	mu          sync.Mutex
 	activeConns map[*serverConn]struct{}
@@ -187,6 +97,9 @@ type serverInternalState struct {
 	// Pool of error channels. This is per-Server rather than global
 	// because channels can't be reused across synctest bubbles.
 	errChanPool sync.Pool
+
+	// Used in tests.
+	testNewConn func(*serverConn)
 }
 
 func (s *serverInternalState) registerConn(sc *serverConn) {
@@ -239,12 +152,7 @@ func (s *serverInternalState) putErrChan(ch chan error) {
 	s.errChanPool.Put(ch)
 }
 
-// ConfigureServer adds HTTP/2 support to a net/http Server.
-//
-// The configuration conf may be nil.
-//
-// ConfigureServer must be called before s begins serving.
-func ConfigureServer(s *http.Server, conf *Server) error {
+func configureServer(s *http.Server, conf *Server) error {
 	if s == nil {
 		panic("nil *http.Server")
 	}
@@ -349,83 +257,6 @@ func ConfigureServer(s *http.Server, conf *Server) error {
 	return nil
 }
 
-// ServeConnOpts are options for the Server.ServeConn method.
-type ServeConnOpts struct {
-	// Context is the base context to use.
-	// If nil, context.Background is used.
-	Context context.Context
-
-	// BaseConfig optionally sets the base configuration
-	// for values. If nil, defaults are used.
-	BaseConfig *http.Server
-
-	// Handler specifies which handler to use for processing
-	// requests. If nil, BaseConfig.Handler is used. If BaseConfig
-	// or BaseConfig.Handler is nil, http.DefaultServeMux is used.
-	Handler http.Handler
-
-	// UpgradeRequest is an initial request received on a connection
-	// undergoing an h2c upgrade. The request body must have been
-	// completely read from the connection before calling ServeConn,
-	// and the 101 Switching Protocols response written.
-	UpgradeRequest *http.Request
-
-	// Settings is the decoded contents of the HTTP2-Settings header
-	// in an h2c upgrade request.
-	Settings []byte
-
-	// SawClientPreface is set if the HTTP/2 connection preface
-	// has already been read from the connection.
-	SawClientPreface bool
-}
-
-func (o *ServeConnOpts) context() context.Context {
-	if o != nil && o.Context != nil {
-		return o.Context
-	}
-	return context.Background()
-}
-
-func (o *ServeConnOpts) baseConfig() *http.Server {
-	if o != nil && o.BaseConfig != nil {
-		return o.BaseConfig
-	}
-	return new(http.Server)
-}
-
-func (o *ServeConnOpts) handler() http.Handler {
-	if o != nil {
-		if o.Handler != nil {
-			return o.Handler
-		}
-		if o.BaseConfig != nil && o.BaseConfig.Handler != nil {
-			return o.BaseConfig.Handler
-		}
-	}
-	return http.DefaultServeMux
-}
-
-// ServeConn serves HTTP/2 requests on the provided connection and
-// blocks until the connection is no longer readable.
-//
-// ServeConn starts speaking HTTP/2 assuming that c has not had any
-// reads or writes. It writes its initial settings frame and expects
-// to be able to read the preface and settings frame from the
-// client. If c has a ConnectionState method like a *tls.Conn, the
-// ConnectionState is used to verify the TLS ciphersuite and to set
-// the Request.TLS field in Handlers.
-//
-// ServeConn does not support h2c by itself. Any h2c support must be
-// implemented in terms of providing a suitably-behaving net.Conn.
-//
-// The opts parameter is optional. If nil, default values are used.
-func (s *Server) ServeConn(c net.Conn, opts *ServeConnOpts) {
-	if opts == nil {
-		opts = &ServeConnOpts{}
-	}
-	s.serveConn(c, opts, nil)
-}
-
 func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverConn)) {
 	baseCtx, cancel := serverConnBaseContext(c, opts)
 	defer cancel()
@@ -449,7 +280,6 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 		doneServing:                 make(chan struct{}),
 		clientMaxStreams:            math.MaxUint32, // Section 6.5.2: "Initially, there is no limit to this value"
 		advMaxStreams:               conf.MaxConcurrentStreams,
-		initialStreamSendWindowSize: initialWindowSize,
 		initialStreamRecvWindowSize: conf.MaxUploadBufferPerStream,
 		maxFrameSize:                initialMaxFrameSize,
 		pingTimeout:                 conf.PingTimeout,
@@ -460,6 +290,9 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 	}
 	if newf != nil {
 		newf(sc)
+	}
+	if s.state != nil && s.state.testNewConn != nil {
+		s.state.testNewConn(sc)
 	}
 
 	s.state.registerConn(sc)
@@ -486,7 +319,7 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 	// These start at the RFC-specified defaults. If there is a higher
 	// configured value for inflow, that will be updated when we send a
 	// WINDOW_UPDATE shortly after sending SETTINGS.
-	sc.flow.add(initialWindowSize)
+	sc.flow.init()
 	sc.inflow.init(initialWindowSize)
 	sc.hpackEncoder = hpack.NewEncoder(&sc.headerWriteBuf)
 	sc.hpackEncoder.SetMaxDynamicTableSizeLimit(conf.MaxEncoderHeaderTableSize)
@@ -570,15 +403,6 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 	sc.serve(conf)
 }
 
-func serverConnBaseContext(c net.Conn, opts *ServeConnOpts) (ctx context.Context, cancel func()) {
-	ctx, cancel = context.WithCancel(opts.context())
-	ctx = context.WithValue(ctx, http.LocalAddrContextKey, c.LocalAddr())
-	if hs := opts.baseConfig(); hs != nil {
-		ctx = context.WithValue(ctx, http.ServerContextKey, hs)
-	}
-	return
-}
-
 func (sc *serverConn) rejectConn(err ErrCode, debug string) {
 	sc.vlogf("http2: server rejecting conn: %v, %s", err, debug)
 	// ignoring errors. hanging up anyway.
@@ -602,7 +426,7 @@ type serverConn struct {
 	wroteFrameCh     chan frameWriteResult  // from writeFrameAsync -> serve, tickles more frame writes
 	bodyReadCh       chan bodyReadMsg       // from handlers -> serve
 	serveMsgCh       chan interface{}       // misc messages & code to send to / run on the serve loop
-	flow             outflow                // conn-wide (not stream-specific) outbound flow control
+	flow             connOutflow            // conn-wide (not stream-specific) outbound flow control
 	inflow           inflow                 // conn-wide inbound flow control
 	tlsState         *tls.ConnectionState   // shared by all handlers, like net/http
 	remoteAddrStr    string
@@ -616,6 +440,9 @@ type serverConn struct {
 	sawFirstSettings            bool // got the initial SETTINGS frame after the preface
 	needToSendSettingsAck       bool
 	unackedSettings             int    // how many SETTINGS have we sent without ACKs?
+	pendingEncoderTableSize     bool   // peer changed SETTINGS_HEADER_TABLE_SIZE; apply to hpackEncoder before the next frame write
+	encoderTableSizeMin         uint32 // smallest SETTINGS_HEADER_TABLE_SIZE since the last apply
+	encoderTableSize            uint32 // latest SETTINGS_HEADER_TABLE_SIZE
 	queuedControlFrames         int    // control frames in the writeSched queue
 	clientMaxStreams            uint32 // SETTINGS_MAX_CONCURRENT_STREAMS from client (our PUSH_PROMISE limit)
 	advMaxStreams               uint32 // our SETTINGS_MAX_CONCURRENT_STREAMS advertised the client
@@ -626,7 +453,6 @@ type serverConn struct {
 	maxPushPromiseID            uint32 // ID of the last push promise (even), or 0 if there have been no pushes
 	streams                     map[uint32]*stream
 	unstartedHandlers           []unstartedHandler
-	initialStreamSendWindowSize int32
 	initialStreamRecvWindowSize int32
 	maxFrameSize                int32
 	peerMaxHeaderListSize       uint32            // zero means unknown (default)
@@ -696,7 +522,8 @@ type stream struct {
 	// immutable:
 	sc        *serverConn
 	id        uint32
-	body      *pipe       // non-nil if expecting DATA frames
+	body      *pipe // non-nil if expecting DATA frames
+	reqBody   *requestBody
 	cw        closeWaiter // closed wait stream transitions to closed state
 	ctx       context.Context
 	cancelCtx func()
@@ -1347,6 +1174,16 @@ func (sc *serverConn) startFrameWrite(wr FrameWriteRequest) {
 
 	sc.writingFrame = true
 	sc.needsFrameFlush = true
+	if sc.pendingEncoderTableSize {
+		// hpackEncoder may be in use by writeFrameAsync, so SETTINGS
+		// changes to it are deferred until no frame is being written.
+		// Replaying the smallest size before the latest one keeps the
+		// encoder's view identical to having applied every change
+		// (RFC 7541, Section 4.2).
+		sc.pendingEncoderTableSize = false
+		sc.hpackEncoder.SetMaxDynamicTableSize(sc.encoderTableSizeMin)
+		sc.hpackEncoder.SetMaxDynamicTableSize(sc.encoderTableSize)
+	}
 	if wr.write.staysWithinBuffer(sc.bw.Available()) {
 		sc.writingFrameAsync = false
 		err := wr.write.writeFrame(sc)
@@ -1446,6 +1283,11 @@ func (sc *serverConn) scheduleFrameWrite() {
 	}
 	sc.inFrameScheduleLoop = true
 	for !sc.writingFrameAsync {
+		if sc.flow.flowErr && (!sc.inGoAway || sc.goAwayCode == ErrCodeNo) {
+			sc.inGoAway = true
+			sc.needToSendGoAway = true
+			sc.goAwayCode = ErrCodeFlowControl
+		}
 		if sc.needToSendGoAway {
 			sc.needToSendGoAway = false
 			sc.startFrameWrite(FrameWriteRequest{
@@ -1467,6 +1309,9 @@ func (sc *serverConn) scheduleFrameWrite() {
 					sc.queuedControlFrames--
 				}
 				sc.startFrameWrite(wr)
+				continue
+			}
+			if sc.flow.flowErr {
 				continue
 			}
 		}
@@ -1701,6 +1546,10 @@ func (sc *serverConn) processWindowUpdate(f *WindowUpdateFrame) error {
 			return nil
 		}
 		if !st.flow.add(int32(f.Increment)) {
+			if st.flow.conn.flowErr {
+				// This is a lazily-detected connection-level flow control error.
+				return sc.countError("bad_flow", ConnectionError(ErrCodeFlowControl))
+			}
 			return sc.countError("bad_flow", streamError(f.StreamID, ErrCodeFlowControl))
 		}
 	default: // connection-level flow control
@@ -1759,10 +1608,6 @@ func (sc *serverConn) closeStream(st *stream, err error) {
 		}
 	}
 	if p := st.body; p != nil {
-		// Return any buffered unread bytes worth of conn-level flow control.
-		// See golang.org/issue/16481
-		sc.sendWindowUpdate(nil, p.Len())
-
 		p.CloseWithError(err)
 	}
 	if e, ok := err.(StreamError); ok {
@@ -1816,7 +1661,12 @@ func (sc *serverConn) processSetting(s Setting) error {
 	}
 	switch s.ID {
 	case SettingHeaderTableSize:
-		sc.hpackEncoder.SetMaxDynamicTableSize(s.Val)
+		// Applied by startFrameWrite; see comment there.
+		if !sc.pendingEncoderTableSize || s.Val < sc.encoderTableSizeMin {
+			sc.encoderTableSizeMin = s.Val
+		}
+		sc.encoderTableSize = s.Val
+		sc.pendingEncoderTableSize = true
 	case SettingEnablePush:
 		sc.pushEnabled = s.Val != 0
 	case SettingMaxConcurrentStreams:
@@ -1847,28 +1697,14 @@ func (sc *serverConn) processSetting(s Setting) error {
 
 func (sc *serverConn) processSettingInitialWindowSize(val uint32) error {
 	sc.serveG.check()
-	// Note: val already validated to be within range by
-	// processSetting's Valid call.
-
-	// "A SETTINGS frame can alter the initial flow control window
-	// size for all current streams. When the value of
-	// SETTINGS_INITIAL_WINDOW_SIZE changes, a receiver MUST
-	// adjust the size of all stream flow control windows that it
-	// maintains by the difference between the new value and the
-	// old value."
-	old := sc.initialStreamSendWindowSize
-	sc.initialStreamSendWindowSize = int32(val)
-	growth := int32(val) - old // may be negative
-	for _, st := range sc.streams {
-		if !st.flow.add(growth) {
-			// 6.9.2 Initial Flow Control Window Size
-			// "An endpoint MUST treat a change to
-			// SETTINGS_INITIAL_WINDOW_SIZE that causes any flow
-			// control window to exceed the maximum size as a
-			// connection error (Section 5.4.1) of type
-			// FLOW_CONTROL_ERROR."
-			return sc.countError("setting_win_size", ConnectionError(ErrCodeFlowControl))
-		}
+	if !sc.flow.changeInitialWindowSize(int64(val)) {
+		// 6.9.2 Initial Flow Control Window Size
+		// "An endpoint MUST treat a change to
+		// SETTINGS_INITIAL_WINDOW_SIZE that causes any flow
+		// control window to exceed the maximum size as a
+		// connection error (Section 5.4.1) of type
+		// FLOW_CONTROL_ERROR."
+		return sc.countError("setting_win_size", ConnectionError(ErrCodeFlowControl))
 	}
 	return nil
 }
@@ -2141,7 +1977,7 @@ func (sc *serverConn) processHeaders(f *MetaHeadersFrame) error {
 	if st.reqTrailer != nil {
 		st.trailer = make(http.Header)
 	}
-	st.body = req.Body.(*requestBody).pipe // may be nil
+	st.body = st.reqBody.pipe // may be nil
 	st.declBodyBytes = req.ContentLength
 
 	handler := sc.handler.ServeHTTP
@@ -2164,7 +2000,7 @@ func (sc *serverConn) processHeaders(f *MetaHeadersFrame) error {
 		st.readDeadline = time.AfterFunc(sc.hs.ReadTimeout, st.onReadTimeout)
 	}
 
-	return sc.scheduleHandler(id, rw, req, handler)
+	return sc.scheduleHandler(st, rw, req, handler)
 }
 
 func (sc *serverConn) upgradeRequest(req *http.Request) {
@@ -2277,7 +2113,6 @@ func (sc *serverConn) newStream(id, pusherID uint32, state streamState, priority
 	}
 	st.cw.Init()
 	st.flow.conn = &sc.flow // link to conn-level counter
-	st.flow.add(sc.initialStreamSendWindowSize)
 	st.inflow.init(sc.initialStreamRecvWindowSize)
 	if sc.hs.WriteTimeout > 0 {
 		st.writeDeadline = time.AfterFunc(sc.hs.WriteTimeout, st.onWriteTimeout)
@@ -2359,7 +2194,7 @@ func (sc *serverConn) newWriterAndRequest(st *stream, f *MetaHeadersFrame) (*res
 		} else {
 			req.ContentLength = -1
 		}
-		req.Body.(*requestBody).pipe = &pipe{
+		st.reqBody.pipe = &pipe{
 			b: &dataBuffer{expected: req.ContentLength},
 		}
 	}
@@ -2379,7 +2214,7 @@ func (sc *serverConn) newWriterAndRequestNoBody(st *stream, rp httpcommon.Server
 		return nil, nil, sc.countError(res.InvalidReason, streamError(st.id, ErrCodeProtocol))
 	}
 
-	body := &requestBody{
+	st.reqBody = &requestBody{
 		conn:          sc,
 		stream:        st,
 		needsContinue: res.NeedsContinue,
@@ -2395,7 +2230,7 @@ func (sc *serverConn) newWriterAndRequestNoBody(st *stream, rp httpcommon.Server
 		ProtoMinor: 0,
 		TLS:        tlsState,
 		Host:       rp.Authority,
-		Body:       body,
+		Body:       st.reqBody,
 		Trailer:    res.Trailer,
 	}).WithContext(st.ctx)
 	rw := sc.newResponseWriter(st, req)
@@ -2419,11 +2254,12 @@ type unstartedHandler struct {
 	rw       *responseWriter
 	req      *http.Request
 	handler  func(http.ResponseWriter, *http.Request)
+	body     *pipe
 }
 
 // scheduleHandler starts a handler goroutine,
 // or schedules one to start as soon as an existing handler finishes.
-func (sc *serverConn) scheduleHandler(streamID uint32, rw *responseWriter, req *http.Request, handler func(http.ResponseWriter, *http.Request)) error {
+func (sc *serverConn) scheduleHandler(st *stream, rw *responseWriter, req *http.Request, handler func(http.ResponseWriter, *http.Request)) error {
 	sc.serveG.check()
 	maxHandlers := sc.advMaxStreams
 	if sc.curHandlers < maxHandlers {
@@ -2435,10 +2271,11 @@ func (sc *serverConn) scheduleHandler(streamID uint32, rw *responseWriter, req *
 		return sc.countError("too_many_early_resets", ConnectionError(ErrCodeEnhanceYourCalm))
 	}
 	sc.unstartedHandlers = append(sc.unstartedHandlers, unstartedHandler{
-		streamID: streamID,
+		streamID: st.id,
 		rw:       rw,
 		req:      req,
 		handler:  handler,
+		body:     st.body,
 	})
 	return nil
 }
@@ -2452,6 +2289,10 @@ func (sc *serverConn) handlerDone() {
 		u := sc.unstartedHandlers[i]
 		if sc.streams[u.streamID] == nil {
 			// This stream was reset before its goroutine had a chance to start.
+			if u.body != nil {
+				u.body.BreakWithError(errClosedBody)
+				sc.sendWindowUpdate(nil, u.body.Len())
+			}
 			continue
 		}
 		if sc.curHandlers >= maxHandlers {
@@ -2473,6 +2314,12 @@ func (sc *serverConn) runHandler(rw *responseWriter, req *http.Request, handler 
 	didPanic := true
 	defer func() {
 		rw.rws.stream.cancelCtx()
+		if b := rw.rws.stream.reqBody; b != nil {
+			// Closing the body refunds flow control credit for any unconsumed data.
+			// (reqBody is nil for Upgrade: h2c requests, but those do not use flow
+			// control for the request body.)
+			b.Close()
+		}
 		if req.MultipartForm != nil {
 			req.MultipartForm.RemoveAll()
 		}
@@ -2571,7 +2418,7 @@ func (sc *serverConn) noteBodyReadFromHandler(st *stream, n int, err error) {
 func (sc *serverConn) noteBodyRead(st *stream, n int) {
 	sc.serveG.check()
 	sc.sendWindowUpdate(nil, n) // conn-level
-	if st.state != stateHalfClosedRemote && st.state != stateClosed {
+	if st != nil && st.state != stateHalfClosedRemote && st.state != stateClosed {
 		// Don't send this WINDOW_UPDATE if the stream is closed
 		// remotely.
 		sc.sendWindowUpdate(st, n)
@@ -2619,6 +2466,9 @@ func (b *requestBody) Close() error {
 	b.closeOnce.Do(func() {
 		if b.pipe != nil {
 			b.pipe.BreakWithError(errClosedBody)
+			if unread := b.pipe.Len(); unread > 0 {
+				b.conn.noteBodyReadFromHandler(nil, unread, errClosedBody)
+			}
 		}
 	})
 	return nil
@@ -2635,9 +2485,6 @@ func (b *requestBody) Read(p []byte) (n int, err error) {
 	n, err = b.pipe.Read(p)
 	if err == io.EOF {
 		b.sawEOF = true
-	}
-	if b.conn == nil {
-		return
 	}
 	b.conn.noteBodyReadFromHandler(b.stream, n, err)
 	return
@@ -2831,21 +2678,6 @@ func (rws *responseWriterState) writeChunk(p []byte) (n int, err error) {
 	}
 	return len(p), nil
 }
-
-// TrailerPrefix is a magic prefix for ResponseWriter.Header map keys
-// that, if present, signals that the map entry is actually for
-// the response trailers, and not the response headers. The prefix
-// is stripped after the ServeHTTP call finishes and the values are
-// sent in the trailers.
-//
-// This mechanism is intended only for trailers that are not known
-// prior to the headers being written. If the set of trailers is fixed
-// or known before the header is written, the normal Go trailers mechanism
-// is preferred:
-//
-//	https://golang.org/pkg/net/http/#ResponseWriter
-//	https://golang.org/pkg/net/http/#example_ResponseWriter_trailers
-const TrailerPrefix = "Trailer:"
 
 // promoteUndeclaredTrailers permits http.Handlers to set trailers
 // after the header has already been flushed. Because the Go
@@ -3122,12 +2954,6 @@ func (w *responseWriter) handlerDone() {
 	w.rws = nil
 	responseWriterStatePool.Put(rws)
 }
-
-// Push errors.
-var (
-	ErrRecursivePush    = errors.New("http2: recursive push not allowed")
-	ErrPushLimitReached = errors.New("http2: push would exceed peer's SETTINGS_MAX_CONCURRENT_STREAMS")
-)
 
 var _ http.Pusher = (*responseWriter)(nil)
 

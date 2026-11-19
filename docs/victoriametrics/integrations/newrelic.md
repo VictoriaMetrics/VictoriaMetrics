@@ -1,5 +1,6 @@
 ---
 title: NewRelic
+description: "Receiving metrics from NewRelic infrastructure agent."
 weight: 7
 menu:
   docs:

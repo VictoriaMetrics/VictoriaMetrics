@@ -47,8 +47,16 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file.
      Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
+  -fs.disableAdviseRandomRead
+     Whether to disable FADV_RANDOM and MADV_RANDOM hints for data part files. Typical queries with selectors access data part files at random offsets, so FADV_RANDOM is enforced to reduce excessive disk readahead.Use this flag if your query read pattern benefits from sequential read (e.g. query by metric name without selectors) to prefer FADV_NORMAL. (default true)
+  -fs.disableMincore
+     Whether to disable the mincore() syscall for checking mmap()ed files. By default, mincore() is used to detect whether mmap()ed file pages are resident in memory. Disabling mincore() may be needed on older ZFS filesystems (below 2.1.5), since it may trigger ZFS bug. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10327 for details.
+  -fs.disableMmap
+     Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -fs.maxConcurrency int
-     The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default fsutil.getDefaultConcurrency())
+     The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default 16x CPU cores, capped at 256)
+  -healthcheck
+     Whether to check that the running process accepts connections at -httpListenAddr and exit. The exit code is non-zero if the check fails. This is useful for Docker HEALTHCHECK in images without curl or wget. Pass the same -httpListenAddr as the checked process has
   -http.connTimeout duration
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableCORS
@@ -59,6 +67,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string
      Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"
+  -http.header.disableServerHostname
+     Whether to disable 'X-Server-Hostname' header in HTTP responses
   -http.header.frameOptions string
      Value for 'X-Frame-Options' header
   -http.header.hsts string
@@ -66,7 +76,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
-     The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown (default 7s)
+     The maximum duration for a graceful shutdown of the HTTP server. During this period the server stops accepting new connections, but it will continue serving existing connections. The remaining in-flight requests are canceled before the deadline, so the shutdown can finish within this duration. A highly loaded server may require increased value for a graceful shutdown (default 7s)
   -http.pathPrefix string
      An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
@@ -82,11 +92,11 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpInternalListenAddr array
-     TCP address to listen for incoming internal API http requests. Such as /health, /-/reload, /debug/pprof, etc. If flag is set, vmauth no longer serves internal API at -httpListenAddr.
+     Address to listen for incoming internal API http requests. Such as /health, /-/reload, /debug/pprof, etc. If flag is set, vmauth no longer serves internal API at -httpListenAddr. Use unix:/path/to/socket to listen on Unix domain socket. Note that -tls and -httpListenAddr.useProxyProtocol cannot be used with Unix sockets
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr array
-     TCP address to listen for incoming http requests. By default, serves internal API and proxy requests.  See also -tls, -httpListenAddr.useProxyProtocol and -httpInternalListenAddr.
+     Address to listen for incoming http requests. By default, serves internal API and proxy requests. Use unix:/path/to/socket to listen on Unix domain socket. Note that -tls and -httpListenAddr.useProxyProtocol cannot be used with Unix sockets. See also -httpInternalListenAddr
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr.useProxyProtocol array
@@ -132,10 +142,10 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
   -maxQueueDuration duration
      The maximum duration to wait before rejecting incoming requests if concurrency limit specified via -maxConcurrentRequests or -maxConcurrentPerUserRequests command-line flags is reached. Requests are rejected with '429 Too Many Requests' http status code if the limit is still reached after the -maxQueueDuration duration. This allows graceful handling of short spikes in concurrent requests. See https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting (default 10s)
   -maxRequestBodySizeToRetry size
-     The maximum request body size to buffer in memory for potential retries at other backends. Request bodies larger than this size cannot be retried if the backend fails. Zero or negative value disables request body buffering and retries. See also -requestBufferSize
+     The maximum request body size to buffer in memory for potential retries at other backends. Request bodies larger than this size cannot be retried if the backend fails. Zero or negative value disables retries. See also -requestBufferSize
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 16384)
   -memory.allowedBytes size
-     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
+     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage. The process may behave unexpectedly if this flag is set too small (e.g., 1 byte).
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)

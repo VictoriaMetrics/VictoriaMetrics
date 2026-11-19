@@ -83,8 +83,16 @@ func TestPromRegex(t *testing.T) {
 	f(".+foo.+", "afoobar", true)
 	f(".+foo.+", "afoo", false)
 	f(".+foo.+", "abc", false)
+	// The literal appears first at the start of the string, but a later
+	// occurrence still matches `.+foo.+`. The fast path must not stop at the
+	// first occurrence.
+	f(".+foo.+", "foofoox", true)
+	f(".+foo.+", "xfoofoo", true)
+	f(".+foo.+", "foofoo", false)
 	f("foo.+bar.+", "foobar", false)
 	f("foo.+bar.+", "foo_bar_", true)
+	f("foo.+bar.+", "foobarbarx", true)
+	f("foo.+bar.+", "foobarbar", false)
 	f("foo.+bar.+", "foobaz", false)
 	f(".+foo.*", "foo", false)
 	f(".+foo.*", "afoo", true)
@@ -125,6 +133,15 @@ func TestPromRegex(t *testing.T) {
 	f(".*;|;.*", "foo;bar", false)
 	f(".*;|;.*", "foo;", true)
 	f(".*;|;.*", ";foo", true)
+
+	// An alternation followed by `.*literal.*` or `.+literal.+` must keep
+	// the alternation. getOrValues() used to strip the leading alternation from
+	// the parsed regexp in place, so NewPromRegex() saw only the `.*c.*` tail
+	// and took the substring fast path.
+	f("(a|b).*c.*", "ac", true)
+	f("(a|b).*c.*", "c", false)
+	f("(a|b).+c.+", "axcx", true)
+	f("(a|b).+c.+", "xcx", false)
 
 	f(".*foo(bar|baz)", "fooxfoobaz", true)
 	f(".*foo(bar|baz)", "fooxfooban", false)

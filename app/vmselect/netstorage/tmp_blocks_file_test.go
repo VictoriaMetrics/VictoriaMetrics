@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -26,6 +27,39 @@ func TestMain(m *testing.M) {
 func TestTmpBlocksFileSerial(t *testing.T) {
 	if err := testTmpBlocksFile(); err != nil {
 		t.Fatalf("unexpected error: %s", err)
+	}
+}
+
+func TestTmpBlocksFileWriteFailure(t *testing.T) {
+	// Emulate the disk write failure by pointing tmpBlocksDir to a non-existing directory.
+	tmpBlocksDirOrig := tmpBlocksDir
+	tmpBlocksDir = filepath.Join(tmpBlocksDirOrig, "non-existing-dir")
+	defer func() {
+		tmpBlocksDir = tmpBlocksDirOrig
+	}()
+
+	tbf := getTmpBlocksFile()
+	defer putTmpBlocksFile(tbf)
+
+	// Write blocks until tbf.buf is flushed to the file. The flush must fail.
+	b := make([]byte, 64*1024)
+	var writeErr error
+	for range maxInmemoryTmpBlocksFile()/len(b) + 2 {
+		if _, err := tbf.WriteBlockData(b, 0); err != nil {
+			writeErr = err
+			break
+		}
+	}
+	if writeErr == nil {
+		t.Fatalf("expecting non-nil error from WriteBlockData")
+	}
+
+	if _, err := tbf.WriteBlockData(b, 0); err != writeErr {
+		t.Fatalf("expecting non-nil error from WriteBlockData after the failed write")
+	}
+
+	if err := tbf.Finalize(); err != writeErr {
+		t.Fatalf("expecting non-nil error from Finalize after the failed write")
 	}
 }
 

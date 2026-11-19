@@ -6,31 +6,133 @@ build:
 sitemap:
   disable: true
 ---
-This guide covers OpenShift cluster configuration for collecting and storing logs in Victoria Logs.
+
+This guide explains how to collect and store logs from an OpenShift cluster in VictoriaLogs.
 
 ## Pre-Requirements
 
 * [OpenShift cluster](https://www.redhat.com/en/technologies/cloud-computing/openshift)
 * Admin access to OpenShift cluster
-* [kubectl installed](https://kubernetes.io/docs/tasks/tools/install-kubectl) and configured to access OpenShift cluster
+* [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl) or [oc](https://github.com/openshift/oc) installed and configured to access OpenShift cluster
 * [Helm installed](https://helm.sh/docs/intro/install)
 
-## Install Red Hat OpenShift Logging operator 
+> [!NOTE] Note
+> You can replace every `kubectl` command in this guide with `oc`. They are interchangeable in most cases on OpenShift clusters.
 
-[Cluster logging operator](https://github.com/openshift/cluster-logging-operator) is a logging solution to support aggregated cluster logging. It is using [Vector](https://vector.dev/) for logs collection and shipping to remote storage.
+## Overview
 
-In order to install the operator, navigate to the OpenShift web console and select the `Operators` tab. Then, click on `OperatorHub` and search for `Red Hat OpenShift Logging`. Click on the `Red Hat OpenShift Logging` operator and then click on `Install`.
+To collect OpenShift logs, we're going to:
 
-![Install logging operator](install-oc-logging-operator.webp)
+1. [Install VictoriaLogs](https://docs.victoriametrics.com/guides/collecting-openshift-logs-with-victoria-logs/#install-victoria-logs) in the OpenShift Cluster
+2. [Configure a service account](https://docs.victoriametrics.com/guides/collecting-openshift-logs-with-victoria-logs/#rbac-configuration) to access the logs
+3. [Install the OpenShift Logging operator](https://docs.victoriametrics.com/guides/collecting-openshift-logs-with-victoria-logs/#install-red-hat-openshift-logging-operator)
+4. [Configure a Log Forwarder](https://docs.victoriametrics.com/guides/collecting-openshift-logs-with-victoria-logs/#configure-logs-forwarding)
+5. [Test log ingestion](https://docs.victoriametrics.com/guides/collecting-openshift-logs-with-victoria-logs/#verify-logs-ingestion) in VictoriaLogs
 
+## Install VictoriaLogs {#install-victoria-logs}
 
-## RBAC configuration
+Run the following command to add the [VictoriaMetrics Helm repository](https://github.com/VictoriaMetrics/helm-charts):
 
-Create a service account and cluster role binding for the service account to access the logs. 
-OpenShift provides separate `ClusterRoles` for monitoring of different types of logs: `audit`, `infrastructure` and `application`. 
+```shell
+helm repo add vm https://victoriametrics.github.io/helm-charts/
+helm repo update
+```
 
-The following configuration will allow the service account to collect all types of logs:
-```yaml
+To verify that everything is set up correctly, you may run this command:
+
+```shell
+helm search repo vm/
+```
+
+You should get a list similar to this:
+
+```text
+NAME                                    CHART VERSION   APP VERSION     DESCRIPTION
+vm/victoria-logs-agent                  0.1.1           v1.50.0         VictoriaLogs Agent - accepts logs from various ...
+vm/victoria-logs-collector              0.3.1           v1.50.0         VictoriaLogs Collector - collects logs from Kub...
+vm/victoria-logs-single                 0.12.2          v1.50.0         The VictoriaLogs single Helm chart deploys Vict...
+...
+```
+
+Create a minimal configuration file to run VictoriaLogs in OpenShift:
+
+```shell
+cat <<EOF >vl-values.yml
+securityContext:
+  enabled: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+podSecurityContext:
+  enabled: true
+  runAsNonRoot: true
+EOF
+```
+
+> Note that, depending on the OpenShift cluster configuration, additional security settings might be required.
+
+Create a namespace for VictoriaLogs called `vl`:
+
+```shell
+kubectl create namespace vl
+```
+
+Install VictoriaLogs with the following command:
+
+```shell
+helm upgrade --namespace vl --install vl vm/victoria-logs-single -f vl-values.yml
+```
+
+You should see a message like this:
+
+```text
+Release "vl" does not exist. Installing it now.
+NAME: vl
+LAST DEPLOYED: Fri Apr 17 01:05:42 2026
+NAMESPACE: vl
+STATUS: deployed
+REVISION: 1
+DESCRIPTION: Install complete
+TEST SUITE: None
+NOTES:
+The VictoriaLogs write api can be accessed via port 9428 on the following DNS name from within your cluster:
+    vl-victoria-logs-single-server-0.vl-victoria-logs-single-server.vl.svc.cluster.local.
+
+Logs Ingestion:
+  Get the VictoriaLogs service URL by running these commands in the same shell:
+    kubectl --namespace vl port-forward svc/vl-victoria-logs-single-server 9428:9428
+    echo http://localhost:9428
+
+  Write URL inside the kubernetes cluster:
+    http://vl-victoria-logs-single-server.vl.svc.cluster.local.:9428<protocol-specific-write-endpoint>
+
+  See the documentation for log ingestion and supported write endpoints at https://docs.victoriametrics.com/victorialogs/data-ingestion/.
+
+Read Data:
+  The following URL can be used to query data:
+    http://vl-victoria-logs-single-server.vl.svc.cluster.local.:9428
+
+  See the documentation for log querying UI at https://docs.victoriametrics.com/victorialogs/querying/#web-ui or HTTP API at https://docs.victoriametrics.com/victorialogs/querying/#http-api
+```
+
+Note the "Write URL" value as you'll need it later. In the example above, the value is:
+
+```text
+http://vl-victoria-logs-single-server.vl.svc.cluster.local.:9428
+```
+
+## RBAC Configuration
+
+Create a service account and cluster role binding for the service account to collect and forward the logs.
+OpenShift provides separate `ClusterRoles` for monitoring of different types of logs: `audit`, `infrastructure`, and `application`. 
+
+Create a file to configure the service account and cluster role bindings:
+
+```shell
+cat <<EOF >vl-rbac.yml
 kind: ServiceAccount
 apiVersion: v1
 metadata:
@@ -77,52 +179,42 @@ roleRef:
   name: collect-application-logs
 ```
 
-Alternatively, you can use OpenShift console to create the service account and cluster role binding. 
-Navigate to `ServiceAccounts` and click on `Create Service Account`. Fill in the name `victorialogs` and namespace `openshift-logging` and click on `Create`. 
-Then, navigate to `RoleBindings` and create a binding for each `ClusterRole` for subject `victorialogs` in `openshift-logging` namespace.
+Install the roles in OpenShift with:
 
-
-## Install Victoria Logs
-
-Add Victoria Metrics Helm [repository](https://github.com/VictoriaMetrics/helm-charts):
-```bash
-helm repo add vm https://victoriametrics.github.io/helm-charts/
+```shell
+kubectl apply -f vl-rbac.yml
 ```
 
-Minimal configuration for VictoriaLogs running in OpenShift:
-```yaml
-securityContext:
-  enabled: true
-  allowPrivilegeEscalation: false
-  capabilities:
-    drop:
-      - ALL
-  readOnlyRootFilesystem: true
+Alternatively, you can use the OpenShift web console to create the service account and cluster role binding. To do this:
 
-podSecurityContext:
-  enabled: true
-  runAsNonRoot: true
-```
-Save the configuration to `vl.yaml`.
+1. Navigate to **ServiceAccounts**.
+2. Click on **Create Service Account**.
+3. Fill in the name `victorialogs` and namespace `openshift-logging`.
+4. Click on **Create**. 
+5. Navigate to **RoleBindings**.
+6. Create a binding for each `ClusterRole` for subject `victorialogs` in `openshift-logging` namespace.
 
-> Note, that depending on the OpenShift cluster configuration, additional security settings might be required.
+## Install Red Hat OpenShift Logging operator 
 
-Create namespace for VictoriaLogs:
-```bash
-kubectl create namespace vl
-```
+The [Cluster logging operator](https://github.com/openshift/cluster-logging-operator) is a logging solution to support aggregated cluster logging. It is using [Vector](https://vector.dev/) for log collection and shipping to remote storage.
 
-Install VictoriaLogs with the following command:
-```bash
-helm upgrade --namespace vl --install vl vm/victoria-logs-single -f vl.yaml
-```
+To install the operator:
+
+1. Navigate to **Ecosystem** > **Software Catalog**
+2. Search for "OpenShift Logging" and select the operator.
+    ![Screenshot of OpenShift web console](software-catalog-openshift-logging-1.webp)
+3. Press **Install**.
+4. Confirm the settings and press **Install** again.
+    ![Screenshot of OpenShift web console](software-catalog-openshift-logging-options-3.webp)
 
 ## Configure logs forwarding
 
-Cluster logging operator uses `ClusterLogForwarder` resource for logs forwarding configuration.
+We need to create a `ClusterLogForwarder` resource to forward logs from the OpenShift Logging operator to VictoriaLogs.
 
-Here is an example configuration to forward all cluster logs to VictoriaLogs:
-```yaml
+Run the following command to create the resource file:
+
+```shell
+cat <<EOF > vl-forwarder.yml
 apiVersion: observability.openshift.io/v1
 kind: ClusterLogForwarder
 metadata:
@@ -160,7 +252,7 @@ spec:
         - application
       name: application
       outputRefs:
-        - victorialogs-audit
+        - victorialogs
     - inputRefs:
         - infrastructure
       name: infrastructure
@@ -170,21 +262,66 @@ spec:
         - audit
       name: audit
       outputRefs:
-        - victorialogs
+        - victorialogs-audit
   serviceAccount:
     name: victorialogs
+EOF
 ```
 
-It is also possible to configure logs forwarding using OpenShift console. Navigate to `Operators` tab and click on `Installed Operators`. Then, click on `Red Hat OpenShift Logging` and navigate to `ClusterLogForwarders`. Click on `Create ClusterLogForwarder`. 
-Configure the forwarding to VictoriaLogs using the provided form and click on `Create`.
-![Create logs forwarders menu](create-cluster-logs-forwarder.webp)
-![Create forwarder config](create-cluster-logs-forwarder-2.webp)
+Then install the resource with:
 
-## Verify logs collection
+```shell
+kubectl apply -f vl-forwarder.yml
+```
 
-To verify that logs are collected and stored in VictoriaLogs, navigate to the VictoriaLogs web interface.
+Alternatively, you can configure log forwarding in the OpenShift web console. To do this:
+1. Navigate to **Operators** tab
+2. Click on **Installed Operators**.
+3. Find **Red Hat OpenShift Logging**
+4. Navigate to **ClusterLogForwarders**.
+5. Click on **Create ClusterLogForwarder**.
+    ![Screenshot of OpenShift web console](software-catalog-openshift-logging-forwarder-5.webp)
+6. Use the form to configure each type of forwarder.
+    ![Screenshot of OpenShift web console](forwarder-form.webp)
+7. Click **Create**
 
-![VictoriaLogs](openshift-logs.webp)
+## Verify logs ingestion
 
-Logs will be available in the interface and can be queried using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
-Note that logs will have `log_type` attached to them to distinguish between different types of logs.
+We can verify that logs are being collected using the VictoriaLogs VMUI.
+
+First, find the service name for the VMUI with:
+
+```shell
+kubectl get svc -n vl -l app.kubernetes.io/instance=vl
+```
+
+You should get a result similar to this. Note the name of the service:
+
+```text
+NAME                             TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)    AGE
+vl-victoria-logs-single-server   ClusterIP   None         <none>        9428/TCP   113s
+```
+
+Then, port-forward the VMUI service console with:
+
+```shell
+kubectl -n vl port-forward svc/vl-victoria-logs-single-server 9428:9428
+```
+
+Open your browser in `http://localhost:9428/select/vmui/#/overview` and verify that logs are being collected. This overview page shows the number of log entries being consumed in real time.
+
+![Screenshot of VMUI for VictoriaLogs](vmui-overview.webp)
+<figcaption style="text-align: center; font-style: italic;">Overview pane in VMUI</figcaption>
+
+You can query your logs in the **Query** tab, found in `http://localhost:9428/select/vmui`. 
+You can filter streams on the left side pane to filter logs and use [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) to search for entries. Note that logs will have `log_type` attached to them to distinguish between different types of logs.
+
+![Screenshot of VMUI for VictoriaLogs](vmui-query-filters.webp)
+<figcaption style="text-align: center; font-style: italic;">Query pane in VMUI</figcaption>
+
+## See also
+
+- [VictoriaLogs Quickstart](https://docs.victoriametrics.com/victorialogs/quickstart/)
+- [Logs Reference](https://docs.victoriametrics.com/victorialogs/logsql/)
+- [LogsQL Examples](https://docs.victoriametrics.com/victorialogs/logsql-examples/)
+

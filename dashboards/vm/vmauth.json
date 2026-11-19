@@ -7,13 +7,13 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "10.4.2"
+      "version": "13.2.2"
     },
     {
       "type": "datasource",
       "id": "victoriametrics-metrics-datasource",
       "name": "VictoriaMetrics",
-      "version": "1.0.0"
+      "version": "13.2.1"
     },
     {
       "type": "panel",
@@ -39,8 +39,7 @@
       {
         "builtIn": 1,
         "datasource": {
-          "type": "grafana",
-          "uid": "-- Grafana --"
+          "type": "grafana"
         },
         "enable": true,
         "hide": true,
@@ -60,6 +59,19 @@
           "uid": "$ds"
         },
         "enable": true,
+        "expr": "sum by(version) (\n    label_replace(vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version!=\"\"}, \"version\", \"$1\", \"short_version\", \"(.*)\")\n    OR\n    vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version=\"\"}\n) \nunless \n(\n    sum by(version) (\n        label_replace(vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version!=\"\"}, \"version\", \"$1\", \"short_version\", \"(.*)\")\n        OR\n        vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version=\"\"}\n    ) offset $__interval\n)",
+        "hide": true,
+        "iconColor": "dark-blue",
+        "name": "version",
+        "textFormat": "{{version}}",
+        "titleFormat": "Version change"
+      },
+      {
+        "datasource": {
+          "type": "victoriametrics-metrics-datasource",
+          "uid": "$ds"
+        },
+        "enable": true,
         "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(job)",
         "hide": false,
         "iconColor": "dark-yellow",
@@ -68,25 +80,32 @@
       }
     ]
   },
-  "description": "Overview for VictoriaMetrics vmauth v1.80.0 or higher",
+  "description": "Overview for VictoriaMetrics vmauth v1.135.0 or higher",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": null,
   "links": [
     {
+      "asDropdown": false,
       "icon": "doc",
+      "includeVars": false,
+      "keepTime": false,
       "tags": [],
       "targetBlank": true,
       "title": "Docs",
+      "tooltip": "",
       "type": "link",
       "url": "https://docs.victoriametrics.com/victoriametrics/vmauth/"
     },
     {
+      "asDropdown": false,
       "icon": "info",
+      "includeVars": false,
+      "keepTime": false,
       "tags": [],
       "targetBlank": true,
       "title": "Community support",
+      "tooltip": "",
       "type": "link",
       "url": "https://victoriametrics.com/support/community-support/"
     },
@@ -103,10 +122,14 @@
       "url": "https://victoriametrics.com/support/enterprise-support/"
     },
     {
+      "asDropdown": false,
       "icon": "info",
+      "includeVars": false,
+      "keepTime": false,
       "tags": [],
       "targetBlank": true,
       "title": "Releases",
+      "tooltip": "",
       "type": "link",
       "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/releases"
     }
@@ -121,8 +144,7 @@
         "x": 0,
         "y": 0
       },
-      "id": 2,
-      "panels": [],
+      "id": 44,
       "title": "Stats",
       "type": "row"
     },
@@ -137,7 +159,6 @@
           "color": {
             "mode": "thresholds"
           },
-          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -146,13 +167,14 @@
                 "value": 0
               }
             ]
-          }
+          },
+          "unit": "reqps"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 3,
-        "w": 7,
+        "w": 4,
         "x": 0,
         "y": 1
       },
@@ -174,7 +196,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "13.2.2",
       "targets": [
         {
           "datasource": {
@@ -197,95 +219,33 @@
         "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
-      "description": "Shows the total number of users defined at configuration file.",
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 6,
-        "x": 7,
-        "y": 1
-      },
-      "id": 31,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "last"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "text": {},
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "count(count by(username) (vmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\"}))",
-          "interval": "",
-          "legendFormat": "",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Users count",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "$ds"
-      },
       "description": "Shows the rate of request errors.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "thresholds"
           },
-          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
                 "color": "green",
                 "value": 0
+              },
+              {
+                "color": "#EAB839",
+                "value": 1
               }
             ]
-          }
+          },
+          "unit": "reqps"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 3,
-        "w": 7,
-        "x": 13,
+        "w": 4,
+        "x": 4,
         "y": 1
       },
       "id": 36,
@@ -306,7 +266,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "13.2.2",
       "targets": [
         {
           "datasource": {
@@ -322,6 +282,182 @@
         }
       ],
       "title": "Errors rate",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "$ds"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 16,
+        "x": 8,
+        "y": 1
+      },
+      "id": 32,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Last *",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "asc"
+        }
+      },
+      "pluginVersion": "13.2.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum(min_over_time(up{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
+          "format": "time_series",
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Uptime",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "$ds"
+      },
+      "description": "Shows the total number of users defined in the configuration file.",
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 0,
+        "y": 4
+      },
+      "id": 31,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.2.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "count(count by(username) (vmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\"}))",
+          "interval": "",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Users count",
       "type": "stat"
     },
     {
@@ -371,8 +507,8 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 20,
-        "y": 1
+        "x": 4,
+        "y": 4
       },
       "id": 30,
       "options": {
@@ -393,7 +529,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "13.2.2",
       "targets": [
         {
           "datasource": {
@@ -407,7 +543,7 @@
           "refId": "A"
         }
       ],
-      "title": "Config update",
+      "title": "Last config update",
       "type": "stat"
     },
     {
@@ -432,7 +568,6 @@
             "inspect": false,
             "minWidth": 50
           },
-          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -472,17 +607,23 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 11,
-        "x": 0,
-        "y": 4
+        "w": 16,
+        "x": 8,
+        "y": 6
       },
       "id": 6,
       "options": {
         "cellHeight": "sm",
         "frameIndex": 0,
-        "showHeader": true
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": false,
+            "displayName": "Count"
+          }
+        ]
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "13.2.2",
       "targets": [
         {
           "datasource": {
@@ -491,14 +632,13 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by (job, short_version)",
+          "expr": "sum by(job, version) (label_replace(vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version!=\"\"}, \"version\", \"$1\", \"short_version\", \"(.*)\") or vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version=\"\"})",
           "format": "table",
           "instant": true,
           "range": false,
           "refId": "A"
         }
       ],
-      "title": "Version",
       "type": "table"
     },
     {
@@ -506,91 +646,52 @@
         "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
+      "description": "Total number of available CPUs for all VM components.",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "stepAfter",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 0,
-          "links": [],
-          "mappings": [],
-          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
                 "color": "green",
                 "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           },
-          "unit": "s"
+          "unit": "short"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
-        "w": 13,
-        "x": 11,
-        "y": 4
+        "h": 3,
+        "w": 4,
+        "x": 0,
+        "y": 7
       },
-      "id": 32,
+      "id": 42,
+      "maxDataPoints": 100,
       "options": {
-        "legend": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
           "calcs": [
             "lastNotNull"
           ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "sortBy": "Last *",
-          "sortDesc": true
+          "fields": "",
+          "values": false
         },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "asc"
-        }
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "13.2.2",
       "targets": [
         {
           "datasource": {
@@ -598,17 +699,89 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(min_over_time(vm_app_uptime_seconds{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
+          "exemplar": true,
+          "expr": "sum(vm_available_cpu_cores{job=~\"$job\", instance=~\"$instance\"})",
           "format": "time_series",
-          "instant": false,
+          "instant": true,
           "interval": "",
-          "legendFormat": "{{job}}",
+          "intervalFactor": 1,
+          "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Uptime",
-      "type": "timeseries"
+      "title": "Available CPU",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "$ds"
+      },
+      "description": "Total size of available memory for all VM components.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 4,
+        "y": 7
+      },
+      "id": 43,
+      "maxDataPoints": 100,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.2.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum(vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
+          "format": "time_series",
+          "instant": true,
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Available memory",
+      "type": "stat"
     },
     {
       "collapsed": false,
@@ -616,10 +789,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 8
+        "y": 10
       },
-      "id": 13,
-      "panels": [],
+      "id": 45,
       "title": "Overview",
       "type": "row"
     },
@@ -628,7 +800,7 @@
         "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
-      "description": "Shows the rate of rejected requests by a reason.",
+      "description": "Shows the rate of requests per user.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -668,7 +840,6 @@
               "mode": "off"
             }
           },
-          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -689,233 +860,14 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 9
-      },
-      "id": 16,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.3.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(vmauth_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (reason)",
-          "hide": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Requests rejected rate",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "$ds"
-      },
-      "description": " The number of concurrent connections processed by vmauth reached one of limits. Possible solutions:\n- increase global limit with flag -maxConcurrentRequests\n- increase limit with flag: -maxConcurrentPerUserRequests for all users or with config option `max_concurrent_requests` per user.\n- deploy additional vmauth replicas\n- check requests latency at backend service and allocate resources to it if needed",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "bars",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 9
-      },
-      "id": 10,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.3.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(vmauth_user_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by(username)  > 0",
-          "interval": "1m",
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(vmauth_unauthorized_user_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
-          "hide": false,
-          "legendFormat": "unauthorized",
-          "range": true,
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(vmauth_concurrent_requests_limit_reached_total[$__rate_interval])) > 0",
-          "hide": false,
-          "legendFormat": "global at {{ $instance }}",
-          "range": true,
-          "refId": "C"
-        }
-      ],
-      "title": "Concurrent limit reached",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "$ds"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 0,
-        "y": 18
+        "y": 11
       },
       "id": 11,
       "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
         "legend": {
           "calcs": [],
           "displayMode": "list",
@@ -928,7 +880,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "13.2.2",
       "targets": [
         {
           "datasource": {
@@ -936,8 +888,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by(username)",
-          "hide": false,
+          "expr": "sum(rate(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by(username) > 0",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -948,233 +899,13 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vmauth_unauthorized_user_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
-          "hide": false,
+          "expr": "sum(rate(vmauth_unauthorized_user_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
           "legendFormat": "unauthorized_user",
           "range": true,
           "refId": "B"
         }
       ],
-      "title": "User requests rate",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "$ds"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 18
-      },
-      "id": 37,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.3.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(vmauth_user_request_errors_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by (username) > 0",
-          "hide": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(vmauth_unauthorized_user_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
-          "hide": false,
-          "legendFormat": "unauthorized_user",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "title": "User requests error rate",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "$ds"
-      },
-      "description": "Shows percent utilization of  per concurrent requests capacity.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "bars",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "dashed"
-            }
-          },
-          "mappings": [],
-          "max": 1,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 0.9
-              }
-            ]
-          },
-          "unit": "percentunit"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 0,
-        "y": 27
-      },
-      "id": 14,
-      "options": {
-        "legend": {
-          "calcs": [
-            "max",
-            "mean"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true,
-          "sortBy": "Mean",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.3.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "expr": "max(\nmax_over_time(vmauth_user_concurrent_requests_current{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])\n/ \nvmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}\n) by(username) > 0\n",
-          "hide": false,
-          "interval": "5m",
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "User concurrent requests usage",
+      "title": "Requests rate",
       "type": "timeseries"
     },
     {
@@ -1222,7 +953,6 @@
               "mode": "off"
             }
           },
-          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -1244,10 +974,14 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 27
+        "y": 11
       },
       "id": 19,
       "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
         "legend": {
           "calcs": [
             "max",
@@ -1265,7 +999,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.3.0",
+      "pluginVersion": "13.2.2",
       "targets": [
         {
           "datasource": {
@@ -1274,8 +1008,7 @@
           },
           "editorMode": "code",
           "expr": "max(vmauth_user_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", username=~\"$user\", quantile=~\"(0.99|0.5)\"}) by (quantile, username) > 0",
-          "hide": false,
-          "legendFormat": "user: {{username}} q: {{ quantile}}",
+          "legendFormat": "user: {{username}} q: {{quantile}}",
           "range": true,
           "refId": "A"
         },
@@ -1286,13 +1019,462 @@
           },
           "editorMode": "code",
           "expr": "max(vmauth_unauthorized_user_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=~\"(0.99|0.5)\"}) by (quantile) > 0",
-          "hide": false,
           "legendFormat": "user: unauthorized q: {{ quantile}}",
           "range": true,
           "refId": "B"
         }
       ],
-      "title": "User requests duration",
+      "title": "Requests duration",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "$ds"
+      },
+      "description": "Shows the request error rate per user.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      },
+      "id": 37,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.2.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(vmauth_user_request_errors_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by (username) > 0",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(vmauth_unauthorized_user_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
+          "legendFormat": "unauthorized_user",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Requests error rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "$ds"
+      },
+      "description": "Shows the rate of rejected requests by a reason.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      },
+      "id": 16,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.2.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(vmauth_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (reason) > 0",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Requests rejected rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "$ds"
+      },
+      "description": "Shows the percentage utilization of concurrent request capacity per user.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "bars",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 0.9
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 29
+      },
+      "id": 14,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "13.2.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "max(\nmax_over_time(vmauth_user_concurrent_requests_current{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])\n/ \nvmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}\n) by(username) > 0\n",
+          "interval": "5m",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Concurrent requests usage",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "$ds"
+      },
+      "description": "The number of concurrent connections processed by vmauth reached one of limits. Possible solutions:\n- increase global limit with flag -maxConcurrentRequests\n- increase limit with flag: -maxConcurrentPerUserRequests for all users or with config option `max_concurrent_requests` per user.\n- deploy additional vmauth replicas\n- check requests latency at backend service and allocate resources to it if needed",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "bars",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 29
+      },
+      "id": 10,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.2.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(vmauth_user_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by(username)  > 0",
+          "interval": "1m",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(vmauth_unauthorized_user_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
+          "legendFormat": "unauthorized",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(vmauth_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
+          "legendFormat": "global at {{ $instance }}",
+          "range": true,
+          "refId": "C"
+        }
+      ],
+      "title": "Concurrent limit reached",
       "type": "timeseries"
     },
     {
@@ -1301,9 +1483,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 38
       },
-      "id": 22,
+      "id": 46,
       "panels": [
         {
           "datasource": {
@@ -1323,6 +1505,7 @@
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -1339,6 +1522,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -1348,14 +1532,13 @@
                   "mode": "off"
                 }
               },
-              "links": [],
-              "mappings": [],
               "min": 0,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -1364,17 +1547,20 @@
                 ]
               },
               "unit": "percentunit"
-            },
-            "overrides": []
+            }
           },
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 19
+            "y": 39
           },
           "id": 25,
           "options": {
+            "annotations": {
+              "clustering": -1,
+              "multiLane": false
+            },
             "legend": {
               "calcs": [
                 "mean",
@@ -1388,11 +1574,12 @@
               "sortDesc": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "desc"
             }
           },
-          "pluginVersion": "9.1.0",
+          "pluginVersion": "13.0.2",
           "targets": [
             {
               "datasource": {
@@ -1403,9 +1590,35 @@
               "exemplar": false,
               "expr": "max(\n    max_over_time(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
               "interval": "",
-              "legendFormat": "__auto",
+              "legendFormat": "{{job}}: max",
               "range": true,
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "min(\n    max_over_time(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "interval": "",
+              "legendFormat": "{{job}}: min",
+              "range": true,
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "quantile(0.5,\n    max_over_time(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "interval": "",
+              "legendFormat": "{{job}}: median",
+              "range": true,
+              "refId": "C"
             }
           ],
           "title": "RSS memory % usage ($instance)",
@@ -1428,6 +1641,7 @@
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -1444,6 +1658,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -1453,14 +1668,13 @@
                   "mode": "off"
                 }
               },
-              "links": [],
-              "mappings": [],
               "min": 0,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -1469,17 +1683,20 @@
                 ]
               },
               "unit": "percentunit"
-            },
-            "overrides": []
+            }
           },
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 19
+            "y": 39
           },
           "id": 26,
           "options": {
+            "annotations": {
+              "clustering": -1,
+              "multiLane": false
+            },
             "legend": {
               "calcs": [
                 "mean",
@@ -1493,11 +1710,12 @@
               "sortDesc": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
-              "sort": "none"
+              "sort": "desc"
             }
           },
-          "pluginVersion": "9.1.0",
+          "pluginVersion": "13.0.2",
           "targets": [
             {
               "datasource": {
@@ -1510,9 +1728,39 @@
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "__auto",
+              "legendFormat": "{{job}}: max",
               "range": true,
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "min(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{job}}: min",
+              "range": true,
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "quantile(0.5,\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{job}}: median",
+              "range": true,
+              "refId": "C"
             }
           ],
           "title": "CPU % usage ($instance)",
@@ -1523,7 +1771,6 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1536,297 +1783,7 @@
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "links": [],
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "bytes"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 27
-          },
-          "id": 27,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true,
-              "sortBy": "Last *",
-              "sortDesc": true
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "9.1.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "$ds"
-              },
-              "expr": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\"})",
-              "format": "time_series",
-              "hide": false,
-              "intervalFactor": 1,
-              "legendFormat": "requested from system",
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "$ds"
-              },
-              "expr": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
-              "format": "time_series",
-              "hide": false,
-              "intervalFactor": 1,
-              "legendFormat": "heap inuse",
-              "refId": "B"
-            },
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "$ds"
-              },
-              "expr": "sum(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
-              "format": "time_series",
-              "hide": false,
-              "intervalFactor": 1,
-              "legendFormat": "stack inuse",
-              "refId": "C"
-            },
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "$ds"
-              },
-              "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
-              "format": "time_series",
-              "hide": false,
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "resident",
-              "refId": "D"
-            },
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "$ds"
-              },
-              "exemplar": false,
-              "expr": "sum(process_resident_memory_anon_bytes{job=~\"$job\", instance=~\"$instance\"})",
-              "format": "time_series",
-              "hide": false,
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "resident anonymous",
-              "refId": "E"
-            }
-          ],
-          "title": "Memory usage ($instance)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "description": "",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "links": [],
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Limit"
-                },
-                "properties": [
-                  {
-                    "id": "color",
-                    "value": {
-                      "fixedColor": "#F2495C",
-                      "mode": "fixed"
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 27
-          },
-          "id": 28,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true,
-              "sortBy": "Last *",
-              "sortDesc": true
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "9.1.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "$ds"
-              },
-              "expr": "rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
-              "format": "time_series",
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "CPU cores used",
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "$ds"
-              },
-              "exemplar": false,
-              "expr": "process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}",
-              "format": "time_series",
-              "hide": false,
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "Limit",
-              "refId": "B"
-            }
-          ],
-          "title": "CPU ($instance)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "description": "",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 10,
                 "gradientMode": "none",
@@ -1843,6 +1800,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -1852,14 +1810,13 @@
                   "mode": "off"
                 }
               },
-              "links": [],
-              "mappings": [],
               "min": 0,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -1868,17 +1825,20 @@
                 ]
               },
               "unit": "short"
-            },
-            "overrides": []
+            }
           },
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 35
+            "y": 47
           },
           "id": 23,
           "options": {
+            "annotations": {
+              "clustering": -1,
+              "multiLane": false
+            },
             "legend": {
               "calcs": [
                 "mean",
@@ -1892,22 +1852,24 @@
               "sortDesc": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "none"
             }
           },
-          "pluginVersion": "9.1.0",
+          "pluginVersion": "13.0.2",
           "targets": [
             {
               "datasource": {
                 "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(vm_tcplistener_conns{job=~\"$job\", instance=~\"$instance\"})",
+              "editorMode": "code",
+              "expr": "sum(vm_tcplistener_conns{job=~\"$job\", instance=~\"$instance\"}) by(job)",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "connections",
+              "legendFormat": "__auto",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -1919,7 +1881,6 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1932,6 +1893,7 @@
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 10,
                 "gradientMode": "none",
@@ -1948,6 +1910,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -1957,14 +1920,13 @@
                   "mode": "off"
                 }
               },
-              "links": [],
-              "mappings": [],
               "min": 0,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -1973,17 +1935,20 @@
                 ]
               },
               "unit": "short"
-            },
-            "overrides": []
+            }
           },
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 35
+            "y": 47
           },
           "id": 24,
           "options": {
+            "annotations": {
+              "clustering": -1,
+              "multiLane": false
+            },
             "legend": {
               "calcs": [
                 "mean",
@@ -1997,11 +1962,12 @@
               "sortDesc": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "none"
             }
           },
-          "pluginVersion": "9.1.0",
+          "pluginVersion": "13.0.2",
           "targets": [
             {
               "datasource": {
@@ -2009,11 +1975,10 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "connections",
+              "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
@@ -2039,6 +2004,7 @@
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -2055,6 +2021,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2065,14 +2032,13 @@
                 }
               },
               "decimals": 2,
-              "links": [],
-              "mappings": [],
               "min": 0,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -2104,10 +2070,14 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 43
+            "y": 55
           },
           "id": 20,
           "options": {
+            "annotations": {
+              "clustering": -1,
+              "multiLane": false
+            },
             "legend": {
               "calcs": [
                 "mean",
@@ -2121,11 +2091,12 @@
               "sortDesc": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "none"
             }
           },
-          "pluginVersion": "9.1.0",
+          "pluginVersion": "13.0.2",
           "targets": [
             {
               "datasource": {
@@ -2133,12 +2104,11 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max_over_time(process_open_fds{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n/\nprocess_max_fds{job=~\"$job\", instance=~\"$instance\"}",
+              "expr": "max(\n    max_over_time(process_open_fds{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_max_fds{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 2,
-              "legendFormat": "{{job}}",
+              "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
@@ -2163,6 +2133,7 @@
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 10,
                 "gradientMode": "none",
@@ -2179,6 +2150,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2189,14 +2161,13 @@
                 }
               },
               "decimals": 0,
-              "links": [],
-              "mappings": [],
               "min": 0,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -2205,17 +2176,20 @@
                 ]
               },
               "unit": "short"
-            },
-            "overrides": []
+            }
           },
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 43
+            "y": 55
           },
           "id": 21,
           "options": {
+            "annotations": {
+              "clustering": -1,
+              "multiLane": false
+            },
             "legend": {
               "calcs": [
                 "mean",
@@ -2229,21 +2203,24 @@
               "sortDesc": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "none"
             }
           },
-          "pluginVersion": "9.1.0",
+          "pluginVersion": "13.0.2",
           "targets": [
             {
               "datasource": {
                 "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(go_goroutines{job=~\"$job\", instance=~\"$instance\"})",
+              "editorMode": "code",
+              "expr": "sum(max_over_time(go_goroutines{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
               "format": "time_series",
               "intervalFactor": 2,
-              "legendFormat": "gc duration",
+              "legendFormat": "__auto",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -2267,6 +2244,7 @@
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 10,
                 "gradientMode": "none",
@@ -2283,6 +2261,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2293,14 +2272,13 @@
                 }
               },
               "decimals": 0,
-              "links": [],
-              "mappings": [],
               "min": 0,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -2309,17 +2287,20 @@
                 ]
               },
               "unit": "short"
-            },
-            "overrides": []
+            }
           },
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 63
           },
           "id": 29,
           "options": {
+            "annotations": {
+              "clustering": -1,
+              "multiLane": false
+            },
             "legend": {
               "calcs": [
                 "mean",
@@ -2333,21 +2314,24 @@
               "sortDesc": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "none"
             }
           },
-          "pluginVersion": "9.1.0",
+          "pluginVersion": "13.0.2",
           "targets": [
             {
               "datasource": {
                 "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(process_num_threads{job=~\"$job\", instance=~\"$instance\"})",
+              "editorMode": "code",
+              "expr": "sum(process_num_threads{job=~\"$job\", instance=~\"$instance\"}) by(job)",
               "format": "time_series",
               "intervalFactor": 2,
-              "legendFormat": "threads",
+              "legendFormat": "__auto",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -2364,9 +2348,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 39
       },
-      "id": 35,
+      "id": 47,
       "panels": [
         {
           "datasource": {
@@ -2384,15 +2368,17 @@
                   "type": "auto"
                 },
                 "filterable": true,
+                "footer": {
+                  "reducers": []
+                },
                 "inspect": false
               },
-              "mappings": [],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -2409,7 +2395,7 @@
                 },
                 "properties": [
                   {
-                    "id": "custom.hidden",
+                    "id": "custom.hideFrom.viz",
                     "value": true
                   }
                 ]
@@ -2421,7 +2407,7 @@
                 },
                 "properties": [
                   {
-                    "id": "custom.hidden",
+                    "id": "custom.hideFrom.viz",
                     "value": true
                   }
                 ]
@@ -2432,22 +2418,14 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 39
+            "y": 40
           },
           "id": 34,
           "options": {
             "cellHeight": "sm",
-            "footer": {
-              "countRows": false,
-              "fields": "",
-              "reducer": [
-                "sum"
-              ],
-              "show": false
-            },
+            "filterable": true,
             "showHeader": true,
             "showSearch": true,
-            "filterable": true,
             "sortBy": [
               {
                 "desc": true,
@@ -2455,7 +2433,7 @@
               }
             ]
           },
-          "pluginVersion": "10.4.2",
+          "pluginVersion": "13.0.2",
           "targets": [
             {
               "datasource": {
@@ -2503,7 +2481,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows number of generated  error and warning messages in  logs. Non-zero value may be a sign of connectivity or misconfiguration errors.",
+          "description": "Shows number of generated error and warning messages in logs. Non-zero value may be a sign of connectivity or misconfiguration errors.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2516,6 +2494,7 @@
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -2532,6 +2511,7 @@
                   "type": "linear"
                 },
                 "showPoints": "auto",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2541,27 +2521,29 @@
                   "mode": "off"
                 }
               },
-              "mappings": [],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   }
                 ]
               }
-            },
-            "overrides": []
+            }
           },
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 39
+            "y": 40
           },
           "id": 8,
           "options": {
+            "annotations": {
+              "clustering": -1,
+              "multiLane": false
+            },
             "legend": {
               "calcs": [
                 "max",
@@ -2573,11 +2555,12 @@
               "showLegend": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "single",
               "sort": "none"
             }
           },
-          "pluginVersion": "10.4.0",
+          "pluginVersion": "13.0.2",
           "targets": [
             {
               "datasource": {
@@ -2599,7 +2582,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the number of restarts per job. The chart can be useful to identify periodic process restarts and correlate them with potential issues or anomalies. Normally, processes shouldn't restart unless restart was inited by user. The reason of restarts should be figured out by checking the logs of each specific service. ",
+          "description": "Shows the backend request error rate per user.\nThe value can be higher than the request error rate if:\n1. A single request is retried multiple times due to transient network errors, such as proxy idle timeout misconfiguration or sockets being closed by the OS.\n2. The request fails and is retried on other backends because of configured retry_status_codes.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2611,8 +2594,8 @@
                 "axisColorMode": "text",
                 "axisLabel": "",
                 "axisPlacement": "auto",
-                "axisSoftMin": 0,
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -2622,13 +2605,14 @@
                   "viz": false
                 },
                 "insertNulls": false,
-                "lineInterpolation": "stepAfter",
+                "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
                   "type": "linear"
                 },
-                "showPoints": "never",
+                "showPoints": "auto",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2638,50 +2622,46 @@
                   "mode": "off"
                 }
               },
-              "decimals": 0,
-              "links": [],
-              "mappings": [],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
                     "value": 80
                   }
                 ]
-              },
-              "unit": "none"
-            },
-            "overrides": []
+              }
+            }
           },
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 47
+            "y": 48
           },
-          "id": 37,
+          "id": 41,
           "options": {
+            "annotations": {
+              "clustering": -1,
+              "multiLane": false
+            },
             "legend": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "displayMode": "table",
+              "calcs": [],
+              "displayMode": "list",
               "placement": "bottom",
-              "showLegend": true,
-              "sortBy": "Last *",
-              "sortDesc": true
+              "showLegend": true
             },
             "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
+              "hideZeros": false,
+              "mode": "single",
+              "sort": "none"
             }
           },
-          "pluginVersion": "9.1.0",
+          "pluginVersion": "13.0.2",
           "targets": [
             {
               "datasource": {
@@ -2689,14 +2669,24 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) > 0) by(job)",
-              "format": "time_series",
-              "instant": false,
-              "legendFormat": "{{job}}",
+              "expr": "sum(rate(vmauth_user_request_backend_errors_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by (username) > 0",
+              "legendFormat": "__auto",
+              "range": true,
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vmauth_unauthorized_user_request_backend_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
+              "legendFormat": "unauthorized_user",
+              "range": true,
+              "refId": "B"
             }
           ],
-          "title": "Restarts ($job)",
+          "title": "Requests backend error rate",
           "type": "timeseries"
         },
         {
@@ -2744,7 +2734,6 @@
                   "mode": "off"
                 }
               },
-              "mappings": [],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
@@ -2755,14 +2744,13 @@
                 ]
               },
               "unit": "s"
-            },
-            "overrides": []
+            }
           },
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 46
+            "y": 48
           },
           "id": 39,
           "links": [
@@ -2773,6 +2761,10 @@
             }
           ],
           "options": {
+            "annotations": {
+              "clustering": -1,
+              "multiLane": false
+            },
             "legend": {
               "calcs": [],
               "displayMode": "list",
@@ -2785,7 +2777,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.3.2",
+          "pluginVersion": "13.0.2",
           "targets": [
             {
               "datasource": {
@@ -2805,42 +2797,349 @@
       ],
       "title": "Troubleshooting",
       "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 40
+      },
+      "id": 48,
+      "panels": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Limit"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "#F2495C",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 0,
+            "y": 41
+          },
+          "id": 28,
+          "options": {
+            "annotations": {
+              "clustering": -1,
+              "multiLane": false
+            },
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "13.2.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, instance, pod)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "min(process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}) by(job)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{job}}: limit",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "CPU ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "bytes"
+            }
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 12,
+            "y": 41
+          },
+          "id": 27,
+          "options": {
+            "annotations": {
+              "clustering": -1,
+              "multiLane": false
+            },
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "13.2.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "expr": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "requested from system",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "expr": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "heap inuse",
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "expr": "sum(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "stack inuse",
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "resident",
+              "refId": "D"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "exemplar": false,
+              "expr": "sum(process_resident_memory_anon_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "resident anonymous",
+              "refId": "E"
+            }
+          ],
+          "title": "Memory usage ($instance)",
+          "type": "timeseries"
+        }
+      ],
+      "title": "Drilldown",
+      "type": "row"
     }
   ],
+  "preload": false,
   "refresh": "30s",
-  "revision": 1,
-  "schemaVersion": 39,
-  "tags": [
-    "victoriametrics"
-  ],
+  "schemaVersion": 42,
+  "tags": [],
   "templating": {
     "list": [
       {
+        "allowCustomValue": true,
         "current": {
-          "selected": false,
-          "text": "VictoriaMetrics - cluster",
-          "value": "PAF93674D0B4E9963"
+          "text": "",
+          "value": "${ds}",
+          "selected": true
         },
-        "hide": 0,
         "includeAll": false,
-        "multi": false,
         "name": "ds",
         "options": [],
         "query": "victoriametrics-metrics-datasource",
-        "queryValue": "",
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
         "type": "datasource"
       },
       {
+        "allowCustomValue": true,
         "current": {},
         "datasource": {
           "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{version=~\"^vmauth.*\"}, job)",
-        "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "job",
@@ -2851,19 +3150,19 @@
         },
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
+        "regexApplyTo": "value",
         "sort": 1,
         "type": "query"
       },
       {
         "allValue": ".*",
+        "allowCustomValue": true,
         "current": {},
         "datasource": {
           "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
-        "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "instance",
@@ -2874,18 +3173,18 @@
         },
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
+        "regexApplyTo": "value",
         "sort": 1,
         "type": "query"
       },
       {
+        "allowCustomValue": true,
         "current": {},
         "datasource": {
           "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
         },
         "definition": "label_values(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\"}, username)",
-        "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "user",
@@ -2896,19 +3195,20 @@
         },
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
+        "regexApplyTo": "value",
         "sort": 1,
         "type": "query"
       },
       {
+        "allowCustomValue": true,
+        "baseFilters": [],
         "datasource": {
-          "type": "victoriametrics-datasource",
-          "uid": "P38648FE0F8C5BEA2"
+          "type": "victoriametrics-metrics-datasource",
+          "uid": "${ds}"
         },
+        "enableGroupBy": false,
         "filters": [],
-        "hide": 0,
         "name": "adhoc",
-        "skipUrlSync": false,
         "type": "adhoc"
       }
     ]
@@ -2917,8 +3217,21 @@
     "from": "now-3h",
     "to": "now"
   },
-  "timepicker": {},
-  "timezone": "",
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ]
+  },
+  "timezone": "browser",
   "title": "VictoriaMetrics - vmauth (VM)",
   "uid": "nbuo5Mr4k_vm",
   "version": 1,

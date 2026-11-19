@@ -154,6 +154,12 @@ func (zr *Reader) Release() {
 	zr.dd = nil
 }
 
+// Close alias to Release to implement io.ReadCloser.
+func (zr *Reader) Close() error {
+	zr.Release()
+	return nil
+}
+
 // WriteTo writes all the data from zr to w.
 //
 // It returns the number of bytes written to w.

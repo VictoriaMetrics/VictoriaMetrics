@@ -8,6 +8,7 @@ import (
 	"hash/fnv"
 	"maps"
 	"net/url"
+	"path"
 	"sync"
 	"time"
 
@@ -19,7 +20,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
@@ -42,6 +42,9 @@ var (
 		"For example, if lookback=1h then range from now() to now()-1h will be scanned.")
 	maxStartDelay = flag.Duration("group.maxStartDelay", 5*time.Minute, "Defines the max delay before starting the group evaluation. Group's start is artificially delayed for random duration on interval"+
 		" [0..min(--group.maxStartDelay, group.interval)]. This helps smoothing out the load on the configured datasource, so evaluations aren't executed too close to each other.")
+	ruleStripFilePath = flag.Bool("rule.stripFilePath", false, "Whether to strip rule file paths in logs and all API responses, including /metrics. "+
+		"For example, file path '/path/to/tenant_id/rules.yml' will be stripped to 'groupHashID/rules.yml'. "+
+		"This flag may be useful for hiding sensitive information in file paths, such as S3 bucket details.")
 )
 
 // Group is an entity for grouping rules
@@ -91,7 +94,9 @@ type groupMetrics struct {
 	iterationTotal    *metrics.Counter
 	iterationDuration *metrics.Summary
 	iterationMissed   *metrics.Counter
+	iterationReset    *metrics.Counter
 	iterationInterval *metrics.Gauge
+	iterationLimit    *metrics.Gauge
 }
 
 // merges group rule labels into result map
@@ -147,6 +152,12 @@ func NewGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		g.EvalDelay = &cfg.EvalDelay.D
 	}
 	g.id = g.CreateID()
+	// strip file path from group.File after generated group ID when ruleStripFilePath is set,
+	// so it won't be exposed in logs and api responses
+	if *ruleStripFilePath {
+		_, filename := path.Split(g.File)
+		g.File = fmt.Sprintf("%d/%s", g.id, filename)
+	}
 	for _, h := range cfg.Headers {
 		g.Headers[h.Key] = h.Value
 	}
@@ -210,29 +221,6 @@ func (g *Group) CreateID() uint64 {
 	return hash.Sum64()
 }
 
-// restore restores alerts state for group rules
-func (g *Group) restore(ctx context.Context, qb datasource.QuerierBuilder, ts time.Time, lookback time.Duration) error {
-	for _, rule := range g.Rules {
-		ar, ok := rule.(*AlertingRule)
-		if !ok {
-			continue
-		}
-		if ar.For < 1 {
-			continue
-		}
-		q := qb.BuildWithParams(datasource.QuerierParams{
-			EvaluationInterval: g.Interval,
-			QueryParams:        g.Params,
-			Headers:            g.Headers,
-			Debug:              ar.Debug,
-		})
-		if err := ar.restore(ctx, q, ts, lookback); err != nil {
-			return fmt.Errorf("error while restoring rule %q: %w", rule, err)
-		}
-	}
-	return nil
-}
-
 // updateWith updates existing group with
 // passed group object. This function ignores group
 // evaluation interval change. It supposed to be updated
@@ -278,6 +266,8 @@ func (g *Group) updateWith(newGroup *Group) error {
 	g.Headers = newGroup.Headers
 	g.NotifierHeaders = newGroup.NotifierHeaders
 	g.Labels = newGroup.Labels
+	g.EvalDelay = newGroup.EvalDelay
+	g.evalAlignment = newGroup.evalAlignment
 	g.Limit = newGroup.Limit
 	g.checksum = newGroup.checksum
 	g.Rules = newRules
@@ -320,9 +310,16 @@ func (g *Group) Init() {
 	g.metrics.iterationTotal = g.metrics.set.NewCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
 	g.metrics.iterationDuration = g.metrics.set.NewSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
 	g.metrics.iterationMissed = g.metrics.set.NewCounter(fmt.Sprintf(`vmalert_iteration_missed_total{%s}`, labels))
+	g.metrics.iterationReset = g.metrics.set.NewCounter(fmt.Sprintf(`vmalert_iteration_reset_total{%s}`, labels))
 	g.metrics.iterationInterval = g.metrics.set.NewGauge(fmt.Sprintf(`vmalert_iteration_interval_seconds{%s}`, labels), func() float64 {
 		i := g.Interval.Seconds()
 		return i
+	})
+	g.metrics.iterationLimit = g.metrics.set.NewGauge(fmt.Sprintf(`vmalert_group_rule_results_limit{%s}`, labels), func() float64 {
+		g.mu.RLock()
+		limit := g.Limit
+		g.mu.RUnlock()
+		return float64(limit)
 	})
 	for i := range g.Rules {
 		g.Rules[i].registerMetrics(g.metrics.set)
@@ -354,7 +351,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 				g.mu.Lock()
 				err := g.updateWith(ng)
 				if err != nil {
-					logger.Errorf("group %q: failed to update: %s", g.Name, err)
+					logger.Errorf("group %q (file=%q): failed to update: %s", g.Name, g.File, err)
 					g.mu.Unlock()
 					continue
 				}
@@ -374,7 +371,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 
 	g.infof("started")
 
-	eval := func(ctx context.Context, ts time.Time) time.Time {
+	eval := func(ctx context.Context, ts time.Time, getRemoteReadQuerier func(enableDebug bool) datasource.Querier) {
 		g.metrics.iterationTotal.Inc()
 
 		start := time.Now()
@@ -384,23 +381,22 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 			g.mu.Lock()
 			g.LastEvaluation = start
 			g.mu.Unlock()
-			return ts
+			return
 		}
 
 		resolveDuration := getResolveDuration(g.Interval, *resendDelay, *maxResolveDuration)
 		// adjust request timestamp using evalDelay and evalAlignment if necessary
 		ts = g.adjustReqTimestamp(ts)
-		errs := e.execConcurrently(ctx, g.Rules, ts, g.Concurrency, resolveDuration, g.Limit)
+		errs := e.execConcurrently(ctx, g.Rules, ts, g.Concurrency, resolveDuration, g.Limit, getRemoteReadQuerier)
 		for err := range errs {
 			if err != nil {
-				logger.Errorf("group %q: %s", g.Name, err)
+				logger.Errorf("group %q (file=%q): %s", g.Name, g.File, err)
 			}
 		}
 		g.metrics.iterationDuration.UpdateDuration(start)
 		g.mu.Lock()
 		g.LastEvaluation = start
 		g.mu.Unlock()
-		return ts
 	}
 
 	evalCtx, cancel := context.WithCancel(ctx)
@@ -409,27 +405,45 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 	g.mu.Unlock()
 	defer g.evalCancel()
 
+	// start the interval ticker before the first evaluation,
+	// so that the evaluation timestamps of groups with the `eval_offset` option are also aligned,
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10773
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
 
-	realEvalTS := eval(evalCtx, evalTS)
-
-	// restore the rules state after the first evaluation
-	// so only active alerts can be restored.
+	var getRemoteReadQuerier func(enableDebug bool) datasource.Querier
 	if rr != nil {
-		err := g.restore(ctx, rr, realEvalTS, *remoteReadLookBack)
-		if err != nil {
-			logger.Errorf("error while restoring ruleState for group %q: %s", g.Name, err)
+		getRemoteReadQuerier = func(enableDebug bool) datasource.Querier {
+			// restore query must look back for -remoteRead.lookback for both VictoriaMetrics and Prometheus.
+			// VictoriaMetrics uses `step` as the lookbehind window for instant queries, capped by `max_lookback`,
+			// while Prometheus uses `lookback_delta`.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11574
+			lookback := fmt.Sprintf("%ds", int(remoteReadLookBack.Seconds()))
+			params := url.Values{
+				"max_lookback":   {lookback},
+				"lookback_delta": {lookback},
+			}
+			// custom group params are prior to default ones
+			maps.Copy(params, g.Params)
+			return rr.BuildWithParams(datasource.QuerierParams{
+				EvaluationInterval: g.Interval,
+				QueryStep:          *remoteReadLookBack,
+				QueryParams:        params,
+				Headers:            g.Headers,
+				Debug:              enableDebug,
+			})
 		}
 	}
+	// pass getRemoteReadQuerier to the first evaluation, so it can be used for restoring alert states
+	eval(evalCtx, evalTS, getRemoteReadQuerier)
 
 	for {
 		select {
 		case <-ctx.Done():
-			logger.Infof("group %q: context cancelled", g.Name)
+			logger.Infof("group %q (file=%q): context cancelled", g.Name, g.File)
 			return
 		case <-g.doneCh:
-			logger.Infof("group %q: received stop signal", g.Name)
+			logger.Infof("group %q (file=%q): received stop signal", g.Name, g.File)
 			return
 		case ng := <-g.updateCh:
 			g.mu.Lock()
@@ -443,7 +457,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 
 			err := g.updateWith(ng)
 			if err != nil {
-				logger.Errorf("group %q: failed to update: %s", g.Name, err)
+				logger.Errorf("group %q (file=%q): failed to update: %s", g.Name, g.File, err)
 				g.mu.Unlock()
 				continue
 			}
@@ -461,16 +475,18 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 			if missed < 0 {
 				// missed can become < 0 due to irregular delays during evaluation
 				// which can result in time.Since(evalTS) < g.Interval;
-				// or the system wall clock was changed backward
-				missed = 0
+				// or the system wall clock was changed backward,
+				// Reset the evalTS to the current time.
 				evalTS = time.Now()
+				g.metrics.iterationReset.Inc()
+			} else {
+				evalTS = evalTS.Add((missed + 1) * g.Interval)
 			}
 			if missed > 0 {
 				g.metrics.iterationMissed.Inc()
 			}
-			evalTS = evalTS.Add((missed + 1) * g.Interval)
 
-			eval(evalCtx, evalTS)
+			eval(evalCtx, evalTS, nil)
 		}
 	}
 }
@@ -519,12 +535,12 @@ func (g *Group) delayBeforeStart(ts time.Time, maxDelay time.Duration) time.Dura
 
 func (g *Group) infof(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
-	logger.Infof("group %q %s; interval=%v; eval_offset=%v; concurrency=%d",
-		g.Name, msg, g.Interval, g.EvalOffset, g.Concurrency)
+	logger.Infof("group %q (file=%q; interval=%v; eval_offset=%v; concurrency=%d) %s",
+		g.Name, g.File, g.Interval, g.EvalOffset, g.Concurrency, msg)
 }
 
 // Replay performs group replay
-func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoint, replayRuleRetryAttempts int, replayDelay time.Duration, disableProgressBar bool, ruleEvaluationConcurrency int) int {
+func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoint, replayRuleRetryAttempts int, replayDelay time.Duration, disableProgressBar bool, ruleEvaluationConcurrency int, continueWithExecutionErr bool) int {
 	var total int
 	step := g.Interval * time.Duration(maxDataPoint)
 	ri := rangeIterator{start: start, end: end, step: step}
@@ -552,7 +568,7 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 			if !disableProgressBar {
 				bar = pb.StartNew(iterations)
 			}
-			total += replayRuleRange(rule, ri, bar, rw, replayRuleRetryAttempts, ruleEvaluationConcurrency)
+			total += replayRuleRange(rule, ri, bar, rw, replayRuleRetryAttempts, ruleEvaluationConcurrency, continueWithExecutionErr)
 			if bar != nil {
 				bar.Finish()
 			}
@@ -574,7 +590,7 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 		rule := g.Rules[i]
 		sem <- struct{}{}
 		wg.Go(func() {
-			res <- replayRuleRange(rule, ri, bar, rw, replayRuleRetryAttempts, ruleEvaluationConcurrency)
+			res <- replayRuleRange(rule, ri, bar, rw, replayRuleRetryAttempts, ruleEvaluationConcurrency, continueWithExecutionErr)
 			<-sem
 		})
 	}
@@ -594,7 +610,7 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 	return total
 }
 
-func replayRuleRange(r Rule, ri rangeIterator, bar *pb.ProgressBar, rw remotewrite.RWClient, replayRuleRetryAttempts, ruleEvaluationConcurrency int) int {
+func replayRuleRange(r Rule, ri rangeIterator, bar *pb.ProgressBar, rw remotewrite.RWClient, replayRuleRetryAttempts, ruleEvaluationConcurrency int, continueWithExecutionErr bool) int {
 	fmt.Printf("> Rule %q (ID: %d)\n", r, r.ID())
 	// alerting rule with for>0 can't be replayed concurrently, since the status change might depend on the previous evaluation
 	// see https://github.com/VictoriaMetrics/VictoriaMetrics/commit/abcb21aa5ee918ba9a4e9cde495dba06e1e9564c
@@ -609,7 +625,7 @@ func replayRuleRange(r Rule, ri rangeIterator, bar *pb.ProgressBar, rw remotewri
 		start := ri.s
 		end := ri.e
 		wg.Go(func() {
-			n, err := replayRule(r, start, end, rw, replayRuleRetryAttempts)
+			n, err := replayRule(r, start, end, rw, replayRuleRetryAttempts, continueWithExecutionErr)
 			if err != nil {
 				logger.Fatalf("rule %q: %s", r, err)
 			}
@@ -641,7 +657,7 @@ func (g *Group) ExecOnce(ctx context.Context, rw remotewrite.RWClient, evalTS ti
 		return nil
 	}
 	resolveDuration := getResolveDuration(g.Interval, *resendDelay, *maxResolveDuration)
-	return e.execConcurrently(ctx, g.Rules, evalTS, g.Concurrency, resolveDuration, g.Limit)
+	return e.execConcurrently(ctx, g.Rules, evalTS, g.Concurrency, resolveDuration, g.Limit, nil)
 }
 
 type rangeIterator struct {
@@ -715,12 +731,12 @@ type executor struct {
 }
 
 // execConcurrently executes rules concurrently if concurrency>1
-func (e *executor) execConcurrently(ctx context.Context, rules []Rule, ts time.Time, concurrency int, resolveDuration time.Duration, limit int) chan error {
+func (e *executor) execConcurrently(ctx context.Context, rules []Rule, ts time.Time, concurrency int, resolveDuration time.Duration, limit int, getRemoteReadQuerier func(enableDebug bool) datasource.Querier) chan error {
 	res := make(chan error, len(rules))
 	if concurrency == 1 {
 		// fast path
 		for _, rule := range rules {
-			res <- e.exec(ctx, rule, ts, resolveDuration, limit)
+			res <- e.exec(ctx, rule, ts, resolveDuration, limit, getRemoteReadQuerier)
 		}
 		close(res)
 		return res
@@ -733,7 +749,7 @@ func (e *executor) execConcurrently(ctx context.Context, rules []Rule, ts time.T
 			rule := rules[i]
 			sem <- struct{}{}
 			wg.Go(func() {
-				res <- e.exec(ctx, rule, ts, resolveDuration, limit)
+				res <- e.exec(ctx, rule, ts, resolveDuration, limit, getRemoteReadQuerier)
 				<-sem
 			})
 		}
@@ -750,10 +766,10 @@ var (
 	execErrors = metrics.NewCounter(`vmalert_execution_errors_total`)
 )
 
-func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDuration time.Duration, limit int) error {
+func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDuration time.Duration, limit int, getRemoteReadQuerier func(enableDebug bool) datasource.Querier) error {
 	execTotal.Inc()
 
-	tss, err := r.exec(ctx, ts, limit)
+	tss, err := r.exec(ctx, ts, limit, getRemoteReadQuerier)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			// the context can be cancelled on graceful shutdown
@@ -764,7 +780,7 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 		return fmt.Errorf("rule %q: failed to execute: %w", r, err)
 	}
 
-	var errG vmalertutil.ErrGroup
+	var errs []error
 	if e.Rw != nil {
 		pushToRW := func(tss []prompb.TimeSeries) error {
 			var lastErr error
@@ -776,26 +792,26 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 			return lastErr
 		}
 		if err := pushToRW(tss); err != nil {
-			errG.Add(err)
+			errs = append(errs, err)
 		}
 	}
 
 	ar, ok := r.(*AlertingRule)
 	if !ok {
-		return errG.Err()
+		return errors.Join(errs...)
 	}
 
 	alerts := ar.alertsToSend(resolveDuration, *resendDelay)
 	if len(alerts) < 1 {
-		return errG.Err()
+		return errors.Join(errs...)
 	}
 
 	notifierErr := notifier.Send(ctx, alerts, e.notifierHeaders)
 	for err := range notifierErr {
 		if err != nil {
-			errG.Add(fmt.Errorf("rule %q: notifier failure: %w", r, err))
+			errs = append(errs, fmt.Errorf("rule %q: notifier failure: %w", r, err))
 		}
 	}
 
-	return errG.Err()
+	return errors.Join(errs...)
 }

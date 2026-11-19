@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
@@ -460,7 +461,7 @@ func parsePipeMath(lex *lexer) (pipe, error) {
 		switch {
 		case lex.isKeyword(","):
 			lex.nextToken()
-		case lex.isKeyword("|", ")", ""):
+		case lex.isQueryPartTrailer():
 			if len(mes) == 0 {
 				return nil, fmt.Errorf("missing 'math' expressions")
 			}
@@ -469,7 +470,7 @@ func parsePipeMath(lex *lexer) (pipe, error) {
 			}
 			return pm, nil
 		default:
-			return nil, fmt.Errorf("unexpected token after 'math' expression [%s]: %q; expecting ',', '|' or ')'", mes[len(mes)-1], lex.token)
+			return nil, fmt.Errorf("unexpected token after 'math' expression [%s]: %q; expecting ',', '|', ';' or ')'", mes[len(mes)-1], lex.token)
 		}
 	}
 }
@@ -481,7 +482,7 @@ func parseMathEntry(lex *lexer) (*mathEntry, error) {
 	}
 
 	resultField := ""
-	if lex.isKeyword(",", "|", ")", "") {
+	if lex.isKeyword(",") || lex.isQueryPartTrailer() {
 		resultField = me.String()
 	} else {
 		if lex.isKeyword("as") {
@@ -567,32 +568,51 @@ func parseMathExprInParens(lex *lexer) (*mathExpr, error) {
 	return me, nil
 }
 
+type mathFuncParser func(lex *lexer) (*mathExpr, error)
+
+var mathFuncParsers map[string]mathFuncParser
+var mathFuncParsersOnce sync.Once
+
+func getMathFuncParsers() map[string]mathFuncParser {
+	mathFuncParsersOnce.Do(initMathFuncParsers)
+	return mathFuncParsers
+}
+
+func initMathFuncParsers() {
+	mathFuncParsers = map[string]mathFuncParser{
+		"abs":   parseMathExprAbs,
+		"ceil":  parseMathExprCeil,
+		"exp":   parseMathExprExp,
+		"floor": parseMathExprFloor,
+		"ln":    parseMathExprLn,
+		"max":   parseMathExprMax,
+		"min":   parseMathExprMin,
+		"now":   parseMathExprNow,
+		"rand":  parseMathExprRand,
+		"round": parseMathExprRound,
+	}
+}
+
+func isMathFuncName(s string) bool {
+	mps := getMathFuncParsers()
+	sLower := strings.ToLower(s)
+	return mps[sLower] != nil
+}
+
 func parseMathExprOperand(lex *lexer) (*mathExpr, error) {
 	if lex.isKeyword("(") {
 		return parseMathExprInParens(lex)
 	}
 
+	// A quoted token (e.g. "abs") isn't a keyword, so isKeyword() returns false for it
+	// and it falls through to parseMathExprFieldName below as a field name.
+	for funcName, parseFunc := range getMathFuncParsers() {
+		if lex.isKeyword(funcName) {
+			return parseFunc(lex)
+		}
+	}
+
 	switch {
-	case lex.isKeyword("abs"):
-		return parseMathExprAbs(lex)
-	case lex.isKeyword("exp"):
-		return parseMathExprExp(lex)
-	case lex.isKeyword("ln"):
-		return parseMathExprLn(lex)
-	case lex.isKeyword("max"):
-		return parseMathExprMax(lex)
-	case lex.isKeyword("min"):
-		return parseMathExprMin(lex)
-	case lex.isKeyword("now"):
-		return parseMathExprNow(lex)
-	case lex.isKeyword("rand"):
-		return parseMathExprRand(lex)
-	case lex.isKeyword("round"):
-		return parseMathExprRound(lex)
-	case lex.isKeyword("ceil"):
-		return parseMathExprCeil(lex)
-	case lex.isKeyword("floor"):
-		return parseMathExprFloor(lex)
 	case lex.isKeyword("-"):
 		return parseMathExprUnaryMinus(lex)
 	case lex.isKeyword("+"):

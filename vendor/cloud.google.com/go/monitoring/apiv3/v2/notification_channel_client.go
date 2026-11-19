@@ -198,7 +198,7 @@ type NotificationChannelClient struct {
 
 // Wrapper methods routed to the internal client.
 
-// Close closes the connection to the API service. The user should invoke this when
+// Close closes the connection to the API service. **Always** call Close() when
 // the client is no longer required.
 func (c *NotificationChannelClient) Close() error {
 	return c.internalClient.Close()
@@ -397,6 +397,51 @@ func NewNotificationChannelClient(ctx context.Context, opts ...option.ClientOpti
 		client.CallOptions.GetNotificationChannelVerificationCode = append(client.CallOptions.GetNotificationChannelVerificationCode, gax.WithClientMetrics(metrics))
 		client.CallOptions.VerifyNotificationChannel = append(client.CallOptions.VerifyNotificationChannel, gax.WithClientMetrics(metrics))
 	}
+	if gax.IsFeatureEnabled("TRACING") {
+		tracing := gax.NewClientTracing(
+			gax.WithTracingAttributes(map[string]string{
+				gax.ClientService:  "monitoring",
+				gax.ClientVersion:  getVersionClient(),
+				gax.ClientArtifact: "cloud.google.com/go/monitoring/apiv3/v2",
+				gax.RPCSystem:      "grpc",
+				gax.URLDomain:      "monitoring.googleapis.com",
+			}),
+		)
+
+		client.CallOptions.ListNotificationChannelDescriptors = append(client.CallOptions.ListNotificationChannelDescriptors, gax.WithClientTracing(tracing))
+		client.CallOptions.GetNotificationChannelDescriptor = append(client.CallOptions.GetNotificationChannelDescriptor, gax.WithClientTracing(tracing))
+		client.CallOptions.ListNotificationChannels = append(client.CallOptions.ListNotificationChannels, gax.WithClientTracing(tracing))
+		client.CallOptions.GetNotificationChannel = append(client.CallOptions.GetNotificationChannel, gax.WithClientTracing(tracing))
+		client.CallOptions.CreateNotificationChannel = append(client.CallOptions.CreateNotificationChannel, gax.WithClientTracing(tracing))
+		client.CallOptions.UpdateNotificationChannel = append(client.CallOptions.UpdateNotificationChannel, gax.WithClientTracing(tracing))
+		client.CallOptions.DeleteNotificationChannel = append(client.CallOptions.DeleteNotificationChannel, gax.WithClientTracing(tracing))
+		client.CallOptions.SendNotificationChannelVerificationCode = append(client.CallOptions.SendNotificationChannelVerificationCode, gax.WithClientTracing(tracing))
+		client.CallOptions.GetNotificationChannelVerificationCode = append(client.CallOptions.GetNotificationChannelVerificationCode, gax.WithClientTracing(tracing))
+		client.CallOptions.VerifyNotificationChannel = append(client.CallOptions.VerifyNotificationChannel, gax.WithClientTracing(tracing))
+	}
+	if gax.IsFeatureEnabled("LOGGING") {
+		logging := gax.NewClientLogging(
+			gax.WithLoggerProvider(c.logger),
+			gax.WithLoggingAttributes(map[string]string{
+				gax.ClientService:  "monitoring",
+				gax.ClientVersion:  getVersionClient(),
+				gax.ClientArtifact: "cloud.google.com/go/monitoring/apiv3/v2",
+				gax.RPCSystem:      "grpc",
+				gax.URLDomain:      "monitoring.googleapis.com",
+			}),
+		)
+
+		client.CallOptions.ListNotificationChannelDescriptors = append(client.CallOptions.ListNotificationChannelDescriptors, gax.WithClientLogging(logging))
+		client.CallOptions.GetNotificationChannelDescriptor = append(client.CallOptions.GetNotificationChannelDescriptor, gax.WithClientLogging(logging))
+		client.CallOptions.ListNotificationChannels = append(client.CallOptions.ListNotificationChannels, gax.WithClientLogging(logging))
+		client.CallOptions.GetNotificationChannel = append(client.CallOptions.GetNotificationChannel, gax.WithClientLogging(logging))
+		client.CallOptions.CreateNotificationChannel = append(client.CallOptions.CreateNotificationChannel, gax.WithClientLogging(logging))
+		client.CallOptions.UpdateNotificationChannel = append(client.CallOptions.UpdateNotificationChannel, gax.WithClientLogging(logging))
+		client.CallOptions.DeleteNotificationChannel = append(client.CallOptions.DeleteNotificationChannel, gax.WithClientLogging(logging))
+		client.CallOptions.SendNotificationChannelVerificationCode = append(client.CallOptions.SendNotificationChannelVerificationCode, gax.WithClientLogging(logging))
+		client.CallOptions.GetNotificationChannelVerificationCode = append(client.CallOptions.GetNotificationChannelVerificationCode, gax.WithClientLogging(logging))
+		client.CallOptions.VerifyNotificationChannel = append(client.CallOptions.VerifyNotificationChannel, gax.WithClientLogging(logging))
+	}
 
 	client.internalClient = c
 
@@ -422,7 +467,7 @@ func (c *notificationChannelGRPCClient) setGoogleClientInfo(keyval ...string) {
 	}
 }
 
-// Close closes the connection to the API service. The user should invoke this when
+// Close closes the connection to the API service. **Always** call Close() when
 // the client is no longer required.
 func (c *notificationChannelGRPCClient) Close() error {
 	return c.connPool.Close()
@@ -433,15 +478,12 @@ func (c *notificationChannelGRPCClient) ListNotificationChannelDescriptors(ctx c
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//monitoring.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.monitoring.v3.NotificationChannelService/ListNotificationChannelDescriptors")
 	}
 	opts = append((*c.CallOptions).ListNotificationChannelDescriptors[0:len((*c.CallOptions).ListNotificationChannelDescriptors):len((*c.CallOptions).ListNotificationChannelDescriptors)], opts...)
 	it := &NotificationChannelDescriptorIterator{}
-	req = proto.Clone(req).(*monitoringpb.ListNotificationChannelDescriptorsRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoringpb.NotificationChannelDescriptor, string, error) {
 		resp := &monitoringpb.ListNotificationChannelDescriptorsResponse{}
 		if pageToken != "" {
@@ -485,9 +527,6 @@ func (c *notificationChannelGRPCClient) GetNotificationChannelDescriptor(ctx con
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//monitoring.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.monitoring.v3.NotificationChannelService/GetNotificationChannelDescriptor")
 	}
@@ -509,15 +548,12 @@ func (c *notificationChannelGRPCClient) ListNotificationChannels(ctx context.Con
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//monitoring.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.monitoring.v3.NotificationChannelService/ListNotificationChannels")
 	}
 	opts = append((*c.CallOptions).ListNotificationChannels[0:len((*c.CallOptions).ListNotificationChannels):len((*c.CallOptions).ListNotificationChannels)], opts...)
 	it := &NotificationChannelIterator{}
-	req = proto.Clone(req).(*monitoringpb.ListNotificationChannelsRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoringpb.NotificationChannel, string, error) {
 		resp := &monitoringpb.ListNotificationChannelsResponse{}
 		if pageToken != "" {
@@ -561,9 +597,6 @@ func (c *notificationChannelGRPCClient) GetNotificationChannel(ctx context.Conte
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//monitoring.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.monitoring.v3.NotificationChannelService/GetNotificationChannel")
 	}
@@ -585,9 +618,6 @@ func (c *notificationChannelGRPCClient) CreateNotificationChannel(ctx context.Co
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//monitoring.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.monitoring.v3.NotificationChannelService/CreateNotificationChannel")
 	}
@@ -630,9 +660,6 @@ func (c *notificationChannelGRPCClient) DeleteNotificationChannel(ctx context.Co
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//monitoring.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.monitoring.v3.NotificationChannelService/DeleteNotificationChannel")
 	}
@@ -650,9 +677,6 @@ func (c *notificationChannelGRPCClient) SendNotificationChannelVerificationCode(
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//monitoring.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.monitoring.v3.NotificationChannelService/SendNotificationChannelVerificationCode")
 	}
@@ -670,9 +694,6 @@ func (c *notificationChannelGRPCClient) GetNotificationChannelVerificationCode(c
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//monitoring.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.monitoring.v3.NotificationChannelService/GetNotificationChannelVerificationCode")
 	}
@@ -694,9 +715,6 @@ func (c *notificationChannelGRPCClient) VerifyNotificationChannel(ctx context.Co
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//monitoring.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.monitoring.v3.NotificationChannelService/VerifyNotificationChannel")
 	}

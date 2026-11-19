@@ -39,8 +39,29 @@ func NewArrayBool(name, description string) *ArrayBool {
 }
 
 // NewArrayInt returns new ArrayInt with the given name, defaultValue and description.
+//
+// -help shows defaultValue as a plain number. Use NewArrayIntWithDynamicDefault when
+// defaultValue is calculated at runtime.
 func NewArrayInt(name string, defaultValue int, description string) *ArrayInt {
-	description += fmt.Sprintf(" (default %d)", defaultValue)
+	return newArrayInt(name, defaultValue, strconv.Itoa(defaultValue), description)
+}
+
+// NewArrayIntWithDynamicDefault returns new ArrayInt with the given name, defaultValue and description.
+//
+// Use it instead of NewArrayInt when defaultValue is calculated at runtime.
+// See NewIntWithDynamicDefault for why such a value needs a hint.
+func NewArrayIntWithDynamicDefault(name string, defaultValue int, defaultValueHint, description string) *ArrayInt {
+	if defaultValueHint == "" {
+		panic(fmt.Sprintf("BUG: missing defaultValueHint for -%s", name))
+	}
+	return newArrayInt(name, defaultValue, fmt.Sprintf("%d = %s", defaultValue, defaultValueHint), description)
+}
+
+// newArrayInt registers an int array flag, which shows defaultValueText as its default in -help.
+//
+// Array flags keep the default in the description, since flag.Var hides an empty DefValue.
+func newArrayInt(name string, defaultValue int, defaultValueText, description string) *ArrayInt {
+	description += fmt.Sprintf(" (default %s)", defaultValueText)
 	description += "\nSupports `array` of values separated by comma or specified via multiple flags."
 	description += "\nEmpty values are set to default value."
 	a := &ArrayInt{

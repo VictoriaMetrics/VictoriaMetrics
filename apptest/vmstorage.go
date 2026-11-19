@@ -1,32 +1,30 @@
 package apptest
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"regexp"
 	"testing"
 	"time"
 )
 
-// Vmstorage holds the state of a vmstorage app and provides vmstorage-specific
-// functions.
-type Vmstorage struct {
-	*app
-	*ServesMetrics
-
-	storageDataPath string
-	httpListenAddr  string
-	vminsertAddr    string
-	vmselectAddr    string
+// StartVmstorage starts the latest version of vmstorage.
+//
+// The path to the binary can be provided via VMSTORAGE_PATH environment
+// variable. If the variable is not set, ../../bin/vmstorage-race will be used.
+func StartVmstorage(instance string, flags []string, cli *Client, output io.Writer) (*Vmstorage, error) {
+	binary := os.Getenv("VMSTORAGE_PATH")
+	if binary == "" {
+		binary = "../../bin/vmstorage-race"
+	}
+	return startVmstorage(instance, binary, flags, cli, output)
 }
 
-// StartVmstorageAt starts an instance of vmstorage with the given flags. It also
+// startVmstorage starts an instance of vmstorage with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr)
-func StartVmstorageAt(instance, binary string, flags []string, cli *Client, output io.Writer) (*Vmstorage, error) {
+func startVmstorage(instance, binary string, flags []string, cli *Client, output io.Writer) (*Vmstorage, error) {
 	app, stderrExtracts, err := startApp(instance, binary, flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-storageDataPath": fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
@@ -46,17 +44,63 @@ func StartVmstorageAt(instance, binary string, flags []string, cli *Client, outp
 		return nil, err
 	}
 
-	return &Vmstorage{
-		app: app,
-		ServesMetrics: &ServesMetrics{
-			metricsURL: fmt.Sprintf("http://%s/metrics", stderrExtracts[1]),
-			cli:        cli,
-		},
+	return newVmstorage(app, cli, vmstorageRuntimeValues{
 		storageDataPath: stderrExtracts[0],
 		httpListenAddr:  stderrExtracts[1],
 		vminsertAddr:    stderrExtracts[2],
 		vmselectAddr:    stderrExtracts[3],
-	}, nil
+	}), nil
+}
+
+type vmstorageRuntimeValues struct {
+	storageDataPath string
+	httpListenAddr  string
+	vminsertAddr    string
+	vmselectAddr    string
+}
+
+func newVmstorage(app *app, cli *Client, rt vmstorageRuntimeValues) *Vmstorage {
+	vminsertClient := &vminsertClient{
+		cli: cli,
+		url: func(op, path string, opts QueryOpts) string {
+			return getClusterPath(rt.httpListenAddr, op, path, opts)
+		},
+		openTSDBURL: func(op, path string, opts QueryOpts) string {
+			panic("OpenTSDB ingestion is not supported by vmstorage")
+		},
+		graphiteListenAddr: "graphite-ingestion-is-not-supported-by-vmstorage",
+		sendBlocking: func(t *testing.T, numRecordsToSend int, send func()) {
+			t.Helper()
+			send()
+		},
+	}
+	return &Vmstorage{
+		app:           app,
+		metricsClient: newMetricsClient(cli, rt.httpListenAddr),
+		vmstorageClient: &vmstorageClient{
+			cli:            cli,
+			httpListenAddr: rt.httpListenAddr,
+		},
+		vminsertClient:  vminsertClient,
+		storageDataPath: rt.storageDataPath,
+		httpListenAddr:  rt.httpListenAddr,
+		vminsertAddr:    rt.vminsertAddr,
+		vmselectAddr:    rt.vmselectAddr,
+	}
+}
+
+// Vmstorage holds the state of a vmstorage app and provides vmstorage-specific
+// functions.
+type Vmstorage struct {
+	*app
+	*metricsClient
+	*vmstorageClient
+	*vminsertClient
+
+	storageDataPath string
+	httpListenAddr  string
+	vminsertAddr    string
+	vmselectAddr    string
 }
 
 // VminsertAddr returns the address at which the vmstorage process is listening
@@ -71,119 +115,10 @@ func (app *Vmstorage) VmselectAddr() string {
 	return app.vmselectAddr
 }
 
-// ForceFlush is a test helper function that forces the flushing of inserted
-// data, so it becomes available for searching immediately.
-func (app *Vmstorage) ForceFlush(t *testing.T) {
-	t.Helper()
-
-	forceFlushURL := fmt.Sprintf("http://%s/internal/force_flush", app.httpListenAddr)
-	_, statusCode := app.cli.Get(t, forceFlushURL, nil)
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
-	}
-}
-
-// ForceMerge is a test helper function that forces the merging of parts.
-func (app *Vmstorage) ForceMerge(t *testing.T) {
-	t.Helper()
-
-	forceMergeURL := fmt.Sprintf("http://%s/internal/force_merge", app.httpListenAddr)
-	_, statusCode := app.cli.Get(t, forceMergeURL, nil)
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
-	}
-}
-
-// SnapshotCreate creates a database snapshot by sending a query to the
-// /snapshot/create endpoint.
-//
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
-func (app *Vmstorage) SnapshotCreate(t *testing.T) *SnapshotCreateResponse {
-	t.Helper()
-
-	data, statusCode := app.cli.Post(t, app.SnapshotCreateURL(), nil, nil)
-	if got, want := statusCode, http.StatusOK; got != want {
-		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
-	}
-
-	var res SnapshotCreateResponse
-	if err := json.Unmarshal([]byte(data), &res); err != nil {
-		t.Fatalf("could not unmarshal snapshot create response: data=%q, err: %v", data, err)
-	}
-
-	return &res
-}
-
-// SnapshotCreateURL returns the URL for creating snapshots.
-func (app *Vmstorage) SnapshotCreateURL() string {
-	return fmt.Sprintf("http://%s/snapshot/create", app.httpListenAddr)
-}
-
-// SnapshotList lists existing database snapshots by sending a query to the
-// /snapshot/list endpoint.
-//
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
-func (app *Vmstorage) SnapshotList(t *testing.T) *SnapshotListResponse {
-	t.Helper()
-
-	queryURL := fmt.Sprintf("http://%s/snapshot/list", app.httpListenAddr)
-	data, statusCode := app.cli.Get(t, queryURL, nil)
-	if got, want := statusCode, http.StatusOK; got != want {
-		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
-	}
-
-	var res SnapshotListResponse
-	if err := json.Unmarshal([]byte(data), &res); err != nil {
-		t.Fatalf("could not unmarshal snapshot list response: data=%q, err: %v", data, err)
-	}
-
-	return &res
-}
-
-// SnapshotDelete deletes a snapshot by sending a query to the
-// /snapshot/delete endpoint.
-//
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
-func (app *Vmstorage) SnapshotDelete(t *testing.T, snapshotName string) *SnapshotDeleteResponse {
-	t.Helper()
-
-	queryURL := fmt.Sprintf("http://%s/snapshot/delete?snapshot=%s", app.httpListenAddr, snapshotName)
-	data, statusCode := app.cli.Delete(t, queryURL)
-	wantStatusCodes := map[int]bool{
-		http.StatusOK:                  true,
-		http.StatusInternalServerError: true,
-	}
-	if !wantStatusCodes[statusCode] {
-		t.Fatalf("unexpected status code: got %d, want %v, resp text=%q", statusCode, wantStatusCodes, data)
-	}
-
-	var res SnapshotDeleteResponse
-	if err := json.Unmarshal([]byte(data), &res); err != nil {
-		t.Fatalf("could not unmarshal snapshot delete response: data=%q, err: %v", data, err)
-	}
-
-	return &res
-}
-
-// SnapshotDeleteAll deletes all snapshots by sending a query to the
-// /snapshot/delete_all endpoint.
-//
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
-func (app *Vmstorage) SnapshotDeleteAll(t *testing.T) *SnapshotDeleteAllResponse {
-	t.Helper()
-
-	queryURL := fmt.Sprintf("http://%s/snapshot/delete_all", app.httpListenAddr)
-	data, statusCode := app.cli.Post(t, queryURL, nil, nil)
-	if got, want := statusCode, http.StatusOK; got != want {
-		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
-	}
-
-	var res SnapshotDeleteAllResponse
-	if err := json.Unmarshal([]byte(data), &res); err != nil {
-		t.Fatalf("could not unmarshal snapshot delete all response: data=%q, err: %v", data, err)
-	}
-
-	return &res
+// HTTPAddr returns the address at which the vmstorage process is
+// listening for incoming HTTP requests.
+func (app *Vmstorage) HTTPAddr() string {
+	return app.httpListenAddr
 }
 
 // String returns the string representation of the vmstorage app state.

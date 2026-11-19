@@ -1,6 +1,7 @@
 ---
 weight: 3
 title: Kubernetes monitoring with VictoriaMetrics Cluster
+description: "Monitor Kubernetes with VM Cluster."
 menu:
   docs:
     parent: "guides"

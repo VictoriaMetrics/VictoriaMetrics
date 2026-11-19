@@ -15,14 +15,19 @@ import "./style.scss";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import classNames from "classnames";
 import useStateSearchParams from "../../hooks/useStateSearchParams";
+import { useTopQueriesColumns } from "./hooks/useTopQueriesColumns";
+import { useAppState } from "../../state/common/StateContext";
+import useEventListener from "../../hooks/useEventListener";
 
 const exampleDuration = "30ms, 15s, 3d4h, 1y2w";
 
 const TopQueries: FC = () => {
   const { isMobile } = useDeviceDetect();
+  const { serverUrl } = useAppState();
 
   const [topN, setTopN] = useStateSearchParams(10, "topN");
   const [maxLifetime, setMaxLifetime] = useStateSearchParams("10m", "maxLifetime");
+  const columns = useTopQueriesColumns({ maxLifetime });
 
   const { data, error, loading, fetch } = useFetchTopQueries({ topN, maxLifetime });
 
@@ -66,13 +71,10 @@ const TopQueries: FC = () => {
   }, [data]);
 
   useEffect(() => {
-    fetch();
-    window.addEventListener("popstate", fetch);
+    void fetch();
+  }, [serverUrl]);
 
-    return () => {
-      window.removeEventListener("popstate", fetch);
-    };
-  }, []);
+  useEventListener("popstate", fetch);
 
   return (
     <div
@@ -145,52 +147,33 @@ const TopQueries: FC = () => {
 
       {error && <Alert variant="error">{error}</Alert>}
 
-      {data && (<>
+      {data && (
         <div className="vm-top-queries-panels">
           <TopQueryPanel
+            title="Queries with most summary time to execute"
             rows={data.topBySumDuration}
-            title={"Queries with most summary time to execute"}
-            columns={[
-              { key: "query" },
-              { key: "sumDurationSeconds", title: "sum duration, sec" },
-              { key: "timeRange", sortBy: "timeRangeSeconds", title: "query time interval" },
-              { key: "count" }
-            ]}
-            defaultOrderBy={"sumDurationSeconds"}
+            columns={columns.topBySumDuration}
+            defaultOrderBy="sumDurationSeconds"
           />
           <TopQueryPanel
+            title="Most heavy queries"
             rows={data.topByAvgDuration}
-            title={"Most heavy queries"}
-            columns={[
-              { key: "query" },
-              { key: "avgDurationSeconds", title: "avg duration, sec" },
-              { key: "timeRange", sortBy: "timeRangeSeconds", title: "query time interval" },
-              { key: "count" }
-            ]}
-            defaultOrderBy={"avgDurationSeconds"}
+            columns={columns.topByAvgDuration}
+            defaultOrderBy="avgDurationSeconds"
           />
           <TopQueryPanel
+            title="Most frequently executed queries"
             rows={data.topByCount}
-            title={"Most frequently executed queries"}
-            columns={[
-              { key: "query" },
-              { key: "timeRange", sortBy: "timeRangeSeconds", title: "query time interval" },
-              { key: "count" }
-            ]}
+            columns={columns.topByCount}
           />
           <TopQueryPanel
+            title="Queries with most memory to execute"
             rows={data.topByAvgMemoryUsage}
-            title={"Queries with most memory to execute"}
-            columns={[
-              { key: "query" },
-              { key: "avgMemoryBytes", title: "avg memory usage, bytes" },
-              { key: "timeRange", sortBy: "timeRangeSeconds", title: "query time interval" },
-              { key: "count" }
-            ]}
-            defaultOrderBy={"avgMemoryBytes"}
+            columns={columns.topByAvgMemoryUsage}
+            defaultOrderBy="avgMemoryBytes"
           />
         </div>
-      </>)}
+      )}
     </div>
   );
 };

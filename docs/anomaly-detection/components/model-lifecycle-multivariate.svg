@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1295" role="img" aria-labelledby="title description">
+  <title id="title">Multivariate models lifecycle</title>
+  <desc id="description">MetricsQL queries retrieve an aligned set of series from VictoriaMetrics. Reader data fits one shared multivariate model. The exact same series set produces one anomaly score series with the intersected label set; inference is skipped when the fit and inference series sets differ. Writer stores produced scores in VictoriaMetrics.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10.5" refY="6" markerWidth="16" markerHeight="16" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+      <path d="M1.5 1.5 10.5 6 1.5 10.5" fill="none" stroke="#303038" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 12 12" refX="10.5" refY="6" markerWidth="16" markerHeight="16" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+      <path d="M1.5 1.5 10.5 6 1.5 10.5" fill="none" stroke="#1478c9" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #303038; }
+      .title { font-size: 50px; font-weight: 400; }
+      .node { font-size: 34px; font-weight: 400; }
+      .label { font-size: 29px; }
+      .blue-label { font-size: 26px; }
+      .small { font-size: 25px; }
+      .box { fill: #fff; stroke: #303038; stroke-width: 3; }
+      .group { fill: #fff; stroke: #303038; stroke-width: 3; }
+      .model-group { fill: #fff; stroke: #303038; stroke-width: 3; stroke-dasharray: 14 12; }
+      .line { fill: none; stroke: #303038; stroke-width: 3; marker-end: url(#arrow); }
+      .blue-line { fill: none; stroke: #1478c9; stroke-width: 4; marker-end: url(#arrow-blue); }
+      .blue { fill: #1478c9; }
+    </style>
+  </defs>
+
+  <rect width="1920" height="1295" fill="#fff"/>
+  <text x="20" y="70" class="title">Multivariate Models Lifecycle</text>
+
+  <!-- VictoriaMetrics and query configuration -->
+  <rect x="535" y="175" width="420" height="215" class="box"/>
+  <text x="745" y="265" class="node" text-anchor="middle">VictoriaMetrics TSDB</text>
+  <text x="745" y="310" class="node" text-anchor="middle">(Single-Node or Cluster)</text>
+  <rect x="270" y="270" width="150" height="155" class="box"/>
+  <text x="345" y="305" class="small" text-anchor="middle">Config.yml</text>
+  <text x="285" y="360" class="label">MetricsQL</text>
+  <text x="285" y="395" class="label">queries</text>
+  <path d="M420 346 H535" class="line"/>
+
+  <!-- Reader and datasource exchange -->
+  <rect x="580" y="500" width="310" height="100" class="box"/>
+  <text x="735" y="562" class="node" text-anchor="middle">Reader</text>
+  <path d="M580 545 H455 V365 H535" class="line"/>
+  <text x="465" y="478" class="label">1. Request data</text>
+  <path d="M955 270 H1040 V550 H890" class="line"/>
+  <text x="810" y="478" class="label">2. Get metrics</text>
+
+  <!-- Historical fit data returned by the configured queries -->
+  <g aria-label="Historical fit data">
+    <rect x="1090" y="85" width="430" height="505" class="group"/>
+    <rect x="1120" y="135" width="340" height="170" class="group"/>
+    <text x="1140" y="180" class="node">Query 1</text>
+    <rect x="1135" y="195" width="300" height="42" class="box"/>
+    <text x="1150" y="228" class="label">Metric 1.1</text>
+    <text x="1150" y="262" class="label">...</text>
+    <rect x="1135" y="265" width="300" height="42" class="box"/>
+    <text x="1150" y="298" class="label">Metric 1.M₁</text>
+    <text x="1305" y="355" class="node" text-anchor="middle">...</text>
+    <rect x="1120" y="390" width="340" height="170" class="group"/>
+    <text x="1140" y="435" class="node">Query N</text>
+    <rect x="1135" y="450" width="300" height="42" class="box"/>
+    <text x="1150" y="483" class="label">Metric N.1</text>
+    <text x="1150" y="517" class="label">...</text>
+    <rect x="1135" y="520" width="300" height="42" class="box"/>
+    <text x="1150" y="553" class="label">Metric N.Mₙ</text>
+  </g>
+
+  <!-- One shared model is fitted on the complete aligned set -->
+  <rect x="1215" y="795" width="310" height="115" class="box"/>
+  <text x="1370" y="865" class="node" text-anchor="middle">Model</text>
+  <rect x="1365" y="635" width="155" height="130" class="box"/>
+  <text x="1443" y="675" class="small" text-anchor="middle">Config.yml</text>
+  <text x="1382" y="723" class="label">Model</text>
+  <text x="1382" y="757" class="label">config</text>
+  <path d="M1305 590 V795" class="line"/>
+  <text x="1055" y="672" class="label">
+    <tspan x="1055" dy="0">3. Fit one model</tspan>
+    <tspan x="1055" dy="38">on all historical series</tspan>
+  </text>
+  <path d="M1443 765 V795" class="line"/>
+
+  <!-- Inference data must contain the same set of series -->
+  <g aria-label="Inference data">
+    <rect x="25" y="615" width="430" height="500" class="group"/>
+    <rect x="55" y="645" width="340" height="170" class="group"/>
+    <text x="75" y="690" class="node">Query 1</text>
+    <rect x="70" y="705" width="300" height="42" class="box"/>
+    <text x="85" y="738" class="label">Metric 1.1</text>
+    <text x="85" y="772" class="label">...</text>
+    <rect x="70" y="775" width="300" height="42" class="box"/>
+    <text x="85" y="808" class="label">Metric 1.M₁</text>
+    <text x="225" y="870" class="node" text-anchor="middle">...</text>
+    <rect x="55" y="900" width="340" height="175" class="group"/>
+    <text x="75" y="945" class="node">Query N</text>
+    <rect x="70" y="960" width="300" height="42" class="box"/>
+    <text x="85" y="993" class="label">Metric N.1</text>
+    <text x="85" y="1027" class="label">...</text>
+    <rect x="70" y="1030" width="300" height="42" fill="#fff" stroke="#1478c9" stroke-width="4"/>
+    <text x="85" y="1063" class="label blue">Metric N.Mₖ</text>
+  </g>
+  <path d="M580 575 H500 V650 H455" class="line"/>
+  <text x="465" y="680" class="label">4. Provide inference data</text>
+
+  <!-- Single multivariate model registry -->
+  <g aria-label="Multivariate model registry">
+    <rect x="580" y="750" width="420" height="480" class="group"/>
+    <text x="790" y="800" class="node" text-anchor="middle">Model registry</text>
+    <rect x="610" y="835" width="360" height="220" class="model-group"/>
+    <rect x="640" y="885" width="300" height="115" class="box"/>
+    <text x="790" y="955" class="node" text-anchor="middle">Model (single)</text>
+  </g>
+  <path d="M455 1050 H580" class="line"/>
+  <path d="M1215 852 H1000" class="line"/>
+
+  <!-- Joint output and mismatched-series skip path -->
+  <rect x="1600" y="1015" width="285" height="105" class="box"/>
+  <text x="1743" y="1080" class="node" text-anchor="middle">Writer</text>
+  <rect x="1740" y="805" width="145" height="145" class="box"/>
+  <text x="1813" y="845" class="small" text-anchor="middle">Config.yml</text>
+  <text x="1758" y="900" class="label">Writer</text>
+  <text x="1758" y="935" class="label">config</text>
+  <path d="M1813 950 V1015" class="line"/>
+  <path d="M1000 1040 H1600" class="line"/>
+  <text x="1295" y="965" class="label" text-anchor="middle">
+    <tspan x="1295" dy="0">5.a Produce one anomaly-score series</tspan>
+    <tspan x="1295" dy="38">with the intersected label set</tspan>
+  </text>
+  <path d="M1000 1110 H1600" class="blue-line"/>
+  <text x="1320" y="1145" class="blue-label blue" text-anchor="middle">
+    <tspan x="1320" dy="0">5.b Skip inference when the fit and inference</tspan>
+    <tspan x="1320" dy="32">series sets differ;</tspan>
+    <tspan x="1320" dy="32">update the model_runs_skipped counter</tspan>
+  </text>
+
+  <!-- Persist the joint anomaly score -->
+  <path d="M1743 1015 V80 H745 V175" class="line"/>
+  <text x="1170" y="55" class="label" text-anchor="middle">6. Write one anomaly-score series (label set = intersection)</text>
+</svg>

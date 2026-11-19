@@ -1,6 +1,7 @@
 ---
 weight: 1
 title: Quick Start
+description: "Get started with vmanomaly. Install, configure, and run anomaly detection."
 menu:
   docs:
     parent: "anomaly-detection"
@@ -16,9 +17,11 @@ aliases:
 ---
 For a broader overview please visit the [navigation page](https://docs.victoriametrics.com/anomaly-detection/).
 
+{{% available_from "v1.32.0" anomaly %}} For a configuration tailored to your metrics, try [dynamic presets](https://docs.victoriametrics.com/anomaly-detection/presets/#dynamic-presets) with AI Copilot.
+
 ## How to install and run vmanomaly
 
-> To run `vmanomaly`, you need to have VictoriaMetrics Enterprise license. You can get a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/).
+> `vmanomaly` is part of [VictoriaMetrics Enterprise](https://victoriametrics.com/products/enterprise/). See [licensing](#licensing) for startup requirements and [contact us](https://victoriametrics.com/contact-us/) for evaluation and support.
 
 The following options are available:
 
@@ -34,117 +37,157 @@ The `vmanomaly` service supports a set of command-line arguments to configure it
 
 > `vmanomaly` supports {{% available_from "v1.18.5" anomaly %}} running on config **directories**, see the `config` positional arg description in help message below.
 
-> Single-dashed command-line argument {{% available_from "v1.23.3" anomaly %}} format can be used, e.g. `-license.forceOffline` in addition to `--license.forceOffline`. This aligns better with other VictoriaMetrics ecosystem components. Mixing the two styles is also supported, e.g. `-license.forceOffline --loggerLevel INFO`.
+> Single-dashed command-line argument {{% available_from "v1.23.3" anomaly %}} format can be used, e.g. `-loggerLevel` in addition to `--loggerLevel`. This aligns better with other VictoriaMetrics ecosystem components. Mixing the two styles is also supported, e.g. `-watch --loggerLevel INFO`.
 
 ```shellhelp
-usage: vmanomaly.py [-h] [--license STRING | --licenseFile PATH] [--license.forceOffline] [--loggerLevel {DEBUG,WARNING,FATAL,ERROR,INFO}] [--watch] [--dryRun] [--outputSpec PATH] config [config ...]
+usage: vmanomaly.py [-h] [--eula] [--license STRING] [--licenseFile PATH]
+                    [--license.forceOffline]
+                    [--loggerLevel {WARNING,ERROR,DEBUG,INFO,FATAL}] [--watch]
+                    [-configCheckInterval DURATION] [--dryRun]
+                    [--outputSpec PATH]
+                    config [config ...]
 
 VictoriaMetrics Anomaly Detection Service
 
 positional arguments:
-  config                YAML config file(s) or directories containing YAML files. Multiple files will recursively merge each other values so multiple configs can be combined. If a directory is provided,
-                        all `.yaml` files inside will be merged, without recursion. Default: vmanomaly.yaml is expected in the current directory.
+  config                YAML config file(s) or directories containing YAML
+                        files. Multiple files will recursively merge each
+                        other values so multiple configs can be combined. If a
+                        directory is provided, all `.yaml` files inside will
+                        be merged, without recursion. Default: vmanomaly.yaml
+                        is expected in the current directory.
 
 options:
   -h                    Show this help message and exit
-  --license STRING      License key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/trial/ to obtain a trial license.
-  --licenseFile PATH    Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/trial/ to obtain a trial license.
+  --eula                Accept the ESA https://victoriametrics.com/legal/esa/
+                        to run vmanomaly. No license verification is
+                        performed.
+  --license STRING      Deprecated. A non-empty value implies ESA acceptance.
+                        Use -eula instead; the key is not verified.
+  --licenseFile PATH    Deprecated. A non-empty path implies ESA acceptance.
+                        Use -eula instead; the file is not read.
   --license.forceOffline
-                        Whether to force offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued
-                        license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification.
-  --loggerLevel {DEBUG,WARNING,FATAL,ERROR,INFO}
-                        Minimum level to log. Possible values: DEBUG, INFO, WARNING, ERROR, FATAL.
-  --watch               Watch config files for changes and trigger hot reloads. Watches the specified config file or directory for modifications, deletions, or additions. Upon detecting changes,
-                        triggers config reload. If new config validation fails, continues with previous valid config and state.
-  --dryRun              Validate only: parse + merge all YAML(s) and run schema checks, then exit. Does not require a license to run. Does not expose metrics, or launch vmanomaly service(s).
+                        Deprecated compatibility flag; has no effect. License
+                        verification is no longer performed.
+  --loggerLevel {WARNING,ERROR,DEBUG,INFO,FATAL}
+                        Minimum level to log. Possible values: {'WARNING',
+                        'ERROR', 'DEBUG', 'INFO', 'FATAL'}.
+  --watch               Watch config files for changes and trigger hot
+                        reloads. Watches the specified config file or
+                        directory for modifications, deletions, or additions.
+                        Upon detecting changes, triggers config reload. If new
+                        config validation fails, continues with previous valid
+                        config and state.
+  -configCheckInterval DURATION
+                        Interval for checking watched config files for content
+                        changes. Default: 30s.
+  --dryRun              Validate only: parse + merge all YAML(s) and run
+                        schema checks, then exit. Does not require a license
+                        or ESA acceptance to run. Does not expose metrics, or
+                        launch vmanomaly service(s).
   --outputSpec PATH     Target location of .yaml output spec.
+
+Health-check mode: --healthcheck [--config PATH] [--url URL] [--timeout
+SECONDS]. Put --healthcheck (or -healthcheck) first; use --healthcheck --help
+for probe options.
 ```
+
+{{% available_from "v1.29.5" anomaly %}} When `--watch` is enabled, config changes are detected by fixed-interval content polling instead of filesystem event delivery. The polling frequency is controlled by `-configCheckInterval` (default: `30s`). The same option can also be passed as `--configCheckInterval`, `--config.check.interval`, `--config-check-interval`, `--config_check_interval`, or in key-value form such as `configCheckInterval=30s`.
+
+> [!NOTE]
+> For the separate `--healthcheck` mode and its options, see [container health checks](#container-health-checks).
 
 You can specify these options when running `vmanomaly` to fine-tune logging levels or handle licensing configurations, as per your requirements.
 
-### Licensing
+### Container health checks
 
-The license key can be specified with the help of the following [command-line](#command-line-arguments) arguments: `--license`, `--licenseFile`, `--license.forceOffline`
+{{% available_from "v1.32.0" anomaly %}} Standard and DHI container images include a lightweight `--healthcheck` command. Put it first; it checks the running service without starting another instance or loading models. Exit code `0` means the endpoint returned HTTP `200`; failures return `1`. This is a liveness check, not a check of datasource connectivity, model readiness or detection quality.
 
-In order to make it easier to monitor the license expiration date, the following metrics are exposed (see
-[Monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/) section for details on how to scrape them):
+```sh
+# Check the default local listener on port 8490.
+docker exec <container> /vmanomaly/.venv/bin/python -m src.vmanomaly --healthcheck
 
-```promtextmetric
-# HELP vm_license_expires_at When the license expires as a Unix timestamp in seconds
-# TYPE vm_license_expires_at gauge
-vm_license_expires_at 1.6963776e+09
-# HELP vm_license_expires_in_seconds Amount of seconds until the license expires
-# TYPE vm_license_expires_in_seconds gauge
-vm_license_expires_in_seconds 4.886608e+06
+# Follow the server address, port, path prefix and TLS settings in mounted config.
+docker exec <container> /vmanomaly/.venv/bin/python -m src.vmanomaly --healthcheck --config /config/vmanomaly.yaml
 ```
 
-Example alerts for [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/):
+Probe options are separate from the service arguments above:
+
+| Option | Environment default | Purpose |
+| --- | --- | --- |
+| `--config PATH` | `VMANOMALY_HEALTHCHECK_CONFIG` | Read the `server` settings from a config file or directory. Repeat the flag in service merge order for multiple paths; the environment variable accepts one path. |
+| `--url URL` | `VMANOMALY_HEALTHCHECK_URL` | Explicit HTTP(S) endpoint, overriding config discovery. |
+| `--timeout SECONDS` | `VMANOMALY_HEALTHCHECK_TIMEOUT` | Socket timeout; defaults to `3` seconds. |
+
+CLI options take precedence over their environment defaults. With neither URL nor config supplied, the probe uses loopback port `8490` and `/health`. The image checks every `30s`, with a `5s` command timeout, `60s` startup allowance and `3` retries. Docker Compose inherits these defaults; override its `healthcheck` timing for slower startup. Kubernetes uses its own configured probes rather than the image's Docker health check.
+
+For a custom listener or [TLS configuration](https://docs.victoriametrics.com/anomaly-detection/components/server/#tls-and-mutual-tls), point the inherited probe at the same mounted configuration as the service:
 
 ```yaml
-groups:
-  - name: vm-license
-    # note the `job` label and update accordingly to your setup
-    rules:
-      - alert: LicenseExpiresInLessThan30Days
-        expr: vm_license_expires_in_seconds < 30 * 24 * 3600
-        labels:
-          severity: warning
-        annotations:
-          summary: "{{ $labels.job }} instance {{ $labels.instance }} license expires in less than 30 days"
-          description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}.
-            Please make sure to update the license before it expires."
-
-      - alert: LicenseExpiresInLessThan7Days
-        expr: vm_license_expires_in_seconds < 7 * 24 * 3600
-        labels:
-          severity: critical
-        annotations:
-          summary: "{{ $labels.job }} instance {{ $labels.instance }} license expires in less than 7 days"
-          description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}.
-            Please make sure to update the license before it expires."
+# Inside a Docker Compose service; the file must already be mounted.
+environment:
+  VMANOMALY_HEALTHCHECK_CONFIG: /config/vmanomaly.yaml
 ```
+
+> [!NOTE]
+> Config-based HTTPS probes check local liveness without verifying the server certificate or hostname. With mTLS, they present the configured server certificate, which must also be accepted for client authentication by `mtls_ca_file`. An explicit HTTPS `--url` uses certificate and hostname verification and does not load client credentials from `--config`.
+
+### Licensing
+
+`vmanomaly` is a [VictoriaMetrics Enterprise](https://victoriametrics.com/products/enterprise/) component. See the [permitted Enterprise use cases](https://docs.victoriametrics.com/victoriametrics/enterprise/#valid-cases-for-victoriametrics-enterprise): evaluation in non-production environments, or production use with a valid Enterprise contract or permission from VictoriaMetrics. [Contact us](https://victoriametrics.com/contact-us/) for licensing and support.
+
+{{% available_from "v1.33.0" anomaly %}} Pass `-eula`, `--eula` or `--eula=true` to accept the [Enterprise Software Agreement (ESA)](https://victoriametrics.com/legal/esa/) at startup. Existing non-empty `-license`, `-licenseFile` and `VM_LICENSE_FILE` settings remain compatible and imply acceptance. `--dryRun` does not require acceptance. Versions before [v1.33.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1330) still require a valid license key; see [migration guidance](https://docs.victoriametrics.com/anomaly-detection/migration/) when upgrading.
 
 ### Docker
 
-> To run `vmanomaly`, you need to have VictoriaMetrics Enterprise license. You can get a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/). <br><br>
-> Due to the upcoming [DockerHub pull limits](https://docs.docker.com/docker-hub/usage/pulls), an additional image registry, **Quay.io**, has been introduced for VictoriaMetrics images, including [`vmanomaly`](https://quay.io/repository/victoriametrics/vmanomaly). If you encounter pull rate limits, switch from:
-> ```
-> docker pull victoriametrics/vmanomaly:vX.Y.Z
-> ```
-> to:
-> ```
-> docker pull quay.io/victoriametrics/vmanomaly:vX.Y.Z
-> ```
+> [!NOTE]
+> If you encounter [Docker Hub pull limits](https://docs.docker.com/docker-hub/usage/pulls/), use the [Quay.io mirror](https://quay.io/repository/victoriametrics/vmanomaly): `docker pull quay.io/victoriametrics/vmanomaly:v1.33.0`.
 
+> [!WARNING] ARM64 startup on affected Apple Silicon virtualization
+> On some `linux/arm64` environments running through virtualization on Apple M4/M5 hosts, `vmanomaly` may exit with `SIGILL` (exit code `132`) before startup. This is caused by the virtualized host advertising an SVE2 capability that traps when used by OpenSSL 4.x; it does not affect all ARM64 systems.
+>
+> On affected hosts, add `-e OPENSSL_armcap=0` to `docker run`, or add `- OPENSSL_armcap=0` under the service's Docker Compose `environment`, matching the list syntax used below. This disables ARM cryptographic acceleration, so apply it only as a temporary workaround on affected hosts.
+
+
+### Experimental hardened image
+
+{{% available_from "v1.30.6" anomaly %}} An experimental [Docker Hardened Images](https://www.docker.com/products/hardened-images/)-based variant is available on Docker Hub and Quay for `linux/amd64` and `linux/arm64`:
+
+```text
+victoriametrics/vmanomaly:v1.33.0-dhi
+victoriametrics/vmanomaly:v1.33.0-enterprise-dhi
+quay.io/victoriametrics/vmanomaly:v1.33.0-dhi
+quay.io/victoriametrics/vmanomaly:v1.33.0-enterprise-dhi
+```
+
+These are aliases of the same application image and have the same license requirements. The `-enterprise-dhi` ordering supports Helm's `image.variant: dhi` when enterprise mode is enabled, `image.tag` is empty, and the chart appVersion matches the desired release. With an older chart, set `image.tag: v1.33.0-enterprise-dhi` explicitly. Standard `v1.33.0`, `v1.33.0-enterprise` and `latest` tags retain their existing base image.
+
+> [!WARNING]
+> The hardened image runs as a non-root user and contains no runtime shell or package manager. Ensure mounted configuration files are readable and state directories are writable by the container user; shell-based entrypoint overrides and `docker exec ... sh` are unavailable.
+
+The hardened image defaults process-local time to UTC. Configure `schedulers.<alias>.tz` for scheduling and reader/query `tz` for model calendar features; both default to UTC.
+
+### Run with Docker
 
 Below are the steps to get `vmanomaly` up and running inside a Docker container:
 
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.29.3
+docker pull victoriametrics/vmanomaly:v1.33.0
 ```
 
-2. Create the license file with your license key.
+2. Create and modify your `config.yaml` file. See the [example](#example).
 
-```sh
-export LICENSE_KEY=YOUR_LICENSE_KEY
-echo $LICENSE_KEY > license
-```
-
-3. Create and modify your `config.yaml` file to your liking. An example can be found [here](https://docs.victoriametrics.com/anomaly-detection/quickstart/#example)
-
-4. Start the `vmanomaly` Docker container with a *license file*, use the command below.
-**Make sure to replace `YOUR_LICENSE_FILE_PATH`, and `YOUR_CONFIG_FILE_PATH` with your specific details**:
+3. Start the container with your configuration and `-eula` to accept the [ESA](#licensing):
 
 ```sh
 docker run -it \
-    -v ./license:/license \
     -v ./config.yaml:/config.yaml \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.29.3 \
+    victoriametrics/vmanomaly:v1.33.0 \
     /config.yaml \
-    --licenseFile=/license \
+    -eula \
     --loggerLevel=INFO \
     --watch
 ```
@@ -153,15 +196,14 @@ Use the below configuration if settings.restore_state is True (vmanomaly runs in
 
 ```sh
 docker run -it \
-    -v ./license:/license \
     -v ./config.yaml:/config.yaml \
     -v vmanomaly_data:/tmp/vmanomaly \
     -e VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data \
     -e VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.29.3 \
+    victoriametrics/vmanomaly:v1.33.0 \
     /config.yaml \
-    --licenseFile=/license \
+    -eula \
     --loggerLevel=INFO \
     --watch
 ```
@@ -172,12 +214,11 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.29.3
+    image: victoriametrics/vmanomaly:v1.33.0
     # ...
     restart: always
     volumes:
       - ./config.yaml:/config.yaml
-      - ./license:/license
       # Enable if settings.restore_state is True
       # - vmanomaly_data:/tmp/vmanomaly
     environment:
@@ -189,7 +230,7 @@ services:
       - "8490:8490"
     command:
       - "/config.yaml"
-      - "--licenseFile=/license"
+      - "-eula"
       - "--loggerLevel=INFO"
       - "--watch"
 
@@ -204,25 +245,30 @@ For a complete docker-compose example please refer to [our alerting guide](https
 
 See also:
 
-- Verify the license online OR offline. See the details [here](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing).
+- [Licensing and compatibility with existing startup flags](#licensing).
 - [How to configure `vmanomaly`](#how-to-configure-vmanomaly)
 
 ### Kubernetes with Helm charts
 
-> To run `vmanomaly`, you need to have VictoriaMetrics Enterprise license. You can get a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/).
+> `vmanomaly` is part of [VictoriaMetrics Enterprise](https://victoriametrics.com/products/enterprise/). See [licensing](#licensing) for startup requirements and [contact us](https://victoriametrics.com/contact-us/) for evaluation and support.
 
-> With the forthcoming [DockerHub pull limits](https://docs.docker.com/docker-hub/usage/pulls) additional image registry was introduced (quay.io) for VictoriaMetric images, [vmanomaly images in particular](https://quay.io/repository/victoriametrics/vmanomaly).
-If hitting pull limits, try switching your `docker pull victoriametrics/vmanomaly:vX.Y.Z` to `docker pull quay.io/victoriametrics/vmanomaly:vX.Y.Z`
+> [!NOTE]
+> If you encounter [Docker Hub pull limits](https://docs.docker.com/docker-hub/usage/pulls/), set the image repository to `quay.io/victoriametrics/vmanomaly`.
 
 You can run `vmanomaly` in Kubernetes environment
 with [these Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md).
 
 ### VM Operator
 
+When upgrading to v1.33.0 with an Operator version that still requires `spec.license`, retain the existing `spec.license.key` or `keyRef` and add `spec.extraArgs.eula: "true"`. A referenced Secret must still exist for Kubernetes to mount it. EULA-only validation and typed Prophet holiday configuration are tracked in [Operator #2836](https://github.com/VictoriaMetrics/operator/pull/2836).
+
+
 If you are using [VM Operator](https://docs.victoriametrics.com/operator/) to manage your Kubernetes cluster, `vmanomaly` can be deployed using the following [custom resource guide](https://docs.victoriametrics.com/operator/resources/vmanomaly/).
 
 
 ## How to configure vmanomaly
+
+Need help choosing a model and its initial settings? Use [Choose a model for your metrics](https://docs.victoriametrics.com/anomaly-detection/guides/model-selection/) for worked examples and copyable recipes, then return here to complete the deployment.
 
 To run `vmanomaly`, use YAML files or directories containing YAML files. The configuration files support shallow merge, allowing splitting the configuration into multiple files for better organization.
 
@@ -235,12 +281,13 @@ Before deploying, check the correctness of your configuration validate config fi
 
 ### Example
 
-Here is an example of a config file that will run the [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) model on `vm_cache_entries` metric, with periodic scheduler that runs inference every minute and fits the model every day. The model will be trained on the last 2 weeks of data each time it is (re)fitted. The model will produce `anomaly_score`, `yhat`, `yhat_lower`, and `yhat_upper` [series](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output) for debugging purposes. The model will be timezone-aware and will use cyclical encoding for the hour of the day and day of the week seasonality.
+Here is an example of a config file that runs the online [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) model on a CPU metric. The scheduler runs inference every five minutes and uses the fit only for initial bootstrap; between fits the model updates causally from each inference batch. The initial fit uses four weeks of data. The model produces `anomaly_score`, `yhat`, `yhat_lower`, and `yhat_upper` [series](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output) for debugging, and its hour-of-day and day-of-week profiles follow the query timezone and daylight-saving-time changes.
 
 ```yaml
 settings:
   # https://docs.victoriametrics.com/anomaly-detection/components/settings/
   n_workers: 2  # number of workers to run workload in parallel, set to 0 or negative number to use all available CPU cores
+  native_threads_per_worker: 0  # automatically divide container-aware CPU capacity across workers
   anomaly_score_outside_data_range: 5.0  # default anomaly score for anomalies outside expected data range
   restore_state: true  # restore state from previous run, available since v1.24.0
   # https://docs.victoriametrics.com/anomaly-detection/components/settings/#logger-levels
@@ -250,37 +297,29 @@ settings:
     # scheduler: INFO
     # reader: INFO
     # writer: INFO
-    model.prophet: WARNING
+    model.online.temporal_envelope: WARNING
 
 schedulers:
-  1d_5m:
+  online_5m:
     # https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler
     class: 'periodic'
     infer_every: '5m'
-    fit_every: '1d'
+    scatter_infer_jobs: true
+    fit_every: '1000d'
     fit_window: '4w'
 
 models:
-  # https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet
-  prophet_model:
-    class: 'prophet'
+  # https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope
+  temporal_envelope_model:
+    class: 'temporal_envelope'
+    queries: ['cpu_user']
+    schedulers: ['online_5m']
     provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']  # for debugging
-    tz_aware: True  # set to True if your data is timezone-aware, to deal with DST changes correctly
-    tz_use_cyclical_encoding: True
-    tz_seasonalities: # intra-day + intra-week seasonality
-      - name: 'hod'  # intra-day seasonality, hour of the day
-        fourier_order: 4  # keep it 3-8 based on intraday pattern complexity
-        prior_scale: 10
-      - name: 'dow'  # intra-week seasonality, time of the week
-        fourier_order: 2  # keep it 2-4, as dependencies are learned separately for each weekday
-    compression:  # available since v1.28.1
-      window: "30m"               # downsample 5m data into 30m intervals before fitting
-      agg_method: "mean"          # use mean aggregation within each window
-      adjust_boundaries: true     # adjust confidence intervals after downsampling
-    # inner model args (key-value pairs) accepted by
-    # https://facebook.github.io/prophet/docs/quick_start#python-api
-    args:
-      interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals
+    seasonalities: ['hod_smooth', 'dow_smooth']
+    alpha: 0.005  # trend reactivity; try 0.0025-0.02
+    loss_reactivity: 5  # try 1-5; lower values reduce the influence of spikes
+    iqr_threshold: 2  # try 1-4 to adjust data-driven interval width
+    min_n_samples_seen: 16
 
 reader:
   class: 'vm'  # use VictoriaMetrics as a data source
@@ -288,11 +327,16 @@ reader:
   datasource_url: "https://play.victoriametrics.com/" # [YOUR_DATASOURCE_URL]
   tenant_id: '0:0'
   sampling_period: "5m"
+  tz: 'UTC'  # set the IANA timezone that defines local calendar patterns, e.g. 'America/New_York'
+  workers: 0  # automatically choose bounded datasource concurrency
+  series_processing_batch_size: 8  # number of time series to process together while preparing data for fit or infer stages
   queries:
     # define your queries with MetricsQL - https://docs.victoriametrics.com/victoriametrics/metricsql/
     cpu_user:
       expr: 'sum(rate(node_cpu_seconds_total{mode=~"user"}[10m])) by (container)'
-      max_datapoints_per_query: 15000  # to deal with longer queries hitting search.MaxPointsPerTimeseries
+      data_range: [0, 'inf']  # query-level business policy from v1.30.2
+      detection_direction: 'above_expected'  # query-level from v1.30.2; only spikes are anomalous
+      max_points_per_query: 15000  # to deal with longer queries hitting search.maxPointsPerTimeseries
     # other queries ...
 
 writer:
@@ -305,11 +349,15 @@ writer:
 
 ### UI
 
-{{% available_from "v1.26.0" anomaly %}} `vmanomaly`'s built-in web UI can be used for prototyping and interactive experimenting to produce vmanomaly's and vmalert's configuration files. Please refer to the [UI documentation](https://docs.victoriametrics.com/anomaly-detection/ui/) for detailed instructions and examples. {{% available_from "v1.29.0" anomaly %}} Connect MCP server to the UI to benefit from better response quality and tool access in the UI Copilot, which provides AI-assisted configuration generation and debugging capabilities. See the [UI documentation](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) for instructions on how to set it up.
+{{% available_from "v1.31.0" anomaly %}} For comparable hosts or replicas, try the [peer-group model](https://docs.victoriametrics.com/anomaly-detection/components/models/#peer-outlier): retain entity labels in the query and use `groupby` for the population, such as `service`. The UI provides a dedicated peer investigation panel. You can also [tune a model](https://docs.victoriametrics.com/anomaly-detection/ui/#tune-a-model) using marked anomalies or an expected anomaly rate. For deployment planning, start with the [sizing APIs](https://docs.victoriametrics.com/anomaly-detection/components/server/#deployment-sizing), then validate their estimates under representative load.
+
+{{% available_from "v1.26.0" anomaly %}} `vmanomaly`'s built-in web UI supports prototyping and interactive generation of `vmanomaly` and `vmalert` configuration files. See the [UI documentation](https://docs.victoriametrics.com/anomaly-detection/ui/) for instructions and examples. For optional AI-assisted workflows, use the [UI Copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance), connect the [vmanomaly MCP server](https://docs.victoriametrics.com/ai-tools/#vmanomaly-mcp-server), or follow the published [agent skills](https://docs.victoriametrics.com/ai-tools/#agent-skills).
 
 ![vmanomaly-ui-overview](vmanomaly-ui-overview.webp)
 > [!TIP]
 > Public playgrounds with pre-configured `vmanomaly` instances and VictoriaMetrics/VictoriaLogs/VictoriaTraces datasources are available for interactive experimenting without the need to set up your own instance or getting an enterprise license. You can find them in the [UI documentation](https://docs.victoriametrics.com/anomaly-detection/ui/#playgrounds) or access them directly via the links - [metrics](https://play-vmanomaly.victoriametrics.com/metrics/), [logs](https://play-vmanomaly.victoriametrics.com/logs/), [traces](https://play-vmanomaly.victoriametrics.com/traces/) - or embedded versions in the collapsible blocks.
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="Playground on VictoriaMetrics Datasource" %}}
 
@@ -387,6 +435,8 @@ writer:
 
 {{% /collapse %}}
 
+</div>
+
 ### Recommended steps
 
 For optimal service behavior, consider the following tweaks when configuring `vmanomaly`:
@@ -397,19 +447,21 @@ For optimal service behavior, consider the following tweaks when configuring `vm
 
 - Set up **state restoration** {{% available_from "v1.24.0" anomaly %}} to resume from the last known state for long-term stability. This is controlled by the `settings.restore_state` boolean [arg](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration).
 
-- Set up **config hot-reloading** {{% available_from "v1.25.0" anomaly %}} to automatically reload configurations on config files changes. This can be enabled via the `--watch` [CLI argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) and allows for configuration updates without explicit service restarts.
+- Set up **configuration hot reload** {{% available_from "v1.25.0" anomaly %}} to apply configuration-file changes automatically. Enable it with the `--watch` [CLI argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) to update the service without an explicit restart.
 
 **Schedulers**:
 - Configure the **inference frequency** in the [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) section of the configuration file.
 - Ensure that `infer_every` aligns with your **minimum required alerting frequency**.
   - For example, if receiving **alerts every 15 minutes** is sufficient (when `anomaly_score > 1`), set `infer_every` to match `reader.sampling_period` or override it per query via `reader.queries.query_xxx.step` for an optimal setup.
+- Set `scheduler.scatter_infer_jobs` {{% available_from "v1.29.7" anomaly %}} [arg](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#parameters-1) to `true` to allow for equal distribution of inference jobs across `infer_every` intervals, which can further enhance parallel processing efficiency and reduce resource contention when `reader.queries` contains a large number of queries.
 
 **Reader**:
 - Setup the datasource to read data from in the [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/) section. Include tenant ID if using a [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) (`multitenant` value {{% available_from "v1.16.2" anomaly %}} can be also used here).
-- Define queries for input data using [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) under `reader.queries` section. Note, it's possible to override reader-level arguments at query level for increased flexibility, e.g. specifying per-query [timezone](https://docs.victoriametrics.com/anomaly-detection/faq/#handling-timezones) or [sampling period](https://docs.victoriametrics.com/anomaly-detection/components/reader/#sampling-period).
+- Define queries for input data using [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) under `reader.queries` section. Note, it's possible to override reader-level arguments at query level for increased flexibility, e.g. specifying per-query [timezone](https://docs.victoriametrics.com/anomaly-detection/faq/#handling-timezones) or [sampling period](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters).
 - For longer `fit_window` intervals in scheduler, consider splitting queries into smaller time ranges to avoid excessive memory usage, timeouts and hitting server-side constraints, so they can be queried separately and reconstructed on `vmanomaly` side. Please refer to this [example](https://docs.victoriametrics.com/anomaly-detection/faq/#handling-large-queries-in-vmanomaly) for more details.
+- Set `reader.series_processing_batch_size` {{% available_from "v1.29.7" anomaly %}} [arg](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) to a reasonable value (4-16, default is 8) to balance between memory usage and processing speed when preparing data for fit or infer stages.
 
-> If applicable - consider [`VLogsReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vlogs-reader) {{% available_from "v1.26.0" anomaly %}} to perform anomaly detection on **log-derived metrics**. This is particularly useful for scenarios where log data needs to be analyzed for unusual patterns or behaviors, such as error rates or request latencies.
+> If applicable - consider [`VLogsReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#victorialogs-reader) {{% available_from "v1.26.0" anomaly %}} to perform anomaly detection on **log-derived metrics**. This is particularly useful for scenarios where log data needs to be analyzed for unusual patterns or behaviors, such as error rates or request latencies.
 
 **Writer**:
 - Specify where and how to store anomaly detection metrics in the [writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/) section.

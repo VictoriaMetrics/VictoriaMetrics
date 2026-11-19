@@ -1,9 +1,13 @@
 package cgroup
 
 import (
+	"fmt"
+	"math"
 	"os"
+	"path"
 	"runtime/debug"
 	"strconv"
+	"strings"
 )
 
 // GetGOGC returns GOGC value for the currently running process.
@@ -37,24 +41,42 @@ func GetMemoryLimit() int64 {
 	// Read memory limit according to https://unix.stackexchange.com/questions/242718/how-to-find-out-how-much-memory-lxc-container-is-allowed-to-consume
 	// This should properly determine the limit inside lxc container.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/84
-	n, err := getMemStat("memory.limit_in_bytes")
-	if err == nil {
+	n, err := getMemLimit("/sys/fs/cgroup/memory", "/proc/self/cgroup", "memory", "memory.limit_in_bytes")
+	if err == nil && n > 0 {
 		return n
 	}
-	n, err = getMemStatV2("memory.max")
-	if err != nil {
+	// Try cgroupv2, it contains a single line at /proc/self/cgroup, so there is no need to grep anything from it.
+	// 0::/vm.slice/vmagent.service - for example.
+	// See https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#memory-interface-files
+	n, err = getMemLimit("/sys/fs/cgroup", "/proc/self/cgroup", "", "memory.max")
+	if err != nil || n <= 0 {
 		return 0
 	}
 	return n
 }
 
-func getMemStatV2(statName string) (int64, error) {
-	// See https: //www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#memory-interface-files
-	return getStatGeneric(statName, "/sys/fs/cgroup", "/proc/self/cgroup", "")
-}
-
-func getMemStat(statName string) (int64, error) {
-	return getStatGeneric(statName, "/sys/fs/cgroup/memory", "/proc/self/cgroup", "memory")
+func getMemLimit(sysfsPrefix, cgroupPath, cgroupGrepLine, statName string) (int64, error) {
+	subPath := readCgroupSubPath(cgroupPath, cgroupGrepLine)
+	var minLimit int64 = -1
+	for _, dir := range cgroupDirs(sysfsPrefix, subPath) {
+		data, err := os.ReadFile(path.Join(dir, statName))
+		if err != nil {
+			continue
+		}
+		s := strings.TrimSpace(string(data))
+		if s == "max" {
+			continue
+		}
+		n, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("cannot parse %s at %s: %w", statName, dir, err)
+		}
+		n = normalizeMemoryLimitV1(n)
+		if n > 0 && (minLimit < 0 || n < minLimit) {
+			minLimit = n
+		}
+	}
+	return minLimit, nil
 }
 
 // GetHierarchicalMemoryLimit returns hierarchical memory limit
@@ -69,13 +91,40 @@ func GetHierarchicalMemoryLimit() int64 {
 }
 
 func getHierarchicalMemoryLimit(sysfsPrefix, cgroupPath string) (int64, error) {
-	data, err := getFileContents("memory.stat", sysfsPrefix, cgroupPath, "memory")
-	if err != nil {
-		return 0, err
+	subPath := readCgroupSubPath(cgroupPath, "memory")
+	found := false
+	var minLimit int64
+	for _, dir := range cgroupDirs(sysfsPrefix, subPath) {
+		data, err := os.ReadFile(path.Join(dir, "memory.stat"))
+		if err != nil {
+			continue
+		}
+		found = true
+		memStat, err := grepFirstMatch(string(data), "hierarchical_memory_limit", 1, " ")
+		if err != nil {
+			continue
+		}
+		n, err := strconv.ParseInt(memStat, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("cannot parse hierarchical_memory_limit at %s: %w", dir, err)
+		}
+		n = normalizeMemoryLimitV1(n)
+		if n > 0 && (minLimit == 0 || n < minLimit) {
+			minLimit = n
+		}
 	}
-	memStat, err := grepFirstMatch(data, "hierarchical_memory_limit", 1, " ")
-	if err != nil {
-		return 0, err
+	if !found {
+		return 0, fmt.Errorf("cannot find memory.stat for %q at %q", subPath, sysfsPrefix)
 	}
-	return strconv.ParseInt(memStat, 10, 64)
+	return minLimit, nil
+}
+
+func normalizeMemoryLimitV1(n int64) int64 {
+	// Cgroup v1 uses math.MaxInt64 rounded down to the page size for an unlimited value.
+	pageSize := int64(os.Getpagesize())
+	noLimit := math.MaxInt64 / pageSize * pageSize
+	if n <= 0 || n >= noLimit {
+		return 0
+	}
+	return n
 }

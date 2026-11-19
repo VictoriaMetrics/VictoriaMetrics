@@ -3,6 +3,7 @@ export interface MetricBase {
   metric: {
     [key: string]: string;
   };
+  nullTimestamps?: number[];
 }
 
 export interface MetricResult extends MetricBase {
@@ -39,4 +40,10 @@ export interface ReportMetaData {
   endpoint: string;
   comment: string;
   params: Record<string, string>;
+}
+
+export interface TenantInfo {
+  multiTenant?: boolean;
+  accountID?: number;
+  projectID?: number;
 }

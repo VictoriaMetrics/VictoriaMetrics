@@ -1,6 +1,19 @@
-VictoriaMetrics Observability Stack integrates with AI assistants through MCP servers and agent skills.
-These integrations allow AI agents and automation tools to query metrics, logs, and traces, analyze telemetry data, 
-and assist engineers with debugging and observability tasks.
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+sitemap:
+  disable: true
+---
+VictoriaMetrics Observability Stack integrates with AI assistants through [MCP servers](https://docs.victoriametrics.com/ai-tools/#mcp-servers)
+and [agent skills](https://docs.victoriametrics.com/ai-tools/#agent-skills).
+The integrations allow AI agents and automation tools to query Metrics, Logs, and Traces, analyze telemetry data, 
+and assist engineers with debugging, observability tasks, root cause analysis, anomaly detection, etc.
+
+Support of [OpenTelemetry](https://docs.victoriametrics.com/opentelemetry/) for Metrics, Logs, and Traces
+makes VictoriaMetrics Observability Stack optimal for [AI observability](https://docs.victoriametrics.com/ai-tools/#ai-observability).
+Any SDK or AI assistant that can emit telemetry signals in OpenTelemetry format can be integrated with VictoriaMetrics.
 
 # MCP Servers
 
@@ -64,19 +77,21 @@ See more details at [VictoriaMetrics/mcp-victoriatraces](https://github.com/Vict
 REST API and documentation for AI-assisted anomaly detection, model management, and observability insights.
 
 Capabilities include:
-- Health Monitoring: Check `vmanomaly` server health and build information
-- Model Management: List, validate, and configure anomaly detection models (like `zscore_online`, `prophet`, and more)
-- Configuration Generation: Generate complete `vmanomaly` YAML configurations
-- Alert Rule Generation: Generate [`vmalert`](https://docs.victoriametrics.com/victoriametrics/vmalert/) [alerting rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules) based on [anomaly score metrics](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) to simplify alerting setup
-- Documentation Search: Full-text search across embedded `vmanomaly` documentation with fuzzy matching
+- Check `vmanomaly` health, build information, compatibility, and self-monitoring metrics
+- Inspect model schemas and validate model or complete service configurations
+- Profile sampled query results for trends, seasonalities, changepoints, gaps, and intermittent behavior
+- Run asynchronous autotune tasks and turn their results into data-driven model recommendations
+- Generate complete `vmanomaly` YAML configurations and [`vmalert`](https://docs.victoriametrics.com/victoriametrics/vmalert/) [alerting rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules)
+- Search embedded `vmanomaly` documentation with fuzzy matching
 
 See more details at [VictoriaMetrics/mcp-vmanomaly](https://github.com/VictoriaMetrics/mcp-vmanomaly).
-
+# vmanomaly UI Copilot
+The vmanomaly UI includes an [AI Copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) that can assist users with anomaly detection tasks, model configuration, and troubleshooting, changing the UI state based on user queries and providing actionable suggestions through automated data profiling and validation. The AI Copilot is powered by respective [MCP Server](#vmanomaly-mcp-server) and [Agent Skills](#agent-skills), enabling it to understand the context of the user's actions and provide relevant guidance.
 
 # Agent Skills
 
-[Agent skills](https://github.com/VictoriaMetrics/skills) help AI agents and automation tools understand, operate, 
-and troubleshoot VictoriaMetrics observability components, including metrics, logs, and traces.
+[Agent skills](https://github.com/VictoriaMetrics/skills) help AI agents and automation tools understand, operate,
+and troubleshoot VictoriaMetrics observability components, including metrics, logs, traces, and [`vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/).
 
 These skills provide predefined workflows and capabilities such as:
 * Query metrics, logs, traces and alerts
@@ -84,10 +99,30 @@ These skills provide predefined workflows and capabilities such as:
 * Multi-signal investigations 
 * Cardinality optimization 
 * Unused metric detection
+* Stream aggregation configuration
+* Build validated `vmanomaly` configurations from measured time-series characteristics (e.g., seasonality, changepoints, trends)
+* Query and operate the `vmanomaly` API
+* Review existing anomaly detection configurations against real data and identify false-positive or model-data fit issues
+* Look up command-line flags, HTTP API paths and LogsQL/MetricsQL constructs in the documentation
 
 To install the available skills for AI agents, run:
 ```sh
 npx skills add VictoriaMetrics/skills
 ```
 
+To install a single skill, pass its name, for example `npx skills add VictoriaMetrics/skills --skill victoriametrics-docs`.
+
 See more details at [VictoriaMetrics/skills](https://github.com/VictoriaMetrics/skills).
+
+# AI observability
+
+VictoriaMetrics Observability Stack is optimal for monitoring AI agents using auto-instrumentation libraries
+like [OpenLLMetry](https://github.com/traceloop/openllmetry), [OpenInference](https://github.com/Arize-ai/openinference),
+[OpenLIT](https://victoriametrics.com/blog/ai-agents-observability/#using-openlit).
+Please see more details in [AI Agents Observability with OpenTelemetry and the VictoriaMetrics Stack](https://victoriametrics.com/blog/ai-agents-observability).
+
+AI code assistants like Claude Code, OpenAI Codex, Gemini CLI, Qwen Code, and OpenCode expose internal telemetry that
+helps to monitor cost usage, analytics, performance, compliance and improves troubleshooting experience. All major
+AI coding tools support OpenTelemetry and can be easily integrated into VictoriaMetrics Observability Stack.
+Please see more details in [Vibe coding tools observability with VictoriaMetrics Stack and OpenTelemetry
+](https://victoriametrics.com/blog/vibe-coding-observability/).

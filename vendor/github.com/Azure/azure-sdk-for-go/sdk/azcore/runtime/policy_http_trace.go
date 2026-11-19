@@ -5,13 +5,12 @@ package runtime
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/exported"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/sanitizer"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/shared"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/tracing"
@@ -30,14 +29,13 @@ const (
 )
 
 // newHTTPTracePolicy creates a new instance of the httpTracePolicy.
-//   - allowedQueryParams contains the user-specified query parameters that don't need to be redacted from the trace
-func newHTTPTracePolicy(allowedQueryParams []string) exported.Policy {
-	return &httpTracePolicy{allowedQP: getAllowedQueryParams(allowedQueryParams)}
+func newHTTPTracePolicy(sanitizer *sanitizer.Sanitizer) exported.Policy {
+	return &httpTracePolicy{sanitizer: sanitizer}
 }
 
 // httpTracePolicy is a policy that creates a trace for the HTTP request and its response
 type httpTracePolicy struct {
-	allowedQP map[string]struct{}
+	sanitizer *sanitizer.Sanitizer
 }
 
 // Do implements the pipeline.Policy interfaces for the httpTracePolicy type.
@@ -46,7 +44,7 @@ func (h *httpTracePolicy) Do(req *policy.Request) (resp *http.Response, err erro
 	if tracer, ok := rawTracer.(tracing.Tracer); ok && tracer.Enabled() {
 		attributes := []tracing.Attribute{
 			{Key: attrHTTPMethod, Value: req.Raw().Method},
-			{Key: attrHTTPURL, Value: getSanitizedURL(*req.Raw().URL, h.allowedQP)},
+			{Key: attrHTTPURL, Value: h.sanitizer.GetSanitizedURL(*req.Raw().URL)},
 			{Key: attrNetPeerName, Value: req.Raw().URL.Host},
 		}
 
@@ -73,20 +71,16 @@ func (h *httpTracePolicy) Do(req *policy.Request) (resp *http.Response, err erro
 					span.SetAttributes(tracing.Attribute{Key: attrAZServiceReqID, Value: reqID})
 				}
 			} else if err != nil {
-				var urlErr *url.Error
-				if errors.As(err, &urlErr) {
-					// calling *url.Error.Error() will include the unsanitized URL
-					// which we don't want. in addition, we already have the HTTP verb
-					// and sanitized URL in the trace so we aren't losing any info
-					err = urlErr.Err
-				}
-				span.SetStatus(tracing.SpanStatusError, err.Error())
+				span.SetStatus(tracing.SpanStatusError, h.sanitizer.GetSanitizedURLString(err.Error(), req.Raw().URL))
 			}
 			span.End()
 		}()
 
 		req = req.WithContext(ctx)
 	}
+	// Record even when this request's tracing is disabled: a credential request
+	// can still share URL state with a traced parent operation that reports its error.
+	sanitizer.RecordURL(req.Raw().Context(), *req.Raw().URL, h.sanitizer)
 	resp, err = req.Next()
 	return
 }

@@ -26,7 +26,7 @@ var (
 // NewVMinsertServer creates and start vminsert server at the given addr
 func NewVMinsertServer(addr string, tc *tls.Config) (*vminsertapi.VMInsertServer, error) {
 	api := &vminsertAPI{}
-	return vminsertapi.NewVMInsertServer(addr, *vminsertConnsShutdownDuration, "clusternative", api, tc)
+	return vminsertapi.NewServer(addr, *vminsertConnsShutdownDuration, "clusternative", api, tc)
 }
 
 type vminsertAPI struct {
@@ -83,11 +83,15 @@ func (v *vminsertAPI) WriteMetadata(mrs []metricsmetadata.Row) error {
 	ctx := netstorage.GetInsertCtx()
 	defer netstorage.PutInsertCtx(ctx)
 
+	var err error
 	ctx.ResetForMetricsMetadata() // This line is required for initializing ctx internals.
 	for i := range mrs {
 		row := &mrs[i]
-		ctx.Buf = row.MarshalTo(ctx.Buf[:0])
-		storageNodeIdx := ctx.GetStorageNodeIdxForMeta(ctx.Buf)
+		ctx.Buf, err = row.MarshalTo(ctx.Buf[:0])
+		if err != nil {
+			return err
+		}
+		storageNodeIdx := ctx.GetStorageNodeIdxForMeta(row.MetricFamilyName)
 		if err := ctx.WriteMetadataExt(storageNodeIdx, ctx.Buf); err != nil {
 			return err
 		}

@@ -43,7 +43,7 @@ func TestProtocolMigration(t *testing.T) {
 	// test old storage and new client
 	{
 		protoparserutil.StartUnmarshalWorkers()
-		ts, err := NewVMInsertServer("localhost:0", time.Second, "vminsert-old", &testStorage, nil)
+		ts, err := NewServer("localhost:0", time.Second, "vminsert-old", &testStorage, nil)
 		if err != nil {
 			t.Fatalf("cannot create server: %s", err)
 		}
@@ -68,7 +68,7 @@ func TestProtocolMigration(t *testing.T) {
 	// test old client and new storage
 	{
 		protoparserutil.StartUnmarshalWorkers()
-		ts, err := NewVMInsertServer("localhost:0", time.Second, "vminsert-new", &testStorage, nil)
+		ts, err := NewServer("localhost:0", time.Second, "vminsert-new", &testStorage, nil)
 		if err != nil {
 			t.Fatalf("cannot create server: %s", err)
 		}
@@ -94,7 +94,7 @@ func TestProtocolMigration(t *testing.T) {
 	// new client and new storage
 	{
 		protoparserutil.StartUnmarshalWorkers()
-		ts, err := NewVMInsertServer("localhost:0", time.Second, "vminsert-both-new", &testStorage, nil)
+		ts, err := NewServer("localhost:0", time.Second, "vminsert-both-new", &testStorage, nil)
 		if err != nil {
 			t.Fatalf("cannot create server: %s", err)
 		}
@@ -107,7 +107,7 @@ func TestProtocolMigration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot perform handshake with server: %s", err)
 		}
-		if err := SendRPCRequestToConn(bc, MetricRowsRpcCall.VersionedName, rowsBuf); err != nil {
+		if err := SendRPCRequestToConn(bc, MetricRowsRpcCall.VersionedName, rowsBuf, 1); err != nil {
 			t.Fatalf("unexpected write rows err :%s", err)
 		}
 		assertRows(expectedRows)
@@ -118,7 +118,7 @@ func TestProtocolMigration(t *testing.T) {
 		testStorage.isReadOnly.Store(true)
 		defer testStorage.isReadOnly.Store(false)
 		protoparserutil.StartUnmarshalWorkers()
-		ts, err := NewVMInsertServer("localhost:0", time.Second, "vminsert-read-only", &testStorage, nil)
+		ts, err := NewServer("localhost:0", time.Second, "vminsert-read-only", &testStorage, nil)
 		if err != nil {
 			t.Fatalf("cannot create server: %s", err)
 		}
@@ -131,7 +131,7 @@ func TestProtocolMigration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot perform handshake with server: %s", err)
 		}
-		if err := SendRPCRequestToConn(bc, MetricRowsRpcCall.VersionedName, rowsBuf); err != nil {
+		if err := SendRPCRequestToConn(bc, MetricRowsRpcCall.VersionedName, rowsBuf, 1); err != nil {
 			if !errors.Is(err, storage.ErrReadOnly) {
 				t.Fatalf("unexpected write rows err :%s", err)
 			}

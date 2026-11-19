@@ -5,6 +5,7 @@ package workingsetcache
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -162,6 +163,163 @@ func TestSetGetStatsInSplitMode_cacheLoadedFromEmptyFile(t *testing.T) {
 		c := Load(t.Name(), 1024)
 		defer c.Stop()
 		testSetGetStatsInSplitMode(t, c)
+	})
+}
+
+func TestMustSaveSelectsCacheInSplitMode(t *testing.T) {
+	t.Run("prefers prev cache if curr is rarely visited", func(t *testing.T) {
+		cachePath := filepath.Join(t.TempDir(), "cache")
+		synctest.Test(t, func(t *testing.T) {
+			var (
+				k   = []byte("k")
+				v   = []byte("v")
+				dst []byte
+			)
+
+			c := Load(cachePath, 1024)
+			c.Set(k, v)
+			for range 10 {
+				dst = c.Get(dst[:0], k)
+			}
+
+			// prev and curr were rotated, k is now in prev, curr is empty.
+			time.Sleep(*cacheExpireDuration + time.Minute)
+			synctest.Wait()
+			assertMode(t, c, modeSplit)
+
+			c.MustSave(cachePath)
+			c.Stop()
+
+			c = Load(cachePath, 1024)
+			defer c.Stop()
+			if got := c.Get(dst[:0], k); string(got) != string(v) {
+				t.Fatalf("unexpected value loaded from saved cache; got %q; want %q", got, v)
+			}
+		})
+	})
+
+	t.Run("prefers prev cache when prev is still useful", func(t *testing.T) {
+		cachePath := filepath.Join(t.TempDir(), "cache")
+		synctest.Test(t, func(t *testing.T) {
+			const keysCount = 10
+			var (
+				v   = []byte("v")
+				dst []byte
+			)
+
+			c := Load(cachePath, 1024)
+			for i := range keysCount {
+				c.Set([]byte(fmt.Sprintf("prev_%d", i)), v)
+			}
+
+			// prev and curr were rotated, prev_0-prev_9 are now in prev, curr is empty.
+			time.Sleep(*cacheExpireDuration + time.Minute)
+			synctest.Wait()
+			assertMode(t, c, modeSplit)
+
+			// all get calls are missed in curr cache, but can be served by prev cache.
+			for i := range keysCount {
+				dst = c.Get(dst[:0], []byte(fmt.Sprintf("prev_%d", i)))
+				if string(dst) != string(v) {
+					t.Fatalf("unexpected value loaded from prev cache for key %q; got %q; want %q", fmt.Sprintf("prev_%d", i), dst, v)
+				}
+			}
+
+			c.MustSave(cachePath)
+			c.Stop()
+
+			c = Load(cachePath, 1024)
+			defer c.Stop()
+			for i := range keysCount {
+				key := []byte(fmt.Sprintf("prev_%d", i))
+				if got := c.Get(dst[:0], key); string(got) != string(v) {
+					t.Fatalf("unexpected value loaded from saved cache for key %q; got %q; want %q", key, got, v)
+				}
+			}
+		})
+	})
+
+	t.Run("prefers curr cache when prev is cold", func(t *testing.T) {
+		cachePath := filepath.Join(t.TempDir(), "cache")
+		synctest.Test(t, func(t *testing.T) {
+			const keysCount = 10
+			var (
+				v   = []byte("v")
+				dst []byte
+			)
+
+			c := Load(cachePath, 1024)
+			for i := range keysCount {
+				c.Set([]byte(fmt.Sprintf("prev_%d", i)), v)
+			}
+
+			// prev and curr were rotated, prev_0-prev_9 are now in prev, curr is empty.
+			time.Sleep(*cacheExpireDuration + time.Minute)
+			synctest.Wait()
+			assertMode(t, c, modeSplit)
+
+			// all get calls are missed in both curr and prev cache.
+			for i := range keysCount {
+				newKey := []byte(fmt.Sprintf("new_%d", i))
+				dst = c.Get(dst[:0], newKey)
+			}
+
+			c.MustSave(cachePath)
+			c.Stop()
+
+			c = Load(cachePath, 1024)
+			defer c.Stop()
+			for i := range keysCount {
+				prevKey := []byte(fmt.Sprintf("prev_%d", i))
+				if got := c.Get(dst[:0], prevKey); len(got) != 0 {
+					t.Fatalf("unexpected prev value loaded from saved cache for key %q; got %q; want an empty value", prevKey, got)
+				}
+			}
+		})
+	})
+
+	t.Run("prefers curr cache when prev hits rate is low after rotation", func(t *testing.T) {
+		cachePath := filepath.Join(t.TempDir(), "cache")
+		synctest.Test(t, func(t *testing.T) {
+			const keysCount = 10
+			var (
+				prevKey = []byte("prev")
+				currKey = []byte("curr")
+				v       = []byte("v")
+				dst     []byte
+			)
+
+			c := Load(cachePath, 1024)
+			c.Set(prevKey, v)
+			// the curr cache hit all the requests.
+			for range keysCount {
+				dst = c.Get(dst[:0], prevKey)
+			}
+
+			// prev and curr were rotated, prevKey is now in prev, whose cache hit ratio is 100%.
+			time.Sleep(*cacheExpireDuration + time.Minute)
+			synctest.Wait()
+			assertMode(t, c, modeSplit)
+
+			c.Set(currKey, v)
+			// the prev cache miss all the requests after the rotation
+			for i := range keysCount {
+				newKey := []byte(fmt.Sprintf("new_%d", i))
+				dst = c.Get(dst[:0], newKey)
+			}
+
+			c.MustSave(cachePath)
+			c.Stop()
+
+			c = Load(cachePath, 1024)
+			defer c.Stop()
+			if got := c.Get(dst[:0], currKey); string(got) != string(v) {
+				t.Fatalf("unexpected value loaded from saved cache for key %q; got %q; want %q", currKey, got, v)
+			}
+			if got := c.Get(dst[:0], prevKey); len(got) != 0 {
+				t.Fatalf("unexpected prev value loaded from saved cache for key %q; got %q; want an empty value", prevKey, got)
+			}
+		})
 	})
 }
 

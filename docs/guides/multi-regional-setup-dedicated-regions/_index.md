@@ -1,6 +1,7 @@
 ---
 weight: 11
 title: 'VictoriaMetrics Multi-Regional Setup: Dedicated Monitoring'
+description: "Collect metrics across regions with dedicated monitoring."
 menu:
   docs:
     parent: guides

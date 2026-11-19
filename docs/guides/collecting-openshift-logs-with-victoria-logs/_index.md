@@ -1,6 +1,7 @@
 ---
 weight: 12
 title: Collecting OpenShift logs with Victoria Logs
+description: "Collect and store OpenShift cluster logs in VictoriaLogs."
 menu:
   docs:
     parent: "guides"

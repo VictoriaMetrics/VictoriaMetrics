@@ -5,6 +5,8 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
@@ -23,7 +25,7 @@ func benchmarkDedupAggr(b *testing.B, samplesPerPush int) {
 
 	const loops = 2
 	benchSamples := newBenchSamples(samplesPerPush)
-	da := newDedupAggr()
+	da := newDedupAggr(metrics.NewSet(), "")
 
 	b.ResetTimer()
 	b.ReportAllocs()

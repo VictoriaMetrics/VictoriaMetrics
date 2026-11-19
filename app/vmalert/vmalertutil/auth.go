@@ -20,11 +20,12 @@ func AuthConfig(filterOptions ...AuthConfigOptions) (*promauth.Config, error) {
 }
 
 // WithBasicAuth returns AuthConfigOptions and initialized promauth.BasicAuthConfig based on given params
-func WithBasicAuth(username, password, passwordFile string) AuthConfigOptions {
+func WithBasicAuth(username, usernameFile, password, passwordFile string) AuthConfigOptions {
 	return func(config *promauth.HTTPClientConfig) {
-		if username != "" || password != "" || passwordFile != "" {
+		if username != "" || usernameFile != "" || password != "" || passwordFile != "" {
 			config.BasicAuth = &promauth.BasicAuthConfig{
 				Username:     username,
+				UsernameFile: usernameFile,
 				Password:     promauth.NewSecret(password),
 				PasswordFile: passwordFile,
 			}

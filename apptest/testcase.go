@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -87,19 +88,11 @@ func (tc *TestCase) MustStartDefaultVmsingle() *Vmsingle {
 }
 
 // MustStartVmsingle is a test helper function that starts an instance of
-// vmsingle located at ../../bin/victoria-metrics-race and fails the test if the app
-// fails to start.
+// vmsingle (latest version) and fails the test if the app fails to start.
 func (tc *TestCase) MustStartVmsingle(instance string, flags []string) *Vmsingle {
 	tc.t.Helper()
-	return tc.MustStartVmsingleAt(instance, "../../bin/victoria-metrics-race", flags)
-}
 
-// MustStartVmsingleAt is a test helper function that starts an instance of
-// vmsingle and fails the test if the app fails to start.
-func (tc *TestCase) MustStartVmsingleAt(instance, binary string, flags []string) *Vmsingle {
-	tc.t.Helper()
-
-	app, err := StartVmsingleAt(instance, binary, flags, tc.cli, tc.output)
+	app, err := StartVmsingle(instance, flags, tc.cli, tc.output)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
@@ -108,19 +101,11 @@ func (tc *TestCase) MustStartVmsingleAt(instance, binary string, flags []string)
 }
 
 // MustStartVmstorage is a test helper function that starts an instance of
-// vmstorage located at ../../bin/vmstorage-race and fails the test if the app fails
-// to start.
+// vmstorage (latest version) and fails the test if the app fails to start.
 func (tc *TestCase) MustStartVmstorage(instance string, flags []string) *Vmstorage {
 	tc.t.Helper()
-	return tc.MustStartVmstorageAt(instance, "../../bin/vmstorage-race", flags)
-}
 
-// MustStartVmstorageAt is a test helper function that starts an instance of
-// vmstorage and fails the test if the app fails to start.
-func (tc *TestCase) MustStartVmstorageAt(instance string, binary string, flags []string) *Vmstorage {
-	tc.t.Helper()
-
-	app, err := StartVmstorageAt(instance, binary, flags, tc.cli, tc.output)
+	app, err := StartVmstorage(instance, flags, tc.cli, tc.output)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
@@ -129,7 +114,7 @@ func (tc *TestCase) MustStartVmstorageAt(instance string, binary string, flags [
 }
 
 // MustStartVmselect is a test helper function that starts an instance of
-// vmselect and fails the test if the app fails to start.
+// vmselect (latest version) and fails the test if the app fails to start.
 func (tc *TestCase) MustStartVmselect(instance string, flags []string) *Vmselect {
 	tc.t.Helper()
 
@@ -169,33 +154,16 @@ func (tc *TestCase) MustStartVmagent(instance string, flags []string, promScrape
 	return app
 }
 
-// Vmcluster represents a typical cluster setup: several vmstorage replicas, one
-// vminsert, and one vmselect.
-//
-// Both Vmsingle and Vmcluster implement the PrometheusWriteQuerier used in
-// business logic tests to abstract out the infrastructure.
-//
-// This type is not suitable for infrastructure tests where custom cluster
-// setups are often required.
-type Vmcluster struct {
-	*Vminsert
-	*Vmselect
-	Vmstorages []*Vmstorage
-}
+// MustStartDefaultRWVmagent is a test helper function that starts an instance of
+// vmagent with defaults suitable for remote-write tests.
+func (tc *TestCase) MustStartDefaultRWVmagent(instance string, flags []string) *Vmagent {
+	tc.t.Helper()
 
-// ForceFlush forces the ingested data to become visible for searching
-// immediately.
-func (c *Vmcluster) ForceFlush(t *testing.T) {
-	for _, s := range c.Vmstorages {
-		s.ForceFlush(t)
+	defaultFlags := []string{
+		"-remoteWrite.flushInterval=50ms",
 	}
-}
-
-// ForceMerge is a test helper function that forces the merging of parts.
-func (c *Vmcluster) ForceMerge(t *testing.T) {
-	for _, s := range c.Vmstorages {
-		s.ForceMerge(t)
-	}
+	defaultFlags = slices.Concat(defaultFlags, flags)
+	return tc.MustStartVmagent(instance, defaultFlags, ``)
 }
 
 // MustStartVmauth is a test helper function that starts an instance of
@@ -277,10 +245,8 @@ func (tc *TestCase) MustStartDefaultCluster() *Vmcluster {
 // tests usually come paired with corresponding vmsingle tests.
 type ClusterOptions struct {
 	Vmstorage1Instance string
-	Vmstorage1Binary   string
 	Vmstorage1Flags    []string
 	Vmstorage2Instance string
-	Vmstorage2Binary   string
 	Vmstorage2Flags    []string
 	VminsertInstance   string
 	VminsertFlags      []string
@@ -292,15 +258,9 @@ type ClusterOptions struct {
 func (tc *TestCase) MustStartCluster(opts *ClusterOptions) *Vmcluster {
 	tc.t.Helper()
 
-	if opts.Vmstorage1Binary == "" {
-		opts.Vmstorage1Binary = "../../bin/vmstorage-race"
-	}
-	vmstorage1 := tc.MustStartVmstorageAt(opts.Vmstorage1Instance, opts.Vmstorage1Binary, opts.Vmstorage1Flags)
-
-	if opts.Vmstorage2Binary == "" {
-		opts.Vmstorage2Binary = "../../bin/vmstorage-race"
-	}
-	vmstorage2 := tc.MustStartVmstorageAt(opts.Vmstorage2Instance, opts.Vmstorage2Binary, opts.Vmstorage2Flags)
+	vmstorage1 := tc.MustStartVmstorage(opts.Vmstorage1Instance, opts.Vmstorage1Flags)
+	vmstorage2 := tc.MustStartVmstorage(opts.Vmstorage2Instance, opts.Vmstorage2Flags)
+	vmstorages := []*Vmstorage{vmstorage1, vmstorage2}
 
 	opts.VminsertFlags = append(opts.VminsertFlags, []string{
 		"-storageNode=" + vmstorage1.VminsertAddr() + "," + vmstorage2.VminsertAddr(),
@@ -311,8 +271,9 @@ func (tc *TestCase) MustStartCluster(opts *ClusterOptions) *Vmcluster {
 		"-storageNode=" + vmstorage1.VmselectAddr() + "," + vmstorage2.VmselectAddr(),
 	}...)
 	vmselect := tc.MustStartVmselect(opts.VmselectInstance, opts.VmselectFlags)
+	EnsureBlockingIngestion(tc.T(), vminsert, vmstorages)
 
-	return &Vmcluster{vminsert, vmselect, []*Vmstorage{vmstorage1, vmstorage2}}
+	return &Vmcluster{vminsert, vmselect, vmstorages}
 }
 
 // MustStartVmctl is a test helper function that starts an instance of vmctl

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -103,6 +104,9 @@ func (c *Client) ApplyParams(params QuerierParams) *Client {
 		c.dataSourceType = toDatasourceType(params.DataSourceType)
 	}
 	c.evaluationInterval = params.EvaluationInterval
+	if params.QueryStep > 0 {
+		c.queryStep = params.QueryStep
+	}
 	c.applyIntervalAsTimeFilter = params.ApplyIntervalAsTimeFilter
 	if params.QueryParams != nil {
 		if c.extraParams == nil {
@@ -151,6 +155,29 @@ func NewPrometheusClient(baseURL string, authCfg *promauth.Config, appendTypePre
 
 // Query executes the given query and returns parsed response
 func (c *Client) Query(ctx context.Context, query string, ts time.Time) (Result, *http.Request, error) {
+	timeout := *queryTimeout
+	if timeout <= 0 {
+		// Use the evaluation interval as the default timeout for instant queries,
+		// so a stalled request cannot block the group evaluation forever.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11940
+		timeout = c.evaluationInterval
+	}
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
+	res, req, err := c.query(ctx, query, ts)
+	if err != nil {
+		if timeout > 0 && errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			err = fmt.Errorf("request timed out after %s; consider increasing -datasource.queryTimeout: %w", timeout, err)
+		}
+		return Result{}, nil, err
+	}
+	return res, req, nil
+}
+
+func (c *Client) query(ctx context.Context, query string, ts time.Time) (Result, *http.Request, error) {
 	req, err := c.newQueryRequest(ctx, query, ts)
 	if err != nil {
 		return Result{}, nil, err
@@ -197,7 +224,24 @@ func (c *Client) Query(ctx context.Context, query string, ts time.Time) (Result,
 // QueryRange executes the given query on the given time range.
 // For Prometheus type see https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
 // Graphite type isn't supported.
-func (c *Client) QueryRange(ctx context.Context, query string, start, end time.Time) (res Result, err error) {
+func (c *Client) QueryRange(ctx context.Context, query string, start, end time.Time) (Result, error) {
+	timeout := *queryTimeout
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
+	res, err := c.queryRange(ctx, query, start, end)
+	if err != nil {
+		if timeout > 0 && errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			err = fmt.Errorf("request timed out after %s; consider increasing -datasource.queryTimeout: %w", timeout, err)
+		}
+		return Result{}, err
+	}
+	return res, nil
+}
+
+func (c *Client) queryRange(ctx context.Context, query string, start, end time.Time) (res Result, err error) {
 	if c.dataSourceType == datasourceGraphite {
 		return res, fmt.Errorf("%q is not supported for QueryRange", c.dataSourceType)
 	}
@@ -267,7 +311,11 @@ func (c *Client) do(req *http.Request) (*http.Response, error) {
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		return nil, fmt.Errorf("unexpected response code %d for %s. Response body %s", resp.StatusCode, ru, body)
+		err = &httpserver.ErrorWithStatusCode{
+			StatusCode: resp.StatusCode,
+			Err:        fmt.Errorf("unexpected response code %d for %s. Response body %s", resp.StatusCode, ru, body),
+		}
+		return nil, err
 	}
 	return resp, nil
 }

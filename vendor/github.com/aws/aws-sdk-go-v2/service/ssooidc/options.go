@@ -44,6 +44,11 @@ type Options struct {
 	// clients initial default settings.
 	DefaultsMode aws.DefaultsMode
 
+	// Disables SDK clock skew correction. When set, the SDK will not adjust request
+	// signing timestamps to compensate for clock drift between the client and the
+	// service.
+	DisableClockSkewCorrection bool
+
 	// The endpoint options to be used when attempting to resolve an endpoint.
 	EndpointOptions EndpointResolverOptions
 
@@ -113,6 +118,8 @@ type Options struct {
 	//
 	// Currently does not support per operation call overrides, may in the future.
 	resolvedDefaultsMode aws.DefaultsMode
+
+	Protocol smithyhttp.ClientProtocol
 
 	// The HTTP client to invoke API calls with. Defaults to client's default HTTP
 	// implementation if nil.

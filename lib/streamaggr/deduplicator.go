@@ -12,7 +12,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/valyala/histogram"
 )
 
 // Deduplicator deduplicates samples per each time series.
@@ -28,10 +27,10 @@ type Deduplicator struct {
 	wg     sync.WaitGroup
 	stopCh chan struct{}
 
+	// flushLag tracks the max lag of samples pushed since the previous flush tick.
+	flushLag flushLag
+
 	ms *metrics.Set
-	// time to wait after interval end before flush
-	flushAfter   *histogram.Fast
-	muFlushAfter sync.Mutex
 }
 
 // NewDeduplicator returns new deduplicator, which deduplicates samples per each time series.
@@ -46,7 +45,6 @@ type Deduplicator struct {
 // MustStop must be called on the returned deduplicator in order to free up occupied resources.
 func NewDeduplicator(pushFunc PushFunc, enableWindows bool, interval time.Duration, dropLabels []string, alias string) *Deduplicator {
 	d := &Deduplicator{
-		da:            newDedupAggr(),
 		dropLabels:    dropLabels,
 		interval:      interval,
 		enableWindows: enableWindows,
@@ -59,7 +57,6 @@ func NewDeduplicator(pushFunc PushFunc, enableWindows bool, interval time.Durati
 	}
 	d.cs.Store(cs)
 	if enableWindows {
-		d.flushAfter = histogram.GetFast()
 		d.minDeadline.Store(startTime.UnixMilli())
 	}
 	d.cs.Store(cs)
@@ -67,16 +64,7 @@ func NewDeduplicator(pushFunc PushFunc, enableWindows bool, interval time.Durati
 	ms := d.ms
 
 	metricLabels := fmt.Sprintf(`name="dedup",url=%q`, alias)
-
-	_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_size_bytes{%s}`, metricLabels), func() float64 {
-		return float64(d.da.sizeBytes())
-	})
-	_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_items_count{%s}`, metricLabels), func() float64 {
-		return float64(d.da.itemsCount())
-	})
-
-	d.da.flushDuration = ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_dedup_flush_duration_seconds{%s}`, metricLabels))
-	d.da.flushTimeouts = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_dedup_flush_timeouts_total{%s}`, metricLabels))
+	d.da = newDedupAggr(ms, metricLabels)
 
 	metrics.RegisterSet(ms)
 
@@ -104,7 +92,8 @@ func (d *Deduplicator) Push(tss []prompb.TimeSeries) {
 	cs := d.cs.Load()
 	nowMsec := time.Now().UnixMilli()
 	minDeadline := d.minDeadline.Load()
-	var maxLagMsec int64
+	var maxLagMsec, maxDroppedLagMsec int64
+	hasAccepted := false
 
 	dropLabels := d.dropLabels
 	for _, ts := range tss {
@@ -122,9 +111,18 @@ func (d *Deduplicator) Push(tss []prompb.TimeSeries) {
 		buf = lc.Compress(buf, labels.Labels)
 		key := bytesutil.ToUnsafeString(buf[bufLen:])
 		for _, s := range ts.Samples {
+			lagMsec := nowMsec - s.Timestamp
 			if d.enableWindows && minDeadline > s.Timestamp {
+				d.da.droppedSamples.Inc()
+				maxDroppedLagMsec = max(maxDroppedLagMsec, lagMsec)
 				continue
-			} else if d.enableWindows && s.Timestamp <= cs.maxDeadline == cs.isGreen {
+			}
+			maxLagMsec = max(maxLagMsec, lagMsec)
+			hasAccepted = true
+			// Aggregation windows use two buffers, which swap roles on every flush.
+			// If cs.isGreen, green collects the current window and blue collects the next one; otherwise the reverse.
+			inCurrentWindow := s.Timestamp <= cs.maxDeadline
+			if d.enableWindows && inCurrentWindow == cs.isGreen {
 				ctx.green = append(ctx.green, pushSample{
 					key:       key,
 					value:     s.Value,
@@ -137,17 +135,12 @@ func (d *Deduplicator) Push(tss []prompb.TimeSeries) {
 					timestamp: s.Timestamp,
 				})
 			}
-			lagMsec := nowMsec - s.Timestamp
-			if lagMsec > maxLagMsec {
-				maxLagMsec = lagMsec
-			}
 		}
 	}
-
-	if d.enableWindows && maxLagMsec > 0 {
-		d.muFlushAfter.Lock()
-		d.flushAfter.Update(float64(maxLagMsec))
-		d.muFlushAfter.Unlock()
+	if d.enableWindows {
+		// Update the lag before pushing samples: if this batch has the biggest lag since the last flush tick,
+		// a concurrent flush then waits this lag for the samples that follow.
+		d.flushLag.update(hasAccepted, maxLagMsec, maxDroppedLagMsec)
 	}
 
 	if len(ctx.blue) > 0 {
@@ -172,21 +165,20 @@ func dropSeriesLabels(dst, src []prompb.Label, labelNames []string) []prompb.Lab
 
 func (d *Deduplicator) runFlusher(pushFunc PushFunc) {
 	t := time.NewTicker(d.interval)
-	var fa *histogram.Fast
 	defer t.Stop()
 	for {
 		select {
 		case <-d.stopCh:
 			return
-		case <-t.C:
+		case ct := <-t.C:
+			// check if the current tick is stale and should be ignored,
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11904.
+			if isStaleTick(ct, d.cs.Load().maxDeadline, d.interval) {
+				continue
+			}
 			if d.enableWindows {
-				// Calculate delay and wait
-				d.muFlushAfter.Lock()
-				fa, d.flushAfter = d.flushAfter, histogram.GetFast()
-				d.muFlushAfter.Unlock()
-				delay := time.Duration(fa.Quantile(flushQuantile)) * time.Millisecond
-				histogram.PutFast(fa)
-				time.Sleep(delay)
+				delay := d.flushLag.takeFlushDelay(d.interval)
+				sleepWithStopCh(d.stopCh, delay)
 			}
 			d.flush(pushFunc)
 		}
@@ -234,8 +226,12 @@ func (d *Deduplicator) flush(pushFunc PushFunc) {
 		logger.Warnf("deduplication couldn't be finished in the configured dedupInterval=%s; it took %.03fs; "+
 			"possible solutions: increase dedupInterval; reduce samples' ingestion rate", d.interval, duration.Seconds())
 	}
+	deadlineTime = deadlineTime.Add(d.interval)
+	// If the flush delay and the flush took longer than the interval, the next flush time has already passed.
+	// Skip the passed flush times, and their samples will be flushed together at the next upcoming one.
 	for time.Now().After(deadlineTime) {
 		deadlineTime = deadlineTime.Add(d.interval)
+		d.da.flushSkipped.Inc()
 	}
 	cs.maxDeadline = deadlineTime.UnixMilli()
 	if d.enableWindows {

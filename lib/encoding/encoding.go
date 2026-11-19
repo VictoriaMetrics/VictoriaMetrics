@@ -1,6 +1,7 @@
 package encoding
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -174,11 +175,33 @@ func unmarshalInt64Array(dst []int64, src []byte, mt MarshalType, firstValue int
 	// Extend dst capacity in order to eliminate memory allocations below.
 	dst = decimal.ExtendInt64sCapacity(dst, itemsCount)
 
+	// The compressed payload is a NearestDelta/NearestDelta2 stream — one
+	// MarshalVarInt64-encoded delta per item — so each of the itemsCount items
+	// occupies at most binary.MaxVarintLen64 bytes. A larger result means the
+	// input is corrupted or hostile (e.g. a decompression bomb)
+	maxItemsSize := itemsCount * binary.MaxVarintLen64
+
+	// Use the default encoder's maxWindowSize configuration as the maximum
+	// decompressed data size for the decoder.
+	// The decoder may check the window size, which can exceed the size of the
+	// decompressed data. The current limit provides an acceptable level of security.
+	// In the worst case, a corrupted block allocates only 8 MiB of memory.
+	//
+	// github.com/klauspost/compress/zstd has the following params with max at 8MiB
+	// See https://github.com/klauspost/compress/blob/9b8ba6149408b157131b52e424ef97470ced32f7/zstd/encoder_options.go#L42
+	// and https://github.com/klauspost/compress/blob/9b8ba6149408b157131b52e424ef97470ced32f7/zstd/encoder_options.go#L254.
+	//
+	// valyala/gozstd uses max window size based on compress level.
+	// It's 2MiB according to default encoding.getCompressLevel ( 5 by default)
+	// See https://www.jefftk.com/p/zstd-window-size.
+	const maxWindowSize = 8 << 20
+	maxDecompressedSize := max(maxItemsSize, maxWindowSize)
+
 	var err error
 	switch mt {
 	case MarshalTypeZSTDNearestDelta:
 		bb := bbPool.Get()
-		bb.B, err = DecompressZSTD(bb.B[:0], src)
+		bb.B, err = DecompressZSTDLimited(bb.B[:0], src, maxDecompressedSize)
 		if err != nil {
 			return nil, fmt.Errorf("cannot decompress zstd data: %w", err)
 		}
@@ -190,7 +213,7 @@ func unmarshalInt64Array(dst []int64, src []byte, mt MarshalType, firstValue int
 		return dst, nil
 	case MarshalTypeZSTDNearestDelta2:
 		bb := bbPool.Get()
-		bb.B, err = DecompressZSTD(bb.B[:0], src)
+		bb.B, err = DecompressZSTDLimited(bb.B[:0], src, maxDecompressedSize)
 		if err != nil {
 			return nil, fmt.Errorf("cannot decompress zstd data: %w", err)
 		}

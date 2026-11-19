@@ -78,6 +78,12 @@ func TestUpdateWith(t *testing.T) {
 		if g.Debug != expect.Debug {
 			t.Fatalf("expected to have debug %v; got %v", expect.Debug, g.Debug)
 		}
+		if !durationPtrEqual(g.EvalDelay, expect.EvalDelay) {
+			t.Fatalf("expected to have eval_delay %v; got %v", expect.EvalDelay, g.EvalDelay)
+		}
+		if !boolPtrEqual(g.evalAlignment, expect.evalAlignment) {
+			t.Fatalf("expected to have eval_alignment %v; got %v", expect.evalAlignment, g.evalAlignment)
+		}
 	}
 
 	// new rule
@@ -237,6 +243,37 @@ func TestUpdateWith(t *testing.T) {
 			{Alert: "foo1", Debug: &debug},
 		},
 	})
+
+	// update group evaluation settings
+	evalDelay := promutil.NewDuration(time.Minute)
+	evalAlignment := false
+	f(config.Group{
+		Rules: []config.Rule{{
+			Record: "foo",
+			Expr:   "max(up)",
+		}},
+	}, config.Group{
+		EvalDelay:     evalDelay,
+		EvalAlignment: &evalAlignment,
+		Rules: []config.Rule{{
+			Record: "foo",
+			Expr:   "min(up)",
+		}},
+	})
+}
+
+func durationPtrEqual(a, b *time.Duration) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}
+
+func boolPtrEqual(a, b *bool) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
 }
 
 func TestUpdateDuringRandSleep(t *testing.T) {
@@ -484,7 +521,7 @@ func TestFaultyNotifier(t *testing.T) {
 	defer cancel()
 
 	go func() {
-		_ = e.exec(ctx, r, time.Now(), 0, 10)
+		_ = e.exec(ctx, r, time.Now(), 0, 10, nil)
 	}()
 
 	tn := time.Now()
@@ -516,7 +553,7 @@ func TestFaultyRW(t *testing.T) {
 		Rw: &remotewrite.Client{},
 	}
 
-	err := e.exec(context.Background(), r, time.Now(), 0, 10)
+	err := e.exec(context.Background(), r, time.Now(), 0, 10, nil)
 	if err == nil {
 		t.Fatalf("expected to get an error from faulty RW client, got nil instead")
 	}
@@ -741,4 +778,65 @@ func parseTime(t *testing.T, s string) time.Time {
 		t.Fatal(err)
 	}
 	return tt
+}
+
+func TestRuleStripFilePath(t *testing.T) {
+	configG := config.Group{
+		Name:        "group",
+		File:        "/var/local/test/rules.yaml",
+		Type:        config.NewRawType("prometheus"),
+		Concurrency: 1,
+		Rules: []config.Rule{
+			{
+				ID:    0,
+				Alert: "alert",
+			},
+			{
+				ID:     1,
+				Record: "record",
+			},
+		}}
+	qb := &datasource.FakeQuerier{}
+	g := NewGroup(configG, qb, 1*time.Minute, nil)
+
+	gID := g.id
+	if g.File != "/var/local/test/rules.yaml" {
+		t.Fatalf("expected file path to be unchanged; got %q instead", g.File)
+	}
+
+	for _, r := range g.Rules {
+		if ar, ok := r.(*AlertingRule); ok {
+			if ar.File != "/var/local/test/rules.yaml" {
+				t.Fatalf("expected rule file path to be unchanged; got %q instead", ar.File)
+			}
+		}
+		if rr, ok := r.(*RecordingRule); ok {
+			if rr.File != "/var/local/test/rules.yaml" {
+				t.Fatalf("expected rule file path to be unchanged; got %q instead", rr.File)
+			}
+		}
+	}
+
+	oldRuleStripFilePath := *ruleStripFilePath
+	*ruleStripFilePath = true
+	defer func() {
+		*ruleStripFilePath = oldRuleStripFilePath
+	}()
+	g = NewGroup(configG, qb, 1*time.Minute, nil)
+
+	if g.File != fmt.Sprintf("%d/rules.yaml", gID) {
+		t.Fatalf("expected file path to be stripped to %q; got %q instead", fmt.Sprintf("%d/rules.yaml", gID), g.File)
+	}
+	for _, r := range g.Rules {
+		if ar, ok := r.(*AlertingRule); ok {
+			if ar.File != fmt.Sprintf("%d/rules.yaml", gID) {
+				t.Fatalf("expected rule file path to be unchanged; got %q instead", ar.File)
+			}
+		}
+		if rr, ok := r.(*RecordingRule); ok {
+			if rr.File != fmt.Sprintf("%d/rules.yaml", gID) {
+				t.Fatalf("expected rule file path to be unchanged; got %q instead", rr.File)
+			}
+		}
+	}
 }

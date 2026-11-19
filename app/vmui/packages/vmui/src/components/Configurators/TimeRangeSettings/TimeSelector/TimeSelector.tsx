@@ -19,7 +19,11 @@ import useBoolean from "../../../../hooks/useBoolean";
 import useWindowSize from "../../../../hooks/useWindowSize";
 import usePrevious from "../../../../hooks/usePrevious";
 
-export const TimeSelector: FC = () => {
+type Props = {
+  onOpenSettings?: () => void;
+}
+
+export const TimeSelector: FC<Props> = ({ onOpenSettings }) => {
   const { isMobile } = useDeviceDetect();
   const { isDarkTheme } = useAppState();
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -53,7 +57,7 @@ export const TimeSelector: FC = () => {
     setFrom(formatDateForNativeInput(dateFromSeconds(start)));
   }, [timezone, start]);
 
-  const setDuration = ({ duration, until, id }: {duration: string, until: Date, id: string}) => {
+  const setDuration = ({ duration, until, id }: { duration: string, until: Date, id: string }) => {
     dispatch({ type: "SET_RELATIVE_TIME", payload: { duration, until, id } });
     handleCloseOptions();
   };
@@ -75,15 +79,22 @@ export const TimeSelector: FC = () => {
 
   const setTimeAndClosePicker = () => {
     if (from && until) {
-      dispatch({ type: "SET_PERIOD", payload: {
-        from: dayjs.tz(from).toDate(),
-        to: dayjs.tz(until).toDate()
-      } });
+      dispatch({
+        type: "SET_PERIOD", payload: {
+          from: dayjs.tz(from).toDate(),
+          to: dayjs.tz(until).toDate()
+        }
+      });
     }
     handleCloseOptions();
   };
 
   const onSwitchToNow = () => dispatch({ type: "RUN_QUERY_TO_NOW" });
+
+  const handleOpenSettings = () => {
+    onOpenSettings && onOpenSettings();
+    handleCloseOptions();
+  };
 
   const onCancelClick = () => {
     setUntil(formatDateForNativeInput(dateFromSeconds(end)));
@@ -140,6 +151,7 @@ export const TimeSelector: FC = () => {
         </Tooltip>
       )}
     </div>
+
     <Popper
       open={openOptions}
       buttonRef={buttonRef}
@@ -179,13 +191,17 @@ export const TimeSelector: FC = () => {
               onEnter={setTimeAndClosePicker}
             />
           </div>
-          <div className="vm-time-selector-left-timezone">
-            <div className="vm-time-selector-left-timezone__title">{activeTimezone.region}</div>
-            <div className="vm-time-selector-left-timezone__utc">{activeTimezone.utc}</div>
-          </div>
+          <button
+            type="button"
+            className="vm-time-selector-left-timezone"
+            onClick={handleOpenSettings}
+          >
+            <span className="vm-time-selector-left-timezone__title">{activeTimezone.region}</span>
+            <span className="vm-time-selector-left-timezone__utc">{activeTimezone.utc}</span>
+          </button>
           <Button
             variant="text"
-            startIcon={<AlarmIcon />}
+            startIcon={<AlarmIcon/>}
             onClick={onSwitchToNow}
           >
             switch to now

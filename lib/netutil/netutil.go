@@ -61,8 +61,12 @@ func DialMaybeSRV(ctx context.Context, network, addr string) (net.Conn, error) {
 
 // Dialer is default network dialer.
 var Dialer = &net.Dialer{
-	Timeout:   30 * time.Second,
-	KeepAlive: 30 * time.Second,
+	Timeout: 30 * time.Second,
+	KeepAliveConfig: net.KeepAliveConfig{
+		Enable:   true,
+		Idle:     30 * time.Second,
+		Interval: 30 * time.Second,
+	},
 	DualStack: TCP6Enabled(),
 }
 

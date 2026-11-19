@@ -1,15 +1,19 @@
 package notifier
 
 import (
+	"bytes"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -63,6 +67,162 @@ static_configs:
 	expAddr := "http://127.0.0.1:9093/api/v2/alerts"
 	if ns[0].Addr() != expAddr {
 		t.Fatalf("expected to get %q; got %q instead", expAddr, ns[0].Addr())
+	}
+
+	// check global alert relabel
+	f3, err := os.CreateTemp("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fs.MustRemovePath(f3.Name())
+
+	writeToFile(f3.Name(), `
+alert_relabel_configs:
+  - action: uppercase
+    source_labels: ["priority"]
+    target_label: "priority"
+  - source_labels: ["alertname"]
+    regex: "Watchdog"
+    target_label: "priority"
+    replacement: "P3"
+static_configs:
+  - targets:
+      - 127.0.0.1:9093
+`)
+	checkErr(t, cw.reload(f3.Name()))
+	rc := cw.alertRelabelConfigs()
+	if rc.Len() != 2 {
+		t.Fatalf("expected to get %d alert relabel configs; got %d instead", 2, rc.Len())
+	}
+}
+
+func TestConfigWatcherReloadRetryAfterFailure(t *testing.T) {
+	f, err := os.CreateTemp("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fs.MustRemovePath(f.Name())
+
+	writeToFile(f.Name(), `
+static_configs:
+  - targets:
+      - localhost:9093
+`)
+	cfg, err := parseConfig(f.Name())
+	if err != nil {
+		t.Fatalf("failed to parse config: %s", err)
+	}
+	cw, err := newWatcher(cfg, nil)
+	if err != nil {
+		t.Fatalf("failed to start config watcher: %s", err)
+	}
+	defer cw.mustStop()
+	if rc := cw.alertRelabelConfigs(); rc != nil {
+		t.Fatalf("unexpected global alert relabel configs: %s", rc.String())
+	}
+
+	// the config is parsed successfully, but fails to start
+	// because of the invalid target address after the valid one
+	writeToFile(f.Name(), `
+alert_relabel_configs:
+  - target_label: "foo"
+    replacement: "bar"
+static_configs:
+  - targets:
+      - 127.0.0.1:19093
+      - "%zz"
+`)
+	if err := cw.reload(f.Name()); err == nil {
+		t.Fatalf("expected to get an error on reload")
+	}
+	// reload of the same config must be retried and fail again
+	if err := cw.reload(f.Name()); err == nil {
+		t.Fatalf("expected to get an error on repeated reload")
+	}
+	// notifiers of the previously applied config must keep working
+	ns := cw.notifiers()
+	if len(ns) != 1 {
+		t.Fatalf("expected to have 1 notifier; got %d", len(ns))
+	}
+	expAddr := "http://localhost:9093/api/v2/alerts"
+	if ns[0].Addr() != expAddr {
+		t.Fatalf("expected to get %q; got %q instead", expAddr, ns[0].Addr())
+	}
+	// global alert relabel configs of the failed config is not applied
+	if rc := cw.alertRelabelConfigs(); rc != nil {
+		t.Fatalf("unexpected global alert relabel configs: %s", rc.String())
+	}
+
+	writeToFile(f.Name(), `
+static_configs:
+  - targets:
+      - 127.0.0.1:9093
+`)
+	checkErr(t, cw.reload(f.Name()))
+	ns = cw.notifiers()
+	if len(ns) != 1 {
+		t.Fatalf("expected to have 1 notifier; got %d", len(ns))
+	}
+	expAddr = "http://127.0.0.1:9093/api/v2/alerts"
+	if ns[0].Addr() != expAddr {
+		t.Fatalf("expected to get %q; got %q instead", expAddr, ns[0].Addr())
+	}
+}
+
+func TestConfigWatcherReloadKeepsNotifiersOnSDFailure(t *testing.T) {
+	// consul server which fails all requests
+	consulSDServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer consulSDServer.Close()
+
+	f, err := os.CreateTemp("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fs.MustRemovePath(f.Name())
+
+	writeToFile(f.Name(), `
+static_configs:
+  - targets:
+      - localhost:9093
+`)
+	cfg, err := parseConfig(f.Name())
+	if err != nil {
+		t.Fatalf("failed to parse config: %s", err)
+	}
+	cw, err := newWatcher(cfg, nil)
+	if err != nil {
+		t.Fatalf("failed to start config watcher: %s", err)
+	}
+	defer cw.mustStop()
+
+	writeToFile(f.Name(), fmt.Sprintf(`
+static_configs:
+  - targets:
+      - 127.0.0.1:19094
+consul_sd_configs:
+  - server: %s
+    services:
+      - alertmanager
+`, consulSDServer.URL))
+	if err := cw.reload(f.Name()); err == nil {
+		t.Fatalf("expected to get an error on reload")
+	}
+
+	ns := cw.notifiers()
+	if len(ns) != 1 {
+		t.Fatalf("expected to have 1 notifier; got %d", len(ns))
+	}
+	expAddr := "http://localhost:9093/api/v2/alerts"
+	if ns[0].Addr() != expAddr {
+		t.Fatalf("expected to get %q; got %q instead", expAddr, ns[0].Addr())
+	}
+	// static notifier of the failed config must be closed
+	var bb bytes.Buffer
+	metrics.WritePrometheus(&bb, false)
+	if strings.Contains(bb.String(), "127.0.0.1:19094") {
+		t.Fatalf("unexpected metrics for the notifier of the failed config:\n%s", bb.String())
 	}
 }
 
@@ -220,6 +380,7 @@ consul_sd_configs:
 				rnd := r.Intn(len(paths))
 				_ = cw.reload(paths[rnd]) // update can fail and this is expected
 				_ = cw.notifiers()
+				_ = cw.alertRelabelConfigs()
 			}
 		})
 	}

@@ -46,6 +46,9 @@ vmstorage-openbsd-amd64-prod:
 vmstorage-windows-amd64-prod:
 	APP_NAME=vmstorage $(MAKE) app-via-docker-windows-amd64
 
+vmstorage-windows-arm64-prod:
+	APP_NAME=vmstorage $(MAKE) app-via-docker-windows-arm64
+
 vmstorage-darwin-amd64-prod:
 	APP_NAME=vmstorage $(MAKE) app-via-docker-darwin-amd64
 
@@ -109,8 +112,17 @@ vmstorage-freebsd-amd64:
 vmstorage-openbsd-amd64:
 	APP_NAME=vmstorage CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
+vmstorage-netbsd-amd64:
+	APP_NAME=vmstorage CGO_ENABLED=0 GOOS=netbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmstorage-solaris-amd64:
+	APP_NAME=vmstorage CGO_ENABLED=0 GOOS=solaris GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
 vmstorage-windows-amd64:
 	GOARCH=amd64 APP_NAME=vmstorage $(MAKE) app-local-windows-goarch
+
+vmstorage-windows-arm64:
+	GOARCH=arm64 APP_NAME=vmstorage $(MAKE) app-local-windows-goarch
 
 vmstorage-darwin-amd64:
 	APP_NAME=vmstorage CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(MAKE) app-local-goos-goarch

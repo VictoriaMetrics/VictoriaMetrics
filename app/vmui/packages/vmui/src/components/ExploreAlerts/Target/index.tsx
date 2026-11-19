@@ -44,7 +44,12 @@ const Target: FC<TargetProps> = ({ target }) => {
                   <tr>
                     <td className="vm-col-md">Last error</td>
                     <td>
-                      <Alert variant="error">{target.lastError}</Alert>
+                      <Alert
+                        variant="error"
+                        title="Notification delivery failed"
+                      >
+                        {target.lastError}
+                      </Alert>
                     </td>
                   </tr>
                 )}

@@ -103,6 +103,28 @@ export const drawPoints = (u: uPlot, seriesIdx: number) => {
     u.ctx.lineWidth = 1.4 * uPlot.pxRatio;
     u.ctx.strokeStyle = u.ctx.fillStyle;
     u.ctx.stroke(squaresPath);
+
+    const nullTs = (series as unknown as { nullTimestamps?: number[] }).nullTimestamps;
+    if (nullTs && nullTs.length) {
+      const xSize = BASE_POINT_SIZE * 1.4 * uPlot.pxRatio;
+      const xHalf = xSize / 2;
+      // Lift the marker by half its size so the entire icon sits inside the plot area
+      // (yMin maps to the plot's bottom edge, so centering on it would clip the lower half).
+      const cy = valToPosY(yMin, scaleY, yDim, yOff) - xHalf;
+      const xPath = new Path2D();
+      for (let i = 0; i < nullTs.length; i++) {
+        const t = nullTs[i];
+        if (t < xMin || t > xMax) continue;
+        const cx = valToPosX(t, scaleX, xDim, xOff);
+        xPath.moveTo(cx - xHalf, cy - xHalf);
+        xPath.lineTo(cx + xHalf, cy + xHalf);
+        xPath.moveTo(cx + xHalf, cy - xHalf);
+        xPath.lineTo(cx - xHalf, cy + xHalf);
+      }
+      u.ctx.lineWidth = 1.6 * uPlot.pxRatio;
+      u.ctx.strokeStyle = u.ctx.fillStyle;
+      u.ctx.stroke(xPath);
+    }
   };
 
   uPlot.orient(u, seriesIdx, orientCallback);

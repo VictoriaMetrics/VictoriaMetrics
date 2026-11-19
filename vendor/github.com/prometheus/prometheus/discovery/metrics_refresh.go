@@ -39,14 +39,16 @@ func NewRefreshMetrics(reg prometheus.Registerer) RefreshMetricsManager {
 				Name: "prometheus_sd_refresh_failures_total",
 				Help: "Number of refresh failures for the given SD mechanism.",
 			},
-			[]string{"mechanism", "config"}),
+			[]string{"mechanism", "config"},
+		),
 		durationVec: prometheus.NewSummaryVec(
 			prometheus.SummaryOpts{
 				Name:       "prometheus_sd_refresh_duration_seconds",
 				Help:       "The duration of a refresh in seconds for the given SD mechanism.",
 				Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 			},
-			[]string{"mechanism", "config"}),
+			[]string{"mechanism", "config"},
+		),
 		durationHistVec: prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{
 				Name:                            "prometheus_sd_refresh_duration_histogram_seconds",
@@ -56,7 +58,8 @@ func NewRefreshMetrics(reg prometheus.Registerer) RefreshMetricsManager {
 				NativeHistogramMaxBucketNumber:  100,
 				NativeHistogramMinResetDuration: 1 * time.Hour,
 			},
-			[]string{"mechanism"}),
+			[]string{"mechanism"},
+		),
 	}
 
 	// The reason we register metric vectors instead of metrics is so that
@@ -87,4 +90,10 @@ func (m *RefreshMetricsVecs) Register() error {
 // Unregister implements discovery.DiscovererMetrics.
 func (m *RefreshMetricsVecs) Unregister() {
 	m.metricRegisterer.UnregisterMetrics()
+}
+
+// DeleteLabelValues deletes refresh metrics for a specific mechanism and config. Smart to use this when a scrape job is removed.
+func (m *RefreshMetricsVecs) DeleteLabelValues(mech, config string) {
+	m.failuresVec.DeleteLabelValues(mech, config)
+	m.durationVec.DeleteLabelValues(mech, config)
 }

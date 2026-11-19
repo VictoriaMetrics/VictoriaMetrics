@@ -28,6 +28,7 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/promslog"
 	"go.uber.org/atomic"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/discovery/targetgroup"
@@ -96,6 +97,7 @@ func NewManager(
 		r.Enable(features.Scrape, "extra_scrape_metrics")
 		r.Set(features.Scrape, "start_timestamp_zero_ingestion", o.EnableStartTimestampZeroIngestion)
 		r.Set(features.Scrape, "type_and_unit_labels", o.EnableTypeAndUnitLabels)
+		r.Set(features.Scrape, "openmetrics2", o.EnableOpenMetrics2)
 	}
 
 	return m, nil
@@ -135,8 +137,18 @@ type Options struct {
 	// TODO: Move this option to OM1 parser and use only on OM1 flow.
 	ParseST bool
 
+	// SynthesizeST enables the synthesis of start timestamp for cumulative metrics.
+	SynthesizeST bool
+
 	// EnableTypeAndUnitLabels represents type-and-unit-labels feature flag.
 	EnableTypeAndUnitLabels bool
+
+	// EnableOpenMetrics2 represents the openmetrics2 feature flag. It enables
+	// the experimental OpenMetrics 2.0 parser.
+	EnableOpenMetrics2 bool
+
+	// EnableZstdScrape represents the zstd-scrape feature flag.
+	EnableZstdScrape bool
 
 	// Optional HTTP client options to use when scraping.
 	HTTPClientOptions []config_util.HTTPClientOption
@@ -150,6 +162,13 @@ type Options struct {
 	//
 	// NOTE: This final scrape ignores the configured scrape interval.
 	ScrapeOnShutdown bool
+
+	// DiscoveryReloadOnStartup enables discovering targets immediately on start up as opposed
+	// to waiting for the interval defined in DiscoveryReloadInterval before
+	// initializing the scrape pools. Disabled by default. Useful for serverless
+	// flavors of OpenTelemetry contrib's prometheusreceiver where we're
+	// sensitive to start up delays.
+	DiscoveryReloadOnStartup bool
 
 	// InitialScrapeOffset applies an additional baseline delay before we begin
 	// scraping targets. By default, Prometheus calculates a specific offset for
@@ -169,6 +188,9 @@ type Options struct {
 
 	// private option for testability.
 	skipJitterOffsetting bool
+
+	// private option for testability: replaces the FQDN lookup.
+	fqdn string
 }
 
 // Manager maintains a set of scrape pools and manages start/stop cycles
@@ -204,7 +226,7 @@ func (m *Manager) Run(tsets <-chan map[string][]*targetgroup.Group) error {
 		select {
 		case ts, ok := <-tsets:
 			if !ok {
-				break
+				return nil
 			}
 			m.updateTsets(ts)
 
@@ -225,14 +247,23 @@ func (m *Manager) UnregisterMetrics() {
 }
 
 func (m *Manager) reloader() {
-	reloadIntervalDuration := m.opts.DiscoveryReloadInterval
-	if reloadIntervalDuration == model.Duration(0) {
-		reloadIntervalDuration = model.Duration(5 * time.Second)
+	reloadIntervalDuration := time.Duration(m.opts.DiscoveryReloadInterval)
+	if reloadIntervalDuration == 0 {
+		reloadIntervalDuration = 5 * time.Second
 	}
 
-	ticker := time.NewTicker(time.Duration(reloadIntervalDuration))
-
+	ticker := time.NewTicker(reloadIntervalDuration)
 	defer ticker.Stop()
+
+	if m.opts.DiscoveryReloadOnStartup {
+		select {
+		case <-m.graceShut:
+			return
+		case <-m.triggerReload:
+			m.reload()
+		}
+		ticker.Reset(reloadIntervalDuration)
+	}
 
 	for {
 		select {
@@ -288,9 +319,13 @@ func (m *Manager) reload() {
 // setOffsetSeed calculates a global offsetSeed per server relying on extra label set.
 func (m *Manager) setOffsetSeed(labels labels.Labels) error {
 	h := fnv.New64a()
-	hostname, err := osutil.GetFQDN()
-	if err != nil {
-		return err
+	hostname := m.opts.fqdn
+	if hostname == "" {
+		var err error
+		hostname, err = osutil.GetFQDN()
+		if err != nil {
+			return err
+		}
 	}
 	if _, err := fmt.Fprintf(h, "%s%s", hostname, labels.String()); err != nil {
 		return err
@@ -304,9 +339,19 @@ func (m *Manager) Stop() {
 	m.mtxScrape.Lock()
 	defer m.mtxScrape.Unlock()
 
+	// Stop pools in parallel as each stop() blocks until all its scrape
+	// loops have exited, which can take a long time if there's a lot of
+	// pools with high number of targets.
+	// Limit the number of pools stopping at once to avoid unbounded goroutines.
+	g := new(errgroup.Group)
+	g.SetLimit(runtime.GOMAXPROCS(0))
 	for _, sp := range m.scrapePools {
-		sp.stop()
+		g.Go(func() error {
+			sp.stop()
+			return nil
+		})
 	}
+	_ = g.Wait()
 	close(m.graceShut)
 }
 
@@ -391,22 +436,23 @@ func (m *Manager) ApplyConfig(cfg *config.Config) error {
 				wg.Done()
 				<-canReload
 			}()
-			switch {
-			case !ok:
+			if !ok {
 				sp.stop()
 				toDelete.Store(name, struct{}{})
-			case !reflect.DeepEqual(sp.config, cfg):
+				return
+			}
+			// Update the scrape failure logger before reloading so that
+			// restartLoops captures the new logger when starting new loops.
+			if l, ok := m.scrapeFailureLoggers[cfg.ScrapeFailureLogFile]; ok {
+				sp.SetScrapeFailureLogger(l)
+			} else {
+				sp.logger.Error("No logger found. This is a bug in Prometheus that should be reported upstream.", "scrape_pool", name)
+			}
+			if !reflect.DeepEqual(sp.config, cfg) {
 				err := sp.reload(cfg)
 				if err != nil {
 					m.logger.Error("error reloading scrape pool", "err", err, "scrape_pool", name)
 					failed.Store(true)
-				}
-				fallthrough
-			case ok:
-				if l, ok := m.scrapeFailureLoggers[cfg.ScrapeFailureLogFile]; ok {
-					sp.SetScrapeFailureLogger(l)
-				} else {
-					sp.logger.Error("No logger found. This is a bug in Prometheus that should be reported upstream.", "scrape_pool", name)
 				}
 			}
 		}(poolName, pool, cfg, ok)
@@ -478,7 +524,7 @@ func (m *Manager) TargetsDroppedCounts() map[string]int {
 
 	counts := make(map[string]int, len(m.scrapePools))
 	for tset, sp := range m.scrapePools {
-		counts[tset] = sp.droppedTargetsCount
+		counts[tset] = sp.DroppedTargetsCount()
 	}
 	return counts
 }

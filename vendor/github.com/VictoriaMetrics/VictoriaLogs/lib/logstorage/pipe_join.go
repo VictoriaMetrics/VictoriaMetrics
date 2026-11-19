@@ -192,7 +192,6 @@ func (pjp *pipeJoinProcessor) writeBlock(workerID uint, br *blockResult) {
 	for i := range cs {
 		name := cs[i].name
 		byValuesIdxs[i] = slices.Index(pj.byFields, name)
-
 	}
 
 	for rowIdx := range br.rowsLen {

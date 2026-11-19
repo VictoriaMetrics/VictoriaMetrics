@@ -17,7 +17,7 @@ EXTRA_GO_BUILD_TAGS ?=
 GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TAG)-$(BUILDINFO_TAG)'
 TAR_OWNERSHIP ?= --owner=1000 --group=1000
 
-GOLANGCI_LINT_VERSION := 2.9.0
+GOLANGCI_LINT_VERSION := 2.14.0
 
 .PHONY: $(MAKECMDGOALS)
 
@@ -82,10 +82,25 @@ vmcluster-openbsd-amd64: \
 	vmselect-openbsd-amd64 \
 	vmstorage-openbsd-amd64
 
+vmcluster-netbsd-amd64: \
+	vminsert-netbsd-amd64 \
+	vmselect-netbsd-amd64 \
+	vmstorage-netbsd-amd64
+
+vmcluster-solaris-amd64: \
+	vminsert-solaris-amd64 \
+	vmselect-solaris-amd64 \
+	vmstorage-solaris-amd64
+
 vmcluster-windows-amd64: \
 	vminsert-windows-amd64 \
 	vmselect-windows-amd64 \
 	vmstorage-windows-amd64
+
+vmcluster-windows-arm64: \
+	vminsert-windows-arm64 \
+	vmselect-windows-arm64 \
+	vmstorage-windows-arm64
 
 vmcluster-darwin-amd64: \
 	vminsert-darwin-amd64 \
@@ -177,6 +192,7 @@ release-vmcluster: \
 	release-vmcluster-freebsd-amd64 \
 	release-vmcluster-openbsd-amd64 \
 	release-vmcluster-windows-amd64 \
+    release-vmcluster-windows-arm64 \
 	release-vmcluster-darwin-amd64 \
 	release-vmcluster-darwin-arm64
 
@@ -197,6 +213,9 @@ release-vmcluster-openbsd-amd64:
 
 release-vmcluster-windows-amd64:
 	GOARCH=amd64 $(MAKE) release-vmcluster-windows-goarch
+
+release-vmcluster-windows-arm64:
+	GOARCH=arm64 $(MAKE) release-vmcluster-windows-goarch
 
 release-vmcluster-darwin-amd64:
 	GOOS=darwin GOARCH=amd64 $(MAKE) release-vmcluster-goos-goarch
@@ -255,7 +274,7 @@ vet:
 	go vet ./app/...
 	go vet ./apptest/...
 
-check-all: fmt vet golangci-lint govulncheck
+check-all: fmt vet golangci-lint
 
 clean-checkers: remove-golangci-lint remove-govulncheck
 
@@ -265,8 +284,10 @@ test:
 test-race:
 	go test -tags 'synctest' -race ./lib/... ./app/...
 
+# Limit GOMAXPROCS to reduce memory usage on 32-bit builds.
+# See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11612
 test-386:
-	GOARCH=386 go test -tags 'synctest' ./lib/... ./app/...
+	GOARCH=386 GOMAXPROCS=4 go test -tags 'synctest' ./lib/... ./app/...
 
 test-pure:
 	CGO_ENABLED=0 go test -tags 'synctest' ./lib/... ./app/...
@@ -274,13 +295,16 @@ test-pure:
 test-full:
 	go test -tags 'synctest' -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
+# Limit GOMAXPROCS to reduce memory usage on 32-bit builds.
+# See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11612
 test-full-386:
-	GOARCH=386 go test -tags 'synctest' -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
+	GOARCH=386 GOMAXPROCS=4 go test -tags 'synctest' -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 apptest:
-	$(MAKE) vminsert-race vmselect-race vmstorage-race vmctl-race vmbackup-race vmrestore-race
-	go test ./apptest/... -skip="^Test(Single|Legacy).*"
+	$(MAKE) vminsert-race vmselect-race vmstorage-race vmagent-race vmctl-race vmbackup-race vmrestore-race
+	GORACE="halt_on_error=1" go test ./apptest/... -skip="^Test(Single|Mixed|Legacy).*"
 
+# App tests for legacy indexDB
 apptest-legacy: vminsert-race vmselect-race vmstorage-race vmbackup-race vmrestore-race
 	OS=$$(uname | tr '[:upper:]' '[:lower:]'); \
 	ARCH=$$(uname -m | tr '[:upper:]' '[:lower:]' | sed 's/x86_64/amd64/'); \
@@ -293,9 +317,25 @@ apptest-legacy: vminsert-race vmselect-race vmstorage-race vmbackup-race vmresto
 		curl --output-dir /tmp -LO $${URL}/$${VMSINGLE} && tar xzf /tmp/$${VMSINGLE} -C $${DIR} && \
 		curl --output-dir /tmp -LO $${URL}/$${VMCLUSTER} && tar xzf /tmp/$${VMCLUSTER} -C $${DIR} \
 	); \
-	VM_LEGACY_VMSINGLE_PATH=$${DIR}/victoria-metrics-prod \
-	VM_LEGACY_VMSTORAGE_PATH=$${DIR}/vmstorage-prod \
-	go test ./apptest/tests -run="^TestLegacyCluster.*"
+	VMSINGLE_V1_132_0_PATH=$${DIR}/victoria-metrics-prod \
+	VMSTORAGE_V1_132_0_PATH=$${DIR}/vmstorage-prod \
+	GORACE="halt_on_error=1" go test ./apptest/tests -run="^TestLegacyCluster.*"
+
+# App tests for mixed setups where vmsingle and vmcluster coexist.
+apptest-mixed: vmselect-race
+	OS=$$(uname | tr '[:upper:]' '[:lower:]'); \
+	ARCH=$$(uname -m | tr '[:upper:]' '[:lower:]' | sed 's/x86_64/amd64/'); \
+	VERSION=v1.147.0; \
+	VMSINGLE=victoria-metrics-$${OS}-$${ARCH}-$${VERSION}.tar.gz; \
+	VMCLUSTER=victoria-metrics-$${OS}-$${ARCH}-$${VERSION}-cluster.tar.gz; \
+	URL=https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/$${VERSION}; \
+	DIR=/tmp/$${VERSION}; \
+	test -d $${DIR} || (mkdir $${DIR} && \
+		curl --output-dir /tmp -LO $${URL}/$${VMSINGLE} && tar xzf /tmp/$${VMSINGLE} -C $${DIR} && \
+		curl --output-dir /tmp -LO $${URL}/$${VMCLUSTER} && tar xzf /tmp/$${VMCLUSTER} -C $${DIR} \
+	); \
+	VMSINGLE_PATH=$${DIR}/victoria-metrics-prod \
+	GORACE="halt_on_error=1" go test ./apptest/tests -run="^TestMixed.*"
 
 benchmark:
 	go test -run=NO_TESTS -bench=. ./lib/...
@@ -335,13 +375,22 @@ golangci-lint: install-golangci-lint
 	golangci-lint run --build-tags 'synctest'
 
 install-golangci-lint:
-	which golangci-lint && (golangci-lint --version | grep -q $(GOLANGCI_LINT_VERSION)) || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v$(GOLANGCI_LINT_VERSION)
+	which golangci-lint && (golangci-lint --version | grep -q $(GOLANGCI_LINT_VERSION)) || curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v$(GOLANGCI_LINT_VERSION)
 
 remove-golangci-lint:
 	rm -rf `which golangci-lint`
 
 govulncheck: install-govulncheck
 	govulncheck ./...
+
+govulncheck-docker:
+	docker run -w $(PWD) -v $(PWD):$(PWD) \
+		-v govulncheck-gomod-cache:/root/go/pkg/mod \
+		-v govulncheck-gobuild-cache:/root/.cache/go-build \
+		-v govulncheck-go-bin:/root/go/bin \
+		--env="GOCACHE=/root/.cache/go-build" \
+		--env="GOMODCACHE=/root/go/pkg/mod" \
+		"$(GO_BUILDER_IMAGE)" /bin/sh -c "which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./..."
 
 install-govulncheck:
 	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest

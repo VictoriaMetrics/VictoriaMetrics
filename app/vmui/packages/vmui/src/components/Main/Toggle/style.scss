@@ -20,6 +20,8 @@
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    border-radius: $border-radius-small;
+    background: $color-hover-black;
 
     &-item {
       position: relative;
@@ -27,55 +29,68 @@
       align-items: center;
       justify-content: center;
       padding: $padding-small;
-      border-right: $border-divider;
-      border-top: $border-divider;
-      border-bottom: $border-divider;
       font-size: $font-size-small;
       color: $color-text-secondary;
-      font-weight: bold;
+      font-weight: 500;
       cursor: pointer;
       text-align: center;
-      transition: color 150ms ease-in;
+      transition: opacity 150ms ease-in, color 150ms ease-in;
       z-index: 2;
       user-select: none;
 
-      &_first {
-        border-radius: 16px 0 0 16px;
-        border-left: $border-divider
-      }
-
-      &:last-child {
-        border-radius: 0 16px 16px 0;
-        border-left: none;
-      }
-
       &_icon {
         grid-template-columns: 14px auto;
-        gap: 4px;
+        gap: calc($padding-small / 2);
       }
 
-      &:hover {
-        color: $color-primary;
+      &:hover:not(&_active) {
+        opacity: 0.8;
       }
 
       &_active {
-        color: $color-primary;
-        border-color: transparent;
-
-        &:hover {
-          background-color: transparent;
-        }
+        color: $color-text;
+        font-weight: 600;
       }
     }
 
     &__highlight {
       position: absolute;
       top: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3px;
       height: 100%;
       background-color: rgba($color-primary, 0.08);
-      border: 1px solid $color-primary;
       transition: left 200ms cubic-bezier(0.280, 0.840, 0.420, 1), border-radius 200ms linear;
       z-index: 1;
+
+      &:after {
+        content: '';
+        height: 100%;
+        width: 100%;
+        background-color: $color-background-block;
+        border-radius: $border-radius-small;
+        box-shadow: $box-shadow;
+      }
+    }
+  }
+
+  &_large &-group {
+    border-radius: $border-radius-medium;
+
+    &-item {
+      padding: $padding-global $padding-small;
+
+      &_icon {
+        grid-template-columns: 16px auto;
+        gap: $padding-small;
+      }
+    }
+
+    &__highlight {
+      padding: 4px;
+      border-radius: $border-radius-medium;
     }
   }
 }

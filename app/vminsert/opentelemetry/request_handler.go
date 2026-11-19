@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -23,6 +24,11 @@ var (
 	rowsPerInsert      = metrics.NewHistogram(`vm_rows_per_insert{type="opentelemetry"}`)
 	metadataInserted   = metrics.NewCounter(`vm_metadata_rows_inserted_total{type="opentelemetry"}`)
 )
+
+// Init must be called after flag.Parse and before using the opentelemetry package.
+func Init() {
+	stream.InitDecodeOptions()
+}
 
 // InsertHandler processes opentelemetry metrics.
 func InsertHandler(at *auth.Token, req *http.Request) error {
@@ -90,6 +96,9 @@ func insertRows(at *auth.Token, tss []prompb.TimeSeries, mms []prompb.MetricMeta
 		ctx.ResetForMetricsMetadata()
 		for i := range mms {
 			m := &mms[i]
+			if timeserieslimits.IsMetricMetadataExceeding(m) {
+				continue
+			}
 			atLocal := ctx.GetLocalAuthTokenForMetadata(at, m)
 			if err := ctx.WriteMetadata(atLocal, m); err != nil {
 				return err

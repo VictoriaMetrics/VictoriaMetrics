@@ -31,13 +31,15 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
   -denyQueryTracing
      Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing
   -disableRerouting
-     Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -disableReroutingOnUnavailable and -dropSamplesOnOverload (default true)
+     Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -disableReroutingOnUnavailable and -dropSamplesOnOverload
   -disableReroutingOnUnavailable
      Whether to disable re-routing when some of vmstorage nodes are unavailable. Disabled re-routing stops ingestion when some storage nodes are unavailable. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -disableRerouting
   -dropSamplesOnOverload
      Whether to drop incoming samples if the destination vmstorage node is overloaded and/or unavailable. This prioritizes cluster availability over consistency, e.g. the cluster continues accepting all the ingested samples, but some of them may be dropped if vmstorage nodes are temporarily unavailable and/or overloaded. The drop of samples happens before the replication, so it's not recommended to use this flag with -replicationFactor enabled.
   -enableMetadata
      Whether to enable metadata processing for metrics scraped from targets, received via VictoriaMetrics remote write, Prometheus remote write v1 or OpenTelemetry protocol. See also remoteWrite.maxMetadataPerBlock (default true)
+  -enableMultitenancyViaHeaders
+     Enables multitenancy via HTTP headers. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers (default true)
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
@@ -50,12 +52,14 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file.
      Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
+  -fs.disableAdviseRandomRead
+     Whether to disable FADV_RANDOM and MADV_RANDOM hints for data part files. Typical queries with selectors access data part files at random offsets, so FADV_RANDOM is enforced to reduce excessive disk readahead.Use this flag if your query read pattern benefits from sequential read (e.g. query by metric name without selectors) to prefer FADV_NORMAL. (default true)
   -fs.disableMincore
      Whether to disable the mincore() syscall for checking mmap()ed files. By default, mincore() is used to detect whether mmap()ed file pages are resident in memory. Disabling mincore() may be needed on older ZFS filesystems (below 2.1.5), since it may trigger ZFS bug. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10327 for details.
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -fs.maxConcurrency int
-     The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default fsutil.getDefaultConcurrency())
+     The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default 16x CPU cores, capped at 256)
   -graphite.sanitizeMetricName
      Sanitize metric names for the ingested Graphite data. See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting
   -graphiteListenAddr string
@@ -64,6 +68,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
      Whether to use proxy protocol for connections accepted at -graphiteListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
   -graphiteTrimTimestamp duration
      Trim timestamps for Graphite data to this duration. Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data (default 1s)
+  -healthcheck
+     Whether to check that the running process accepts connections at -httpListenAddr and exit. The exit code is non-zero if the check fails. This is useful for Docker HEALTHCHECK in images without curl or wget. Pass the same -httpListenAddr as the checked process has
   -http.connTimeout duration
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableCORS
@@ -74,6 +80,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string
      Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"
+  -http.header.disableServerHostname
+     Whether to disable 'X-Server-Hostname' header in HTTP responses
   -http.header.frameOptions string
      Value for 'X-Frame-Options' header
   -http.header.hsts string
@@ -81,7 +89,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
-     The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown (default 7s)
+     The maximum duration for a graceful shutdown of the HTTP server. During this period the server stops accepting new connections, but it will continue serving existing connections. The remaining in-flight requests are canceled before the deadline, so the shutdown can finish within this duration. A highly loaded server may require increased value for a graceful shutdown (default 7s)
   -http.pathPrefix string
      An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
@@ -93,7 +101,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr array
-     Address to listen for incoming http requests. See also -httpListenAddr.useProxyProtocol
+     Address to listen for incoming http requests. See also -httpListenAddr.useProxyProtocol. Use unix:/path/to/socket to listen on Unix domain socket. Note that -tls and -httpListenAddr.useProxyProtocol cannot be used with Unix sockets
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr.useProxyProtocol array
@@ -156,18 +164,18 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
-     The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 2*cgroup.AvailableCPUs())
+     The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 2x CPU cores)
   -maxInsertRequestSize size
      The maximum size in bytes of a single Prometheus remote_write API request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
   -maxLabelNameLen int
-     The maximum length of label name in the accepted time series. Series with longer label name are ignored. In this case the vm_rows_ignored_total{reason="too_long_label_name"} metric at /metrics page is incremented (default 256)
+     The maximum length of label name in the accepted time series. Series with longer label name are ignored. In this case the vm_rows_ignored_total{reason="too_long_label_name"} metric at /metrics page is incremented. Value must be in range 1..65535. (default 256)
   -maxLabelValueLen int
-     The maximum length of label values in the accepted time series. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason="too_long_label_value"} metric at /metrics page is incremented (default 4096)
+     The maximum length of label values in the accepted time series. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason="too_long_label_value"} metric at /metrics page is incremented. Value must be in range 1..65535. (default 4096)
   -maxLabelsPerTimeseries int
      The maximum number of labels per time series to be accepted. Series with superfluous labels are ignored. In this case the vm_rows_ignored_total{reason="too_many_labels"} metric at /metrics page is incremented (default 40)
   -memory.allowedBytes size
-     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
+     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage. The process may behave unexpectedly if this flag is set too small (e.g., 1 byte).
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
@@ -182,9 +190,23 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -opentelemetry.convertMetricNamesToPrometheus
      Whether to convert only metric names into Prometheus-compatible format for the metrics ingested via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/
+  -opentelemetry.ignoreResourceAttributes array
+     Control which resource attributes to ignore, can only be set when 'opentelemetry.promoteAllResourceAttributes' is true.
+     Supports an array of values separated by comma or specified via multiple flags.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -opentelemetry.labelNameUnderscoreSanitization
+     Whether to enable prepending of 'key' to labels starting with '_' when -opentelemetry.usePrometheusNaming is enabled. Reserved labels starting with '__' are not modified. See https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/ (default true)
   -opentelemetry.maxRequestSize size
      The maximum size in bytes of a single OpenTelemetry request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
+  -opentelemetry.promoteAllResourceAttributes
+     Whether to promote all resource attributes to labels, except for the ones configured with 'opentelemetry.ignoreResourceAttributes'. (default true)
+  -opentelemetry.promoteResourceAttributes array
+     Promote specific list of resource attributes to labels.
+     Supports an array of values separated by comma or specified via multiple flags.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -opentelemetry.promoteScopeMetadata
+     Whether to promote OTel scope metadata (i.e. name, version, schema URL, and attributes) to metric labels. (default true)
   -opentelemetry.usePrometheusNaming
      Whether to convert metric names and labels into Prometheus-compatible format for the metrics ingested via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/
   -opentsdbHTTPListenAddr string

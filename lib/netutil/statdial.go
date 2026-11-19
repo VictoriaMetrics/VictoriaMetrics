@@ -2,6 +2,7 @@ package netutil
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -41,7 +42,7 @@ func newStatDialFunc(metricPrefix string, dialFunc func(ctx context.Context, net
 		sc.dialsTotal.Inc()
 		if err != nil {
 			sc.dialErrors.Inc()
-			if !TCP6Enabled() && !isTCPv4Addr(addr) {
+			if !TCP6Enabled() && !isTCPv4Addr(addr) && !isUnixSocketDialError(err) {
 				err = fmt.Errorf("%w; try -enableTCP6 command-line flag for dialing ipv6 addresses", err)
 			}
 			return nil, err
@@ -50,6 +51,14 @@ func newStatDialFunc(metricPrefix string, dialFunc func(ctx context.Context, net
 		sc.conns.Inc()
 		return sc, nil
 	}
+}
+
+func isUnixSocketDialError(err error) bool {
+	var opErr *net.OpError
+	if !errors.As(err, &opErr) || opErr.Addr == nil {
+		return false
+	}
+	return opErr.Addr.Network() == "unix"
 }
 
 type statDialConn struct {

@@ -121,6 +121,13 @@ func (rc *regexpCache) Get(regexp string) *regexpCacheValue {
 
 func (rc *regexpCache) Put(regexp string, rcv *regexpCacheValue) {
 	rc.mu.Lock()
+	defer rc.mu.Unlock()
+
+	// rcv may already be registered by a concurrent goroutine
+	if _, exists := rc.m[regexp]; exists {
+		rc.m[regexp] = rcv
+		return
+	}
 	if rc.charsCurrent > rc.charsLimit {
 		// Remove items accounting for 10% chars from the cache.
 		overflow := int(float64(rc.charsLimit) * 0.1)
@@ -138,5 +145,4 @@ func (rc *regexpCache) Put(regexp string, rcv *regexpCacheValue) {
 	}
 	rc.m[regexp] = rcv
 	rc.charsCurrent += len(regexp)
-	rc.mu.Unlock()
 }

@@ -52,7 +52,7 @@ func TestRecordingRule_Exec(t *testing.T) {
 			rule.state = &ruleState{
 				entries: make([]StateEntry, 10),
 			}
-			tss, err := rule.exec(context.TODO(), ts, 0)
+			tss, err := rule.exec(context.TODO(), ts, 0, nil)
 			if err != nil {
 				t.Fatalf("fail to test rule %s: unexpected error: %s", rule.Name, err)
 			}
@@ -163,11 +163,13 @@ func TestRecordingRule_Exec(t *testing.T) {
 	f(&RecordingRule{
 		Name: "job:foo",
 		Labels: map[string]string{
-			"source": "test",
+			"source":      "test",
+			"empty_label": "", // this should be dropped
+			"pod":         "", // this should remove the pod label from query result
 		},
 	}, [][]datasource.Metric{{
-		metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "foo"),
-		metricWithValueAndLabels(t, 1, "__name__", "bar", "job", "bar", "source", "origin"),
+		metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "foo", "pod", "vmalert-0"),
+		metricWithValueAndLabels(t, 1, "__name__", "bar", "job", "bar", "source", "origin", "pod", "vmalert-1"),
 		metricWithValueAndLabels(t, 1, "__name__", "baz", "job", "baz", "source", "test"),
 	}}, [][]prompb.TimeSeries{{
 		newTimeSeries([]float64{2}, []int64{ts.UnixNano()}, []prompb.Label{
@@ -219,6 +221,49 @@ func TestRecordingRule_Exec(t *testing.T) {
 				},
 			}),
 	}})
+
+	// label values with ',' and '=' must be kept as is in stale markers
+	f(&RecordingRule{
+		Name: "foo",
+	}, [][]datasource.Metric{
+		{
+			metricWithValueAndLabels(t, 1, "__name__", "bar", "path", "/api?a=b,c=d", "job", "foo"),
+		},
+		{},
+	}, [][]prompb.TimeSeries{
+		{
+			newTimeSeries([]float64{1}, []int64{ts.UnixNano()}, []prompb.Label{
+				{
+					Name:  "__name__",
+					Value: "foo",
+				},
+				{
+					Name:  "path",
+					Value: "/api?a=b,c=d",
+				},
+				{
+					Name:  "job",
+					Value: "foo",
+				},
+			}),
+		},
+		{
+			newTimeSeries([]float64{decimal.StaleNaN}, []int64{ts.Add(defaultStep).UnixNano()}, []prompb.Label{
+				{
+					Name:  "__name__",
+					Value: "foo",
+				},
+				{
+					Name:  "path",
+					Value: "/api?a=b,c=d",
+				},
+				{
+					Name:  "job",
+					Value: "foo",
+				},
+			}),
+		},
+	})
 }
 
 func TestRecordingRule_ExecRange(t *testing.T) {
@@ -356,7 +401,7 @@ func TestRecordingRuleLimit_Failure(t *testing.T) {
 		}
 		rule.q = fq
 
-		_, err := rule.exec(context.TODO(), time.Now(), limit)
+		_, err := rule.exec(context.TODO(), time.Now(), limit, nil)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -392,7 +437,7 @@ func TestRecordingRuleLimit_Success(t *testing.T) {
 		}
 		rule.q = fq
 
-		_, err := rule.exec(context.TODO(), time.Now(), limit)
+		_, err := rule.exec(context.TODO(), time.Now(), limit, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -420,7 +465,7 @@ func TestRecordingRuleExec_Negative(t *testing.T) {
 	expErr := "connection reset by peer"
 	fq.SetErr(errors.New(expErr))
 	rr.q = fq
-	_, err := rr.exec(context.TODO(), time.Now(), 0)
+	_, err := rr.exec(context.TODO(), time.Now(), 0, nil)
 	if err == nil {
 		t.Fatalf("expected to get err; got nil")
 	}
@@ -435,9 +480,32 @@ func TestRecordingRuleExec_Negative(t *testing.T) {
 	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "foo"))
 	fq.Add(metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "bar"))
 
-	_, err = rr.exec(context.TODO(), time.Now(), 0)
+	_, err = rr.exec(context.TODO(), time.Now(), 0, nil)
 	if err != nil {
 		t.Fatalf("cannot execute recording rule: %s", err)
+	}
+}
+
+func TestRecordingRuleExec_LabelValuesWithSeparators(t *testing.T) {
+	rr := &RecordingRule{
+		Name:    "job:foo",
+		state:   &ruleState{entries: make([]StateEntry, 10)},
+		metrics: getTestRecordingRuleMetrics(),
+	}
+	fq := &datasource.FakeQuerier{}
+	rr.q = fq
+
+	// these series have different labels, but would get the same key
+	// if label values with ',' and '=' were not escaped
+	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "x", "1,y=2"))
+	fq.Add(metricWithValueAndLabels(t, 2, "__name__", "foo", "x", "1", "y", "2"))
+
+	tss, err := rr.exec(context.TODO(), time.Now(), 0, nil)
+	if err != nil {
+		t.Fatalf("cannot execute recording rule: %s", err)
+	}
+	if len(tss) != 2 {
+		t.Fatalf("expected to get 2 time series; got %d", len(tss))
 	}
 }
 
@@ -455,12 +523,10 @@ func TestSetIntervalAsTimeFilter(t *testing.T) {
 	f(`* | count()`, "vlogs", true)
 	f(`error OR _time:5m  | count()`, "vlogs", true)
 	f(`(_time: 5m AND error) OR (_time: 5m AND warn) | count()`, "vlogs", true)
-	f(`* | error OR _time:5m | count()`, "vlogs", true)
 
 	f(`_time:5m | count()`, "vlogs", false)
 	f(`_time:2023-04-25T22:45:59Z | count()`, "vlogs", false)
 	f(`error AND _time:5m | count()`, "vlogs", false)
-	f(`* | error AND _time:5m | count()`, "vlogs", false)
 }
 
 func TestRecordingRuleExec_Partial(t *testing.T) {
@@ -479,7 +545,7 @@ func TestRecordingRuleExec_Partial(t *testing.T) {
 	}
 	rule.Debug = true
 	rule.q = fq
-	got, err := rule.exec(context.TODO(), ts, 0)
+	got, err := rule.exec(context.TODO(), ts, 0, nil)
 	want := []prompb.TimeSeries{
 		newTimeSeries([]float64{10}, []int64{ts.UnixNano()}, []prompb.Label{
 			{

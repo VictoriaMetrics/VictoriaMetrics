@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package metric // import "go.opentelemetry.io/otel/sdk/metric"
+package metric
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 	"go.opentelemetry.io/otel/internal/global"
 	"go.opentelemetry.io/otel/sdk/metric/internal/observ"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
-	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 )
 
 // Default periodic reader timing.
@@ -28,6 +28,7 @@ const (
 type periodicReaderConfig struct {
 	interval                 time.Duration
 	timeout                  time.Duration
+	maxExportBatchSize       int
 	producers                []Producer
 	cardinalityLimitSelector CardinalityLimitSelector
 }
@@ -98,6 +99,21 @@ func WithInterval(d time.Duration) PeriodicReaderOption {
 	})
 }
 
+// WithMaxExportBatchSize configures the maximum number of metric data points in
+// a batch that are exported at once.
+//
+// If this option is not used or size is less than or equal to zero, no limit is
+// applied.
+func WithMaxExportBatchSize(size int) PeriodicReaderOption {
+	return periodicReaderOptionFunc(func(conf periodicReaderConfig) periodicReaderConfig {
+		if size <= 0 {
+			return conf
+		}
+		conf.maxExportBatchSize = size
+		return conf
+	})
+}
+
 // NewPeriodicReader returns a Reader that collects and exports metric data to
 // the exporter at a defined interval. By default, the returned Reader will
 // collect and export data every 60 seconds, and will cancel any attempts that
@@ -115,6 +131,7 @@ func NewPeriodicReader(exporter Exporter, options ...PeriodicReaderOption) *Peri
 	r := &PeriodicReader{
 		interval:                 conf.interval,
 		timeout:                  conf.timeout,
+		batcher:                  batcher{size: conf.maxExportBatchSize},
 		exporter:                 exporter,
 		flushCh:                  make(chan chan error),
 		cancel:                   cancel,
@@ -128,11 +145,6 @@ func NewPeriodicReader(exporter Exporter, options ...PeriodicReaderOption) *Peri
 	}
 	r.externalProducers.Store(conf.producers)
 
-	go func() {
-		defer func() { close(r.done) }()
-		r.run(ctx, conf.interval)
-	}()
-
 	var err error
 	r.inst, err = observ.NewInstrumentation(
 		semconv.OTelComponentTypePeriodicMetricReader.Value.AsString(),
@@ -141,6 +153,11 @@ func NewPeriodicReader(exporter Exporter, options ...PeriodicReaderOption) *Peri
 	if err != nil {
 		otel.Handle(err)
 	}
+
+	go func() {
+		defer func() { close(r.done) }()
+		r.run(ctx, conf.interval)
+	}()
 
 	return r
 }
@@ -164,6 +181,7 @@ type PeriodicReader struct {
 
 	interval time.Duration
 	timeout  time.Duration
+	batcher  batcher
 	exporter Exporter
 	flushCh  chan chan error
 
@@ -235,16 +253,28 @@ func (r *PeriodicReader) cardinalityLimit(kind InstrumentKind) (int, bool) {
 // collectAndExport gather all metric data related to the periodicReader r from
 // the SDK and exports it with r's exporter.
 func (r *PeriodicReader) collectAndExport(ctx context.Context) error {
+	originalCtx := ctx
 	ctx, cancel := context.WithTimeoutCause(ctx, r.timeout, errors.New("reader collect and export timeout"))
 	defer cancel()
-
 	// TODO (#3047): Use a sync.Pool or persistent pointer instead of allocating rm every Collect.
 	rm := r.rmPool.Get().(*metricdata.ResourceMetrics)
+	defer func() {
+		*rm = metricdata.ResourceMetrics{} // erase fields to allow GC to collect them.
+		r.rmPool.Put(rm)
+	}()
 	err := r.Collect(ctx, rm)
 	if err == nil {
-		err = r.export(ctx, rm)
+		if r.batcher.size > 0 {
+			batches := r.batcher.splitResourceMetrics(rm)
+			for _, batch := range batches {
+				// The export timeout is applied individually to each batch by using
+				// the original context.
+				err = errors.Join(err, r.exportWithTimeout(originalCtx, batch))
+			}
+		} else {
+			err = r.exporter.Export(ctx, rm)
+		}
 	}
-	r.rmPool.Put(rm)
 	return err
 }
 
@@ -307,7 +337,10 @@ func (r *PeriodicReader) collect(ctx context.Context, p any, rm *metricdata.Reso
 }
 
 // export exports metric data m using r's exporter.
-func (r *PeriodicReader) export(ctx context.Context, m *metricdata.ResourceMetrics) error {
+func (r *PeriodicReader) exportWithTimeout(ctx context.Context, m *metricdata.ResourceMetrics) error {
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeoutCause(ctx, r.timeout, errors.New("reader export timeout"))
+	defer cancel()
 	return r.exporter.Export(ctx, m)
 }
 
@@ -349,7 +382,9 @@ func (r *PeriodicReader) Shutdown(ctx context.Context) error {
 	err := ErrReaderShutdown
 	r.shutdownOnce.Do(func() {
 		// Prioritize the ctx timeout if it is set.
-		if _, ok := ctx.Deadline(); !ok {
+		originalCtx := ctx
+		_, userProvidedContext := ctx.Deadline()
+		if !userProvidedContext {
 			var cancel context.CancelFunc
 			ctx, cancel = context.WithTimeoutCause(ctx, r.timeout, errors.New("reader shutdown timeout"))
 			defer cancel()
@@ -369,7 +404,24 @@ func (r *PeriodicReader) Shutdown(ctx context.Context) error {
 			m := r.rmPool.Get().(*metricdata.ResourceMetrics)
 			err = r.collect(ctx, ph, m)
 			if err == nil {
-				err = r.export(ctx, m)
+				if r.batcher.size > 0 {
+					batches := r.batcher.splitResourceMetrics(m)
+					for _, batch := range batches {
+						if userProvidedContext {
+							// Do not apply the export timeout if the user passed a timeout to
+							// Shutdown().
+							err = errors.Join(err, r.exporter.Export(ctx, batch))
+						} else {
+							// The export timeout is applied individually to each batch by using
+							// the original context.
+							err = errors.Join(err, r.exportWithTimeout(originalCtx, batch))
+						}
+					}
+				} else {
+					// Do not apply the export timeout if the user passed a timeout to
+					// Shutdown().
+					err = r.exporter.Export(ctx, m)
+				}
 			}
 			r.rmPool.Put(m)
 		}

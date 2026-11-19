@@ -165,7 +165,7 @@ func parsePipeLen(lex *lexer) (pipe, error) {
 	if lex.isKeyword("as") {
 		lex.nextToken()
 	}
-	if !lex.isKeyword("|", ")", "") {
+	if !lex.isQueryPartTrailer() {
 		field, err := parseFieldName(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse result field after 'len(%s)': %w", quoteTokenIfNeeded(fieldName), err)

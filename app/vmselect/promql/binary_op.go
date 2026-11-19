@@ -164,15 +164,21 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 		left := bfa.left
 		right := bfa.right
 		op := bfa.be.Op
-		switch true {
-		case metricsql.IsBinaryOpCmp(op):
-			// Do not remove empty series for comparison operations,
-			// since this may lead to missing result.
-		default:
+		isCmpOp := metricsql.IsBinaryOpCmp(op)
+		if !isCmpOp {
+			// Do not remove empty series for comparison operations, since NaN can be an
+			// explicitly present sample value. In particular, `value != NaN` is true.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/150.
 			left = removeEmptySeries(left)
 			right = removeEmptySeries(right)
 		}
-		if len(left) == 0 || len(right) == 0 {
+		if len(left) == 0 && len(right) == 0 {
+			return nil, nil
+		}
+		if len(left) == 0 && bfa.be.FillLeft == nil {
+			return nil, nil
+		}
+		if len(right) == 0 && bfa.be.FillRight == nil {
 			return nil, nil
 		}
 		left, right, dst, err := adjustBinaryOpTags(bfa.be, left, right)
@@ -183,6 +189,16 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 			logger.Panicf("BUG: len(left) must match len(right) and len(dst); got %d vs %d vs %d", len(left), len(right), len(dst))
 		}
 		isBool := bfa.be.Bool
+		fillLeft := bfa.be.FillLeft
+		fillRight := bfa.be.FillRight
+		// A NaN produced by a vector comparison denotes a filtered-out sample rather
+		// than an explicitly present NaN value. Drop it when this result is used as
+		// the right-hand side of another comparison.
+		// Note that filtered-out samples surviving as NaN inside other wrappers such as
+		// transform functions or arithmetic operations aren't detected, since such NaN
+		// is indistinguishable from an explicitly present NaN value there.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10018.
+		dropNaNRight := isCmpOp && isVectorComparisonExpr(bfa.be.Right)
 		for i, tsLeft := range left {
 			leftValues := tsLeft.Values
 			rightValues := right[i].Values
@@ -193,6 +209,24 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 			}
 			for j, a := range leftValues {
 				b := rightValues[j]
+				leftIsNaN := math.IsNaN(a)
+				rightIsNaN := math.IsNaN(b)
+				// Both sides are NaN.
+				if leftIsNaN && rightIsNaN {
+					dstValues[j] = bf(a, b, isBool)
+					continue
+				}
+				if dropNaNRight && rightIsNaN && fillRight == nil {
+					dstValues[j] = nan
+					continue
+				}
+				// Apply the fill value when either the left or right side is NaN, but not both.
+				if leftIsNaN && fillLeft != nil {
+					a = fillLeft.N
+				}
+				if rightIsNaN && fillRight != nil {
+					b = fillRight.N
+				}
 				dstValues[j] = bf(a, b, isBool)
 			}
 		}
@@ -200,6 +234,38 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 		// won't work as expected if `(foo op bar)` results to NaN series.
 		return dst, nil
 	}
+}
+
+// isVectorComparisonExpr returns whether e is a comparison operation
+// with at least one non-scalar operand.
+func isVectorComparisonExpr(e metricsql.Expr) bool {
+	if re, ok := e.(*metricsql.RollupExpr); ok && re.Window == nil {
+		// Unwrap `(...) offset <d>` and `(...) @ <t>`, which do not change
+		// the shape of the result. Subqueries are left as is, since rollup
+		// functions skip NaN values on their own.
+		e = re.Expr
+	}
+	be, ok := e.(*metricsql.BinaryOpExpr)
+	if !ok || !metricsql.IsBinaryOpCmp(be.Op) {
+		return false
+	}
+	return !isScalarLikeExpr(be.Left) || !isScalarLikeExpr(be.Right)
+}
+
+// isScalarLikeExpr returns whether e always evaluates to a scalar value.
+func isScalarLikeExpr(e metricsql.Expr) bool {
+	switch e := e.(type) {
+	case *metricsql.NumberExpr, *metricsql.DurationExpr:
+		return true
+	case *metricsql.BinaryOpExpr:
+		return isScalarLikeExpr(e.Left) && isScalarLikeExpr(e.Right)
+	case *metricsql.FuncExpr:
+		switch strings.ToLower(e.Name) {
+		case "now", "pi", "scalar", "start", "end", "step", "time", "timezone_offset":
+			return true
+		}
+	}
+	return false
 }
 
 func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) ([]*timeseries, []*timeseries, []*timeseries, error) {
@@ -226,7 +292,7 @@ func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) (
 		}
 	}
 
-	// Slow path: `vector op vector` or `a op {on|ignoring} {group_left|group_right} b`
+	// Slow path: `vector op vector` or `a op {on|ignoring} {group_left|group_right} {fill|fill_left|fill_right} b`
 	var rvsLeft, rvsRight []*timeseries
 	mLeft, mRight := createTimeseriesMapByTagSet(be, left, right)
 	joinOp := strings.ToLower(be.JoinModifier.Op)
@@ -239,10 +305,27 @@ func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) (
 		// Add __name__ to groupTags if metric name must be preserved.
 		groupTags = append(groupTags[:len(groupTags):len(groupTags)], "__name__")
 	}
+	// Add missing keys from mRight to mLeft when fill_left()/fill() modifier is used
+	if be.FillLeft != nil {
+		for k := range mRight {
+			if _, ok := mLeft[k]; !ok {
+				mLeft[k] = nil
+			}
+		}
+	}
 	for k, tssLeft := range mLeft {
 		tssRight := mRight[k]
+		if len(tssLeft) == 0 {
+			if be.FillLeft == nil {
+				logger.Panicf("BUG: unexpected empty tssLeft for key %q when FillLeft is nil", k)
+			}
+			tssLeft = []*timeseries{newFillTimeseries(be, tssRight[0])}
+		}
 		if len(tssRight) == 0 {
-			continue
+			if be.FillRight == nil {
+				continue
+			}
+			tssRight = []*timeseries{newFillTimeseries(be, tssLeft[0])}
 		}
 		switch joinOp {
 		case "group_left":
@@ -285,6 +368,28 @@ func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) (
 		dst = rvsRight
 	}
 	return rvsLeft, rvsRight, dst, nil
+}
+
+// newFillTimeseries returns a time series filled with NaN values for the fill_left()/fill_right()/fill() modifiers.
+// These NaN values will be replaced later with the fill value if needed.
+func newFillTimeseries(be *metricsql.BinaryOpExpr, src *timeseries) *timeseries {
+	var ts timeseries
+	ts.CopyFromShallowTimestamps(src)
+	if !be.KeepMetricNames {
+		ts.MetricName.ResetMetricGroup()
+	}
+	groupTags := be.GroupModifier.Args
+	switch strings.ToLower(be.GroupModifier.Op) {
+	case "on":
+		ts.MetricName.RemoveTagsOn(groupTags)
+	default:
+		ts.MetricName.RemoveTagsIgnoring(groupTags)
+	}
+	values := ts.Values
+	for i := range values {
+		values[i] = math.NaN()
+	}
+	return &ts
 }
 
 func ensureSingleTimeseries(side string, be *metricsql.BinaryOpExpr, tss []*timeseries) error {

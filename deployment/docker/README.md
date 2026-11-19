@@ -46,7 +46,7 @@ The communication scheme between components is the following:
   <img src="assets/vm-single-server-light.png" alt="VictoriaMetrics single-server deployment" width="500" >
 </picture>
 
-To access Grafana use link [http://localhost:3000](http://localhost:3000).
+To access Grafana use link [http://localhost:3000](http://localhost:3000) (_login with admin:admin_).
 
 To access [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui)
 use link [http://localhost:8428/vmui](http://localhost:8428/vmui).
@@ -88,12 +88,12 @@ The communication scheme between components is the following:
   <img src="assets/vm-cluster-light.png" alt="VictoriaMetrics cluster deployment" width="500" src="assets/vm-cluster-light.png" >
 </picture>
 
-To access Grafana use link [http://localhost:3000](http://localhost:3000).
+To access Grafana use link [http://localhost:3000](http://localhost:3000) (_login with admin:admin_).
 
 To access [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui)
-use link [http://localhost:8427/select/0/prometheus/vmui/](http://localhost:8427/select/0/prometheus/vmui/).
+use link [http://localhost:8427/select/0/prometheus/vmui/](http://localhost:8427/select/0/prometheus/vmui/) (_login with foo:bar_).
 
-To access `vmalert` use link [http://localhost:8427/select/0/prometheus/vmalert/](http://localhost:8427/select/0/prometheus/vmalert/).
+To access `vmalert` use link [http://localhost:8427/select/0/prometheus/vmalert/](http://localhost:8427/select/0/prometheus/vmalert/) (_login with foo:bar_).
 
 To shutdown environment execute the following command:
 ```
@@ -151,7 +151,7 @@ Some alerting rules thresholds are just recommendations and could require an adj
 The list of alerting rules is the following:
 * [alerts-health.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-health.yml):
   alerting rules related to all VictoriaMetrics components for tracking their "health" state;
-* [alerts.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts.yml):
+* [alerts-single-node.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-single-node.yml):
   alerting rules related to [single-server VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) installation;
 * [alerts-cluster.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-cluster.yml):
   alerting rules related to [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/);
@@ -163,8 +163,11 @@ The list of alerting rules is the following:
   alerting rules related to [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) component;
 * [alerts-vmanomaly.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmanomaly.yml):
   alerting rules related to [VictoriaMetrics Anomaly Detection](https://docs.victoriametrics.com/anomaly-detection/);
+* [alerts-vmbackupmanager.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmbackupmanager.yml):
+  alerting rules related to [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) component;
 
 Please, also see [how to monitor VictoriaMetrics installations](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring).
+
 ## Troubleshooting
 
 This environment has the following requirements:

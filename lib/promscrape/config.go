@@ -39,6 +39,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/http"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kuma"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/linode"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/marathon"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/nomad"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
@@ -76,6 +77,9 @@ var (
 		"Every %d occurrence in the template is substituted with -promscrape.cluster.memberNum at urls to vmagent instances responsible for scraping the given target "+
 		"at /service-discovery page. For example -promscrape.cluster.memberURLTemplate='http://vmagent-%d:8429/targets'. "+
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more details")
+	clusterShardByLabels = flagutil.NewArrayString("promscrape.cluster.shardByLabels", "Optional list of target labels, which will be used for sharding targets among cluster members "+
+		"if -promscrape.cluster.membersCount is greater than 1. If none of the specified labels are found in a target, then all the target labels will be used for sharding. "+
+		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info")
 	clusterReplicationFactor = flag.Int("promscrape.cluster.replicationFactor", 1, "The number of members in the cluster, which scrape the same targets. "+
 		"If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. "+
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info")
@@ -86,7 +90,10 @@ var (
 		"Bigger uncompressed responses are rejected. See also max_scrape_size option at https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs")
 )
 
-var clusterMemberID int
+var (
+	clusterMemberID            int
+	clusterShardByLabelsSorted []string
+)
 
 func mustInitClusterMemberID() {
 	s := *clusterMemberNum
@@ -108,6 +115,15 @@ func mustInitClusterMemberID() {
 			*clusterMembersCount, *clusterMembersCount)
 	}
 	clusterMemberID = n
+}
+
+func initClusterShardByLabels() {
+	if len(*clusterShardByLabels) == 0 {
+		clusterShardByLabelsSorted = nil
+		return
+	}
+	clusterShardByLabelsSorted = slices.Clone(*clusterShardByLabels)
+	slices.Sort(clusterShardByLabelsSorted)
 }
 
 // Config represents essential parts from Prometheus config defined at https://prometheus.io/docs/prometheus/latest/configuration/configuration/
@@ -316,13 +332,14 @@ type ScrapeConfig struct {
 	HTTPSDConfigs         []http.SDConfig         `yaml:"http_sd_configs,omitempty"`
 	KubernetesSDConfigs   []kubernetes.SDConfig   `yaml:"kubernetes_sd_configs,omitempty"`
 	KumaSDConfigs         []kuma.SDConfig         `yaml:"kuma_sd_configs,omitempty"`
+	LinodeSDConfigs       []linode.SDConfig       `yaml:"linode_sd_configs,omitempty"`
 	MarathonSDConfigs     []marathon.SDConfig     `yaml:"marathon_sd_configs,omitempty"`
 	NomadSDConfigs        []nomad.SDConfig        `yaml:"nomad_sd_configs,omitempty"`
 	OpenStackSDConfigs    []openstack.SDConfig    `yaml:"openstack_sd_configs,omitempty"`
 	OVHCloudSDConfigs     []ovhcloud.SDConfig     `yaml:"ovhcloud_sd_configs,omitempty"`
 	PuppetDBSDConfigs     []puppetdb.SDConfig     `yaml:"puppetdb_sd_configs,omitempty"`
 	StaticConfigs         []StaticConfig          `yaml:"static_configs,omitempty"`
-	VultrSDConfigs        []vultr.SDConfig        `yaml:"vultr_configs,omitempty"`
+	VultrSDConfigs        []vultr.SDConfig        `yaml:"vultr_sd_configs,omitempty"`
 	YandexCloudSDConfigs  []yandexcloud.SDConfig  `yaml:"yandexcloud_sd_configs,omitempty"`
 
 	// These options are supported only by lib/promscrape.
@@ -351,6 +368,9 @@ func (sc *ScrapeConfig) mustStart(baseDir string) {
 	}
 	for i := range sc.KubernetesSDConfigs {
 		sc.KubernetesSDConfigs[i].MustStart(baseDir, swosFunc)
+	}
+	for i := range sc.HTTPSDConfigs {
+		sc.HTTPSDConfigs[i].MustStart(baseDir)
 	}
 }
 
@@ -396,6 +416,12 @@ func (sc *ScrapeConfig) mustStop() {
 	}
 	for i := range sc.KumaSDConfigs {
 		sc.KumaSDConfigs[i].MustStop()
+	}
+	for i := range sc.LinodeSDConfigs {
+		sc.LinodeSDConfigs[i].MustStop()
+	}
+	for i := range sc.MarathonSDConfigs {
+		sc.MarathonSDConfigs[i].MustStop()
 	}
 	for i := range sc.NomadSDConfigs {
 		sc.NomadSDConfigs[i].MustStop()
@@ -745,6 +771,16 @@ func (cfg *Config) getKumaSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	return cfg.getScrapeWorkGeneric(visitConfigs, "kuma_sd_config", prev)
 }
 
+// getLinodeSDScrapeWork returns `linode_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getLinodeSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.LinodeSDConfigs {
+			visitor(&sc.LinodeSDConfigs[i])
+		}
+	}
+	return cfg.getScrapeWorkGeneric(visitConfigs, "linode_sd_config", prev)
+}
+
 // getMarathonSDScrapeWork returns `marathon_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getMarathonSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
@@ -825,22 +861,23 @@ func (cfg *Config) getScrapeWorkGeneric(visitConfigs func(sc *ScrapeConfig, visi
 	for _, sc := range cfg.ScrapeConfigs {
 		dstLen := len(dst)
 
-		// hasSuccess indicates that at least one xxxSDConfig in the []*xxxSDConfig list has returned a successful response.
-		// Therefore, the service discovery result should be updated based on the current round of results.
-		//
-		// If no successful response is received (i.e., hasSuccess is false), fall back to the result from the previous round.
+		// Fall back to the targets discovered at the previous round only if the job has
+		// at least one xxxSDConfig of the given discoveryType and none of them succeeded.
+		// A job without such configs must yield no targets at all, otherwise the targets of
+		// an sd_config removed from the job would be scraped until the process restart.
+		hasConfigs := false
 		hasSuccess := false
 		visitConfigs(sc, func(sdc targetLabelsGetter) {
+			hasConfigs = true
 			targetLabels, err := sdc.GetLabels(cfg.baseDir)
 			if err != nil {
 				logger.Errorf("skipping some %s targets for job_name=%s because of error: %s", discoveryType, sc.swc.jobName, err)
-				hasSuccess = hasSuccess || false
 				return
 			}
 			hasSuccess = true
 			dst = appendScrapeWorkForTargetLabels(dst, sc.swc, targetLabels, discoveryType)
 		})
-		if !hasSuccess {
+		if hasConfigs && !hasSuccess {
 			dst = sc.appendPrevTargets(dst[:dstLen], swsPrevByJob, discoveryType)
 		}
 	}
@@ -1138,12 +1175,28 @@ func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConf
 }
 
 func appendScrapeWorkKey(dst []byte, labels *promutil.Labels) []byte {
-	for _, label := range labels.GetLabels() {
-		// Do not use strconv.AppendQuote, since it is slow according to CPU profile.
-		dst = append(dst, label.Name...)
-		dst = append(dst, '=')
-		dst = append(dst, label.Value...)
-		dst = append(dst, ',')
+	originalDstLen := len(dst)
+	for _, targetLabelName := range clusterShardByLabelsSorted {
+		for _, label := range labels.GetLabels() {
+			if label.Name == targetLabelName {
+				// Do not use strconv.AppendQuote, since it is slow according to CPU profile.
+				dst = append(dst, label.Name...)
+				dst = append(dst, '=')
+				dst = append(dst, label.Value...)
+				dst = append(dst, ',')
+				break
+			}
+		}
+	}
+	// Use all labels to compute the key if `promscrape.cluster.shardByLabels` is not configured
+	if len(dst) == originalDstLen {
+		for _, label := range labels.GetLabels() {
+			dst = append(dst, label.Name...)
+			dst = append(dst, '=')
+			dst = append(dst, label.Value...)
+			dst = append(dst, ',')
+		}
+		return dst
 	}
 	return dst
 }
@@ -1240,6 +1293,17 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		}
 		scrapeTimeout = d
 	}
+	// Read max_scrape_size option from __max_scrape_size__ label.
+	targetMaxScrapeSize := swc.maxScrapeSize
+	if s := labels.Get("__max_scrape_size__"); len(s) > 0 {
+		n, err := flagutil.ParseBytes(s)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse __max_scrape_size__=%q: %w", s, err)
+		}
+		if n > 0 {
+			targetMaxScrapeSize = n
+		}
+	}
 	// Read series_limit option from __series_limit__ label.
 	// See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter
 	seriesLimit := swc.seriesLimit
@@ -1280,6 +1344,9 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		}
 		streamParse = b
 	}
+	// Read __unix_socket__ option from __unix_socket__ label.
+	unixSocket := labels.Get("__unix_socket__")
+
 	// Remove labels with "__" prefix according to https://www.robustperception.io/life-of-a-label/
 	labels.RemoveLabelsWithDoubleUnderscorePrefix()
 	// Add missing "instance" label according to https://www.robustperception.io/life-of-a-label
@@ -1302,7 +1369,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		ScrapeURL:            scrapeURL,
 		ScrapeInterval:       scrapeInterval,
 		ScrapeTimeout:        scrapeTimeout,
-		MaxScrapeSize:        swc.maxScrapeSize,
+		MaxScrapeSize:        targetMaxScrapeSize,
 		HonorLabels:          swc.honorLabels,
 		HonorTimestamps:      swc.honorTimestamps,
 		DenyRedirects:        swc.denyRedirects,
@@ -1324,6 +1391,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		LabelLimit:           labelLimit,
 		NoStaleMarkers:       swc.noStaleMarkers,
 		AuthToken:            at,
+		UnixSocket:           unixSocket,
 
 		jobNameOriginal: swc.jobName,
 	}

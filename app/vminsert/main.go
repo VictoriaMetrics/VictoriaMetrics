@@ -71,7 +71,9 @@ var (
 		"See also -opentsdbHTTPListenAddr.useProxyProtocol")
 	opentsdbHTTPUseProxyProtocol = flag.Bool("opentsdbHTTPListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted "+
 		"at -opentsdbHTTPListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
-	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. See also -httpListenAddr.useProxyProtocol")
+	httpListenAddrs = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. "+
+		"See also -httpListenAddr.useProxyProtocol. "+
+		"Use unix:/path/to/socket to listen on Unix domain socket. Note that -tls and -httpListenAddr.useProxyProtocol cannot be used with Unix sockets")
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
@@ -79,8 +81,13 @@ var (
 		"Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via DNS SRV records. For example, -storageNode=srv+vmstorage.addrs . "+
 		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery")
 	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 40, "The maximum number of labels per time series to be accepted. Series with superfluous labels are ignored. In this case the vm_rows_ignored_total{reason=\"too_many_labels\"} metric at /metrics page is incremented")
-	maxLabelNameLen        = flag.Int("maxLabelNameLen", 256, "The maximum length of label name in the accepted time series. Series with longer label name are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_name\"} metric at /metrics page is incremented")
-	maxLabelValueLen       = flag.Int("maxLabelValueLen", 4*1024, "The maximum length of label values in the accepted time series. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_value\"} metric at /metrics page is incremented")
+	maxLabelNameLen        = flag.Int("maxLabelNameLen", 256, "The maximum length of label name in the accepted time series. Series with longer label name are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_name\"} metric at /metrics page is incremented. "+
+		"Value must be in range 1..65535.")
+	maxLabelValueLen = flag.Int("maxLabelValueLen", 4*1024, "The maximum length of label values in the accepted time series. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_value\"} metric at /metrics page is incremented. "+
+		"Value must be in range 1..65535.")
+
+	enableMultitenancyViaHeaders = flag.Bool("enableMultitenancyViaHeaders", true, "Enables multitenancy via HTTP headers. "+
+		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers")
 )
 
 var (
@@ -96,8 +103,15 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
+	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
+
+	listenAddrs := *httpListenAddrs
+	if len(listenAddrs) == 0 {
+		listenAddrs = []string{":8480"}
+	}
+	httpserver.CheckHealth(listenAddrs)
 
 	logger.Infof("initializing netstorage for storageNodes %s...", *storageNodes)
 	startTime := time.Now()
@@ -121,7 +135,8 @@ func main() {
 	logger.Infof("successfully initialized netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
 	relabel.Init()
-	timeserieslimits.Init(*maxLabelsPerTimeseries, *maxLabelNameLen, *maxLabelValueLen)
+	timeserieslimits.MustInit(*maxLabelsPerTimeseries, *maxLabelNameLen, *maxLabelValueLen)
+	opentelemetry.Init()
 	protoparserutil.StartUnmarshalWorkers()
 	if len(*clusternativeListenAddr) > 0 {
 		s, err := clusternative.NewVMinsertServer(*clusternativeListenAddr, nil)
@@ -149,10 +164,6 @@ func main() {
 		opentsdbhttpServer = opentsdbhttpserver.MustStart(*opentsdbHTTPListenAddr, *opentsdbHTTPUseProxyProtocol, opentsdbhttp.InsertHandler)
 	}
 
-	listenAddrs := *httpListenAddrs
-	if len(listenAddrs) == 0 {
-		listenAddrs = []string{":8480"}
-	}
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
 	})
@@ -210,7 +221,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 `)
 		return true
 	}
-	p, err := httpserver.ParsePath(r.URL.Path)
+	p, err := parsePath(r.URL.Path, r.Header)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse path %q: %s", r.URL.Path, err)
 		return true
@@ -303,7 +314,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "influx/health":
 		influxHealthRequests.Inc()
+		addInfluxResponseHeaders(w)
 		influxutil.WriteHealthCheckResponse(w)
+		return true
+	case "influx/ping":
+		influxPingRequests.Inc()
+		addInfluxResponseHeaders(w)
+		w.WriteHeader(http.StatusNoContent)
 		return true
 	case "opentelemetry/api/v1/push", "opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
@@ -413,6 +430,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 }
 
+func parsePath(path string, header http.Header) (*httpserver.Path, error) {
+	if *enableMultitenancyViaHeaders {
+		return httpserver.ParsePathAndHeaders(path, header)
+	}
+	return httpserver.ParsePath(path)
+}
+
 func addInfluxResponseHeaders(w http.ResponseWriter) {
 	// This is needed for some clients, which expect InfluxDB version header.
 	// See, for example, https://github.com/ntop/ntopng/issues/5449#issuecomment-1005347597
@@ -442,6 +466,7 @@ var (
 
 	influxQueryRequests  = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/influx/query", protocol="influx"}`)
 	influxHealthRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/influx/health", protocol="influx"}`)
+	influxPingRequests   = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/influx/ping", protocol="influx"}`)
 
 	opentelemetryPushRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/opentelemetry/v1/metrics", protocol="opentelemetry"}`)
 	opentelemetryPushErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/opentelemetry/v1/metrics", protocol="opentelemetry"}`)
@@ -491,4 +516,9 @@ func checkDuplicates(arr []string) string {
 
 func hasEmptyValues(arr []string) bool {
 	return slices.Contains(arr, "")
+}
+
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
+func initSecretFlags() {
+	pushmetrics.InitSecretFlags()
 }

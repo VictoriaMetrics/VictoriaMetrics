@@ -129,6 +129,17 @@ func TestAlertExecTemplate(t *testing.T) {
 		"exprEscapedHTML":   "vm_rows{&quot;label&quot;=&quot;bar&quot;}&lt;0",
 	})
 
+	// interval-template
+	f(&Alert{
+		Interval: 10 * time.Second,
+	}, map[string]string{
+		"interval":         "{{ .Interval }}",
+		"intervalVariable": "{{ $interval }}",
+	}, map[string]string{
+		"interval":         "10s",
+		"intervalVariable": "10s",
+	})
+
 	// query
 	f(&Alert{
 		Expr: `vm_rows{"label"="bar"}>0`,
@@ -234,6 +245,16 @@ func TestAlert_toPromLabels(t *testing.T) {
 		[]prompb.Label{{Name: "foo_bar", Value: "baz"}, {Name: "service_name", Value: "qux"}},
 		nil,
 	)
+
+	origSanitizeLabelNames := *sanitizeLabelNames
+	t.Cleanup(func() { *sanitizeLabelNames = origSanitizeLabelNames })
+	*sanitizeLabelNames = false
+	fn(
+		map[string]string{"foo.bar": "baz", "service!name": "qux"},
+		[]prompb.Label{{Name: "foo.bar", Value: "baz"}, {Name: "service!name", Value: "qux"}},
+		nil,
+	)
+	*sanitizeLabelNames = true
 
 	pcs, err := promrelabel.ParseRelabelConfigsData([]byte(`
 - target_label: "foo"

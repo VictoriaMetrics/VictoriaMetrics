@@ -59,62 +59,104 @@ func TestAllowRerouting(t *testing.T) {
 
 		snSource := sns[snSourceIdx]
 
-		actual := allowRerouting(snSource, sns)
+		initSlownessRerouting()
+		actual := allowSlownessRerouting(snSource, sns)
 
 		if actual != expected {
-			t.Errorf("unexpected allowRerouting result for snSourceIdx=%d from %d storages; got %v; want %v", snSourceIdx, len(sns), actual, expected)
+			t.Errorf("unexpected allowSlownessRerouting result for snSourceIdx=%d from %d storages; got %v; want %v", snSourceIdx, len(sns), actual, expected)
 		}
 	}
 
-	// rerouting is triggered on the slowest node if cluster median saturation less than or equal 0.8
+	// rerouting triggered on the slowest node
 	f([]*storageNode{
-		newStorage(0.81, true),
-		newStorage(0.79, true),
-		newStorage(0.1, true),
+		newStorage(0.49*1.2, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
 	}, 0, true)
 
-	// four nodes median test
+	// 20 vmstorage nodes, we allow to perform rerouting from the slowest nodes if its saturation is higher than the p90 node than 20%.
 	f([]*storageNode{
-		newStorage(0.82, true),
-		newStorage(0.81, true),
-		newStorage(0.79, true),
-		newStorage(0.1, true),
+		newStorage(0.49*1.21, true),
+		newStorage(0.49*1.19, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
 	}, 0, true)
+
+	// 20 vmstorage nodes, we don't allow to perform rerouting from the slowest nodes if its saturation isn't higher than the p90 node than 20%.
+	f([]*storageNode{
+		newStorage(0.49*1.2, true),
+		newStorage(0.49*1.1, true),
+		newStorage(0.49*1.1, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+	}, 0, false)
+
+	// rerouting not triggered on the slowest node because the cluster is significantly overloaded.
+	f([]*storageNode{
+		newStorage(0.81*1.2, true),
+		newStorage(0.81, true),
+		newStorage(0.81, true),
+		newStorage(0.68, true),
+		newStorage(0.68, true),
+	}, 0, false)
+
+	// rerouting not triggered on the slowest node because the slowest node is not significantly slower than others
+	f([]*storageNode{
+		newStorage(0.49*1.1, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
+	}, 0, false)
 
 	// rerouting not triggered because rerouting disabled by flag
 	*disableRerouting = true
 	f([]*storageNode{
-		newStorage(0.81, true),
-		newStorage(0.79, true),
-		newStorage(0.79, true),
+		newStorage(0.49*1.2, true),
+		newStorage(0.49, true),
+		newStorage(0.49, true),
 	}, 0, false)
 	*disableRerouting = false
 
-	// rerouting not triggered because cluster median saturation more than 0.8
-	f([]*storageNode{
-		newStorage(0.81, true),
-		newStorage(0.801, true),
-		newStorage(0.1, true),
-	}, 0, false)
-
-	// four nodes median test
-	f([]*storageNode{
-		newStorage(0.82, true),
-		newStorage(0.82, true),
-		newStorage(0.79, true),
-		newStorage(0.1, true),
-	}, 0, false)
-
 	// rerouting not triggered because snSource not the slowest
 	f([]*storageNode{
-		newStorage(0.81, true),
-		newStorage(0.801, true),
+		newStorage(0.61, true),
+		newStorage(0.501, true),
 		newStorage(0.1, true),
 	}, 2, false)
 
 	// rerouting not triggered if not enough nodes
 	f([]*storageNode{
-		newStorage(0.81, true),
+		newStorage(0.49, true),
 		newStorage(0.01, true),
 	}, 0, false)
 
@@ -135,7 +177,7 @@ func TestAllowRerouting(t *testing.T) {
 	}, 0, true)
 }
 
-func TestGetMaxBufSizePerStorageNode(t *testing.T) {
+func TestGetMaxBufSizePerInsertCtxStorageNode(t *testing.T) {
 	f := func(mem, concurrency, netstorageCount, threshold int) {
 		t.Helper()
 		result := getMaxBufSizePerInsertCtxStorageNode(mem, concurrency, netstorageCount)
@@ -152,4 +194,23 @@ func TestGetMaxBufSizePerStorageNode(t *testing.T) {
 
 	// a lot of memory, a few storages & concurrency
 	f(1*1024*1024*1024, 1, 5, 30*1024*1024)
+}
+
+func TestGetMaxBufSizePerStorageNode(t *testing.T) {
+	f := func(mem, netstorageCount, threshold int) {
+		t.Helper()
+		result := getMaxBufSizePerStorageNode(mem, netstorageCount)
+		if result > threshold {
+			t.Fatalf("getMaxBufSizePerStorageNode() returned %d MiB results, expected not exceeding %d MiB", result/1024/1024, threshold/1024/1024)
+		}
+	}
+
+	// 1 GiB / 4 / 5 / 2 = ~25 MiB per node, ~5*2*25MiB = 250MiB = 1/4 of 1 GiB.
+	f(1*1024*1024*1024, 5, 26*1024*1024)
+
+	// many storages: 1 GiB / 4 / 50 / 2 = ~2.5 MiB, clamped to min 1 MiB
+	f(1*1024*1024*1024, 50, 2*1024*1024+600*1024)
+
+	// a lot of memory, few storages: clamped to max 30 MiB
+	f(1*1024*1024*1024, 1, 30*1024*1024)
 }

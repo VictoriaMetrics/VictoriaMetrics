@@ -28,6 +28,7 @@ func TestClusterMultilevelSelect(t *testing.T) {
 	vminsert := tc.MustStartVminsert("vminsert", []string{
 		"-storageNode=" + vmstorage.VminsertAddr(),
 	})
+	apptest.EnsureBlockingIngestion(t, vminsert, []*apptest.Vmstorage{vmstorage})
 	vmselectL1 := tc.MustStartVmselect("vmselect-level1", []string{
 		"-storageNode=" + vmstorage.VmselectAddr(),
 	})

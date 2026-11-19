@@ -74,9 +74,9 @@ func wrapErr(vmErr *vm.ImportError, verbose bool) error {
 		verboseMsg = "(enable `--verbose` output to get more details)"
 	}
 	if vmErr.Err == nil {
-		return fmt.Errorf("%s\n\tLatest delivered batch for timestamps range %d - %d %s\n%s",
+		return fmt.Errorf("%w\n\tLatest delivered batch for timestamps range %d - %d %s\n%s",
 			vmErr.Err, minTS, maxTS, verboseMsg, errTS)
 	}
-	return fmt.Errorf("%s\n\tImporting batch failed for timestamps range %d - %d %s\n%s",
+	return fmt.Errorf("%w\n\tImporting batch failed for timestamps range %d - %d %s\n%s",
 		vmErr.Err, minTS, maxTS, verboseMsg, errTS)
 }

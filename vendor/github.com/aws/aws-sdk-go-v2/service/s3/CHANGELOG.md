@@ -1,3 +1,223 @@
+# v1.114.8 (2026-11-05)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.114.7 (2026-11-04)
+
+* **Dependency Update**: Update to smithy-go v1.28.8.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.114.6 (2026-10-27)
+
+* **Dependency Update**: Update to smithy-go v1.28.7.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.114.5 (2026-10-22)
+
+* **Bug Fix**: Update smithy-go to v1.28.6
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.114.4 (2026-10-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.114.3 (2026-10-09.2)
+
+* **Dependency Update**: Update to smithy-go v1.28.5.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.114.2 (2026-10-08)
+
+* **Dependency Update**: Update to smithy-go v1.28.4.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.114.1 (2026-10-06)
+
+* No change notes available for this release.
+
+# v1.114.0 (2026-09-30)
+
+* **Feature**: Amazon S3 adds a new optional S3 Inventory field, IntelligentTieringReferenceDate, reporting the reference date S3 Intelligent-Tiering uses to evaluate an object's tier-transition eligibility. The value is populated for objects in the Intelligent-Tiering storage class and left blank for others.
+
+# v1.113.4 (2026-09-24)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.113.3 (2026-09-23)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.113.2 (2026-09-21)
+
+* **Bug Fix**: Expand S3 operations that check for an error inside an HTTP 200 response (wave 4/4)
+
+# v1.113.1 (2026-09-11)
+
+* **Documentation**: Updated S3 Object Lock Default Retention documentation.
+
+# v1.113.0 (2026-09-09)
+
+* **Feature**: Stop registering the `retry.MetricsHeader` middleware in generated clients. The `Amz-Sdk-Request` header is now set by the retry middleware itself.
+* **Bug Fix**: Expand S3 operations that check for an error inside an HTTP 200 response (wave 3/4)
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.112.0 (2026-09-08)
+
+* **Feature**: Adds support for Amazon S3 Object Lock variable retention.  Existing S3 APIs that support S3 Object Lock parameters now support two new parameters EventHold and EventHoldDuration at the object level, and DefaultEventHoldDuration at the bucket level.
+
+# v1.111.0 (2026-09-04)
+
+* **Feature**: Stop registering the `spanRetryLoop` middleware in generated clients. The retry loop's tracing span is now opened by the retry middleware itself.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.110.0 (2026-08-31.2)
+
+* **Feature**: Stop registering the `SetCredentialSourceMiddleware` middleware in generated clients. Credential source user agent features are now set when the client's middleware stack is constructed.
+
+# v1.109.1 (2026-08-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.109.0 (2026-08-27)
+
+* **Feature**: Support connection read timeouts in the SDK. This is currently available on an opt-in basis by setting env `AWS_ENABLE_DEFAULT_SOCKET_TIMEOUT_2026=true`.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.108.0 (2026-08-26)
+
+* **Feature**: Stop registering the `ComputeContentLength` middleware in generated clients. `Content-Length` is now set when the request body is set via `SetStream`.
+* **Dependency Update**: Update to smithy-go v1.28.0.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.107.4 (2026-08-25)
+
+* **Dependency Update**: Update to smithy-go v1.27.10.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.107.3 (2026-08-20)
+
+* **Bug Fix**: Expand S3 operations that check for an error inside an HTTP 200 response (wave 2/4)
+* **Bug Fix**: Forward the original response body's `Closer` in S3 200-error handling instead of wrapping it in `io.NopCloser`, to avoid issues with TCP connection reuse (observed on CompleteMultipartUpload).
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.107.2 (2026-08-14)
+
+* **Bug Fix**: Forward the original response body's `Closer` in S3 200-error handling instead of wrapping it in `io.NopCloser`, to avoid issues with TCP connection reuse (observed on CompleteMultipartUpload).
+* **Dependency Update**: Update to smithy-go v1.27.8.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.107.1 (2026-08-10)
+
+* **Dependency Update**: Update to smithy-go v1.27.7.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.107.0 (2026-08-06)
+
+* **Feature**: AWS Backup now lets you create read-only access points for Amazon S3 recovery points, enabling you to access backup data using S3 APIs without initiating a restore.
+
+# v1.106.5 (2026-08-05)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.106.4 (2026-08-03)
+
+* **Bug Fix**: Expand S3 operations that check for an error inside an HTTP 200 response
+
+# v1.106.3 (2026-07-31.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+* **Dependency Update**: Upgrade to smithy-go v1.27.6 to fix various serde issues in HTTP binding services.
+
+# v1.106.2 (2026-07-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.106.1 (2026-07-28)
+
+* **Dependency Update**: Update to smithy-go v1.27.5.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.106.0 (2026-07-21)
+
+* **Feature**: Add an option to clients to disable clock skew
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.105.2 (2026-07-16)
+
+* **Documentation**: Documentation update for removing the 30 day minimum restriction for transition to Standard-IA or OneZone-IA storage classes
+
+# v1.105.1 (2026-07-13)
+
+* No change notes available for this release.
+
+# v1.105.0 (2026-07-06)
+
+* **Feature**: Add request serialization snapshot tests.
+
+# v1.104.2 (2026-07-01)
+
+* **Bug Fix**: Bump smithy-go to 1.27.3, fix JSON encorder for document.Number, endpoint host label format validation and CBOR union serialization on new serde
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.104.1 (2026-06-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.104.0 (2026-06-16)
+
+* **Feature**: Added support for annotations. You can now attach up to 1000 annotations (up to 1 MB each) directly to objects and create, retrieve, list, and delete them using new annotation APIs. Also added support for configuring an annotation table in S3 Metadata.
+
+# v1.103.3 (2026-06-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.103.2 (2026-06-04)
+
+* **Dependency Update**: Update to smithy-go v1.27.1 to fix several union-related deserialization bugs in schema-serde-enabled services.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.103.1 (2026-06-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.103.0 (2026-06-02)
+
+* **Feature**: Adding new BDD representation of endpoint ruleset
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.102.2 (2026-05-29)
+
+* **Dependency Update**: Update to smithy-go v1.26.0.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.102.1 (2026-05-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.102.0 (2026-05-27)
+
+* **Feature**: Add SHA-512 support for s3 operations
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.101.0 (2026-05-06)
+
+* **Feature**: Validate outpost access point resource name
+
+# v1.100.1 (2026-04-29)
+
+* **Bug Fix**: Fix a memory leak in the credential cache used for S3 Express session credentials.
+* **Dependency Update**: Update to smithy-go v1.25.1.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.100.0 (2026-04-22)
+
+* **Feature**: This release adds five additional checksum algorithms for S3 data integrity (MD5, SHA-512, XXHash3, XXHash64, XXHash128) and support for S3 Inventory on directory buckets (S3 Express One Zone).
+
+# v1.99.1 (2026-04-17)
+
+* **Dependency Update**: Bump smithy-go to 1.25.0 to support endpointBdd trait
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.99.0 (2026-04-07)
 
 * **Feature**: Updated list of the valid AWS Region values for the LocationConstraint parameter for general purpose buckets.

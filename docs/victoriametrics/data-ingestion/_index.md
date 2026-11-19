@@ -1,5 +1,6 @@
 ---
 title: Data Ingestion 
+description: "Supported ingestion protocols. Prometheus remote write, InfluxDB, Graphite, OpenTSDB, Datadog, New Relic, OpenTelemetry, CSV, JSON, and native binary."
 weight: 0
 menu:
   docs:

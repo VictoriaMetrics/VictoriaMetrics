@@ -35,6 +35,9 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 }
 
 func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, mms []prompb.MetricMetadata, extraLabels []prompb.Label) error {
+	if len(extraLabels) == 0 && !prommetadata.IsEnabled() && at == nil {
+		return insertRowsFast(at, timeseries)
+	}
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
@@ -47,22 +50,10 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, mms []prompb.Met
 		ts := &timeseries[i]
 		rowsTotal += len(ts.Samples)
 		labelsLen := len(labels)
-		for i := range ts.Labels {
-			label := &ts.Labels[i]
-			labels = append(labels, prompb.Label{
-				Name:  label.Name,
-				Value: label.Value,
-			})
-		}
+		labels = append(labels, ts.Labels...)
 		labels = append(labels, extraLabels...)
 		samplesLen := len(samples)
-		for i := range ts.Samples {
-			sample := &ts.Samples[i]
-			samples = append(samples, prompb.Sample{
-				Value:     sample.Value,
-				Timestamp: sample.Timestamp,
-			})
-		}
+		samples = append(samples, ts.Samples...)
 		tssDst = append(tssDst, prompb.TimeSeries{
 			Labels:  labels[labelsLen:],
 			Samples: samples[samplesLen:],
@@ -72,23 +63,7 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, mms []prompb.Met
 
 	var metadataTotal int
 	if prommetadata.IsEnabled() {
-		var accountID, projectID uint32
-		if at != nil {
-			accountID = at.AccountID
-			projectID = at.ProjectID
-		}
-		for i := range mms {
-			mm := &mms[i]
-			mmsDst = append(mmsDst, prompb.MetricMetadata{
-				MetricFamilyName: mm.MetricFamilyName,
-				Help:             mm.Help,
-				Type:             mm.Type,
-				Unit:             mm.Unit,
-
-				AccountID: accountID,
-				ProjectID: projectID,
-			})
-		}
+		mmsDst = append(mmsDst, mms...)
 		ctx.WriteRequest.Metadata = mmsDst
 		metadataTotal = len(mms)
 	}
@@ -104,6 +79,20 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, mms []prompb.Met
 		metadataTenantInserted.Get(at).Add(metadataTotal)
 	}
 	metadataInserted.Add(metadataTotal)
+	rowsPerInsert.Update(float64(rowsTotal))
+	return nil
+}
+
+func insertRowsFast(at *auth.Token, timeseries []prompb.TimeSeries) error {
+	rowsTotal := 0
+	for i := range timeseries {
+		rowsTotal += len(timeseries[i].Samples)
+	}
+	wr := &prompb.WriteRequest{Timeseries: timeseries}
+	if !remotewrite.TryPush(at, wr) {
+		return remotewrite.ErrQueueFullHTTPRetry
+	}
+	rowsInserted.Add(rowsTotal)
 	rowsPerInsert.Update(float64(rowsTotal))
 	return nil
 }

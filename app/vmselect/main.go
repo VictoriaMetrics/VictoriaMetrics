@@ -1,18 +1,19 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
-	nethttputil "net/http/httputil"
-	"net/url"
 	"os"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/clusternative"
@@ -22,6 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/stats"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
@@ -39,11 +41,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmalertproxy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
 )
 
 var (
-	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. See also -httpListenAddr.useProxyProtocol")
+	httpListenAddrs = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. "+
+		"See also -httpListenAddr.useProxyProtocol. "+
+		"Use unix:/path/to/socket to listen on Unix domain socket. Note that -tls and -httpListenAddr.useProxyProtocol cannot be used with Unix sockets")
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
@@ -57,29 +62,34 @@ var (
 	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the last sample in every time series per each discrete interval "+
 		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication for details")
 	deleteAuthKey                = flagutil.NewPassword("deleteAuthKey", "authKey for metrics' deletion via /prometheus/api/v1/admin/tsdb/delete_series and /graphite/tags/delSeries. It could be passed via authKey query arg. It overrides -httpAuth.*")
-	resetCacheAuthKey            = flagutil.NewPassword("search.resetCacheAuthKey", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call. It could be passed via authKey query arg. It overrides -httpAuth.*")
 	metricNamesStatsResetAuthKey = flagutil.NewPassword("metricNamesStatsResetAuthKey", "authKey for resetting metric names usage cache via /api/v1/admin/status/metric_names_stats/reset. It overrides -httpAuth.*. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage")
 
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging. "+
 		"See also -search.logQueryMemoryUsage")
-	vmalertProxyURL = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules")
-	storageNodes    = flagutil.NewArrayString("storageNode", "Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . "+
+
+	vmalertProxyURL = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , "+
+		"then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules . "+
+		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert")
+
+	storageNodes = flagutil.NewArrayString("storageNode", "Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . "+
 		"Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via DNS SRV records. For example, -storageNode=srv+vmstorage.addrs . "+
 		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery")
 
 	clusternativeListenAddr = flag.String("clusternativeListenAddr", "", "TCP address to listen for requests from other vmselect nodes in multi-level cluster setup. "+
 		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup . Usually :8401 should be set to match default vmstorage port for vmselect. Disabled work if empty")
+
+	enableMultitenancyViaHeaders = flag.Bool("enableMultitenancyViaHeaders", true, "Enables multitenancy via HTTP headers. "+
+		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers")
 )
 
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
 
 func getDefaultMaxConcurrentRequests() int {
-	// A single request can saturate all the CPU cores, so there is no sense
-	// in allowing higher number of concurrent requests - they will just contend
-	// for unavailable CPU time.
-	n := min(cgroup.AvailableCPUs()*2, 16)
-	return n
+	// Unlike single-node VictoriaMetrics, cluster vmselect doesn't share CPU
+	// with a local insert path. Scale the default with available CPUs to match
+	// other cluster request limits, such as vmstorage's -search.maxConcurrentRequests.
+	return cgroup.AvailableCPUs() * 2
 }
 
 //go:embed static
@@ -92,8 +102,15 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
+	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
+
+	listenAddrs := *httpListenAddrs
+	if len(listenAddrs) == 0 {
+		listenAddrs = []string{":8481"}
+	}
+	httpserver.CheckHealth(listenAddrs)
 
 	logger.Infof("starting netstorage at storageNodes %s", *storageNodes)
 	startTime := time.Now()
@@ -117,13 +134,16 @@ func main() {
 		fs.MustRemoveDirContents(tmpDataPath)
 		netstorage.InitTmpBlocksDir(tmpDataPath)
 		promql.InitRollupResultCache(*cacheDataPath + "/rollupResult")
+		appmetrics.MustCreateUncleanShutdownMarker(*cacheDataPath)
 	} else {
 		netstorage.InitTmpBlocksDir("")
 		promql.InitRollupResultCache("")
 	}
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
 	initVMUIConfig()
-	initVMAlertProxy()
+
+	vmalertproxy.Init(*vmalertProxyURL)
+
 	var vmselectapiServer *vmselectapi.Server
 	if *clusternativeListenAddr != "" {
 		logger.Infof("starting vmselectapi server at %q", *clusternativeListenAddr)
@@ -135,10 +155,9 @@ func main() {
 		logger.Infof("started vmselectapi server at %q", *clusternativeListenAddr)
 	}
 
-	listenAddrs := *httpListenAddrs
-	if len(listenAddrs) == 0 {
-		listenAddrs = []string{":8481"}
-	}
+	// Register paths which could be protected by their own -*AuthKey flag.
+	httpserver.RegisterAuthKeyProtectedPathsFunc(isAuthKeyProtectedPath)
+
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
 	})
@@ -166,6 +185,7 @@ func main() {
 	netstorage.MustStop()
 	if len(*cacheDataPath) > 0 {
 		promql.StopRollupResultCache()
+		appmetrics.MustRemoveUncleanShutdownMarker(*cacheDataPath)
 	}
 	logger.Infof("successfully stopped netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
@@ -251,18 +271,17 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	if path == "/internal/resetRollupResultCache" {
-		if !httpserver.CheckAuthFlag(w, r, resetCacheAuthKey) {
+		if !httpserver.CheckAuthFlag(w, r, prometheus.GetResetCacheAuthKey()) {
 			return true
 		}
-		promql.ResetRollupResultCache()
-		return true
+		return prometheus.ResetRollupResultCacheHandler(w, r)
 	}
 	if path == "/admin/tenants" {
 		tenantsRequests.Inc()
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.Tenants(qt, startTime, w, r); err != nil {
-			tenantsErrors.Inc()
-			httpserver.Errorf(w, r, "error getting tenants: %s", err)
+			recordRequestError(r, err, tenantsErrors)
+			httpserver.SendError(w, err)
 			return true
 		}
 		return true
@@ -273,14 +292,14 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		if err := stats.ResetMetricNamesStatsHandler(startTime, qt, r); err != nil {
-			metricNamesStatsResetErrors.Inc()
-			httpserver.Errorf(w, r, "error reseting metric names stats: %s", err)
+			recordRequestError(r, err, metricNamesStatsResetErrors)
+			httpserver.SendError(w, err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
 	}
-	p, err := httpserver.ParsePath(path)
+	p, err := parsePath(path, r.Header)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse path %q: %s", path, err)
 		return true
@@ -308,6 +327,39 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 }
 
+// isAuthKeyProtectedPath returns true for paths, which verify -search.resetCacheAuthKey,
+// -metricNamesStatsResetAuthKey or -deleteAuthKey on their own at requestHandler().
+func isAuthKeyProtectedPath(r *http.Request) bool {
+	// path normalization is needed here because it exists in requestHandler() as well
+	path := strings.ReplaceAll(r.URL.Path, "//", "/")
+	switch path {
+	case "/internal/resetRollupResultCache", "/admin/api/v1/admin/status/metric_names_stats/reset":
+		return true
+	}
+	p, err := parsePath(path, r.Header)
+	if err != nil {
+		return false
+	}
+	switch p.Prefix {
+	case "select", "delete":
+	default:
+		return false
+	}
+	switch p.Suffix {
+	case "graphite/tags/delSeries", "prometheus/api/v1/admin/tsdb/delete_series":
+		return true
+	default:
+		return false
+	}
+}
+
+func parsePath(path string, header http.Header) (*httpserver.Path, error) {
+	if *enableMultitenancyViaHeaders {
+		return httpserver.ParsePathAndHeaders(path, header)
+	}
+	return httpserver.ParsePath(path)
+}
+
 //go:embed vmui
 var vmuiFiles embed.FS
 
@@ -326,7 +378,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 			labelName := s[:len(s)-len("/values")]
 			httpserver.EnableCORS(w, r)
 			if err := prometheus.LabelValuesHandler(qt, startTime, at, labelName, w, r); err != nil {
-				labelValuesErrors.Inc()
+				recordRequestError(r, err, labelValuesErrors)
 				httpserver.SendPrometheusError(w, r, err)
 				return true
 			}
@@ -341,8 +393,8 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		tagName := p.Suffix[len("graphite/tags/"):]
 		graphiteTagValuesRequests.Inc()
 		if err := graphite.TagValuesHandler(startTime, at, tagName, w, r); err != nil {
-			graphiteTagValuesErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
+			recordRequestError(r, err, graphiteTagValuesErrors)
+			httpserver.SendError(w, err)
 			return true
 		}
 		return true
@@ -353,7 +405,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		queryRequests.Inc()
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.QueryHandler(qt, startTime, at, w, r); err != nil {
-			queryErrors.Inc()
+			recordRequestError(r, err, queryErrors)
 			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
@@ -362,7 +414,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		queryRangeRequests.Inc()
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.QueryRangeHandler(qt, startTime, at, w, r); err != nil {
-			queryRangeErrors.Inc()
+			recordRequestError(r, err, queryRangeErrors)
 			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
@@ -371,7 +423,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		seriesRequests.Inc()
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.SeriesHandler(qt, startTime, at, w, r); err != nil {
-			seriesErrors.Inc()
+			recordRequestError(r, err, seriesErrors)
 			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
@@ -380,7 +432,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		seriesCountRequests.Inc()
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.SeriesCountHandler(startTime, at, w, r); err != nil {
-			seriesCountErrors.Inc()
+			recordRequestError(r, err, seriesCountErrors)
 			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
@@ -389,7 +441,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		labelsRequests.Inc()
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.LabelsHandler(qt, startTime, at, w, r); err != nil {
-			labelsErrors.Inc()
+			recordRequestError(r, err, labelsErrors)
 			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
@@ -398,40 +450,43 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		statusTSDBRequests.Inc()
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.TSDBStatusHandler(qt, startTime, at, w, r); err != nil {
-			statusTSDBErrors.Inc()
+			recordRequestError(r, err, statusTSDBErrors)
 			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
 		return true
 	case "prometheus/api/v1/export":
 		exportRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.ExportHandler(startTime, at, w, r); err != nil {
-			exportErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
+			recordRequestError(r, err, exportErrors)
+			httpserver.SendError(w, err)
 			return true
 		}
 		return true
 	case "prometheus/api/v1/export/csv":
 		exportCSVRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.ExportCSVHandler(startTime, at, w, r); err != nil {
-			exportCSVErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
+			recordRequestError(r, err, exportCSVErrors)
+			httpserver.SendError(w, err)
 			return true
 		}
 		return true
 	case "prometheus/api/v1/export/native":
 		exportNativeRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.ExportNativeHandler(startTime, at, w, r); err != nil {
-			exportNativeErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
+			recordRequestError(r, err, exportNativeErrors)
+			httpserver.SendError(w, err)
 			return true
 		}
 		return true
 	case "prometheus/federate":
 		federateRequests.Inc()
 		if err := prometheus.FederateHandler(startTime, at, w, r); err != nil {
-			federateErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
+			recordRequestError(r, err, federateErrors)
+			httpserver.SendError(w, err)
 			return true
 		}
 		return true
@@ -449,8 +504,8 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		graphiteMetricsFindRequests.Inc()
 		httpserver.EnableCORS(w, r)
 		if err := graphite.MetricsFindHandler(startTime, at, w, r); err != nil {
-			graphiteMetricsFindErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
+			recordRequestError(r, err, graphiteMetricsFindErrors)
+			httpserver.SendError(w, err)
 			return true
 		}
 		return true
@@ -458,8 +513,8 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		graphiteMetricsExpandRequests.Inc()
 		httpserver.EnableCORS(w, r)
 		if err := graphite.MetricsExpandHandler(startTime, at, w, r); err != nil {
-			graphiteMetricsExpandErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
+			recordRequestError(r, err, graphiteMetricsExpandErrors)
+			httpserver.SendError(w, err)
 			return true
 		}
 		return true
@@ -467,8 +522,8 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		graphiteMetricsIndexRequests.Inc()
 		httpserver.EnableCORS(w, r)
 		if err := graphite.MetricsIndexHandler(startTime, at, w, r); err != nil {
-			graphiteMetricsIndexErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
+			recordRequestError(r, err, graphiteMetricsIndexErrors)
+			httpserver.SendError(w, err)
 			return true
 		}
 		return true
@@ -495,16 +550,16 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	case "graphite/tags":
 		graphiteTagsRequests.Inc()
 		if err := graphite.TagsHandler(startTime, at, w, r); err != nil {
-			graphiteTagsErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
+			recordRequestError(r, err, graphiteTagsErrors)
+			httpserver.SendError(w, err)
 			return true
 		}
 		return true
 	case "graphite/tags/findSeries":
 		graphiteTagsFindSeriesRequests.Inc()
 		if err := graphite.TagsFindSeriesHandler(startTime, at, w, r); err != nil {
-			graphiteTagsFindSeriesErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
+			recordRequestError(r, err, graphiteTagsFindSeriesErrors)
+			httpserver.SendError(w, err)
 			return true
 		}
 		return true
@@ -512,8 +567,8 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		graphiteTagsAutoCompleteTagsRequests.Inc()
 		httpserver.EnableCORS(w, r)
 		if err := graphite.TagsAutoCompleteTagsHandler(startTime, at, w, r); err != nil {
-			graphiteTagsAutoCompleteTagsErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
+			recordRequestError(r, err, graphiteTagsAutoCompleteTagsErrors)
+			httpserver.SendError(w, err)
 			return true
 		}
 		return true
@@ -521,43 +576,46 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		graphiteTagsAutoCompleteValuesRequests.Inc()
 		httpserver.EnableCORS(w, r)
 		if err := graphite.TagsAutoCompleteValuesHandler(startTime, at, w, r); err != nil {
-			graphiteTagsAutoCompleteValuesErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
+			recordRequestError(r, err, graphiteTagsAutoCompleteValuesErrors)
+			httpserver.SendError(w, err)
 			return true
 		}
 		return true
 	case "graphite/tags/delSeries":
+		if r.Method != "POST" {
+			http.Error(w, fmt.Sprintf("Only POST method is allowed. Got %s.", r.Method), http.StatusMethodNotAllowed)
+			return true
+		}
 		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey) {
 			return true
 		}
 		graphiteTagsDelSeriesRequests.Inc()
 		if err := graphite.TagsDelSeriesHandler(startTime, at, w, r); err != nil {
-			graphiteTagsDelSeriesErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
+			recordRequestError(r, err, graphiteTagsDelSeriesErrors)
+			httpserver.SendError(w, err)
 			return true
 		}
 		return true
 	case "graphite/render":
 		graphiteRenderRequests.Inc()
 		if err := graphite.RenderHandler(startTime, at, w, r); err != nil {
-			graphiteRenderErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			recordRequestError(r, err, graphiteRenderErrors)
+			httpserver.SendError(w, fmt.Errorf("error in %q: %w", r.URL.Path, err))
 			return true
 		}
 		return true
-
 	case "prometheus/api/v1/status/metric_names_stats":
 		metricNamesStatsRequests.Inc()
 		httpserver.EnableCORS(w, r)
 		if err := stats.MetricNamesStatsHandler(startTime, at, qt, w, r); err != nil {
-			metricNamesStatsErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			recordRequestError(r, err, metricNamesStatsErrors)
+			httpserver.SendError(w, err)
 		}
 		return true
 	case "prometheus/api/v1/metadata":
 		metadataRequests.Inc()
 		if err := prometheus.MetadataHandler(qt, startTime, at, w, r); err != nil {
-			metadataErrors.Inc()
+			recordRequestError(r, err, metadataErrors)
 			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
@@ -565,6 +623,15 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	default:
 		return false
 	}
+}
+
+func recordRequestError(r *http.Request, err error, counter *metrics.Counter) {
+	// Cancellations are neither counted nor logged.
+	if errors.Is(err, context.Canceled) {
+		return
+	}
+	counter.Inc()
+	httpserver.LogHTTPError(r, err.Error())
 }
 
 func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path string) bool {
@@ -594,7 +661,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		promql.ActiveQueriesHandler(nil, w, r)
 		return true
 	}
-	p, err := httpserver.ParsePath(path)
+	p, err := parsePath(path, r.Header)
 	if err != nil {
 		return false
 	}
@@ -617,13 +684,13 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		return true
 	}
 	if strings.HasPrefix(p.Suffix, "static") {
-		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
+		prefix := getStaticServerPrefix(p, path)
 		http.StripPrefix(prefix, staticServer).ServeHTTP(w, r)
 		return true
 	}
 	if strings.HasPrefix(p.Suffix, "prometheus/static") {
-		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
 		r.URL.Path = strings.Replace(r.URL.Path, "/prometheus/static", "/static", 1)
+		prefix := getStaticServerPrefix(p, path)
 		http.StripPrefix(prefix, staticServer).ServeHTTP(w, r)
 		return true
 	}
@@ -671,8 +738,8 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 			// See https://developer.chrome.com/docs/lighthouse/performance/uses-long-cache-ttl/
 			w.Header().Set("Cache-Control", "max-age=31536000")
 		}
-		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
 		r.URL.Path = strings.Replace(r.URL.Path, "/prometheus/vmui/", "/vmui/", 1)
+		prefix := getStaticServerPrefix(p, path)
 		http.StripPrefix(prefix, vmuiFileServer).ServeHTTP(w, r)
 		return true
 	}
@@ -682,16 +749,16 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		if funcName == "" {
 			graphiteFunctionsRequests.Inc()
 			if err := graphite.FunctionsHandler(w, r); err != nil {
-				graphiteFunctionsErrors.Inc()
-				httpserver.Errorf(w, r, "%s", err)
+				recordRequestError(r, err, graphiteFunctionsErrors)
+				httpserver.SendError(w, err)
 				return true
 			}
 			return true
 		}
 		graphiteFunctionDetailsRequests.Inc()
 		if err := graphite.FunctionDetailsHandler(funcName, w, r); err != nil {
-			graphiteFunctionDetailsErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
+			recordRequestError(r, err, graphiteFunctionDetailsErrors)
+			httpserver.SendError(w, err)
 			return true
 		}
 		return true
@@ -709,10 +776,12 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		if len(*vmalertProxyURL) == 0 {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, "%s", `{"status":"error","msg":"for accessing vmalert flag '-vmalert.proxyURL' must be configured"}`)
+			fmt.Fprintf(w, "%s", `{"status":"error","msg":"the '-vmalert.proxyURL' command-line must be configured; `+
+				`see https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert"}`)
 			return true
 		}
-		proxyVMAlertRequests(w, r, p.Suffix)
+		path := strings.TrimPrefix(p.Suffix, "prometheus")
+		vmalertproxy.HandleRequest(w, r, path)
 		return true
 	}
 	switch p.Suffix {
@@ -733,17 +802,14 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		topQueriesRequests.Inc()
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.QueryStatsHandler(at, w, r); err != nil {
-			topQueriesErrors.Inc()
-			httpserver.SendPrometheusError(w, r, err)
+			recordRequestError(r, err, topQueriesErrors)
+			httpserver.SendPrometheusError(w, r, fmt.Errorf("cannot query status endpoint: %w", err))
 			return true
 		}
 		return true
 	case "prometheus/metric-relabel-debug", "metric-relabel-debug":
 		promrelabelMetricRelabelDebugRequests.Inc()
-		metric := r.FormValue("metric")
-		relabelConfigs := r.FormValue("relabel_configs")
-		format := r.FormValue("format")
-		promrelabel.WriteMetricRelabelDebug(w, "", metric, relabelConfigs, format, nil)
+		promscrape.WriteMetricRelabelDebug(w, r, "", nil)
 		return true
 	case "prometheus/target-relabel-debug", "target-relabel-debug":
 		promrelabelTargetRelabelDebugRequests.Inc()
@@ -763,7 +829,8 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 	case "prometheus/api/v1/rules", "prometheus/rules":
 		rulesRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
-			proxyVMAlertRequests(w, r, p.Suffix)
+			path := strings.TrimPrefix(p.Suffix, "prometheus")
+			vmalertproxy.HandleRequest(w, r, path)
 			return true
 		}
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#rules
@@ -773,7 +840,8 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 	case "prometheus/api/v1/alerts", "prometheus/alerts":
 		alertsRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
-			proxyVMAlertRequests(w, r, p.Suffix)
+			path := strings.TrimPrefix(p.Suffix, "prometheus")
+			vmalertproxy.HandleRequest(w, r, path)
 			return true
 		}
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#alerts
@@ -783,7 +851,8 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 	case "prometheus/api/v1/notifiers", "prometheus/notifiers":
 		notifiersRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
-			proxyVMAlertRequests(w, r, p.Suffix)
+			path := strings.TrimPrefix(p.Suffix, "prometheus")
+			vmalertproxy.HandleRequest(w, r, path)
 			return true
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -811,13 +880,17 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 func deleteHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, p *httpserver.Path, at *auth.Token) bool {
 	switch p.Suffix {
 	case "prometheus/api/v1/admin/tsdb/delete_series":
+		if r.Method != "POST" {
+			http.Error(w, fmt.Sprintf("Only POST method is allowed. Got %s.", r.Method), http.StatusMethodNotAllowed)
+			return true
+		}
 		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey) {
 			return true
 		}
 		deleteRequests.Inc()
 		if err := prometheus.DeleteHandler(startTime, at, r); err != nil {
-			deleteErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
+			recordRequestError(r, err, deleteErrors)
+			httpserver.SendError(w, err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -825,6 +898,16 @@ func deleteHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 	default:
 		return false
 	}
+}
+
+// getStaticServerPrefix strips AuthToken from the path, if any
+func getStaticServerPrefix(p *httpserver.Path, path string) string {
+	prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
+	if !strings.HasPrefix(path, prefix) {
+		// authToken is missing in the original path, so it was fetched from headers - cut it from prefix
+		prefix, _ = strings.CutSuffix(prefix, p.AuthToken)
+	}
+	return prefix
 }
 
 func isGraphiteTagsPath(path string) bool {
@@ -968,48 +1051,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
 	flagutil.Usage(s)
 }
 
-func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request, path string) {
-	defer func() {
-		err := recover()
-		if err == nil || err == http.ErrAbortHandler {
-			// Suppress http.ErrAbortHandler panic.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1353
-			return
-		}
-		// Forward other panics to the caller.
-		panic(err)
-	}()
-	req := r.Clone(r.Context())
-	req.URL.Path = strings.TrimPrefix(path, "prometheus")
-	req.Host = vmalertProxyHost
-
-	if strings.HasPrefix(r.Header.Get(`User-Agent`), `Grafana`) {
-		// Grafana currently supports only Prometheus-style alerts. If other alert types
-		// (e.g. logs or traces) are returned, it may fail with "Error loading alerts".
-		//
-		// Grafana queries the vmalert API directly, bypassing the VictoriaMetrics datasource,
-		// so query params (such as datasource_type) cannot be enforced on the Grafana side.
-		//
-		// To ensure compatibility, we detect Grafana requests via the User-Agent and enforce
-		// `datasource_type=prometheus`.
-		//
-		// See:
-		// - https://github.com/VictoriaMetrics/victoriametrics-datasource/issues/329#issuecomment-3847585443
-		// - https://github.com/VictoriaMetrics/victoriametrics-datasource/issues/59
-		q := req.URL.Query()
-		q.Set("datasource_type", "prometheus")
-		req.URL.RawQuery = q.Encode()
-		req.RequestURI = ""
-	}
-
-	vmalertProxy.ServeHTTP(w, req)
-}
-
-var (
-	vmalertProxyHost string
-	vmalertProxy     *nethttputil.ReverseProxy
-	vmuiConfig       string
-)
+var vmuiConfig string
 
 func initVMUIConfig() {
 	var cfg struct {
@@ -1042,19 +1084,6 @@ func initVMUIConfig() {
 	vmuiConfig = string(data)
 }
 
-// initVMAlertProxy must be called after flag.Parse(), since it uses command-line flags.
-func initVMAlertProxy() {
-	if len(*vmalertProxyURL) == 0 {
-		return
-	}
-	proxyURL, err := url.Parse(*vmalertProxyURL)
-	if err != nil {
-		logger.Fatalf("cannot parse -vmalert.proxyURL=%q: %s", *vmalertProxyURL, err)
-	}
-	vmalertProxyHost = proxyURL.Host
-	vmalertProxy = nethttputil.NewSingleHostReverseProxy(proxyURL)
-}
-
 func checkDuplicates(arr []string) string {
 	visited := make(map[string]struct{})
 	for _, s := range arr {
@@ -1068,4 +1097,10 @@ func checkDuplicates(arr []string) string {
 
 func hasEmptyValues(arr []string) bool {
 	return slices.Contains(arr, "")
+}
+
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
+func initSecretFlags() {
+	pushmetrics.InitSecretFlags()
+	flagutil.RegisterSecretFlag("vmalert.proxyURL")
 }

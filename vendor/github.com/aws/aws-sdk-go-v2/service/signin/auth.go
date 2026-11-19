@@ -130,6 +130,12 @@ var operationAuthOptions = map[string]func(*AuthResolverParameters) []*smithyaut
 			{SchemeID: smithyauth.SchemeIDAnonymous},
 		}
 	},
+
+	"CreateOAuth2TokenWithTokenExchange": func(params *AuthResolverParameters) []*smithyauth.Option {
+		return []*smithyauth.Option{
+			{SchemeID: smithyauth.SchemeIDAnonymous},
+		}
+	},
 }
 
 func serviceAuthOptions(params *AuthResolverParameters) []*smithyauth.Option {
@@ -190,7 +196,7 @@ func (m *resolveAuthSchemeMiddleware) selectScheme(options []*smithyauth.Option)
 		}
 
 		for _, scheme := range m.options.AuthSchemes {
-			if scheme.SchemeID() != option.SchemeID {
+			if !matchSchemeID(scheme.SchemeID(), option.SchemeID) {
 				continue
 			}
 
@@ -201,6 +207,16 @@ func (m *resolveAuthSchemeMiddleware) selectScheme(options []*smithyauth.Option)
 	}
 
 	return nil, false
+}
+
+func matchSchemeID(registered, option string) bool {
+	if registered == option {
+		return true
+	}
+	if i := strings.LastIndex(registered, "#"); i != -1 {
+		return registered[i+1:] == option
+	}
+	return false
 }
 
 func sortAuthOptions(options []*smithyauth.Option, preferred []string) []*smithyauth.Option {

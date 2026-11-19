@@ -194,7 +194,7 @@ func (tb *table) addPartitionWrapperLocked(pt *partition) *partitionWrapper {
 
 // MustClose closes the table.
 //
-// This func must be called only when there are no goroutines using the the
+// This func must be called only when there are no goroutines using the
 // table, such as ones that ingest or retrieve time series samples or index
 // data.
 func (tb *table) MustClose() {
@@ -368,7 +368,7 @@ func (tb *table) MustAddRows(rows []rawRow) {
 	// The slowest path - there are rows that don't fit any existing partition.
 	// Create new partitions for these rows.
 	// Do this under tb.ptwsLock.
-	minTimestamp, maxTimestamp := tb.getMinMaxTimestamps()
+	minTimestamp, maxTimestamp := tb.getMinMaxIngestionTimestamps()
 	tb.ptwsLock.Lock()
 	for i := range missingRows {
 		r := &missingRows[i]
@@ -407,16 +407,34 @@ func (tb *table) MustGetIndexDBIDByHour(hour uint64) uint64 {
 	return ptw.pt.idb.id
 }
 
-func (tb *table) getMinMaxTimestamps() (int64, int64) {
+// getMinMaxRetentionTimestamps returns the minimum and maximum timestamps
+// allowed by the configured -retentionPeriod and -futureRetention.
+//
+// It is used for checking whether the given time range is fully covered
+// by the retention, e.g. for -denyQueriesOutsideRetention.
+func (tb *table) getMinMaxRetentionTimestamps() (int64, int64) {
+	return tb.getMinMaxTimestampsForAge(tb.s.retentionMsecs)
+}
+
+// getMinMaxIngestionTimestamps returns the minimum and maximum timestamps
+// allowed for newly ingested rows.
+//
+// The minimum timestamp is bound by -maxBackfillAge instead of -retentionPeriod,
+// since -maxBackfillAge can be configured to reject backfilled rows with historical
+// timestamps stricter than the full -retentionPeriod window.
+func (tb *table) getMinMaxIngestionTimestamps() (int64, int64) {
+	return tb.getMinMaxTimestampsForAge(tb.s.maxBackfillAgeMsecs)
+}
+
+func (tb *table) getMinMaxTimestampsForAge(minAgeMsecs int64) (int64, int64) {
 	now := int64(fasttime.UnixTimestamp() * 1000)
-	minTimestamp := now - tb.s.retentionMsecs
-	maxTimestamp := now + 2*24*3600*1000 // allow max +2 days from now due to timezones shit :)
-	if minTimestamp < 0 {
-		// Negative timestamps aren't supported by the storage.
-		minTimestamp = 0
+	minTimestamp := now - minAgeMsecs
+	if minTimestamp < minUnixMilli {
+		minTimestamp = minUnixMilli
 	}
-	if maxTimestamp < 0 {
-		maxTimestamp = (1 << 63) - 1
+	maxTimestamp := int64(maxUnixMilli)
+	if maxUnixMilli-now > tb.s.futureRetentionMsecs {
+		maxTimestamp = now + tb.s.futureRetentionMsecs
 	}
 	return minTimestamp, maxTimestamp
 }
@@ -436,12 +454,14 @@ func (tb *table) retentionWatcher() {
 		case <-ticker.C:
 		}
 
-		minTimestamp := int64(fasttime.UnixTimestamp()*1000) - tb.s.retentionMsecs
+		nowMsecs := int64(fasttime.UnixTimestamp() * 1000)
+		minTimestamp := nowMsecs - tb.s.retentionMsecs
+		maxTimestamp := nowMsecs + tb.s.futureRetentionMsecs
 		var ptwsDrop []*partitionWrapper
 		tb.ptwsLock.Lock()
 		dst := tb.ptws[:0]
 		for _, ptw := range tb.ptws {
-			if ptw.pt.tr.MaxTimestamp < minTimestamp {
+			if ptw.pt.tr.MaxTimestamp < minTimestamp || ptw.pt.tr.MinTimestamp > maxTimestamp {
 				ptwsDrop = append(ptwsDrop, ptw)
 			} else {
 				dst = append(dst, ptw)
@@ -515,7 +535,7 @@ func (tb *table) historicalMergeWatcher() {
 
 			logger.Infof("start %s for partition (%s, %s)", strings.Join(logContext, " and "), pt.bigPartsPath, pt.smallPartsPath)
 			if err := pt.ForceMergeAllParts(tb.stopCh); err != nil {
-				logger.Errorf("cannot %s for partition (%s, %s): %w", strings.Join(logErrContext, " and "), pt.bigPartsPath, pt.smallPartsPath, err)
+				logger.Errorf("cannot %s for partition (%s, %s): %s", strings.Join(logErrContext, " and "), pt.bigPartsPath, pt.smallPartsPath, err)
 			}
 			logger.Infof("finished %s for partition (%s, %s) in %.3f seconds", strings.Join(logContext, " and "), pt.bigPartsPath, pt.smallPartsPath, time.Since(t).Seconds())
 

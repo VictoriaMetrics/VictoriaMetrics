@@ -1,5 +1,6 @@
 ---
 title: Guides
+description: "Step-by-step guides for deploying, configuring, integrating, and operating vmanomaly for anomaly detection."
 weight: 3
 menu:
   docs:

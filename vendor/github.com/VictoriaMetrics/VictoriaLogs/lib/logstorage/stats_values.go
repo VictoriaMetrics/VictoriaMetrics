@@ -17,7 +17,7 @@ type statsValues struct {
 }
 
 func (sv *statsValues) String() string {
-	s := "values(" + fieldNamesString(sv.fieldFilters) + ")"
+	s := "values(" + fieldFiltersString(sv.fieldFilters) + ")"
 	if sv.limit > 0 {
 		s += fmt.Sprintf(" limit %d", sv.limit)
 	}

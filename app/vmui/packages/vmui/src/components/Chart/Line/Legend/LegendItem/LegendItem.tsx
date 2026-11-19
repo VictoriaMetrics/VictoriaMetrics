@@ -5,7 +5,7 @@ import "./style.scss";
 import classNames from "classnames";
 import { getFreeFields } from "./helpers";
 import useCopyToClipboard from "../../../../../hooks/useCopyToClipboard";
-import { STATS_ORDER } from "../../../../../constants/graph";
+import { STATS_ORDER_LEGEND } from "../../../../../constants/graph";
 import { useShowStats } from "../hooks/useShowStats";
 import { useLegendFormat } from "../hooks/useLegendFormat";
 import { getLabelAlias } from "../../../../../utils/metric";
@@ -80,7 +80,7 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange, duplicateFields }) 
       </div>
       {!hideStats && showStats && (
         <div className="vm-legend-item-stats">
-          {STATS_ORDER.map((key, i) => (
+          {STATS_ORDER_LEGEND.map((key, i) => (
             <div
               className="vm-legend-item-stats-row"
               key={i}

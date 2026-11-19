@@ -119,10 +119,12 @@ const ExploreMetricsHeader: FC<ExploreMetricsHeaderProps> = ({
       </div>
 
       {showTips && (
-        <Alert variant={"warning"}>
+        <Alert
+          variant="warning"
+          title="Prometheus metrics only"
+        >
           <div className="vm-explore-metrics-header-description">
             <p>
-              Please note: this page is solely designed for exploring Prometheus metrics.
               Prometheus metrics always contain <code>job</code> and <code>instance</code> labels
               (see <a
                 className="vm-link vm-link_colored"

@@ -47,12 +47,10 @@ func StreamMetadataResponse(qw422016 *qt422016.Writer, isPartial bool, result []
 
 //line app/vmselect/prometheus/metadata_response.qtpl:18
 	for _, row := range result {
-//line app/vmselect/prometheus/metadata_response.qtpl:18
-		qw422016.N().S(`"`)
 //line app/vmselect/prometheus/metadata_response.qtpl:19
-		qw422016.E().S(string(row.MetricFamilyName))
+		qw422016.N().Q(string(row.MetricFamilyName))
 //line app/vmselect/prometheus/metadata_response.qtpl:19
-		qw422016.N().S(`": [{"type":`)
+		qw422016.N().S(`: [{"type":`)
 //line app/vmselect/prometheus/metadata_response.qtpl:21
 		qw422016.N().Q(row.Type.String())
 //line app/vmselect/prometheus/metadata_response.qtpl:21

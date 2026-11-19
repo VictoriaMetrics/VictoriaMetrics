@@ -28,10 +28,12 @@ import (
 
 var (
 	disableCompression = flag.Bool("rpc.disableCompression", false, "Flag is deprecated and kept for backward compatibility, vminsert performs per block compression instead of streaming compression on RPC connection")
-	replicationFactor  = flag.Int("replicationFactor", 1, "Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. "+
+	rpcCompressLevel   = flag.Int("rpc.compressLevel", 1, "The compression level for the internal protocol between vminsert and vmstorage. "+
+		"Higher values reduce network traffic at the cost of higher CPU usage. Negative values reduce CPU usage at the cost of increased network traffic.")
+	replicationFactor = flag.Int("replicationFactor", 1, "Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. "+
 		"Note that vmselect must run with -dedup.minScrapeInterval=1ms for data de-duplication when replicationFactor is greater than 1. "+
 		"Higher values for -dedup.minScrapeInterval at vmselect is OK")
-	disableRerouting      = flag.Bool("disableRerouting", true, "Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -disableReroutingOnUnavailable and -dropSamplesOnOverload")
+	disableRerouting      = flag.Bool("disableRerouting", false, "Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -disableReroutingOnUnavailable and -dropSamplesOnOverload")
 	dropSamplesOnOverload = flag.Bool("dropSamplesOnOverload", false, "Whether to drop incoming samples if the destination vmstorage node is overloaded and/or unavailable. This prioritizes cluster availability over consistency, e.g. the cluster continues accepting all the ingested samples, but some of them may be dropped if vmstorage nodes are temporarily unavailable and/or overloaded. The drop of samples happens before the replication, so it's not recommended to use this flag with -replicationFactor enabled.")
 	vmstorageDialTimeout  = flag.Duration("vmstorageDialTimeout", 3*time.Second, "Timeout for establishing RPC connections from vminsert to vmstorage. "+
 		"See also -vmstorageUserTimeout")
@@ -127,7 +129,7 @@ again:
 		return nil
 	}
 	// Slow path: the buf contents doesn't fit sn.buf, so try re-routing it to other vmstorage nodes.
-	if !allowRerouting(sn, sns) {
+	if !allowSlownessRerouting(sn, sns) {
 		sn.brCond.Wait()
 		goto again
 	}
@@ -307,9 +309,17 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 	startTime := time.Now()
 	var err error
 	if sn.bc.IsLegacy {
+		// in legacy mode only MetricRows could be sent to vmstorage
+		// drop the data because most likely it's not possible to re-route it.
+		if sn.rpcCall.VersionedName != vminsertapi.MetricRowsRpcCall.VersionedName {
+			sn.rowsDroppedOnUnsupportedRPC.Add(br.rows)
+			cannotSendBufsLogger.Warnf("cannot send %d bytes with %d rows to -storageNode=%q; storageNode doesn't support RPC=%q. "+
+				"Perform upgrade of vmstorage to the same version as vminsert", len(br.buf), br.rows, sn.dialer.Addr(), sn.rpcCall.VersionedName)
+			return true
+		}
 		err = vminsertapi.SendToConn(sn.bc, br.buf)
 	} else {
-		err = vminsertapi.SendRPCRequestToConn(sn.bc, sn.rpcCall.VersionedName, br.buf)
+		err = vminsertapi.SendRPCRequestToConn(sn.bc, sn.rpcCall.VersionedName, br.buf, *rpcCompressLevel)
 	}
 	duration := time.Since(startTime)
 	sn.sendDurationSeconds.Add(duration.Seconds())
@@ -460,8 +470,11 @@ type storageNode struct {
 	// This metric is useful for determining the saturation of vminsert->vmstorage link.
 	sendDurationSeconds *metrics.FloatCounter
 
+	// The number of rows dropped if legacy vmstorage doesn't support RPC protocol
+	rowsDroppedOnUnsupportedRPC *metrics.Counter
+
 	// avgSaturation tracks the moving average of (send duration / (now - lastSendTime)).
-	// Updated in run(). Used by allowRerouting to decide when to trigger slowness-based rerouting.
+	// Updated in run(). Used by allowSlownessRerouting to decide when to trigger slowness-based rerouting.
 	avgSaturation *variableEWMA
 	lastSendTime  time.Time
 }
@@ -501,17 +514,35 @@ func setStorageNodesBucket(snb *storageNodesBucket) {
 	storageNodes.Store(snb)
 }
 
+// enableSlownessRerouting holds the effective slowness rerouting state computed at Init time.
+// See initSlownessRerouting for the computation logic
+var enableSlownessRerouting bool
+
+// initSlownessRerouting computes and stores the effective value of enableSlownessRerouting.
+// It keeps the -disableRerouting flag value when replicationFactor == 1,
+// and forces rerouting to be disabled when replicationFactor > 1.
+func initSlownessRerouting() {
+	if *replicationFactor > 1 {
+		if !*disableRerouting {
+			logger.Warnf("disabling slowness rerouting (controlled by -disableRerouting) because replicationFactor=%d > 1; slowness rerouting is incompatible with replication and may cause data inconsistencies or even loss", *replicationFactor)
+		}
+		enableSlownessRerouting = false
+		return
+	}
+	enableSlownessRerouting = !*disableRerouting
+}
+
 // Init initializes vmstorage nodes' connections to the given addrs.
 //
 // hashSeed is used for changing the distribution of input time series among addrs.
 //
 // Call MustStop when the initialized vmstorage connections are no longer needed.
 func Init(addrs []string, hashSeed uint64) {
+	initSlownessRerouting()
 	snb := initStorageNodes(addrs, vminsertapi.MetricRowsRpcCall, hashSeed)
 	setStorageNodesBucket(snb)
 	metadataSnb := initStorageNodes(addrs, vminsertapi.MetricMetadataRpcCall, hashSeed)
 	setMetadataStorageNodesBucket(metadataSnb)
-
 }
 
 // MustStop stops netstorage.
@@ -557,15 +588,16 @@ func initStorageNodes(unsortedAddrs []string, rpcCall vminsertapi.RPCCall, hashS
 
 			rpcCall: rpcCall,
 
-			dialErrors:            ms.NewCounter(fmt.Sprintf(`vm_rpc_dial_errors_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			handshakeErrors:       ms.NewCounter(fmt.Sprintf(`vm_rpc_handshake_errors_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			connectionErrors:      ms.NewCounter(fmt.Sprintf(`vm_rpc_connection_errors_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			rowsPushed:            ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_pushed_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			rowsSent:              ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_sent_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			rowsDroppedOnOverload: ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_dropped_on_overload_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			rowsReroutedFromHere:  ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_from_here_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			rowsReroutedToHere:    ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_to_here_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			sendDurationSeconds:   ms.NewFloatCounter(fmt.Sprintf(`vm_rpc_send_duration_seconds_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			dialErrors:                  ms.NewCounter(fmt.Sprintf(`vm_rpc_dial_errors_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			handshakeErrors:             ms.NewCounter(fmt.Sprintf(`vm_rpc_handshake_errors_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			connectionErrors:            ms.NewCounter(fmt.Sprintf(`vm_rpc_connection_errors_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			rowsPushed:                  ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_pushed_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			rowsSent:                    ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_sent_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			rowsDroppedOnOverload:       ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_dropped_on_overload_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			rowsReroutedFromHere:        ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_from_here_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			rowsReroutedToHere:          ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_to_here_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			sendDurationSeconds:         ms.NewFloatCounter(fmt.Sprintf(`vm_rpc_send_duration_seconds_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			rowsDroppedOnUnsupportedRPC: ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_dropped_on_unsupported_rpc{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
 
 			avgSaturation: newMovingAverage(180),
 			lastSendTime:  time.Now(),
@@ -639,9 +671,13 @@ func getMaxBufSizePerInsertCtxStorageNode(mem, concurrency, netstorageCount int)
 // calculate getMaxBufSizePerStorageNode for storage nodes by:
 // 1. 25% total available memory.
 // 2. count of netstorage.
+// 3. count of storageNodesBucket.
 // 4. in range [1MB, 30MB], usually user won't reach the min border so it should be safe enough.
+//
+// since each storage node has two buffers (data and metadata), the netstorageCount should be halved.
+// see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10725#issuecomment-4282256709
 func getMaxBufSizePerStorageNode(mem, netstorageCount int) int {
-	maxBufSize := mem / 4 / netstorageCount
+	maxBufSize := mem / 4 / netstorageCount / 2
 	maxBufSize = max(consts.MinInsertPacketSizeForVMInsert, min(consts.MaxInsertPacketSizeForVMInsert, maxBufSize))
 	return maxBufSize
 }
@@ -690,7 +726,7 @@ func rerouteRowsToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNo
 			// re-generate idxsExclude list, since sn must be put there.
 			idxsExclude = getNotReadyStorageNodeIdxsBlocking(snb, idxsExclude[:0])
 		}
-		if *disableRerouting {
+		if !enableSlownessRerouting {
 			if !sn.sendBufMayBlock(rowBuf) {
 				return rowsProcessed, fmt.Errorf("graceful shutdown started")
 			}
@@ -729,16 +765,16 @@ func rerouteRowsToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNo
 	return rowsProcessed, nil
 }
 
-var reroutingLogger = logger.WithThrottler("allowRerouting", 5*time.Second)
+var reroutingLogger = logger.WithThrottler("allowSlownessRerouting", 5*time.Second)
 
-// allowRerouting determines whether data should be rerouted from snSource to other storage nodes (sns)
+// allowSlownessRerouting determines whether data should be rerouted from snSource to other storage nodes (sns)
 // based on performance metrics.
 //
 // It returns true only when snSource is the slowest node in the cluster
 // and significantly slower than the cluster on average.
 // See the comments below for detailed conditions.
-func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
-	if *disableRerouting {
+func allowSlownessRerouting(snSource *storageNode, sns []*storageNode) bool {
+	if !enableSlownessRerouting {
 		return false
 	}
 
@@ -774,20 +810,22 @@ func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
 
 	// Calculate median saturation
 	sort.Float64s(saturations)
-	var medianSaturation float64
-	n := len(saturations)
-	if n%2 == 0 {
-		medianSaturation = (saturations[n/2-1] + saturations[n/2]) / 2
-	} else {
-		medianSaturation = saturations[n/2]
-	}
+
+	// Try to get p90 saturation. If there's less than 10 nodes, then pick the second-slowest one.
+	p90SaturationIdx := len(saturations) - 1 - max(1, len(saturations)/10)
 
 	// Do not allow rerouting if the cluster is significantly overloaded.
-	if medianSaturation > 0.80 {
+	if saturations[p90SaturationIdx] > 0.6 {
 		return false
 	}
 
-	reroutingLogger.Warnf("reroute metrics from the slowest storage %q with saturation %.2f, where cluster median saturation is %.2f", snSource.dialer.Addr(), snSourceSaturation, medianSaturation)
+	// Perform rerouting only if snSource is slower than the p90 saturation by 20%.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10876
+	if snSourceSaturation < 1.2*saturations[p90SaturationIdx] {
+		return false
+	}
+
+	reroutingLogger.Warnf("reroute metrics from the slowest storage %q with saturation %.2f, where cluster p90 saturation is %.2f", snSource.dialer.Addr(), snSourceSaturation, saturations[p90SaturationIdx])
 	return true
 }
 
@@ -797,7 +835,7 @@ func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
 // It is expected than *disableRerouting isn't set when calling this function.
 // It is expected that len(snb.sns) >= 2
 func rerouteRowsToFreeStorageNodes(snb *storageNodesBucket, snSource *storageNode, src []byte, getRowHasher func() rowHasher) (int, error) {
-	if *disableRerouting {
+	if !enableSlownessRerouting {
 		logger.Panicf("BUG: disableRerouting must be disabled when calling rerouteRowsToFreeStorageNodes")
 	}
 
@@ -950,7 +988,7 @@ func (sn *storageNode) checkReadOnlyMode() {
 	if sn.bc.IsLegacy {
 		err = vminsertapi.SendToConn(sn.bc, nil)
 	} else {
-		err = vminsertapi.SendRPCRequestToConn(sn.bc, sn.rpcCall.VersionedName, nil)
+		err = vminsertapi.SendRPCRequestToConn(sn.bc, sn.rpcCall.VersionedName, nil, *rpcCompressLevel)
 	}
 	if err == nil {
 		// The storage switched from readonly to non-readonly mode

@@ -186,7 +186,7 @@ func (s *Series) unmarshalProtobuf(src []byte) (err error) {
 			}
 			pt := &points[len(points)-1]
 			if err := pt.unmarshalProtobuf(data); err != nil {
-				return fmt.Errorf("cannot unmarshal point: %s", err)
+				return fmt.Errorf("cannot unmarshal point: %w", err)
 			}
 		case 1:
 			data, ok := fc.MessageData()

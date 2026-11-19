@@ -43,7 +43,8 @@ func VMInsertClientWithDialer(dial func() (net.Conn, error), compressionLevel in
 		return bc, nil
 	}
 	_ = c.Close()
-	if !strings.Contains(err.Error(), "cannot read success response after sending hello") {
+	// fallback only if vmstorage closed connection at read success response
+	if !errors.Is(err, io.EOF) || !strings.Contains(err.Error(), "cannot read success response after sending hello") {
 		return nil, err
 	}
 	// try to fallback to the prev non-RPC API version
@@ -316,3 +317,6 @@ func readData(c net.Conn, dataLen int) ([]byte, error) {
 	}
 	return data, nil
 }
+
+// CancelRequestMarker is sent by vmselect to vmstorage for terminating query request execution.
+const CancelRequestMarker = "cancelRequestMarker"

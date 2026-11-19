@@ -7,10 +7,16 @@ import "./style.scss";
 import { useDashboardsState } from "../../state/dashboards/DashboardsStateContext";
 import Spinner from "../../components/Main/Spinner/Spinner";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
+import ExecuteButton from "../CustomPanel/QueryConfigurator/ExecuteButton/ExecuteButton";
+import { useTimeDispatch } from "../../state/time/TimeStateContext";
+import { RefreshIcon } from "../../components/Main/Icons";
+
+
 
 const DashboardsLayout: FC = () => {
   useSetQueryParams();
   const { isMobile } = useDeviceDetect();
+  const dispatch = useTimeDispatch();
   const { dashboardsSettings, dashboardsLoading, dashboardsError } = useDashboardsState();
   const [dashboard, setDashboard] = useState(0);
 
@@ -32,9 +38,29 @@ const DashboardsLayout: FC = () => {
     handleChangeDashboard(value);
   };
 
+  const handleClickExecute = () => {
+    if (dashboardsLoading) return;
+    dispatch({ type: "RUN_QUERY" });
+  };
+
   return <div className="vm-predefined-panels">
+    <div className="vm-predefined-panels-header">
+      <ExecuteButton
+        isLoading={dashboardsLoading}
+        onClick={handleClickExecute}
+        icon={<RefreshIcon/>}
+        label={{ run: "Refresh", cancel: "Refresh" }}
+      />
+    </div>
     {dashboardsLoading && <Spinner />}
-    {!dashboardsSettings.length && dashboardsError && <Alert variant="error">{dashboardsError}</Alert>}
+    {!dashboardsSettings.length && dashboardsError && (
+      <Alert
+        variant="error"
+        title="Unable to load dashboards"
+      >
+        {dashboardsError}
+      </Alert>
+    )}
     {!dashboardsSettings.length && <Alert variant="info">Dashboards not found</Alert>}
     {dashboards.length > 1 && (
       <div
@@ -69,7 +95,10 @@ const DashboardsLayout: FC = () => {
           />)
       )}
       {!!dashboardsSettings.length && !validDashboardRows && (
-        <Alert variant="error">
+        <Alert
+          variant="error"
+          title="Missing dashboard rows"
+        >
           <code>&quot;rows&quot;</code> not found. Check the configuration file <b>{filename}</b>.
         </Alert>
       )}

@@ -9,6 +9,7 @@ import Alert from "../../components/Main/Alert/Alert";
 import { useSearchParams } from "react-router-dom";
 import useStateSearchParams from "../../hooks/useStateSearchParams";
 import TextField from "../../components/Main/TextField/TextField";
+import SafeHtml from "../../components/Main/SafeHtml/SafeHtml";
 
 const example = {
   config: `- if: '{bar_label=~"b.*"}'
@@ -72,7 +73,7 @@ const Relabel: FC = () => {
         <div className="vm-relabeling-header-configs">
           <TextField
             type="textarea"
-            label="Relabel configs"
+            label="Config"
             value={config}
             autofocus
             onChange={handleChangeConfig}
@@ -82,8 +83,9 @@ const Relabel: FC = () => {
         <div className="vm-relabeling-header__labels">
           <TextField
             type="textarea"
-            label="Labels"
+            label="A time series"
             value={labels}
+            placeholder="up{job=&quot;job_name&quot;,instance=&quot;host:port&quot;}"
             onChange={handleChangeLabels}
             onEnter={handleRunQuery}
           />
@@ -97,22 +99,22 @@ const Relabel: FC = () => {
             <Button
               variant="text"
               color="gray"
-              startIcon={<InfoIcon/>}
+              startIcon={<WikiIcon/>}
             >
               Relabeling cookbook
             </Button>
           </a>
           <a
             target="_blank"
-            href="https://docs.victoriametrics.com/victoriametrics/relabeling/"
+            href="https://docs.victoriametrics.com/victoriametrics/relabeling/#relabeling-stages"
             rel="help noreferrer"
           >
             <Button
               variant="text"
               color="gray"
-              startIcon={<WikiIcon/>}
+              startIcon={<InfoIcon/>}
             >
-              Documentation
+              Relabeling Stages
             </Button>
           </a>
           <Button
@@ -139,7 +141,10 @@ const Relabel: FC = () => {
             <div className="vm-relabeling-steps-item">
               <div className="vm-relabeling-steps-item__row">
                 <span>Original labels:</span>
-                <code dangerouslySetInnerHTML={{ __html: data.originalLabels }}/>
+                <SafeHtml
+                  tagName="code"
+                  value={data.originalLabels}
+                />
               </div>
             </div>
           )}
@@ -162,13 +167,25 @@ const Relabel: FC = () => {
               <div className="vm-relabeling-steps-item__row">
                 <span>Input Labels:</span>
                 <code>
-                  <pre dangerouslySetInnerHTML={{ __html: step.errors?.inLabels || step.inLabels }}/>
+                  {step.errors?.inLabelsMsg
+                    ? <pre className="vm-relabeling-steps-item__error">{step.errors.inLabelsMsg}</pre>
+                    : <SafeHtml
+                        tagName="pre"
+                        value={step.inLabels}
+                    />
+                  }
                 </code>
               </div>
               <div className="vm-relabeling-steps-item__row">
                 <span>Output labels:</span>
                 <code>
-                  <pre dangerouslySetInnerHTML={{ __html: step.errors?.outLabels || step.outLabels }}/>
+                  {step.errors?.outLabelsMsg
+                    ? <pre className="vm-relabeling-steps-item__error">{step.errors.outLabelsMsg}</pre>
+                    : <SafeHtml
+                        tagName="pre"
+                        value={step.outLabels}
+                    />
+                  }
                 </code>
               </div>
             </div>
@@ -178,7 +195,10 @@ const Relabel: FC = () => {
             <div className="vm-relabeling-steps-item">
               <div className="vm-relabeling-steps-item__row">
                 <span>Resulting labels:</span>
-                <code dangerouslySetInnerHTML={{ __html: data.resultingLabels }}/>
+                <SafeHtml
+                  tagName="code"
+                  value={data.resultingLabels}
+                />
               </div>
             </div>
           )}

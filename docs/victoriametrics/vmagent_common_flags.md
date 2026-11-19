@@ -34,6 +34,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Whether to check config files without running vmagent. The following files are checked: -promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig, -remoteWrite.streamAggr.config . Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag
   -enableMetadata
      Whether to enable metadata processing for metrics scraped from targets, received via VictoriaMetrics remote write, Prometheus remote write v1 or OpenTelemetry protocol. See also remoteWrite.maxMetadataPerBlock (default true)
+  -enableMultitenancyViaHeaders
+     Enables multitenancy via HTTP headers. See https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy (default true)
   -enableMultitenantHandlers
      Whether to process incoming data via multitenant insert handlers according to https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format . By default incoming data is processed via single-node insert handlers according to https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data .See https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy for details
   -enableTCP6
@@ -48,12 +50,14 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file.
      Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
+  -fs.disableAdviseRandomRead
+     Whether to disable FADV_RANDOM and MADV_RANDOM hints for data part files. Typical queries with selectors access data part files at random offsets, so FADV_RANDOM is enforced to reduce excessive disk readahead.Use this flag if your query read pattern benefits from sequential read (e.g. query by metric name without selectors) to prefer FADV_NORMAL. (default true)
   -fs.disableMincore
      Whether to disable the mincore() syscall for checking mmap()ed files. By default, mincore() is used to detect whether mmap()ed file pages are resident in memory. Disabling mincore() may be needed on older ZFS filesystems (below 2.1.5), since it may trigger ZFS bug. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10327 for details.
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -fs.maxConcurrency int
-     The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default fsutil.getDefaultConcurrency())
+     The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default 16x CPU cores, capped at 256)
   -graphite.sanitizeMetricName
      Sanitize metric names for the ingested Graphite data. See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting
   -graphiteListenAddr string
@@ -62,6 +66,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Whether to use proxy protocol for connections accepted at -graphiteListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
   -graphiteTrimTimestamp duration
      Trim timestamps for Graphite data to this duration. Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data (default 1s)
+  -healthcheck
+     Whether to check that the running process accepts connections at -httpListenAddr and exit. The exit code is non-zero if the check fails. This is useful for Docker HEALTHCHECK in images without curl or wget. Pass the same -httpListenAddr as the checked process has
   -http.connTimeout duration
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableCORS
@@ -72,6 +78,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string
      Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"
+  -http.header.disableServerHostname
+     Whether to disable 'X-Server-Hostname' header in HTTP responses
   -http.header.frameOptions string
      Value for 'X-Frame-Options' header
   -http.header.hsts string
@@ -79,7 +87,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
-     The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown (default 7s)
+     The maximum duration for a graceful shutdown of the HTTP server. During this period the server stops accepting new connections, but it will continue serving existing connections. The remaining in-flight requests are canceled before the deadline, so the shutdown can finish within this duration. A highly loaded server may require increased value for a graceful shutdown (default 7s)
   -http.pathPrefix string
      An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
@@ -91,7 +99,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr array
-     TCP address to listen for incoming http requests. Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. Note that /targets and /metrics pages aren't available if -httpListenAddr=''. See also -tls and -httpListenAddr.useProxyProtocol
+     Address to listen for incoming http requests. Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. Note that /targets and /metrics pages aren't available if -httpListenAddr=''. Use unix:/path/to/socket to listen on Unix domain socket. Note that -tls and -httpListenAddr.useProxyProtocol cannot be used with Unix sockets
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr.useProxyProtocol array
@@ -154,7 +162,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
-     The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 2*cgroup.AvailableCPUs())
+     The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 2x CPU cores)
   -maxIngestionRate int
      The maximum number of samples vmagent can receive per second. Data ingestion is paused when the limit is exceeded. By default there are no limits on samples ingestion rate. See also -remoteWrite.rateLimit
   -maxInsertRequestSize size
@@ -166,8 +174,10 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      The maximum length of label values in the accepted time series. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason="too_long_label_value"} metric at /metrics page is incremented
   -maxLabelsPerTimeseries int
      The maximum number of labels per time series to be accepted. Series with superfluous labels are ignored. In this case the vm_rows_ignored_total{reason="too_many_labels"} metric at /metrics page is incremented
+  -mdx.label -remoteWrite.url
+     Optional label value in the form 'name=value' used to identify VictoriaMetrics metrics for MDX. Metrics containing the specified label are forwarded to -remoteWrite.url endpoints configured with `-remoteWrite.mdx.enable=true`.
   -memory.allowedBytes size
-     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
+     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage. The process may behave unexpectedly if this flag is set too small (e.g., 1 byte).
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
@@ -182,9 +192,23 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -opentelemetry.convertMetricNamesToPrometheus
      Whether to convert only metric names into Prometheus-compatible format for the metrics ingested via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/
+  -opentelemetry.ignoreResourceAttributes array
+     Control which resource attributes to ignore, can only be set when 'opentelemetry.promoteAllResourceAttributes' is true.
+     Supports an array of values separated by comma or specified via multiple flags.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -opentelemetry.labelNameUnderscoreSanitization
+     Whether to enable prepending of 'key' to labels starting with '_' when -opentelemetry.usePrometheusNaming is enabled. Reserved labels starting with '__' are not modified. See https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/ (default true)
   -opentelemetry.maxRequestSize size
      The maximum size in bytes of a single OpenTelemetry request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
+  -opentelemetry.promoteAllResourceAttributes
+     Whether to promote all resource attributes to labels, except for the ones configured with 'opentelemetry.ignoreResourceAttributes'. (default true)
+  -opentelemetry.promoteResourceAttributes array
+     Promote specific list of resource attributes to labels.
+     Supports an array of values separated by comma or specified via multiple flags.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -opentelemetry.promoteScopeMetadata
+     Whether to promote OTel scope metadata (i.e. name, version, schema URL, and attributes) to metric labels. (default true)
   -opentelemetry.usePrometheusNaming
      Whether to convert metric names and labels into Prometheus-compatible format for the metrics ingested via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/
   -opentsdbHTTPListenAddr string
@@ -222,6 +246,10 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Optional name of the cluster. If multiple vmagent clusters scrape the same targets, then each cluster must have unique name in order to properly de-duplicate samples received from these clusters. See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info
   -promscrape.cluster.replicationFactor int
      The number of members in the cluster, which scrape the same targets. If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info (default 1)
+  -promscrape.cluster.shardByLabels array
+     Optional list of target labels, which will be used for sharding targets among cluster members if -promscrape.cluster.membersCount is greater than 1. If none of the specified labels are found in a target, then all the target labels will be used for sharding. See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info
+     Supports an array of values separated by comma or specified via multiple flags.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -promscrape.config string
      Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. The path can point to local file and to http url. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details
   -promscrape.config.dryRun
@@ -278,10 +306,14 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs for details (default 30s)
   -promscrape.kumaSDCheckInterval duration
      Interval for checking for changes in kuma service discovery. This works only if kuma_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/victoriametrics/sd_configs/#kuma_sd_configs for details (default 30s)
+  -promscrape.linodeSDCheckInterval duration
+     Interval for checking for changes in Linode. This works only if linode_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/victoriametrics/sd_configs/#linode_sd_configs for details (default 1m0s)
   -promscrape.marathonSDCheckInterval duration
      Interval for checking for changes in Marathon REST API. This works only if marathon_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/victoriametrics/sd_configs/#marathon_sd_configs for details (default 30s)
   -promscrape.maxDroppedTargets int
      The maximum number of droppedTargets to show at /api/v1/targets page. Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. Note that the increased number of tracked dropped targets may result in increased memory usage (default 10000)
+  -promscrape.maxParseErrorsPerScrape int
+     The maximum number of parse errors to log per each scrape of a target. The number of suppressed parse errors is logged after the scrape. Zero or negative value disables the limit. See also -promscrape.suppressScrapeErrors (default 20)
   -promscrape.maxResponseHeadersSize size
      The maximum size of http response headers from Prometheus scrape targets
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 4096)
@@ -381,6 +413,10 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Optional basic auth username to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -remoteWrite.basicAuth.usernameFile array
+     Optional path to basic auth username to use for the corresponding -remoteWrite.url. The file is re-read every second
+     Supports an array of values separated by comma or specified via multiple flags.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.bearerToken array
      Optional bearer auth token to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
@@ -390,7 +426,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.disableMetadata array
-     Whether to disable sending metadata to the corresponding -remoteWrite.url. By default, metadata sending is controlled by the global -enableMetadata flag
+     Whether to disable sending metadata to the corresponding -remoteWrite.url. By default, metadata sending is controlled by the global -enableMetadata flag, and is always disabled for URLs with -remoteWrite.mdx.enable=true
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -remoteWrite.disableOnDiskQueue array
@@ -413,6 +449,10 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Optional HTTP headers to send with each request to the corresponding -remoteWrite.url. For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteWrite.url. Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -remoteWrite.inmemoryQueues array
+     The number of additional workers per each -remoteWrite.url, which send only recently ingested data from the in-memory queue, while the file-based queue at -remoteWrite.tmpDataPath is drained by workers configured via -remoteWrite.queues. This reduces delivery lag for fresh samples when the file-based queue contains a backlog accumulated during remote storage outages. (default 0)
+     Supports array of values separated by comma or specified via multiple flags.
+     Empty values are set to default value.
   -remoteWrite.keepDanglingQueues
      Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. Useful when -remoteWrite.url is changed temporarily and persistent queue files will be needed later on.
   -remoteWrite.label array
@@ -435,6 +475,10 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      The maximum number of metadata to send in each block to remote storage. Higher number may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxBlockSize (default 5000)
   -remoteWrite.maxRowsPerBlock int
      The maximum number of samples to send in each block to remote storage. Higher number may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxBlockSize (default 10000)
+  -remoteWrite.mdx.enable array
+     Whether to only retain metrics from VictoriaMetrics services before sending them to the corresponding -remoteWrite.url. Can be combined with -remoteWrite.obfuscateLabels to hide sensitive label values in the forwarded metrics. Please see https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange
+     Supports array of values separated by comma or specified via multiple flags.
+     Empty values are set to false.
   -remoteWrite.oauth2.clientID array
      Optional OAuth2 clientID to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
@@ -459,12 +503,20 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Optional OAuth2 tokenURL to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -remoteWrite.obfuscateLabels ^^
+     List of label names whose values will be obfuscated before being sent to the corresponding -remoteWrite.url. Multiple label names should be separated by ^^, e.g. "job^^instance,ip". Can be combined with -remoteWrite.mdx.enable to hide sensitive label values in VictoriaMetrics self-monitoring metrics. Please see https://docs.victoriametrics.com/victoriametrics/vmagent/#obfuscating-label-values
+     Supports an `array` of values separated by comma or specified via multiple flags.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.proxyURL array
      Optional proxy URL for writing data to the corresponding -remoteWrite.url. Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -remoteWrite.queuePath array
+     Path to directory for storing pending data, which isn't sent to the corresponding -remoteWrite.url . It replaces the functionality of -remoteWrite.tmpDataPath. If it's set, each remoteWrite.url must have individual path configured. See also -remoteWrite.tmpDataPath, -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue
+     Supports an array of values separated by comma or specified via multiple flags.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.queues array
-     The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues isn't enough for sending high volume of collected data to remote storage. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage (default 2*cgroup.AvailableCPUs())
+     The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues isn't enough for sending high volume of collected data to remote storage. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage (default 2x CPU cores)
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to default value.
   -remoteWrite.rateLimit array
@@ -486,7 +538,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to default value.
   -remoteWrite.roundDigits array
-     Round metric values to this number of decimal digits after the point before writing them to remote storage. Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. By default, digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. This option may be used for improving data compression for the stored metrics (default 100)
+     Round metric values to this number of decimal digits after the point before writing them to remote storage. Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. By default, digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. This option may be used for improving data compression for the stored metrics. See also -remoteWrite.significantFigures (default 100)
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to default value.
   -remoteWrite.sendTimeout array
@@ -568,7 +620,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.tmpDataPath string
-     Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url . See also -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue (default "vmagent-remotewrite-data")
+     Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url. Pending data is stored in a sub-folder for each -remoteWrite.url. The flag is ignored when -remoteWrite.queuePath is used. See also -remoteWrite.queuePath, -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue (default "vmagent-remotewrite-data")
   -remoteWrite.url array
      Remote storage URL to write data to. It must support either VictoriaMetrics remote write protocol or Prometheus remote_write protocol. Example url: http://<victoriametrics-host>:8428/api/v1/write . Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. The data can be sharded among the configured remote storage systems if -remoteWrite.shardByURL flag is set
      Supports an array of values separated by comma or specified via multiple flags.

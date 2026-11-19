@@ -532,7 +532,7 @@ func equalFloat(f1, f2 float64) bool {
 	if math.IsInf(f1, 1) {
 		return math.IsInf(f2, 1)
 	}
-	if math.IsInf(f2, -1) {
+	if math.IsInf(f1, -1) {
 		return math.IsInf(f2, -1)
 	}
 	eps := math.Abs(f1 - f2)

@@ -4,14 +4,11 @@ package s3
 
 import (
 	"context"
-	"fmt"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
 	"github.com/aws/smithy-go/ptr"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // This operation is not supported for directory buckets.
@@ -77,9 +74,6 @@ type GetBucketRequestPaymentOutput struct {
 }
 
 func (c *Client) addOperationGetBucketRequestPaymentMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
-		return err
-	}
 	err = stack.Serialize.Add(&awsRestxml_serializeOpGetBucketRequestPayment{}, middleware.After)
 	if err != nil {
 		return err
@@ -88,56 +82,17 @@ func (c *Client) addOperationGetBucketRequestPaymentMiddlewares(stack *middlewar
 	if err != nil {
 		return err
 	}
-	if err := addProtocolFinalizerMiddlewares(stack, options, "GetBucketRequestPayment"); err != nil {
-		return fmt.Errorf("add protocol finalizers: %v", err)
-	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
-	if err = addSetLoggerMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = addClientRequestID(stack); err != nil {
-		return err
-	}
-	if err = addComputeContentLength(stack); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
 	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetry(stack, options, c); err != nil {
-		return err
-	}
-	if err = addRawResponseToMetadata(stack); err != nil {
-		return err
-	}
-	if err = addRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addSpanRetryLoop(stack, options); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack, options); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
 	if err = addIsExpressUserAgent(stack); err != nil {
@@ -149,13 +104,7 @@ func (c *Client) addOperationGetBucketRequestPaymentMiddlewares(stack *middlewar
 	if err = addOpGetBucketRequestPaymentValidationMiddleware(stack); err != nil {
 		return err
 	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opGetBucketRequestPayment(options.Region), middleware.Before); err != nil {
-		return err
-	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addGetBucketRequestPaymentUpdateEndpoint(stack, options); err != nil {
@@ -170,6 +119,9 @@ func (c *Client) addOperationGetBucketRequestPaymentMiddlewares(stack *middlewar
 	if err = disableAcceptEncodingGzip(stack); err != nil {
 		return err
 	}
+	if err = s3cust.HandleResponseErrorWith200Status(stack); err != nil {
+		return err
+	}
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
@@ -177,12 +129,6 @@ func (c *Client) addOperationGetBucketRequestPaymentMiddlewares(stack *middlewar
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
 	if err = addInterceptors(stack, options); err != nil {
@@ -196,14 +142,6 @@ func (v *GetBucketRequestPaymentInput) bucket() (string, bool) {
 		return "", false
 	}
 	return *v.Bucket, true
-}
-
-func newServiceMetadataMiddleware_opGetBucketRequestPayment(region string) *awsmiddleware.RegisterServiceMetadata {
-	return &awsmiddleware.RegisterServiceMetadata{
-		Region:        region,
-		ServiceID:     ServiceID,
-		OperationName: "GetBucketRequestPayment",
-	}
 }
 
 // getGetBucketRequestPaymentBucketMember returns a pointer to string denoting a

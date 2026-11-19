@@ -1,10 +1,12 @@
 import { useMemo } from "preact/compat";
 import Select from "../../Main/Select/Select";
-import { SearchIcon } from "../../Main/Icons";
+import { RefreshIcon, SearchIcon } from "../../Main/Icons";
 import TextField from "../../Main/TextField/TextField";
 import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import Button from "../../Main/Button/Button";
+import { useTimeDispatch } from "../../../state/time/TimeStateContext";
 
 interface RulesHeaderProps {
   types: string[];
@@ -32,6 +34,11 @@ const RulesHeader = ({
     [types],
   );
   const { isMobile } = useDeviceDetect();
+  const dispatch = useTimeDispatch();
+
+  const handleRefresh = () => {
+    dispatch({ type: "RUN_QUERY" });
+  };
 
   return (
     <>
@@ -50,7 +57,6 @@ const RulesHeader = ({
             label="Rule type"
             placeholder="Please select rule type"
             onChange={onChangeRuleType}
-            autofocus={!!types.length && !isMobile}
             includeAll
             searchable
           />
@@ -72,10 +78,20 @@ const RulesHeader = ({
           <TextField
             label="Search"
             value={search}
-            placeholder="Filter by rule, name or labels"
+            placeholder="Filter by group or rule name"
             startIcon={<SearchIcon />}
             onChange={onChangeSearch}
           />
+          <div>
+            <Button
+              variant="text"
+              onClick={handleRefresh}
+              startIcon={<RefreshIcon />}
+              ariaLabel="Refresh"
+            >
+              Refresh
+            </Button>
+          </div>
         </div>
       </div>
     </>

@@ -140,6 +140,26 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		}},
 	})
 
+	// Line with a tag with empty name.
+	// Such a tag must be skipped, since it overrides the metric name.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4962
+	f(`{"metric":{"__name__":"foo","":"bar","baz":"xx"},"values":[1.23],"timestamps":[456]}`, &Rows{
+		Rows: []Row{{
+			Tags: []Tag{
+				{
+					Key:   []byte("__name__"),
+					Value: []byte("foo"),
+				},
+				{
+					Key:   []byte("baz"),
+					Value: []byte("xx"),
+				},
+			},
+			Values:     []float64{1.23},
+			Timestamps: []int64{456},
+		}},
+	})
+
 	// Multiple lines
 	f(`{"metric":{"foo":"bar","baz":"xx"},"values":[1.23, -3.21],"timestamps" : [456,789]}
 {"metric":{"__name__":"xx"},"values":[34],"timestamps" : [11]}

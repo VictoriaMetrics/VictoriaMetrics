@@ -20,6 +20,11 @@ func TerminalWidth() (int, error) {
 	return 0, errors.New("Not supported")
 }
 
+// TerminalSize returns size of the terminal.
+func TerminalSize() (rows, cols int, err error) {
+	return 0, 0, errors.New("Not supported")
+}
+
 func lockEcho() error {
 	if consctl != nil {
 		return errors.New("consctl already open")

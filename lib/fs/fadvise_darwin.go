@@ -8,3 +8,8 @@ func fadviseSequentialRead(_ *os.File, _ bool) error {
 	// TODO: implement this properly
 	return nil
 }
+
+func fadviseRandomRead(_ *os.File) error {
+	// TODO: implement this properly
+	return nil
+}

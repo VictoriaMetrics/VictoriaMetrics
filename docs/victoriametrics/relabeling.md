@@ -1,6 +1,7 @@
 ---
 weight: 38
 title: Relabeling cookbook
+description: "Metrics relabeling cookbook. Filtering, label manipulation, and enrichment patterns."
 menu:
   docs:
     parent: "victoriametrics"
@@ -426,7 +427,7 @@ target.
 ### Service Discovery Relabeling Cheatsheet
 
 **Target-level relabeling** is applied during
-[service discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#prometheus-service-discovery)
+[service discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/)
 and affects the targets (which will be scraped), their labels and all the
 metrics scraped from them:
 
@@ -513,6 +514,7 @@ URLs for scrape targets are composed of the following parts:
     [scrape_config](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs)
     or by updating/setting the corresponding `__param_*` labels during
     relabeling.
+- Unix domain socket path (e.g. `/var/run/node_exporter.sock`) can be configured during target relabeling via a special label - `__unix_socket__`. If this label is set, `vmagent` tunnels the scrape request through the specified Unix domain socket instead of connecting to a TCP socket. The `__address__` label is still used to populate the `instance` label and construct the HTTP request URL, but the actual network connection goes through the Unix socket. See [Scraping targets via unix sockets](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-targets-via-unix-sockets).
 
 The resulting scrape URL looks like the following:
 
@@ -1098,7 +1100,7 @@ section instead of `relabel_configs` section. They serve different purposes:
   targets and removed after relabeling:
   - Meta-labels starting with the `__meta_` prefix. The specific sets of labels
     for each supported service discovery option are listed in
-    [Prometheus Service Discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#prometheus-service-discovery).
+    [Prometheus Service Discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#supported-service-discovery-configs).
   - Additional labels with the `__` prefix other than `__meta_` labels, such as
     [`__scheme__` or `__address__`](#how-to-modify-scrape-urls-in-targets). It
     is common practice to store temporary labels with names starting with `__`

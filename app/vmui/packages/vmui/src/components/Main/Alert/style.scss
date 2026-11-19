@@ -3,82 +3,84 @@
 .vm-alert {
   position: relative;
   display: grid;
-  grid-template-columns: 20px 1fr;
-  align-items: center;
   gap: $padding-small;
+  grid-template-columns: 16px 1fr;
+  align-items: center;
   padding: $padding-global;
-  border-radius: $border-radius-medium;
-  box-shadow: $box-shadow;
-  font-size: $font-size;
-  font-weight: normal;
-  color: $color-text;
-  line-height: 1.5;
-  opacity: 0.8;
+  font-size: $font-size-small;
+  z-index: 8;
 
-  &_mobile {
-    align-items: flex-start;
-    border-radius: 0;
+  &__backdrop {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: $border-radius-medium;
+    background: $color-background-block;
+    z-index: -1;
   }
 
-  &__icon,
+  &:before,
+  &:after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: $border-radius-medium;
+    z-index: -1;
+  }
+
+  &:after {
+    opacity: 0.04;
+  }
+
+  &:before {
+    opacity: 0.4;
+    transform: translate(-1px, -1px);
+  }
+
+  &__title,
   &__content {
-    position: relative;
-    z-index: 2;
-  }
-
-  &__icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    align-self: flex-start;
-    min-height: 24px;
-    filter: brightness(0.6);
-  }
-
-  &__content {
+    min-width: 0;
     white-space: pre-line;
-    text-wrap: balance;
     overflow-wrap: anywhere;
-    filter: brightness(0.6);
   }
 
-  &_success {
-    color: $color-success;
-    background-color: $color-background-success;
+  &__title {
+    font-weight: 500;
   }
 
-  &_error {
-    color: $color-error;
-    background-color: $color-background-error;
+  &__content {
+    grid-column: 1/span 2;
+    line-height: 1.3;
+    color: $color-text-secondary;
+    word-break: break-word;
+    text-wrap: pretty;
   }
 
-  &_info {
-    color: $color-info;
-    background-color: $color-background-info;
+  @mixin variant-alert($name, $color: $color-white) {
+    &_#{"" + $name} &__icon {
+      color: $color;
+    }
+
+    &_#{"" + $name}:after {
+      background-color: $color;
+    }
+
+    &_#{"" + $name}::before {
+      border: 1px solid $color;
+    }
   }
 
-  &_warning {
-    color: $color-warning;
-    background-color: $color-background-warning;
-  }
+  $alert-colors: (
+    info: $color-info,
+    warning: $color-warning,
+    error: $color-error,
+    success: $color-success,
+  );
 
-  &_dark &__content, &_dark &__icon {
-    filter: none;
-  }
-
-  &_dark:is(&_success) {
-    border: 0.5px solid $color-success;
-  }
-
-  &_dark:is(&_error) {
-    border: 0.5px solid $color-error;
-  }
-
-  &_dark:is(&_info) {
-    border: 0.5px solid $color-info;
-  }
-
-  &_dark:is(&_warning) {
-    border: 0.5px solid $color-warning;
+  @each $name, $color in $alert-colors {
+    @include variant-alert($name, $color);
   }
 }

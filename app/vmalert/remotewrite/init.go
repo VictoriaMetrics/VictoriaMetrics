@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	addr = flag.String("remoteWrite.url", "", "Optional URL to VictoriaMetrics or vminsert where to persist alerts state "+
-		"and recording rules results in form of timeseries. "+
+	addr = flag.String("remoteWrite.url", "", "Optional URL to persist alerts state and recording rules results in form of timeseries. "+
+		"It must support either VictoriaMetrics remote write protocol or Prometheus remote_write protocol. "+
 		"Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. "+
 		"For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, "+
 		"then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend, '-remoteWrite.showURL'.")
@@ -26,6 +26,7 @@ var (
 		"Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'")
 
 	basicAuthUsername     = flag.String("remoteWrite.basicAuth.username", "", "Optional basic auth username for -remoteWrite.url")
+	basicAuthUsernameFile = flag.String("remoteWrite.basicAuth.usernameFile", "", "Optional path to basic auth username to use for -remoteWrite.url")
 	basicAuthPassword     = flag.String("remoteWrite.basicAuth.password", "", "Optional basic auth password for -remoteWrite.url")
 	basicAuthPasswordFile = flag.String("remoteWrite.basicAuth.passwordFile", "", "Optional path to basic auth password to use for -remoteWrite.url")
 
@@ -33,10 +34,12 @@ var (
 	bearerTokenFile = flag.String("remoteWrite.bearerTokenFile", "", "Optional path to bearer token file to use for -remoteWrite.url.")
 
 	idleConnectionTimeout = flag.Duration("remoteWrite.idleConnTimeout", 50*time.Second, `Defines a duration for idle (keep-alive connections) to exist. Consider settings this value less to the value of "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors.`)
+	maxIdleConnections    = flag.Int("remoteWrite.maxIdleConnections", 100, `Defines the number of idle (keep-alive connections) to -remoteWrite.url for the vmalert-tool debug writer, which sends every series in a separate request. Too low a value may result in a high number of sockets in TIME_WAIT state.`)
 
-	maxQueueSize  = flag.Int("remoteWrite.maxQueueSize", defaultMaxQueueSize, "Defines the max number of pending datapoints to remote write endpoint")
-	maxBatchSize  = flag.Int("remoteWrite.maxBatchSize", defaultMaxBatchSize, "Defines max number of timeseries to be flushed at once")
-	concurrency   = flag.Int("remoteWrite.concurrency", defaultConcurrency, "Defines number of writers for concurrent writing into remote write endpoint. Default value depends on the number of available CPU cores.")
+	maxQueueSize = flag.Int("remoteWrite.maxQueueSize", defaultMaxQueueSize, "Defines the max number of pending datapoints to remote write endpoint")
+	maxBatchSize = flag.Int("remoteWrite.maxBatchSize", defaultMaxBatchSize, "Defines max number of timeseries to be flushed at once")
+	concurrency  = flagutil.NewIntWithDynamicDefault("remoteWrite.concurrency", defaultConcurrency, "2x CPU cores",
+		"Defines number of writers for concurrent writing into remote write endpoint. Default value depends on the number of available CPU cores.")
 	flushInterval = flag.Duration("remoteWrite.flushInterval", defaultFlushInterval, "Defines interval of flushes to remote write endpoint")
 
 	tlsInsecureSkipVerify = flag.Bool("remoteWrite.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -remoteWrite.url")
@@ -56,11 +59,13 @@ var (
 	oauth2Scopes   = flag.String("remoteWrite.oauth2.scopes", "", "Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'.")
 )
 
-// InitSecretFlags must be called after flag.Parse and before any logging
+// InitSecretFlags manages the secret flags for this pkg and must be called by app-level initSecretFlags.
+// It should run before logger initialization and package Init() (if exists).
 func InitSecretFlags() {
 	if !*showRemoteWriteURL {
 		flagutil.RegisterSecretFlag("remoteWrite.url")
 	}
+	flagutil.RegisterSecretFlag("remoteWrite.headers")
 }
 
 // Init creates Client object from given flags.
@@ -83,7 +88,7 @@ func Init(ctx context.Context) (*Client, error) {
 		return nil, fmt.Errorf("cannot parse JSON for -remoteWrite.oauth2.endpointParams=%s: %w", *oauth2EndpointParams, err)
 	}
 	authCfg, err := vmalertutil.AuthConfig(
-		vmalertutil.WithBasicAuth(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile),
+		vmalertutil.WithBasicAuth(*basicAuthUsername, *basicAuthUsernameFile, *basicAuthPassword, *basicAuthPasswordFile),
 		vmalertutil.WithBearer(*bearerToken, *bearerTokenFile),
 		vmalertutil.WithOAuth(*oauth2ClientID, *oauth2ClientSecret, *oauth2ClientSecretFile, *oauth2TokenURL, *oauth2Scopes, endpointParams),
 		vmalertutil.WithHeaders(*headers))

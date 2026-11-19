@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -35,6 +36,7 @@ import (
 )
 
 const (
+	retention2Days  = 2 * 24 * time.Hour
 	retention31Days = 31 * 24 * time.Hour
 	retentionMax    = 100 * 12 * retention31Days
 	idbPrefilStart  = time.Hour
@@ -66,9 +68,12 @@ type Storage struct {
 	// indexdb rotation.
 	legacyNextRotationTimestamp atomic.Int64
 
-	path           string
-	cachePath      string
-	retentionMsecs int64
+	path                        string
+	cachePath                   string
+	retentionMsecs              int64
+	futureRetentionMsecs        int64
+	maxBackfillAgeMsecs         int64
+	denyQueriesOutsideRetention bool
 
 	// lock file for exclusive access to the storage on the given path.
 	flockF *os.File
@@ -176,13 +181,16 @@ type accountProjectKey struct {
 
 // OpenOptions optional args for MustOpenStorage
 type OpenOptions struct {
-	Retention             time.Duration
-	MaxHourlySeries       int
-	MaxDailySeries        int
-	DisablePerDayIndex    bool
-	TrackMetricNamesStats bool
-	IDBPrefillStart       time.Duration
-	LogNewSeries          bool
+	Retention                   time.Duration
+	FutureRetention             time.Duration
+	MaxBackfillAge              time.Duration
+	DenyQueriesOutsideRetention bool
+	MaxHourlySeries             int
+	MaxDailySeries              int
+	DisablePerDayIndex          bool
+	TrackMetricNamesStats       bool
+	IDBPrefillStart             time.Duration
+	LogNewSeries                bool
 }
 
 // MustOpenStorage opens storage on the given path with the given retentionMsecs.
@@ -198,16 +206,24 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	if retention <= 0 || retention > retentionMax {
 		retention = retentionMax
 	}
+	futureRetention := max(opts.FutureRetention, retention2Days)
+	maxBackfillAge := opts.MaxBackfillAge
+	if maxBackfillAge <= 0 || maxBackfillAge > retention {
+		maxBackfillAge = retention
+	}
 	idbPrefillStart := opts.IDBPrefillStart
 	if idbPrefillStart <= 0 {
 		idbPrefillStart = time.Hour
 	}
 	s := &Storage{
-		path:                   path,
-		cachePath:              filepath.Join(path, cacheDirname),
-		retentionMsecs:         retention.Milliseconds(),
-		stopCh:                 make(chan struct{}),
-		idbPrefillStartSeconds: idbPrefillStart.Milliseconds() / 1000,
+		path:                        path,
+		cachePath:                   filepath.Join(path, cacheDirname),
+		retentionMsecs:              retention.Milliseconds(),
+		futureRetentionMsecs:        futureRetention.Milliseconds(),
+		maxBackfillAgeMsecs:         maxBackfillAge.Milliseconds(),
+		denyQueriesOutsideRetention: opts.DenyQueriesOutsideRetention,
+		stopCh:                      make(chan struct{}),
+		idbPrefillStartSeconds:      idbPrefillStart.Milliseconds() / 1000,
 	}
 	s.logNewSeries.Store(opts.LogNewSeries)
 
@@ -567,6 +583,7 @@ type Metrics struct {
 	TimestampsBlocksMerged uint64
 	TimestampsBytesSaved   uint64
 
+	TSIDCacheMode         uint64
 	TSIDCacheSize         uint64
 	TSIDCacheSizeBytes    uint64
 	TSIDCacheSizeMaxBytes uint64
@@ -574,6 +591,7 @@ type Metrics struct {
 	TSIDCacheMisses       uint64
 	TSIDCacheCollisions   uint64
 
+	MetricIDCacheMode         uint64
 	MetricIDCacheSize         uint64
 	MetricIDCacheSizeBytes    uint64
 	MetricIDCacheSizeMaxBytes uint64
@@ -581,6 +599,7 @@ type Metrics struct {
 	MetricIDCacheMisses       uint64
 	MetricIDCacheCollisions   uint64
 
+	MetricNameCacheMode         uint64
 	MetricNameCacheSize         uint64
 	MetricNameCacheSizeBytes    uint64
 	MetricNameCacheSizeMaxBytes uint64
@@ -648,6 +667,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	var cs fastcache.Stats
 	s.tsidCache.UpdateStats(&cs)
+	m.TSIDCacheMode = s.tsidCache.Mode()
 	m.TSIDCacheSize += cs.EntriesCount
 	m.TSIDCacheSizeBytes += cs.BytesSize
 	m.TSIDCacheSizeMaxBytes += cs.MaxBytesSize
@@ -657,6 +677,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	cs.Reset()
 	s.metricIDCache.UpdateStats(&cs)
+	m.MetricIDCacheMode = s.metricIDCache.Mode()
 	m.MetricIDCacheSize += cs.EntriesCount
 	m.MetricIDCacheSizeBytes += cs.BytesSize
 	m.MetricIDCacheSizeMaxBytes += cs.MaxBytesSize
@@ -666,6 +687,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	cs.Reset()
 	s.metricNameCache.UpdateStats(&cs)
+	m.MetricNameCacheMode = s.metricNameCache.Mode()
 	m.MetricNameCacheSize += cs.EntriesCount
 	m.MetricNameCacheSizeBytes += cs.BytesSize
 	m.MetricNameCacheSizeMaxBytes += cs.MaxBytesSize
@@ -1180,6 +1202,14 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	qt = qt.NewChild("search indexDBs: timeRange=%v", &tr)
 	defer qt.Done()
 
+	var zeroValue T
+	if tr.MinTimestamp < minUnixMilli {
+		tr.MinTimestamp = minUnixMilli
+	}
+	if tr.MaxTimestamp < tr.MinTimestamp {
+		return zeroValue, nil
+	}
+
 	var idbts []indexDBWithType
 
 	ptws := s.tb.GetPartitions(tr)
@@ -1208,27 +1238,25 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	if len(idbts) == 1 {
 		// It is faster to process one indexDB without spawning goroutines.
 		idbt := idbts[0]
-		searchTR := s.adjustTimeRange(tr, idbt.idb.tr)
-		qtChild := qt.NewChild("search indexDB %s: timeRange=%v", idbt, &searchTR)
-		data[0], errs[0] = search(qtChild, idbt.idb, searchTR)
+		qtChild := qt.NewChild("search indexDB %s: timeRange=%v", idbt, &tr)
+		data[0], errs[0] = search(qtChild, idbt.idb, tr)
 		qtChild.Done()
 	} else {
 		qtSearch := qt.NewChild("search %d indexDBs in parallel", len(idbts))
 		var wg sync.WaitGroup
 		for i, idbt := range idbts {
-			searchTR := s.adjustTimeRange(tr, idbt.idb.tr)
-			qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idbt, &searchTR)
+			qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idbt, &tr)
 			wg.Go(func() {
 				// Intentionally repeat the same search code for each indexDB
 				// type so that profiles (cpu, mem, etc) could show how many
 				// resources have been consumed by each indexDB type.
 				switch idbt.t {
 				case indexDBTypePt:
-					data[i], errs[i] = search(qtChild, idbt.idb, searchTR)
+					data[i], errs[i] = search(qtChild, idbt.idb, tr)
 				case indexDBTypeLegacyPrev:
-					data[i], errs[i] = search(qtChild, idbt.idb, searchTR)
+					data[i], errs[i] = search(qtChild, idbt.idb, tr)
 				case indexDBTypeLegacyCurr:
-					data[i], errs[i] = search(qtChild, idbt.idb, searchTR)
+					data[i], errs[i] = search(qtChild, idbt.idb, tr)
 				}
 				qtChild.Done()
 			})
@@ -1297,22 +1325,44 @@ func searchAndMergeUniq(qt *querytracer.Tracer, s *Storage, tr TimeRange, search
 	return res, nil
 }
 
+// checkTimeRange returns an error if time range is outside the allowed
+// -retentionPeriod or -futureRetention window when
+// -denyQueriesOutsideRetention flag is set
+func (s *Storage) checkTimeRange(tr TimeRange) error {
+	if !s.denyQueriesOutsideRetention {
+		return nil
+	}
+
+	minTimestamp, maxTimestamp := s.tb.getMinMaxRetentionTimestamps()
+	if minTimestamp <= tr.MinTimestamp && tr.MaxTimestamp <= maxTimestamp {
+		return nil
+	}
+
+	retention := time.Duration(s.retentionMsecs) * time.Millisecond
+	futureRetention := time.Duration(s.futureRetentionMsecs) * time.Millisecond
+	return fmt.Errorf("the given time range %s is outside the allowed -retentionPeriod=%s, -futureRetention=%s "+
+		"according to -denyQueriesOutsideRetention", &tr, retention, futureRetention)
+}
+
 // SearchTSIDs searches the TSIDs that correspond to filters within the given
 // time range.
 //
 // The returned TSIDs are sorted.
 //
-// The method will fail if the number of found TSIDs exceeds maxMetrics or the
-// search has not completed within the specified deadline.
-func (s *Storage) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
+// The method will fail if the number of found TSIDs exceeds maxMetrics.
+func (s *Storage) SearchTSIDs(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]TSID, error) {
 	qt = qt.NewChild("search TSIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 	if len(tfss) == 0 {
 		return nil, nil
 	}
 
+	if err := s.checkTimeRange(tr); err != nil {
+		return nil, err
+	}
+
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]TSID, error) {
-		return idb.SearchTSIDs(qt, tfss, tr, maxMetrics, deadline)
+		return idb.SearchTSIDs(ctx, qt, tfss, tr, maxMetrics)
 	}
 
 	merge := func(data [][]TSID) []TSID {
@@ -1344,10 +1394,13 @@ func (s *Storage) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Tim
 //
 // The marshaled metric names must be unmarshaled via
 // MetricName.UnmarshalString().
-func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
+func (s *Storage) SearchMetricNames(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]string, error) {
 	qt = qt.NewChild("search metric names: filters=%s, timeRange=%s, maxMetrics: %d", tfss, &tr, maxMetrics)
+	if err := s.checkTimeRange(tr); err != nil {
+		return nil, err
+	}
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]string, error) {
-		return idb.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
+		return idb.SearchMetricNames(ctx, qt, tfss, tr, maxMetrics)
 	}
 
 	merge := func(data [][]string) []string {
@@ -1375,9 +1428,6 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 	return res, nil
 }
 
-// ErrDeadlineExceeded is returned when the request times out.
-var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
-
 // DeleteSeries marks as deleted all series matching the given tfss and
 // resets caches where the corresponding TSIDs and MetricIDs may be stored if
 // needed.
@@ -1388,7 +1438,7 @@ var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
 //
 // If legacy indexDBs are present, the method will also delete the metricIDs
 // from them.
-func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (int, error) {
+func (s *Storage) DeleteSeries(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (int, error) {
 	qt = qt.NewChild("delete series: filters=%s, maxMetrics=%d", tfss, maxMetrics)
 	defer qt.Done()
 
@@ -1399,11 +1449,11 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	// Not deleting in parallel because the deletion operation is rare.
 
 	all := &uint64set.Set{}
-	legacyDMIs, err := s.legacyDeleteSeries(qt, tfss, maxMetrics)
+	legacyDMIs, err := s.legacyDeleteSeries(ctx, qt, tfss, maxMetrics)
 	if err != nil {
 		return 0, err
 	}
-	all.UnionMayOwn(legacyDMIs)
+	all.Union(legacyDMIs)
 
 	ptws := s.tb.GetAllPartitions(nil)
 	defer s.tb.PutPartitions(ptws)
@@ -1414,12 +1464,12 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 		if legacyDMIs.Len() > 0 {
 			idb.updateDeletedMetricIDs(legacyDMIs)
 		}
-		dmis, err := idb.DeleteSeries(qt, tfss, maxMetrics)
+		dmis, err := idb.DeleteSeries(ctx, qt, tfss, maxMetrics)
 		if err != nil {
 			return 0, err
 		}
 		n := dmis.Len()
-		all.UnionMayOwn(dmis)
+		all.Union(dmis)
 		qt.Printf("deleted %d metricIDs from %s partition indexDB", n, idb.name)
 	}
 
@@ -1429,12 +1479,12 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 }
 
 // SearchLabelNames searches for label names matching the given tfss on tr.
-func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) ([]string, error) {
+func (s *Storage) SearchLabelNames(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int) ([]string, error) {
 	qt = qt.NewChild("search for label names: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", tfss, &tr, maxLabelNames, maxMetrics)
 	defer qt.Done()
 
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
-		return idb.SearchLabelNames(qt, accountID, projectID, tfss, tr, maxLabelNames, maxMetrics, deadline)
+		return idb.SearchLabelNames(ctx, qt, accountID, projectID, tfss, tr, maxLabelNames, maxMetrics)
 	}
 	res, err := searchAndMergeUniq(qt, s, tr, search, maxLabelNames)
 	if err != nil {
@@ -1445,12 +1495,12 @@ func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, accountID, projectID 
 }
 
 // SearchLabelValues searches for label values for the given labelName, filters and tr.
-func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, accountID, projectID uint32, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
+func (s *Storage) SearchLabelValues(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int) ([]string, error) {
 	qt = qt.NewChild("search for label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
 	defer qt.Done()
 
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
-		return idb.SearchLabelValues(qt, accountID, projectID, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
+		return idb.SearchLabelValues(ctx, qt, accountID, projectID, labelName, tfss, tr, maxLabelValues, maxMetrics)
 	}
 	res, err := searchAndMergeUniq(qt, s, tr, search, maxLabelValues)
 	if err != nil {
@@ -1469,9 +1519,9 @@ func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, accountID, projectID
 //
 // If more than maxTagValueSuffixes suffixes is found, then only the first
 // maxTagValueSuffixes suffixes is returned.
-func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
+func (s *Storage) SearchTagValueSuffixes(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int) ([]string, error) {
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
-		return idb.SearchTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
+		return idb.SearchTagValueSuffixes(ctx, qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	}
 	res, err := searchAndMergeUniq(qt, s, tr, search, maxTagValueSuffixes)
 	if err != nil {
@@ -1483,10 +1533,10 @@ func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, accountID, proj
 
 // SearchGraphitePaths returns all the matching paths for the given graphite
 // query on the given tr.
-func (s *Storage) SearchGraphitePaths(qt *querytracer.Tracer, accountID, projectID uint32, tr TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
+func (s *Storage) SearchGraphitePaths(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32, tr TimeRange, query []byte, maxPaths int) ([]string, error) {
 	query = replaceAlternateRegexpsWithGraphiteWildcards(query)
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
-		return idb.SearchGraphitePaths(qt, accountID, projectID, tr, nil, query, maxPaths, deadline)
+		return idb.SearchGraphitePaths(ctx, qt, accountID, projectID, tr, nil, query, maxPaths)
 	}
 
 	res, err := searchAndMergeUniq(qt, s, tr, search, maxPaths)
@@ -1544,13 +1594,13 @@ func replaceAlternateRegexpsWithGraphiteWildcards(b []byte) []byte {
 // more than one indexDB.
 //
 // It also includes the deleted series.
-func (s *Storage) GetSeriesCount(accountID, projectID uint32, deadline uint64) (uint64, error) {
+func (s *Storage) GetSeriesCount(ctx context.Context, accountID, projectID uint32) (uint64, error) {
 	tr := TimeRange{
 		MinTimestamp: 0,
 		MaxTimestamp: time.Now().UnixMilli(),
 	}
 	search := func(_ *querytracer.Tracer, idb *indexDB, _ TimeRange) (uint64, error) {
-		return idb.GetSeriesCount(accountID, projectID, deadline)
+		return idb.GetSeriesCount(ctx, accountID, projectID)
 	}
 	merge := func(data []uint64) uint64 {
 		var total uint64
@@ -1563,12 +1613,12 @@ func (s *Storage) GetSeriesCount(accountID, projectID uint32, deadline uint64) (
 }
 
 // SearchTenants returns list of registered tenants on the given tr.
-func (s *Storage) SearchTenants(qt *querytracer.Tracer, tr TimeRange, deadline uint64) ([]string, error) {
+func (s *Storage) SearchTenants(ctx context.Context, qt *querytracer.Tracer, tr TimeRange) ([]string, error) {
 	qt = qt.NewChild("search for tenants: timeRange=%s", &tr)
 	defer qt.Done()
 
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
-		return idb.SearchTenants(qt, tr, deadline)
+		return idb.SearchTenants(ctx, qt, tr)
 	}
 	res, err := searchAndMergeUniq(qt, s, tr, search, math.MaxInt)
 	if err != nil {
@@ -1583,7 +1633,7 @@ func (s *Storage) SearchTenants(qt *querytracer.Tracer, tr TimeRange, deadline u
 // The method does not provide status for legacy IDBs because merging partition
 // indexDB and legacy indexDB statuses is non-trivial and not many users use
 // this status for historical data.
-func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
+func (s *Storage) GetTSDBStatus(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int) (*TSDBStatus, error) {
 	qt = qt.NewChild("collect TSDB status: filters=%s, date=%s, focusLabel=%q, topN=%d, maxMetrics=%d", tfss, dateToString(date), focusLabel, topN, maxMetrics)
 	defer qt.Done()
 
@@ -1598,19 +1648,13 @@ func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uin
 	}
 	defer s.tb.PutPartition(ptw)
 
-	if s.disablePerDayIndex {
-		// Use special date to instruct indexDB to search global index since
-		// per-day index is disabled.
-		date = globalIndexDate
-	}
-
 	var (
 		res *TSDBStatus
 		err error
 	)
 	idbName := ptw.pt.idb.name
 	qt.Printf("collect TSDB status in indexDB %s", idbName)
-	res, err = ptw.pt.idb.GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
+	res, err = ptw.pt.idb.GetTSDBStatus(ctx, qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -1621,7 +1665,7 @@ func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uin
 		// fallback to the legacy indexDBs search
 		// since after migration monthly partition may not have stats for time range covered
 		// by partition index.
-		res, err = s.legacyGetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
+		res, err = s.legacyGetTSDBStatus(ctx, qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics)
 		if err != nil {
 			return nil, err
 		}
@@ -1804,47 +1848,6 @@ var metricRowsInsertCtxPool sync.Pool
 
 const maxMetricRowsPerBlock = 8000
 
-// It has been found empirically, that once the time range is bigger than 40
-// days searching using per-day index becomes slower than using global index.
-//
-// TODO(rtm0): Extract into a flag?
-const maxDaysForPerDaySearch = 40
-
-// adjustTimeRange decides whether to use the time range as is or use
-// globalIndexTimeRange based on the time range length and -disablePerDayIndex
-// flag.
-func (s *Storage) adjustTimeRange(searchTR, idbTR TimeRange) TimeRange {
-	// If the per day index is disabled, unconditionally search global index.
-	if s.disablePerDayIndex {
-		return globalIndexTimeRange
-	}
-
-	tr := idbTR
-	if idbTR.contains(searchTR.MinTimestamp) {
-		tr.MinTimestamp = searchTR.MinTimestamp
-	}
-	if idbTR.contains(searchTR.MaxTimestamp) {
-		tr.MaxTimestamp = searchTR.MaxTimestamp
-	}
-
-	// For legacy IndexDBs only, partition indexDBs can't span more than a
-	// month.
-	minDate, maxDate := tr.DateRange()
-	if maxDate-minDate > maxDaysForPerDaySearch {
-		return globalIndexTimeRange
-	}
-
-	// For partition IndexDBs only. If the final time range is still the same as
-	// the idb time range, then return globalIndexTimeRange to indicate that we
-	// want to search the global index since the entire index db needs to be
-	// searched anyway.
-	if tr == idbTR {
-		return globalIndexTimeRange
-	}
-
-	return tr
-}
-
 // RegisterMetricNames registers all the metric names from mrs in the indexdb, so they can be queried later.
 //
 // The the MetricRow.Timestamp is used for registering the metric name at the given day according to the timestamp.
@@ -1884,7 +1887,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 			}
 			ptw = s.tb.MustGetPartition(mr.Timestamp)
 			idb = ptw.pt.idb
-			is = idb.getIndexSearch(0, 0, noDeadline)
+			is = idb.getIndexSearch(0, 0)
 			deletedMetricIDs = idb.getDeletedMetricIDs()
 		}
 
@@ -1904,9 +1907,9 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 				}
 				mn.sortTags()
 				idb.createGlobalIndexes(&lTSID.TSID, mn)
-				idb.createPerDayIndexes(date, &lTSID.TSID, mn)
 				seriesRepopulated++
-			} else if !is.hasDateMetricID(date, lTSID.TSID.MetricID, lTSID.TSID.AccountID, lTSID.TSID.ProjectID) {
+			}
+			if !is.hasDateMetricID(date, lTSID.TSID.MetricID, lTSID.TSID.AccountID, lTSID.TSID.ProjectID) {
 				if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 					if firstWarn == nil {
 						firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
@@ -1998,7 +2001,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	var newSeriesCount uint64
 	var seriesRepopulated uint64
 
-	minTimestamp, maxTimestamp := s.tb.getMinMaxTimestamps()
+	minTimestamp, maxTimestamp := s.tb.getMinMaxIngestionTimestamps()
 
 	var lTSID legacyTSID
 	var ptw *partitionWrapper
@@ -2020,11 +2023,11 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			}
 		}
 		if mr.Timestamp < minTimestamp {
-			// Skip rows with too small timestamps outside the retention.
+			// Skip rows with too small timestamps outside the retention or -maxBackfillAge.
 			if firstWarn == nil {
 				metricName := getUserReadableMetricName(mr.MetricNameRaw)
-				firstWarn = fmt.Errorf("cannot insert row with too small timestamp %d outside the retention; minimum allowed timestamp is %d; "+
-					"probably you need updating -retentionPeriod command-line flag; metricName: %s",
+				firstWarn = fmt.Errorf("cannot insert row with too small timestamp %d; minimum allowed timestamp is %d; "+
+					"probably you need updating -retentionPeriod or -maxBackfillAge command-line flags; metricName: %s",
 					mr.Timestamp, minTimestamp, metricName)
 			}
 			s.tooSmallTimestampRows.Add(1)
@@ -2058,7 +2061,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			}
 			ptw = s.tb.MustGetPartition(r.Timestamp)
 			idb = ptw.pt.idb
-			is = idb.getIndexSearch(0, 0, noDeadline)
+			is = idb.getIndexSearch(0, 0)
 			deletedMetricIDs = idb.getDeletedMetricIDs()
 		}
 
@@ -2094,7 +2097,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 		// tsidCache may contain TSIDs that were deleted from some indexDBs but
 		// are still in use in other indexDBs. Thus, also check if a given TSID
-		// was not deleted deom the current indexDB.
+		// was not deleted from the current indexDB.
 		if s.getTSIDByMetricNameFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Has(lTSID.TSID.MetricID) {
 			// Fast path - the TSID for the given mr.MetricNameRaw has been found in cache and isn't deleted.
 
@@ -2300,7 +2303,7 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 	ptwNext := s.tb.MustGetPartition(nextMonth.UnixMilli())
 	idbNext := ptwNext.pt.idb
 	defer s.tb.PutPartition(ptwNext)
-	isNext := idbNext.getIndexSearch(0, 0, noDeadline)
+	isNext := idbNext.getIndexSearch(0, 0)
 	defer idbNext.putIndexSearch(isNext)
 
 	var firstError error
@@ -2530,7 +2533,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			}
 			ptw = s.tb.MustGetPartition(timestamp)
 			idb = ptw.pt.idb
-			is = idb.getIndexSearch(0, 0, noDeadline)
+			is = idb.getIndexSearch(0, 0)
 		}
 
 		if !is.hasDateMetricID(date, metricID, dmid.tsid.AccountID, dmid.tsid.ProjectID) {
@@ -2785,7 +2788,7 @@ func (s *Storage) wasMetricIDMissingBefore(metricID uint64) bool {
 }
 
 // GetMetricNamesStats returns metric names usage stats with give limit and lte predicate
-func (s *Storage) GetMetricNamesStats(_ *querytracer.Tracer, tt *TenantToken, limit, le int, matchPattern string) metricnamestats.StatsResult {
+func (s *Storage) GetMetricNamesStats(_ context.Context, _ *querytracer.Tracer, tt *TenantToken, limit, le int, matchPattern string) metricnamestats.StatsResult {
 	if tt != nil {
 		return s.metricsTracker.GetStatsForTenant(tt.AccountID, tt.ProjectID, limit, le, matchPattern)
 	}
@@ -2800,7 +2803,7 @@ func (s *Storage) ResetMetricNamesStats(_ *querytracer.Tracer) {
 }
 
 // GetMetadataRows returns time series metric names metadata for the given args
-func (s *Storage) GetMetadataRows(qt *querytracer.Tracer, tt *TenantToken, limit int, metricName string, _ uint64) ([]*metricsmetadata.Row, error) {
+func (s *Storage) GetMetadataRows(_ context.Context, qt *querytracer.Tracer, tt *TenantToken, limit int, metricName string) ([]*metricsmetadata.Row, error) {
 	var (
 		res []*metricsmetadata.Row
 	)

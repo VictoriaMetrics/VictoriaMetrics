@@ -7,6 +7,7 @@ export const ALL_STORAGE_KEYS = [
   "SERIES_LIMITS",
   "LEGEND_AUTO_COLLAPSE",
   "TABLE_COMPACT",
+  "REDUCE_MEM_USAGE",
   "TIMEZONE",
   "DISABLED_DEFAULT_TIMEZONE",
   "THEME",
@@ -16,7 +17,11 @@ export const ALL_STORAGE_KEYS = [
   "POINTS_SHOW_ALL",
 ] as const;
 
-export type StorageKeys = (typeof ALL_STORAGE_KEYS)[number];
+export type FaviconStorageKey = `FAVICON_COLOR:${string}`;
+
+export type StorageKeys =
+  | (typeof ALL_STORAGE_KEYS)[number]
+  | FaviconStorageKey;
 
 type PrefixedStorageKeys = `${typeof STORAGE_PREFIX}${StorageKeys}`;
 
@@ -57,7 +62,10 @@ export const getFromStorage = (key: StorageKeys, withPrefix = true): undefined |
 
 export const removeFromStorage = (keys: StorageKeys[], withPrefix = true): void => {
   const storageKeys = withPrefix ? keys.map(toPrefixedKey) : keys;
-  storageKeys.forEach(k => window.localStorage.removeItem(k));
+  storageKeys.forEach(k => {
+    window.localStorage.removeItem(k);
+    window.dispatchEvent(new StorageEvent("storage", { key: k }));
+  });
 };
 
 /**

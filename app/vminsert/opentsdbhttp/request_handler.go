@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
@@ -13,7 +15,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdbhttp/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (

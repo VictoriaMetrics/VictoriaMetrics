@@ -133,6 +133,57 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	}
 }
 
+func TestScrapeWorkParseErrorsCount(t *testing.T) {
+	f := func(streamParse bool) {
+		t.Helper()
+
+		const badLines = 5
+		var data strings.Builder
+		data.WriteString("foo 1\n")
+		for i := 0; i < badLines; i++ {
+			fmt.Fprintf(&data, "bad_metric_%d{\n", i)
+		}
+
+		var sw scrapeWork
+		sw.Config = &ScrapeWork{
+			StreamParse:   streamParse,
+			ScrapeTimeout: time.Second * 42,
+			MaxScrapeSize: maxScrapeSize.N,
+		}
+		sw.ReadData = func(dst *chunkedbuffer.Buffer) (bool, error) {
+			dst.MustWrite([]byte(data.String()))
+			return false, nil
+		}
+		sw.PushData = func(_ *auth.Token, _ *prompb.WriteRequest) {}
+
+		if streamParse {
+			protoparserutil.StartUnmarshalWorkers()
+			defer protoparserutil.StopUnmarshalWorkers()
+		}
+
+		tsmGlobal.Register(&sw)
+		defer tsmGlobal.Unregister(&sw)
+
+		// The counter must be reset on every scrape instead of accumulating across scrapes.
+		timestamp := int64(123000)
+		for i := 0; i < 3; i++ {
+			if err := sw.scrapeInternal(timestamp, timestamp); err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			if n := sw.parseErrorsCount.Load(); n != badLines {
+				t.Fatalf("unexpected number of parse errors after scrape #%d; got %d; want %d", i, n, badLines)
+			}
+			timestamp += 10000
+		}
+	}
+
+	// one-shot mode
+	f(false)
+
+	// stream mode
+	f(true)
+}
+
 // TestScrapeWorkScrapeInternalSuccess validates that the parsing functionality, relabeling,
 // sample limits, series limits, auto metrics and so on, works correctly and
 // consistently between streaming and one-shot modes.
@@ -667,11 +718,11 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 	}
 
 	generateScrape := func(n int) string {
-		w := strings.Builder{}
+		var w strings.Builder
 		for i := range n {
-			w.WriteString(fmt.Sprintf("fooooo_%d 1\n", i))
+			fmt.Fprintf(&w, "fooooo_%d 1\n", i)
 			if i%100 == 0 {
-				w.WriteString(fmt.Sprintf("# HELP fooooo_%d This is a test\n", i))
+				fmt.Fprintf(&w, "# HELP fooooo_%d This is a test\n", i)
 			}
 		}
 		return w.String()
@@ -700,7 +751,7 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 		StreamParse:   true,
 		ScrapeTimeout: time.Second * 42,
 		SeriesLimit:   4000,
-	}, 3, 4015, 2, 50)
+	}, 3, 4012, 2, 50)
 }
 
 func TestScrapeWorkScrapeInternalWithMaxScrapeSize(t *testing.T) {
@@ -1005,9 +1056,9 @@ func TestSendStaleSeries(t *testing.T) {
 		}
 	}
 	generateScrape := func(n int) string {
-		w := strings.Builder{}
+		var w strings.Builder
 		for i := range n {
-			w.WriteString(fmt.Sprintf("foo_%d 1\n", i))
+			fmt.Fprintf(&w, "foo_%d 1\n", i)
 		}
 		return w.String()
 	}

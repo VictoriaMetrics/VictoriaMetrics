@@ -4,11 +4,8 @@ package sts
 
 import (
 	"context"
-	"fmt"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/service/sts/types"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Returns a set of temporary credentials for an Amazon Web Services account or
@@ -92,6 +89,12 @@ type GetSessionTokenInput struct {
 	// Services account owners defaults to one hour.
 	DurationSeconds *int32
 
+	// The minimum size, in bytes, of the session token that STS issues for the
+	// request. STS increases the session token to at least this size, regardless of
+	// its actual content. The value must not exceed 4,096 bytes. When set to 0 or not
+	// specified, the session token size is unchanged.
+	MinimumSessionTokenSize *int32
+
 	// The identification number of the MFA device that is associated with the IAM
 	// user who is making the GetSessionToken call. Specify this value if the IAM user
 	// has a policy that requires MFA authentication. The value is either the serial
@@ -130,6 +133,14 @@ type GetSessionTokenOutput struct {
 	// strongly recommend that you make no assumptions about the maximum size.
 	Credentials *types.Credentials
 
+	// The size, in bytes, of the session token returned in the Credentials for this
+	// response.
+	SessionTokenSize *int32
+
+	// The percentage (0-100) of the maximum allowed session token size that the
+	// returned session token consumes.
+	SessionTokenUtilization *int32
+
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
 
@@ -137,9 +148,6 @@ type GetSessionTokenOutput struct {
 }
 
 func (c *Client) addOperationGetSessionTokenMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
-		return err
-	}
 	err = stack.Serialize.Add(&awsAwsquery_serializeOpGetSessionToken{}, middleware.After)
 	if err != nil {
 		return err
@@ -148,62 +156,17 @@ func (c *Client) addOperationGetSessionTokenMiddlewares(stack *middleware.Stack,
 	if err != nil {
 		return err
 	}
-	if err := addProtocolFinalizerMiddlewares(stack, options, "GetSessionToken"); err != nil {
-		return fmt.Errorf("add protocol finalizers: %v", err)
-	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
-	if err = addSetLoggerMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = addClientRequestID(stack); err != nil {
-		return err
-	}
-	if err = addComputeContentLength(stack); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
 	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetry(stack, options, c); err != nil {
-		return err
-	}
-	if err = addRawResponseToMetadata(stack); err != nil {
-		return err
-	}
-	if err = addRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addSpanRetryLoop(stack, options); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack, options); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addUserAgentRetryMode(stack, options); err != nil {
+	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
 	if err = addCredentialSource(stack, options); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opGetSessionToken(options.Region), middleware.Before); err != nil {
-		return err
-	}
-	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -218,22 +181,8 @@ func (c *Client) addOperationGetSessionTokenMiddlewares(stack *middleware.Stack,
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAttempt(stack, options); err != nil {
-		return err
-	}
 	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil
-}
-
-func newServiceMetadataMiddleware_opGetSessionToken(region string) *awsmiddleware.RegisterServiceMetadata {
-	return &awsmiddleware.RegisterServiceMetadata{
-		Region:        region,
-		ServiceID:     ServiceID,
-		OperationName: "GetSessionToken",
-	}
 }

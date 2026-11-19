@@ -97,6 +97,7 @@ func (g *gzRoundtripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		// auto-decoding a portion of a gzipped document will just fail
 		// anyway. See https://golang.org/issue/8923
 		requestedComp = len(g.acceptEncoding) > 0
+		req = req.Clone(req.Context())
 		req.Header.Set("Accept-Encoding", g.acceptEncoding)
 	}
 

@@ -1,6 +1,7 @@
 package promql
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"math"
@@ -114,7 +115,10 @@ func alignStartEnd(start, end, step int64) (int64, int64) {
 
 // EvalConfig is the configuration required for query evaluation via Exec
 type EvalConfig struct {
-	AuthTokens    []*auth.Token
+	Context context.Context
+
+	AuthTokens []*auth.Token
+
 	IsMultiTenant bool
 
 	Start int64
@@ -131,10 +135,11 @@ type EvalConfig struct {
 	// QuotedRemoteAddr contains quoted remote address.
 	QuotedRemoteAddr string
 
-	Deadline searchutil.Deadline
-
 	// Whether the response must not be cached.
 	NoCache bool
+
+	// Whether repeated cacheable binary op subexpressions can be optimized.
+	OptimizeRepeatedBinaryOpSubexprs bool
 
 	// LookbackDelta is analog to `-query.lookback-delta` from Prometheus.
 	LookbackDelta int64
@@ -174,6 +179,7 @@ type EvalConfig struct {
 // copyEvalConfig returns src copy.
 func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	var ec EvalConfig
+	ec.Context = src.Context
 	ec.AuthTokens = src.AuthTokens
 	ec.IsMultiTenant = src.IsMultiTenant
 	ec.Start = src.Start
@@ -181,8 +187,8 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.Step = src.Step
 	ec.MaxSeries = src.MaxSeries
 	ec.MaxPointsPerSeries = src.MaxPointsPerSeries
-	ec.Deadline = src.Deadline
 	ec.NoCache = src.NoCache
+	ec.OptimizeRepeatedBinaryOpSubexprs = src.OptimizeRepeatedBinaryOpSubexprs
 	ec.LookbackDelta = src.LookbackDelta
 	ec.RoundDigits = src.RoundDigits
 	ec.EnforcedTagFilterss = src.EnforcedTagFilterss
@@ -439,18 +445,7 @@ func evalBinaryOp(qt *querytracer.Tracer, ec *EvalConfig, be *metricsql.BinaryOp
 	if bf == nil {
 		return nil, fmt.Errorf(`unknown binary op %q`, be.Op)
 	}
-	var err error
-	var tssLeft, tssRight []*timeseries
-	switch strings.ToLower(be.Op) {
-	case "and", "if":
-		// Fetch right-side series at first, since it usually contains
-		// lower number of time series for `and` and `if` operator.
-		// This should produce more specific label filters for the left side of the query.
-		// This, in turn, should reduce the time to select series for the left side of the query.
-		tssRight, tssLeft, err = execBinaryOpArgs(qt, ec, be.Right, be.Left, be)
-	default:
-		tssLeft, tssRight, err = execBinaryOpArgs(qt, ec, be.Left, be.Right, be)
-	}
+	tssLeft, tssRight, err := execBinaryOpArgs(qt, ec, be)
 	if err != nil {
 		return nil, fmt.Errorf("cannot execute %q: %w", be.AppendString(nil), err)
 	}
@@ -466,12 +461,39 @@ func evalBinaryOp(qt *querytracer.Tracer, ec *EvalConfig, be *metricsql.BinaryOp
 	return rv, nil
 }
 
+// binaryOpEvalOrder might change the order of evaluation of the left and right sides of a binary operation,
+// when there is chance to push down common label filters from exprFirst to exprSecond in the following executions.
+func binaryOpEvalOrder(be *metricsql.BinaryOpExpr) (exprFirst, exprSecond metricsql.Expr) {
+	exprFirst, exprSecond = be.Left, be.Right
+	switch strings.ToLower(be.Op) {
+	case "and", "if":
+		// For `and` and `if`, fetch the right-side series first, since it usually contains
+		// fewer time series and yields more specific filters for the left side.
+		exprFirst, exprSecond = be.Right, be.Left
+	}
+	if be.FillLeft != nil && be.FillRight == nil {
+		// For `fill_left(<value>)`, the unmatched series can only come from the right side, so evaluate it first.
+		exprFirst, exprSecond = be.Right, be.Left
+	}
+	return exprFirst, exprSecond
+}
+
+// canPushdownCommonFilters decides if common label filters can be pushed down from one side of a binary operation to the other.
+//
+// Common filters cannot be pushed down when:
+// - the operator is `or` or `default`;
+// - either side is an aggregation function without explicit grouping;
+// - fill(<value>) modifier is used.
 func canPushdownCommonFilters(be *metricsql.BinaryOpExpr) bool {
 	switch strings.ToLower(be.Op) {
 	case "or", "default":
 		return false
 	}
 	if isAggrFuncWithoutGrouping(be.Left) || isAggrFuncWithoutGrouping(be.Right) {
+		return false
+	}
+	// Filters cannot be propagated when fill(<value>) modifier is used.
+	if be.FillLeft != nil && be.FillRight != nil {
 		return false
 	}
 	return true
@@ -485,82 +507,185 @@ func isAggrFuncWithoutGrouping(e metricsql.Expr) bool {
 	return len(afe.Modifier.Args) == 0
 }
 
-func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSecond metricsql.Expr, be *metricsql.BinaryOpExpr) ([]*timeseries, []*timeseries, error) {
-	if !canPushdownCommonFilters(be) {
-		// Execute exprFirst and exprSecond in parallel, since it is impossible to pushdown common filters
-		// from exprFirst to exprSecond.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2886
-		qt = qt.NewChild("execute left and right sides of %q in parallel", be.Op)
-		defer qt.Done()
-		var wg sync.WaitGroup
-
-		var tssFirst []*timeseries
-		var errFirst error
-		qtFirst := qt.NewChild("expr1")
-		wg.Go(func() {
-			tssFirst, errFirst = evalExpr(qtFirst, ec, exprFirst)
-			qtFirst.Done()
-		})
-
-		var tssSecond []*timeseries
-		var errSecond error
-		qtSecond := qt.NewChild("expr2")
-		wg.Go(func() {
-			tssSecond, errSecond = evalExpr(qtSecond, ec, exprSecond)
-			qtSecond.Done()
-		})
-
-		wg.Wait()
-		if errFirst != nil {
-			return nil, nil, errFirst
+func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, be *metricsql.BinaryOpExpr) ([]*timeseries, []*timeseries, error) {
+	exprFirst, exprSecond := binaryOpEvalOrder(be)
+	firstIsLeft := exprFirst == be.Left
+	sortResult := func(tssFirst, tssSecond []*timeseries) ([]*timeseries, []*timeseries, error) {
+		if firstIsLeft {
+			return tssFirst, tssSecond, nil
 		}
-		if errSecond != nil {
-			return nil, nil, errSecond
+		return tssSecond, tssFirst, nil
+	}
+	if canPushdownCommonFilters(be) {
+		// Execute binary operation in the following way:
+		//
+		// 1) execute the exprFirst
+		// 2) get common label filters for series returned at step 1
+		// 3) push down the found common label filters to exprSecond. This filters out unneeded series
+		//    during exprSecond execution instead of spending compute resources on extracting and processing these series
+		//    before they are dropped later when matching time series according to https://prometheus.io/docs/prometheus/latest/querying/operators/#vector-matching
+		// 4) execute the exprSecond with possible additional filters found at step 3
+		//
+		// Typical use cases:
+		// - Kubernetes-related: show pod creation time with the node name:
+		//
+		//     kube_pod_created{namespace="prod"} * on (uid) group_left(node) kube_pod_info
+		//
+		//   Without the optimization `kube_pod_info` would select and spend compute resources
+		//   for more time series than needed. The selected time series would be dropped later
+		//   when matching time series on the right and left sides of binary operand.
+		//
+		// - Generic alerting queries, which rely on `info` metrics.
+		//   See https://grafana.com/blog/2021/08/04/how-to-use-promql-joins-for-more-effective-queries-of-prometheus-metrics-at-scale/
+		//
+		// - Queries, which get additional labels from `info` metrics.
+		//   See https://www.robustperception.io/exposing-the-software-version-to-prometheus
+		tssFirst, err := evalExpr(qt, ec, exprFirst)
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(tssFirst) == 0 && !strings.EqualFold(be.Op, "or") {
+			// Fast path: there is no sense in executing the exprSecond when exprFirst returns an empty result,
+			// since the "exprFirst op exprSecond" would return an empty result in any case.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3349
+			return nil, nil, nil
+		}
+		lfs := getCommonLabelFilters(tssFirst)
+		lfs = metricsql.TrimFiltersByGroupModifier(lfs, be)
+		exprSecond = metricsql.PushdownBinaryOpFilters(exprSecond, lfs)
+		tssSecond, err := evalExpr(qt, ec, exprSecond)
+		if err != nil {
+			return nil, nil, err
+		}
+		return sortResult(tssFirst, tssSecond)
+	}
+
+	// Execute exprFirst and exprSecond sequentially if there are cacheable repeated subexpressions
+	// in exprFirst and exprSecond.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10575
+	if shouldOptimizeRepeatedBinaryOpSubexprs(ec, exprFirst, exprSecond) {
+		qt = qt.NewChild("execute left and right sides of %q sequentially because repeated cacheable subexpression was found", be.Op)
+		defer qt.Done()
+
+		qtFirst := qt.NewChild("expr1")
+		tssFirst, err := evalExpr(qtFirst, ec, exprFirst)
+		qtFirst.Done()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		qtSecond := qt.NewChild("expr2")
+		tssSecond, err := evalExpr(qtSecond, ec, exprSecond)
+		qtSecond.Done()
+		if err != nil {
+			return nil, nil, err
 		}
 		return tssFirst, tssSecond, nil
 	}
 
-	// Execute binary operation in the following way:
-	//
-	// 1) execute the exprFirst
-	// 2) get common label filters for series returned at step 1
-	// 3) push down the found common label filters to exprSecond. This filters out unneeded series
-	//    during exprSecond execution instead of spending compute resources on extracting and processing these series
-	//    before they are dropped later when matching time series according to https://prometheus.io/docs/prometheus/latest/querying/operators/#vector-matching
-	// 4) execute the exprSecond with possible additional filters found at step 3
-	//
-	// Typical use cases:
-	// - Kubernetes-related: show pod creation time with the node name:
-	//
-	//     kube_pod_created{namespace="prod"} * on (uid) group_left(node) kube_pod_info
-	//
-	//   Without the optimization `kube_pod_info` would select and spend compute resources
-	//   for more time series than needed. The selected time series would be dropped later
-	//   when matching time series on the right and left sides of binary operand.
-	//
-	// - Generic alerting queries, which rely on `info` metrics.
-	//   See https://grafana.com/blog/2021/08/04/how-to-use-promql-joins-for-more-effective-queries-of-prometheus-metrics-at-scale/
-	//
-	// - Queries, which get additional labels from `info` metrics.
-	//   See https://www.robustperception.io/exposing-the-software-version-to-prometheus
-	tssFirst, err := evalExpr(qt, ec, exprFirst)
-	if err != nil {
-		return nil, nil, err
+	// Execute exprFirst and exprSecond in parallel, since it is impossible to pushdown common filters
+	// from exprFirst to exprSecond.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2886
+	qt = qt.NewChild("execute left and right sides of %q in parallel", be.Op)
+	defer qt.Done()
+	var wg sync.WaitGroup
+
+	var tssFirst []*timeseries
+	var errFirst error
+	qtFirst := qt.NewChild("expr1")
+	wg.Go(func() {
+		tssFirst, errFirst = evalExpr(qtFirst, ec, exprFirst)
+		qtFirst.Done()
+	})
+
+	var tssSecond []*timeseries
+	var errSecond error
+	qtSecond := qt.NewChild("expr2")
+	wg.Go(func() {
+		tssSecond, errSecond = evalExpr(qtSecond, ec, exprSecond)
+		qtSecond.Done()
+	})
+
+	wg.Wait()
+	if errFirst != nil {
+		return nil, nil, errFirst
 	}
-	if len(tssFirst) == 0 && !strings.EqualFold(be.Op, "or") {
-		// Fast path: there is no sense in executing the exprSecond when exprFirst returns an empty result,
-		// since the "exprFirst op exprSecond" would return an empty result in any case.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3349
-		return nil, nil, nil
+	if errSecond != nil {
+		return nil, nil, errSecond
 	}
-	lfs := getCommonLabelFilters(tssFirst)
-	lfs = metricsql.TrimFiltersByGroupModifier(lfs, be)
-	exprSecond = metricsql.PushdownBinaryOpFilters(exprSecond, lfs)
-	tssSecond, err := evalExpr(qt, ec, exprSecond)
-	if err != nil {
-		return nil, nil, err
+	return sortResult(tssFirst, tssSecond)
+}
+
+func shouldOptimizeRepeatedBinaryOpSubexprs(ec *EvalConfig, exprFirst, exprSecond metricsql.Expr) bool {
+	if !ec.OptimizeRepeatedBinaryOpSubexprs {
+		return false
 	}
-	return tssFirst, tssSecond, nil
+	if ec.Start == ec.End {
+		return false
+	}
+	if ec.NoCache {
+		return false
+	}
+
+	candidatesFirst := make(map[string]struct{}, 1)
+	var b []byte
+	visitOptimizedAggrs(exprFirst, func(ae *metricsql.AggrFuncExpr) {
+		if hasUnseededVolatileFunc(ae) {
+			return
+		}
+		b = ae.AppendString(b[:0])
+		candidatesFirst[string(b)] = struct{}{}
+	})
+	if len(candidatesFirst) == 0 {
+		return false
+	}
+
+	repeated := false
+	visitOptimizedAggrs(exprSecond, func(ae *metricsql.AggrFuncExpr) {
+		if repeated {
+			return
+		}
+		b = ae.AppendString(b[:0])
+		_, repeated = candidatesFirst[string(b)]
+	})
+	return repeated
+}
+
+func visitOptimizedAggrs(e metricsql.Expr, f func(ae *metricsql.AggrFuncExpr)) {
+	metricsql.VisitAll(e, func(expr metricsql.Expr) {
+		ae, ok := expr.(*metricsql.AggrFuncExpr)
+		if !ok {
+			return
+		}
+		if getIncrementalAggrFuncCallbacks(ae.Name) == nil {
+			return
+		}
+		fe, _ := tryGetArgRollupFuncWithMetricExpr(ae)
+		if fe == nil {
+			return
+		}
+		f(ae)
+	})
+}
+
+func hasUnseededVolatileFunc(e metricsql.Expr) bool {
+	found := false
+	metricsql.VisitAll(e, func(expr metricsql.Expr) {
+		if found {
+			return
+		}
+		fe, ok := expr.(*metricsql.FuncExpr)
+		if !ok {
+			return
+		}
+		switch strings.ToLower(fe.Name) {
+		case "now":
+			found = true
+		case "rand", "rand_normal", "rand_exponential":
+			found = len(fe.Args) == 0
+		}
+	})
+	return found
 }
 
 func getCommonLabelFilters(tss []*timeseries) []metricsql.LabelFilter {
@@ -948,11 +1073,12 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	ecSQ.End += step
 	ecSQ.Step = step
 	ecSQ.MaxPointsPerSeries = *maxPointsSubqueryPerTimeseries
+	// unconditionally align start and end args to step for subquery as Prometheus does.
+	ecSQ.Start, ecSQ.End = alignStartEnd(ecSQ.Start, ecSQ.End, ecSQ.Step)
+
 	if err := ValidateMaxPointsPerSeries(ecSQ.Start, ecSQ.End, ecSQ.Step, ecSQ.MaxPointsPerSeries); err != nil {
 		return nil, fmt.Errorf("%w; (see -search.maxPointsSubqueryPerTimeseries command-line flag)", err)
 	}
-	// unconditionally align start and end args to step for subquery as Prometheus does.
-	ecSQ.Start, ecSQ.End = alignStartEnd(ecSQ.Start, ecSQ.End, ecSQ.Step)
 	tssSQ, err := evalExpr(qt, ecSQ, re.Expr)
 	if err != nil {
 		return nil, err
@@ -970,6 +1096,7 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	var samplesScannedTotal atomic.Uint64
 	keepMetricNames := getKeepMetricNames(expr)
 	tsw := getTimeseriesByWorkerID()
+	defer putTimeseriesByWorkerID(tsw)
 	seriesByWorkerID := tsw.byWorkerID
 	doParallel(tssSQ, func(tsSQ *timeseries, values []float64, timestamps []int64, workerID uint) ([]float64, []int64) {
 		values, timestamps = removeNanValues(values[:0], timestamps[:0], tsSQ.Values, tsSQ.Timestamps)
@@ -992,7 +1119,6 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	for i := range seriesByWorkerID {
 		tss = append(tss, seriesByWorkerID[i].tss...)
 	}
-	putTimeseriesByWorkerID(tsw)
 
 	rowsScannedPerQuery.Update(float64(samplesScannedTotal.Load()))
 	qt.Printf("rollup %s() over %d series returned by subquery: series=%d, samplesScanned=%d", funcName, len(tssSQ), len(tss), samplesScannedTotal.Load())
@@ -1100,18 +1226,14 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		return offset >= maxOffset
 	}
 
-	var at *auth.Token
-	if !ec.IsMultiTenant {
-		at = ec.AuthTokens[0]
-	}
 	deleteCachedSeries := func(qt *querytracer.Tracer) {
-		rollupResultCacheV.DeleteInstantValues(qt, at, expr, window, ec.Step, ec.EnforcedTagFilterss)
+		rollupResultCacheV.DeleteInstantValues(qt, ec, expr, window)
 	}
 	getCachedSeries := func(qt *querytracer.Tracer) ([]*timeseries, int64, error) {
 		rollupResultCacheV.rollupResultCacheRequests.Inc()
 	again:
 		offset := int64(0)
-		tssCached := rollupResultCacheV.GetInstantValues(qt, at, expr, window, ec.Step, ec.EnforcedTagFilterss)
+		tssCached := rollupResultCacheV.GetInstantValues(qt, ec, expr, window)
 		if len(tssCached) == 0 {
 			rollupResultCacheV.rollupResultCacheMisses.Inc()
 			// Cache miss. Re-populate the missing data.
@@ -1137,7 +1259,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 				tss, err := evalAt(qt, timestamp, window)
 				return tss, 0, err
 			}
-			rollupResultCacheV.PutInstantValues(qt, at, expr, window, ec.Step, ec.EnforcedTagFilterss, tss)
+			rollupResultCacheV.PutInstantValues(qt, ec, expr, window, tss)
 			return tss, offset, nil
 		}
 		// Cache hit. Verify whether it is OK to use the cached data.
@@ -1754,7 +1876,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	} else {
 		sq = storage.NewSearchQuery(ec.AuthTokens[0].AccountID, ec.AuthTokens[0].ProjectID, minTimestamp, ec.End, tfss, ec.MaxSeries)
 	}
-	rss, isPartial, err := netstorage.ProcessSearchQuery(qt, ec.DenyPartialResponse, sq, ec.Deadline)
+	rss, isPartial, err := netstorage.ProcessSearchQuery(ec.Context, qt, ec.DenyPartialResponse, sq)
 	if err != nil {
 		return nil, err
 	}
@@ -1824,9 +1946,9 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	// Evaluate rollup
 	keepMetricNames := getKeepMetricNames(expr)
 	if iafc != nil {
-		return evalRollupWithIncrementalAggregate(qt, funcName, keepMetricNames, iafc, rss, rcs, preFunc, sharedTimestamps)
+		return evalRollupWithIncrementalAggregate(ec.Context, qt, funcName, keepMetricNames, iafc, rss, rcs, preFunc, sharedTimestamps)
 	}
-	return evalRollupNoIncrementalAggregate(qt, funcName, keepMetricNames, rss, rcs, preFunc, sharedTimestamps)
+	return evalRollupNoIncrementalAggregate(ec.Context, qt, funcName, keepMetricNames, rss, rcs, preFunc, sharedTimestamps)
 }
 
 var (
@@ -1849,14 +1971,14 @@ func maxSilenceInterval() int64 {
 	return d
 }
 
-func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string, keepMetricNames bool,
+func evalRollupWithIncrementalAggregate(ctx context.Context, qt *querytracer.Tracer, funcName string, keepMetricNames bool,
 	iafc *incrementalAggrFuncContext, rss *netstorage.Results, rcs []*rollupConfig,
 	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64,
 ) ([]*timeseries, error) {
 	qt = qt.NewChild("rollup %s() with incremental aggregation %s() over %d series; rollupConfigs=%s", funcName, iafc.ae.Name, rss.Len(), rcs)
 	defer qt.Done()
 	var samplesScannedTotal atomic.Uint64
-	err := rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
+	err := rss.RunParallel(ctx, qt, func(rs *netstorage.Result, workerID uint) error {
 		rs.Values, rs.Timestamps = dropStaleNaNs(funcName, rs.Values, rs.Timestamps)
 		preFunc(rs.Values, rs.Timestamps)
 		ts := getTimeseries()
@@ -1890,7 +2012,7 @@ func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string,
 	return tss, nil
 }
 
-func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, keepMetricNames bool, rss *netstorage.Results, rcs []*rollupConfig,
+func evalRollupNoIncrementalAggregate(ctx context.Context, qt *querytracer.Tracer, funcName string, keepMetricNames bool, rss *netstorage.Results, rcs []*rollupConfig,
 	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64,
 ) ([]*timeseries, error) {
 	qt = qt.NewChild("rollup %s() over %d series; rollupConfigs=%s", funcName, rss.Len(), rcs)
@@ -1898,9 +2020,10 @@ func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, k
 
 	var samplesScannedTotal atomic.Uint64
 	tsw := getTimeseriesByWorkerID()
+	defer putTimeseriesByWorkerID(tsw)
 	seriesByWorkerID := tsw.byWorkerID
 	seriesLen := rss.Len()
-	err := rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
+	err := rss.RunParallel(ctx, qt, func(rs *netstorage.Result, workerID uint) error {
 		rs.Values, rs.Timestamps = dropStaleNaNs(funcName, rs.Values, rs.Timestamps)
 		preFunc(rs.Values, rs.Timestamps)
 		for _, rc := range rcs {
@@ -1924,7 +2047,6 @@ func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, k
 	for i := range seriesByWorkerID {
 		tss = append(tss, seriesByWorkerID[i].tss...)
 	}
-	putTimeseriesByWorkerID(tsw)
 
 	rowsScannedPerQuery.Update(float64(samplesScannedTotal.Load()))
 	qt.Printf("samplesScanned=%d", samplesScannedTotal.Load())

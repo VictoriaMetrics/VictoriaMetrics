@@ -12,7 +12,7 @@ type runningStatsSum struct {
 }
 
 func (ss *runningStatsSum) String() string {
-	return "sum(" + fieldNamesString(ss.fieldFilters) + ")"
+	return "sum(" + fieldFiltersString(ss.fieldFilters) + ")"
 }
 
 func (ss *runningStatsSum) updateNeededFields(pf *prefixfilter.Filter) {

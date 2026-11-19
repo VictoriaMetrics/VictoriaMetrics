@@ -836,7 +836,7 @@ func parsePipeSort(lex *lexer) (pipe, error) {
 		case lex.isKeyword("rank"):
 			rankFieldName, err := parseRankFieldName(lex)
 			if err != nil {
-				return nil, fmt.Errorf("cannot read rank field name: %s", err)
+				return nil, fmt.Errorf("cannot read rank field name: %w", err)
 			}
 			ps.rankFieldName = rankFieldName
 		case lex.isKeyword("partition"):
@@ -930,7 +930,7 @@ func parseLimit(lex *lexer) (uint64, error) {
 
 	limitStr, err := lex.nextCompoundToken()
 	if err != nil {
-		return 0, fmt.Errorf("cannot parse 'limit': %s", err)
+		return 0, fmt.Errorf("cannot parse 'limit': %w", err)
 	}
 
 	n, ok := tryParseUint64(limitStr)
@@ -949,7 +949,7 @@ func parseOffset(lex *lexer) (uint64, error) {
 
 	limitStr, err := lex.nextCompoundToken()
 	if err != nil {
-		return 0, fmt.Errorf("cannot parse 'offset': %s", err)
+		return 0, fmt.Errorf("cannot parse 'offset': %w", err)
 	}
 
 	n, ok := tryParseUint64(limitStr)

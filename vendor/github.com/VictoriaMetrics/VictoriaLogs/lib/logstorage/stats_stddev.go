@@ -15,7 +15,7 @@ type statsStddev struct {
 }
 
 func (ss *statsStddev) String() string {
-	return "stddev(" + fieldNamesString(ss.fieldFilters) + ")"
+	return "stddev(" + fieldFiltersString(ss.fieldFilters) + ")"
 }
 
 func (ss *statsStddev) updateNeededFields(pf *prefixfilter.Filter) {

@@ -10,6 +10,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"regexp"
@@ -56,8 +57,9 @@ var (
 
 // AuthConfig represents auth config.
 type AuthConfig struct {
-	Users            []UserInfo `yaml:"users,omitempty"`
-	UnauthorizedUser *UserInfo  `yaml:"unauthorized_user,omitempty"`
+	Users            []UserInfo   `yaml:"users,omitempty"`
+	UnauthorizedUser *UserInfo    `yaml:"unauthorized_user,omitempty"`
+	SSO              []*ssoConfig `yaml:"sso,omitempty"`
 
 	// ms holds all the metrics for the given AuthConfig
 	ms *metrics.Set
@@ -108,7 +110,11 @@ type UserInfo struct {
 
 // AccessLog represents configuration for access log settings.
 type AccessLog struct {
+	// Filters is a list of filters that filter out requests from generating access log.
 	Filters *AccessLogFilters `yaml:"filters"`
+	// Headers is a list of HTTP header keys to print out in the access log.
+	// Headers that are present in request but missing in this list won't be printed
+	Headers []string `yaml:"headers"`
 }
 
 // AccessLogFilters represents list of filters for access logs printing
@@ -118,9 +124,10 @@ type AccessLogFilters struct {
 }
 
 func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int, duration time.Duration) {
-	if ui.AccessLog == nil {
+	if ui == nil || ui.AccessLog == nil {
 		return
 	}
+
 	filters := ui.AccessLog.Filters
 	if filters != nil && len(filters.SkipStatusCodes) > 0 {
 		if slices.Contains(filters.SkipStatusCodes, statusCode) {
@@ -128,10 +135,41 @@ func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int,
 		}
 	}
 
+	headers := getHeaders(r, ui.AccessLog.Headers)
 	remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 	requestURI := httpserver.GetRequestURI(r)
-	logger.Infof("access_log request_host=%q request_uri=%q status_code=%d remote_addr=%s user_agent=%q referer=%q duration_ms=%d username=%q",
-		r.Host, requestURI, statusCode, remoteAddr, r.UserAgent(), r.Referer(), duration.Milliseconds(), userName)
+	logger.Infof("access_log request_host=%q request_uri=%q status_code=%d remote_addr=%s user_agent=%q referer=%q duration_ms=%d username=%q%s",
+		r.Host, requestURI, statusCode, remoteAddr, r.UserAgent(), r.Referer(), duration.Milliseconds(), userName, headers)
+}
+
+// getHeaders extracts headers that match seek
+// It is assumed that HTTP header key could contain only alphanumeric chars, - and _, so they're not escaped.
+func getHeaders(r *http.Request, seek []string) string {
+	if len(seek) == 0 || r == nil {
+		return ""
+	}
+
+	headers := r.Header
+	b := strings.Builder{}
+	for _, k := range seek {
+		for _, v := range headers.Values(k) {
+			v = strings.TrimSpace(v)
+			// no need for other escapes, as %q already does it
+			fmt.Fprintf(&b, " headers.%s=%q", k, v)
+		}
+	}
+	return b.String()
+}
+
+// hasAnyURLs reports whether ui has at least one backend URL route configured.
+// It is used only for unauthorized_user config section, since other users
+// must always have either URLPrefix or URLMaps set.
+func (ui *UserInfo) hasAnyURLs() bool {
+	if ui == nil {
+		return false
+	}
+
+	return ui.URLPrefix != nil || len(ui.URLMaps) > 0 || ui.DefaultURL != nil
 }
 
 // HeadersConf represents config for request and response headers.
@@ -236,6 +274,11 @@ func (h *Header) MarshalYAML() (any, error) {
 type URLMap struct {
 	// SrcPaths is an optional list of regular expressions, which must match the request path.
 	SrcPaths []*Regex `yaml:"src_paths,omitempty"`
+
+	// DenyPaths is an optional list of regular expressions, which must not match the request path.
+	//
+	// This allows excluding a subset of paths matched by SrcPaths without listing every allowed path explicitly.
+	DenyPaths []*Regex `yaml:"deny_paths,omitempty"`
 
 	// SrcHosts is an optional list of regular expressions, which must match the request hostname.
 	SrcHosts []*Regex `yaml:"src_hosts,omitempty"`
@@ -362,40 +405,62 @@ func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
 }
 
 type backendURLs struct {
-	healthChecksContext context.Context
-	healthChecksCancel  func()
-	healthChecksWG      sync.WaitGroup
-
+	bhc backendHealthCheck
 	bus []*backendURL
+}
+
+type backendHealthCheck struct {
+	ctx context.Context
+	// mu protects fields below
+	cancel    func()
+	mu        sync.Mutex
+	isStopped bool
+	wg        sync.WaitGroup
+}
+
+func (bhc *backendHealthCheck) run(hc func()) {
+	bhc.mu.Lock()
+	defer bhc.mu.Unlock()
+	if bhc.isStopped {
+		return
+	}
+	bhc.wg.Go(hc)
+}
+
+func (bhc *backendHealthCheck) stop() {
+	bhc.mu.Lock()
+	bhc.cancel()
+	bhc.isStopped = true
+	bhc.mu.Unlock()
+	bhc.wg.Wait()
 }
 
 func newBackendURLs() *backendURLs {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &backendURLs{
-		healthChecksContext: ctx,
-		healthChecksCancel:  cancel,
+		bhc: backendHealthCheck{
+			ctx:    ctx,
+			cancel: cancel,
+		},
 	}
 }
 
 func (bus *backendURLs) add(u *url.URL) {
 	bus.bus = append(bus.bus, &backendURL{
-		url:                u,
-		healthCheckContext: bus.healthChecksContext,
-		healthCheckWG:      &bus.healthChecksWG,
-		hasPlaceHolders:    hasAnyPlaceholders(u),
+		url:             u,
+		bhc:             &bus.bhc,
+		hasPlaceHolders: hasAnyPlaceholders(u),
 	})
 }
 
 func (bus *backendURLs) stopHealthChecks() {
-	bus.healthChecksCancel()
-	bus.healthChecksWG.Wait()
+	bus.bhc.stop()
 }
 
 type backendURL struct {
 	broken atomic.Bool
 
-	healthCheckContext context.Context
-	healthCheckWG      *sync.WaitGroup
+	bhc *backendHealthCheck
 
 	concurrentRequests atomic.Int32
 
@@ -410,7 +475,7 @@ func (bu *backendURL) isBroken() bool {
 
 func (bu *backendURL) setBroken() {
 	if bu.broken.CompareAndSwap(false, true) {
-		bu.healthCheckWG.Go(func() {
+		bu.bhc.run(func() {
 			bu.runHealthCheck()
 			bu.broken.Store(false)
 		})
@@ -432,11 +497,11 @@ func (bu *backendURL) runHealthCheck() {
 		case <-t.C:
 			// Verify network connectivity via TCP dial before marking backend healthy.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9997
-			ctx, cancel := context.WithTimeout(bu.healthCheckContext, time.Second)
+			ctx, cancel := context.WithTimeout(bu.bhc.ctx, time.Second)
 			c, err := netutil.Dialer.DialContext(ctx, "tcp", addr)
 			cancel()
 			if err != nil {
-				if errors.Is(bu.healthCheckContext.Err(), context.Canceled) {
+				if errors.Is(bu.bhc.ctx.Err(), context.Canceled) {
 					return
 				}
 				logger.Warnf("ignoring the backend at %s for %s because of dial error: %s", addr, *failTimeout, err)
@@ -445,7 +510,7 @@ func (bu *backendURL) runHealthCheck() {
 
 			_ = c.Close()
 			return
-		case <-bu.healthCheckContext.Done():
+		case <-bu.bhc.ctx.Done():
 			return
 		}
 	}
@@ -541,9 +606,19 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 				logger.Warnf("cannot discover backend IPs for %s: %s; use it literally", bu, err)
 				resolvedAddrs = []string{host}
 			} else {
-				resolvedAddrs = make([]string, len(addrs))
-				for i, addr := range addrs {
-					resolvedAddrs[i] = net.JoinHostPort(addr.String(), port)
+				resolvedAddrs = make([]string, 0, len(addrs))
+				for _, addr := range addrs {
+					if !netutil.TCP6Enabled() {
+						ip, ok := netip.AddrFromSlice(addr.IP)
+						if !ok {
+							logger.Panicf("BUG: cannot build netip Addr from slice addr: %q", addr.IP.String())
+						}
+						if !ip.Unmap().Is4() {
+							continue
+						}
+					}
+					ip := addr.IP.String()
+					resolvedAddrs = append(resolvedAddrs, net.JoinHostPort(ip, port))
 				}
 			}
 		}
@@ -588,6 +663,7 @@ func areEqualBackendURLs(a, b []*backendURL) bool {
 }
 
 // getFirstAvailableBackendURL returns the first available backendURL, which isn't broken.
+// If all backendURLs are broken, then returns the first backendURL.
 //
 // backendURL.put() must be called on the returned backendURL after the request is complete.
 func getFirstAvailableBackendURL(bus []*backendURL) *backendURL {
@@ -606,21 +682,22 @@ func getFirstAvailableBackendURL(bus []*backendURL) *backendURL {
 			return bu
 		}
 	}
-	return nil
+
+	// All backend urls are unavailable, then returning a first one, it could help increase the success rate of the requests。
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10837#issuecomment-4307050980.
+	bu.get()
+	return bu
 }
 
 // getLeastLoadedBackendURL returns a non-broken backendURL with the lowest number of concurrent requests.
+// If all backendURLs are broken, then returns the first backendURL.
 //
 // backendURL.put() must be called on the returned backendURL after the request is complete.
 func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *backendURL {
+	firstBu := bus[0]
 	if len(bus) == 1 {
-		// Fast path - return the only backend url.
-		bu := bus[0]
-		if bu.isBroken() {
-			return nil
-		}
-		bu.get()
-		return bu
+		firstBu.get()
+		return firstBu
 	}
 
 	// Slow path - select other backend urls.
@@ -658,7 +735,10 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 	}
 	buMin := bus[buMinIdx]
 	if buMin.isBroken() {
-		return nil
+		// If all backendURLs are broken, then returns the first backendURL.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10837#issuecomment-4307050980.
+		firstBu.get()
+		return firstBu
 	}
 	buMin.get()
 	atomicCounter.CompareAndSwap(n+1, buMinIdx+1)
@@ -816,6 +896,11 @@ func authConfigReloader(sighupCh <-chan os.Signal) {
 		select {
 		case <-stopCh:
 			return
+		default:
+		}
+		select {
+		case <-stopCh:
+			return
 		case <-refreshCh:
 			updateFn()
 		case <-sighupCh:
@@ -862,7 +947,8 @@ func reloadAuthConfig() (bool, error) {
 	}
 
 	mp := authUsers.Load()
-	logger.Infof("loaded information about %d users from -auth.config=%q", len(*mp), *authConfigPath)
+	jwtc := jwtAuthCache.Load()
+	logger.Infof("loaded information about %d users from -auth.config=%q", len(*mp)+len(jwtc.users), *authConfigPath)
 	return true, nil
 }
 
@@ -878,9 +964,17 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 		return false, fmt.Errorf("failed to parse auth config: %w", err)
 	}
 
-	jui, oidcDP, err := parseJWTUsers(ac)
+	if err := normalizeSSOConfigs(ac.SSO); err != nil {
+		return false, fmt.Errorf("invalid SSO config: %w", err)
+	}
+
+	oidcDP := &oidcDiscovererPool{}
+	jui, err := parseJWTUsers(ac, oidcDP)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse JWT users from auth config: %w", err)
+	}
+	for _, cfg := range ac.SSO {
+		oidcDP.subscribeToMetadata(cfg.OIDC.Issuer, &cfg.OIDC.pm)
 	}
 	oidcDP.startDiscovery()
 	jwtc := &jwtCache{
@@ -949,8 +1043,11 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if err := parseJWTPlaceholdersForUserInfo(ui, false); err != nil {
 			return nil, err
 		}
-		if err := ui.initURLs(); err != nil {
-			return nil, err
+
+		if ui.hasAnyURLs() {
+			if err := ui.initURLs(); err != nil {
+				return nil, err
+			}
 		}
 
 		metricLabels, err := ui.getMetricLabels()
@@ -1112,6 +1209,9 @@ func (ui *UserInfo) initURLs() error {
 
 	for _, e := range ui.URLMaps {
 		if len(e.SrcPaths) == 0 && len(e.SrcHosts) == 0 && len(e.SrcQueryArgs) == 0 && len(e.SrcHeaders) == 0 {
+			if len(e.DenyPaths) > 0 {
+				return fmt.Errorf("`deny_paths` cannot be used without at least one of `src_paths`, `src_hosts`, `src_query_args` or `src_headers` in `url_map`")
+			}
 			return fmt.Errorf("missing `src_paths`, `src_hosts`, `src_query_args` and `src_headers` in `url_map`")
 		}
 		if e.URLPrefix == nil {

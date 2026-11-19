@@ -5,7 +5,7 @@ import uPlot from "uplot";
 import Button from "../../Main/Button/Button";
 import { CloseIcon, DragIcon } from "../../Main/Icons";
 import { SeriesItemStatsFormatted } from "../../../types";
-import { STATS_ORDER } from "../../../constants/graph";
+import { STATS_ORDER_TOOLTIP } from "../../../constants/graph";
 
 export interface ChartTooltipProps {
   u?: uPlot;
@@ -16,6 +16,7 @@ export interface ChartTooltipProps {
   point: { top: number, left: number };
   unit?: string;
   statsFormatted?: SeriesItemStatsFormatted;
+  description?: ReactNode;
   isSticky?: boolean;
   info?: ReactNode;
   marker?: string;
@@ -34,6 +35,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
   unit = "",
   info,
   statsFormatted,
+  description,
   isSticky,
   marker,
   duplicateCount = 0,
@@ -162,7 +164,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
       </div>
       {statsFormatted && (
         <table className="vm-chart-tooltip-stats">
-          {STATS_ORDER.map((key, i) => (
+          {STATS_ORDER_TOOLTIP.map((key, i) => (
             <div
               className="vm-chart-tooltip-stats-row"
               key={i}
@@ -173,6 +175,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
           ))}
         </table>
       )}
+      {description && <p className="vm-chart-tooltip__description">{description}</p>}
       {info && <p className="vm-chart-tooltip__info">{info}</p>}
     </div>
   ), u.root);

@@ -3,14 +3,19 @@ name: check-commit-signed
 on:
   pull_request:
 
+permissions: {}
+
 jobs:
   check-commit-signed:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0  # we need full history for commit verification
+          persist-credentials: false
 
       - name: Check commit signatures
         run: |

@@ -1,6 +1,7 @@
 ---
 weight: 36
 title: Prometheus service discovery
+description: "Supported Prometheus-compatible service discovery mechanisms (Azure, Consul, DNS, Docker, EC2, GCE, Kubernetes, OpenStack, and more)"
 menu:
   docs:
     parent: 'victoriametrics'
@@ -32,7 +33,8 @@ supports the following Prometheus-compatible service discovery options for Prome
 * `http_sd_configs` is for discovering and scraping targets provided by external http-based service discovery. See [these docs](#http_sd_configs).
 * `kubernetes_sd_configs` is for discovering and scraping [Kubernetes](https://kubernetes.io/) targets. See [these docs](#kubernetes_sd_configs).
 * `kuma_sd_configs` is for discovering and scraping [Kuma](https://kuma.io) targets. See [these docs](#kuma_sd_configs).
-* `marathon_sd_configs` is for discovering and scraping [Marathon](https://mesosphere.github.io/marathon/) targets. See [these docs](#marathon_sd_configs).
+* `linode_sd_configs` is for discovering and scraping [Linode](https://www.linode.com/) instances. See [these docs](#linode_sd_configs).
+* `marathon_sd_configs` is for discovering and scraping [Marathon](https://github.com/d2iq-archive/marathon) targets. See [these docs](#marathon_sd_configs).
 * `nomad_sd_configs` is for discovering and scraping targets registered in [HashiCorp Nomad](https://www.nomadproject.io/). See [these docs](#nomad_sd_configs).
 * `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [these docs](#openstack_sd_configs).
 * `ovhcloud_sd_configs` is for discovering and scraping OVH Cloud VPS and dedicated server targets. See [these docs](#ovhcloud_sd_configs).
@@ -67,7 +69,7 @@ scrape_configs:
     #
     # environment: "..."
 
-    # authentication_method is an optional authentication method, either OAuth or ManagedIdentity.
+    # authentication_method is an optional authentication method, either OAuth, ManagedIdentity or WorkloadIdentity.
     # See https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview
     # By default OAuth is used.
     #
@@ -97,6 +99,11 @@ scrape_configs:
     # Additional HTTP API client options can be specified here.
     # See https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options
 ```
+
+`authentication_method: WorkloadIdentity` {{% available_from "v1.156.0" %}} exchanges a Kubernetes service account token
+for an Azure access token, so no client secret is needed. The tenant ID, client ID and token file path are read from
+`AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_FEDERATED_TOKEN_FILE` env vars. The token file is read before every token refresh.
+[Azure Workload Identity](https://azure.github.io/azure-workload-identity/docs/) sets these env vars in the pod.
 
 Each discovered target has an [`__address__`](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) label set
 to `<private_ip>:<port>`, where `<private_ip>` is the machine's private IP and the `<port>` is the `port`
@@ -324,7 +331,7 @@ The list of discovered Consul Agent targets is refreshed at the interval, which 
 
 ## digitalocean_sd_configs
 
-DigitalOcean SD configuration allows retrieving scrape targets from [DigitalOcean's Droplets API](https://docs.digitalocean.com/reference/api/api-reference/#tag/Droplets).
+DigitalOcean SD configuration allows retrieving scrape targets from [DigitalOcean's Droplets API](https://docs.digitalocean.com/reference/api/reference/droplets/).
 
 Configuration example:
 
@@ -932,7 +939,7 @@ The following meta labels are available on discovered targets during [relabeling
 
 Common labels for both `hcloud` and `robot` roles:
 
-* `__meta_hetzner_datacenter`: the datacenter of the server
+* `__meta_hetzner_datacenter`: the datacenter of the server. **Deprecated for the `robot` role** — use `__meta_hetzner_robot_datacenter` instead. **Deprecated for the `hcloud` role** — use `__meta_hetzner_hcloud_location` and `__meta_hetzner_hcloud_location_network_zone` instead; the upstream Hetzner Cloud API `datacenter` field is being removed after 2026-07-01 (see [Hetzner changelog](https://docs.hetzner.cloud/changelog#2025-12-16-phasing-out-datacenters))
 * `__meta_hetzner_public_ipv4`: the public IPv4 address of the server
 * `__meta_hetzner_public_ipv6_network`: the public IPv6 network (/64) of the server
 * `__meta_hetzner_role`: the current role `hcloud` or `robot`
@@ -942,8 +949,10 @@ Common labels for both `hcloud` and `robot` roles:
 
 Additional labels for `role: hcloud`:
 
-* `__meta_hetzner_hcloud_datacenter_location`: the location of the server
-* `__meta_hetzner_hcloud_datacenter_location_network_zone`: the network zone of the server
+* `__meta_hetzner_hcloud_location`: the location name of the server
+* `__meta_hetzner_hcloud_location_network_zone`: the network zone of the server
+* `__meta_hetzner_hcloud_datacenter_location`: **deprecated**, use `__meta_hetzner_hcloud_location` instead (still emitted for backward compatibility)
+* `__meta_hetzner_hcloud_datacenter_location_network_zone`: **deprecated**, use `__meta_hetzner_hcloud_location_network_zone` instead (still emitted for backward compatibility)
 * `__meta_hetzner_hcloud_cpu_cores`: the CPU cores count of the server
 * `__meta_hetzner_hcloud_cpu_type`: the CPU type of the server (shared or dedicated)
 * `__meta_hetzner_hcloud_disk_size_gb`: the disk size of the server (in GB)
@@ -959,6 +968,7 @@ Additional labels for `role: hcloud`:
 
 Additional labels for `role: robot`:
 
+* `__meta_hetzner_robot_datacenter`: the datacenter name of the server
 * `__meta_hetzner_robot_cancelled`: the server cancellation status
 * `__meta_hetzner_robot_product`: the product of the server
 
@@ -1184,10 +1194,10 @@ One of the following `role` types can be configured to discover targets:
   Available meta labels for `role: endpoints` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
 * `__meta_kubernetes_namespace`: The namespace of the endpoints object.
-* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`.
 * `__meta_kubernetes_endpoints_name`: The names of the endpoints object.
 * `__meta_kubernetes_endpoints_label_<labelname>`: Each label from the endpoints object.
 * `__meta_kubernetes_endpoints_labelpresent_<labelname>`: "true" for each label from the endpoints object.
@@ -1217,10 +1227,10 @@ One of the following `role` types can be configured to discover targets:
   Available meta labels for `role: endpointslice` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
 * `__meta_kubernetes_namespace`: The namespace of the endpointslice object.
-* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`.
 * `__meta_kubernetes_endpointslice_name`: The name of endpointslice object.
 
   For all targets discovered directly from the endpointslice list (those not additionally inferred from underlying pods), the following labels are attached:
@@ -1251,10 +1261,10 @@ One of the following `role` types can be configured to discover targets:
   Available meta labels for `role: ingress` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
 * `__meta_kubernetes_namespace`: The namespace of the ingress object.
-* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`.
 * `__meta_kubernetes_ingress_name`: The name of the ingress object.
 * `__meta_kubernetes_ingress_label_<labelname>`: Each label from the ingress object.
 * `__meta_kubernetes_ingress_labelpresent_<labelname>`: "true" for each label from the ingress object.
@@ -1310,9 +1320,84 @@ The following meta labels are available on discovered targets during [relabeling
 
 The list of discovered Kuma targets is refreshed at the interval, which can be configured via `-promscrape.kumaSDCheckInterval` command-line flag.
 
+## linode_sd_configs
+
+Linode SD configuration {{% available_from "v1.150.0" %}} allows retrieving scrape targets from [Linode](https://www.linode.com/) instances.
+The following [Linode API](https://www.linode.com/docs/api/) token scopes are required: `linodes:read_only` and `ips:read_only`.
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: linode
+  linode_sd_configs:
+
+    # server is an optional Linode API server to query.
+    # By default, https://api.linode.com is used.
+    #
+    # server: "https://api.linode.com"
+
+    # port is an optional port to scrape metrics from. By default, port 80 is used.
+    #
+    # port: ...
+
+    # tag_separator is an optional string used to join multi-value labels such as tags and extra IPs.
+    # By default, "," is used.
+    #
+    # tag_separator: ","
+
+    # region is an optional Linode region to filter instances by.
+    # By default, instances from all regions are returned.
+    #
+    # region: "..."
+
+    # Required credentials for Linode API authentication.
+    #
+    authorization:
+      credentials: "..."
+      # type: "..."  # default: Bearer
+      # credentials_file: "..."  # is mutually-exclusive with credentials
+
+    # Additional HTTP API client options can be specified here.
+    # See https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options
+```
+
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) label set
+to `<ip>:<port>`, where `<ip>` is the public IPv4 of the Linode instance when available, otherwise the private IPv4, and `<port>` is the port specified in the `linode_sd_configs`.
+Instances without a usable IPv4 address are skipped.
+
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
+
+* `__meta_linode_instance_id`: the id of the linode instance
+* `__meta_linode_instance_label`: the label of the linode instance
+* `__meta_linode_image`: the slug of the linode instance's image
+* `__meta_linode_private_ipv4`: the private IPv4 of the linode instance
+* `__meta_linode_public_ipv4`: the public IPv4 of the linode instance
+* `__meta_linode_public_ipv6`: the public IPv6 of the linode instance
+* `__meta_linode_private_ipv4_rdns`: the reverse DNS for the first private IPv4 of the linode instance
+* `__meta_linode_public_ipv4_rdns`: the reverse DNS for the first public IPv4 of the linode instance
+* `__meta_linode_public_ipv6_rdns`: the reverse DNS for the first public IPv6 of the linode instance
+* `__meta_linode_region`: the region of the linode instance
+* `__meta_linode_type`: the type of the linode instance
+* `__meta_linode_status`: the status of the linode instance
+* `__meta_linode_tags`: a list of tags of the linode instance joined by the tag separator
+* `__meta_linode_group`: the display group a linode instance is a member of
+* `__meta_linode_gpus`: the number of GPUs of the linode instance
+* `__meta_linode_hypervisor`: the virtualization software powering the linode instance
+* `__meta_linode_backups`: the backup service status of the linode instance
+* `__meta_linode_specs_disk_bytes`: the amount of storage space the linode instance has access to
+* `__meta_linode_specs_memory_bytes`: the amount of RAM the linode instance has access to
+* `__meta_linode_specs_vcpus`: the number of VCPUs this linode has access to
+* `__meta_linode_specs_transfer_bytes`: the amount of network transfer the linode instance is allotted each month
+* `__meta_linode_extra_ips`: a list of all extra IPv4 addresses assigned to the linode instance joined by the tag separator
+* `__meta_linode_ipv6_ranges`: a list of IPv6 ranges with mask assigned to the linode instance joined by the tag separator
+
+The list of discovered Linode targets is refreshed at the interval, which can be configured via `-promscrape.linodeSDCheckInterval` command-line flag.
+Discovery failures are tracked in the `vm_promscrape_discovery_linode_failures_total` metric.
+
 ## marathon_sd_configs
 
-Marathon SD configuration {{% available_from "v1.109.0" %}} allows retrieving scrape targets from [Marathon](https://mesosphere.github.io/marathon/) REST API.
+Marathon SD configuration {{% available_from "v1.109.0" %}} allows retrieving scrape targets from [Marathon](https://github.com/d2iq-archive/marathon) REST API.
 
 Configuration example:
 
@@ -1347,7 +1432,7 @@ The list of discovered Marathon targets is refreshed at the interval, which can 
 
 ## nomad_sd_configs
 
-Nomad SD configuration allows retrieving scrape targets from [HashiCorp Nomad Services](https://www.hashicorp.com/blog/nomad-service-discovery).
+Nomad SD configuration allows retrieving scrape targets from [HashiCorp Nomad Services](https://www.hashicorp.com/en/blog/nomad-service-discovery).
 
 Configuration example:
 
@@ -1920,6 +2005,9 @@ scrape_configs:
   # Example values:
   # - "10MiB" - 10 * 1024 * 1024 bytes
   # - "100MB" - 100 * 1000 * 1000 bytes
+  # The max_scrape_size can be set on a per-target basis by specifying `__max_scrape_size__`
+  # label during target relabeling phase.
+  # See https://docs.victoriametrics.com/victoriametrics/relabeling/
   #
   # max_scrape_size: <size>
 

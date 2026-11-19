@@ -123,6 +123,9 @@ func InitRollupResultCache(cachePath string) {
 	metrics.GetOrCreateGauge(`vm_cache_misses_total{type="promql/rollupResult"}`, func() float64 {
 		return float64(fcs().Misses)
 	})
+	metrics.GetOrCreateGauge(`vm_cache_mode{type="promql/rollupResult"}`, func() float64 {
+		return float64(c.Mode())
+	})
 
 	rollupResultCacheV = &rollupResultCache{
 		c: c,
@@ -165,18 +168,23 @@ func ResetRollupResultCache() {
 	logger.Infof("rollupResult cache has been cleared")
 }
 
-func (rrc *rollupResultCache) GetInstantValues(qt *querytracer.Tracer, at *auth.Token, expr metricsql.Expr, window, step int64, etfss [][]storage.TagFilter) []*timeseries {
+func (rrc *rollupResultCache) GetInstantValues(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window int64) []*timeseries {
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
 		query = stringsutil.LimitStringLen(query, 300)
-		qt = qt.NewChild("rollup cache get instant values: query=%s, window=%d, step=%d", query, window, step)
+		qt = qt.NewChild("rollup cache get instant values: query=%s, window=%d, step=%d", query, window, ec.Step)
 		defer qt.Done()
 	}
 
 	// Obtain instant values from the cache
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
-	bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], at, expr, window, step, etfss)
+
+	var at *auth.Token
+	if !ec.IsMultiTenant {
+		at = ec.AuthTokens[0]
+	}
+	bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], at, expr, window, ec.Step, ec.CacheTagFilters)
 	tss, ok := rrc.getSeriesFromCache(qt, bb.B)
 	if !ok || len(tss) == 0 {
 		return nil
@@ -186,7 +194,7 @@ func (rrc *rollupResultCache) GetInstantValues(qt *querytracer.Tracer, at *auth.
 	return tss
 }
 
-func (rrc *rollupResultCache) PutInstantValues(qt *querytracer.Tracer, at *auth.Token, expr metricsql.Expr, window, step int64, etfss [][]storage.TagFilter, tss []*timeseries) {
+func (rrc *rollupResultCache) PutInstantValues(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window int64, tss []*timeseries) {
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
 		query = stringsutil.LimitStringLen(query, 300)
@@ -194,7 +202,7 @@ func (rrc *rollupResultCache) PutInstantValues(qt *querytracer.Tracer, at *auth.
 		if len(tss) > 0 {
 			startStr = storage.TimestampToHumanReadableFormat(tss[0].Timestamps[0])
 		}
-		qt = qt.NewChild("rollup cache put instant values: query=%s, window=%d, step=%d, series=%d, time=%s", query, window, step, len(tss), startStr)
+		qt = qt.NewChild("rollup cache put instant values: query=%s, window=%d, step=%d, series=%d, time=%s", query, window, ec.Step, len(tss), startStr)
 		defer qt.Done()
 	}
 	if len(tss) == 0 {
@@ -206,21 +214,31 @@ func (rrc *rollupResultCache) PutInstantValues(qt *querytracer.Tracer, at *auth.
 
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
-	bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], at, expr, window, step, etfss)
-	_ = rrc.putSeriesToCache(qt, bb.B, step, tss)
+
+	var at *auth.Token
+	if !ec.IsMultiTenant {
+		at = ec.AuthTokens[0]
+	}
+	bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], at, expr, window, ec.Step, ec.CacheTagFilters)
+	_ = rrc.putSeriesToCache(qt, bb.B, ec.Step, tss)
 }
 
-func (rrc *rollupResultCache) DeleteInstantValues(qt *querytracer.Tracer, at *auth.Token, expr metricsql.Expr, window, step int64, etfss [][]storage.TagFilter) {
+func (rrc *rollupResultCache) DeleteInstantValues(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window int64) {
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
-	bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], at, expr, window, step, etfss)
-	if !rrc.putSeriesToCache(qt, bb.B, step, nil) {
+
+	var at *auth.Token
+	if !ec.IsMultiTenant {
+		at = ec.AuthTokens[0]
+	}
+	bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], at, expr, window, ec.Step, ec.CacheTagFilters)
+	if !rrc.putSeriesToCache(qt, bb.B, ec.Step, nil) {
 		logger.Panicf("BUG: cannot store zero series to cache")
 	}
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
 		query = stringsutil.LimitStringLen(query, 300)
-		qt.Printf("rollup result cache delete instant values: query=%s, window=%d, step=%d", query, window, step)
+		qt.Printf("rollup result cache delete instant values: query=%s, window=%d, step=%d", query, window, ec.Step)
 	}
 }
 

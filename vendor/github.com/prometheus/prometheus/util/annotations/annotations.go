@@ -44,8 +44,7 @@ func (a *Annotations) Add(err error) Annotations {
 		*a = Annotations{}
 	}
 	if prevErr, exists := (*a)[err.Error()]; exists {
-		var anErr annoError
-		if errors.As(err, &anErr) {
+		if anErr, ok := errors.AsType[annoError](err); ok {
 			err = anErr.Merge(prevErr)
 		}
 	}
@@ -64,8 +63,7 @@ func (a *Annotations) Merge(aa Annotations) Annotations {
 	}
 	for key, val := range aa {
 		if prevVal, exists := (*a)[key]; exists {
-			var anErr annoError
-			if errors.As(val, &anErr) {
+			if anErr, ok := errors.AsType[annoError](val); ok {
 				val = anErr.Merge(prevVal)
 			}
 		}
@@ -95,8 +93,7 @@ func (a Annotations) AsStrings(query string, maxWarnings, maxInfos int) (warning
 	warnSkipped := 0
 	infoSkipped := 0
 	for _, err := range a {
-		var anErr annoError
-		if errors.As(err, &anErr) {
+		if anErr, ok := errors.AsType[annoError](err); ok {
 			anErr.SetQuery(query)
 		}
 		switch {
@@ -156,6 +153,7 @@ var (
 	NativeHistogramNotGaugeWarning          = fmt.Errorf("%w: this native histogram metric is not a gauge:", PromQLWarning)
 	MixedExponentialCustomHistogramsWarning = fmt.Errorf("%w: vector contains a mix of histograms with exponential and custom buckets schemas for metric name", PromQLWarning)
 	IncompatibleBucketLayoutInBinOpWarning  = fmt.Errorf("%w: incompatible bucket layout encountered for binary operator", PromQLWarning)
+	SortInRangeQueryWarning                 = fmt.Errorf("%w: sort is ineffective for range queries since results are always ordered by labels", PromQLWarning)
 
 	PossibleNonCounterInfo                  = fmt.Errorf("%w: metric might not be a counter, name does not end in _total/_sum/_count/_bucket:", PromQLInfo)
 	PossibleNonCounterLabelInfo             = fmt.Errorf("%w: metric might not be a counter, __type__ label is not set to %q or %q", PromQLInfo, model.MetricTypeCounter, model.MetricTypeHistogram)
@@ -168,6 +166,7 @@ var (
 	NativeHistogramFractionNaNsInfo         = fmt.Errorf("%w: input to histogram_fraction has NaN observations, which are excluded from all fractions", PromQLInfo)
 	HistogramCounterResetCollisionWarning   = fmt.Errorf("%w: conflicting counter resets during histogram", PromQLWarning)
 	MismatchedCustomBucketsHistogramsInfo   = fmt.Errorf("%w: mismatched custom buckets were reconciled during", PromQLInfo)
+	StartTimeOverlapWarning                 = fmt.Errorf("%w: sample has start time that overlaps with previous sample timestamp", PromQLWarning)
 )
 
 // annoError extends the standard error interface to provide additional functionality
@@ -424,6 +423,15 @@ func NewIncompatibleBucketLayoutInBinOpWarning(operator string, pos posrange.Pos
 	}
 }
 
+// NewSortInRangeQueryWarning is used when sort or sort_desc functions are used
+// in range queries where they have no effect since results are always ordered by labels.
+func NewSortInRangeQueryWarning(pos posrange.PositionRange) error {
+	return &annoErr{
+		PositionRange: pos,
+		Err:           SortInRangeQueryWarning,
+	}
+}
+
 func NewNativeHistogramQuantileNaNResultInfo(metricName string, pos posrange.PositionRange) error {
 	return &annoErr{
 		PositionRange: pos,
@@ -477,5 +485,57 @@ func NewMismatchedCustomBucketsHistogramsInfo(pos posrange.PositionRange, operat
 	return &annoErr{
 		PositionRange: pos,
 		Err:           fmt.Errorf("%w %s", MismatchedCustomBucketsHistogramsInfo, operation.String()),
+	}
+}
+
+type startTimeOverlapErr struct {
+	PositionRange posrange.PositionRange
+	Err           error
+	Query         string
+	metricName    string
+	count         int
+}
+
+func (e *startTimeOverlapErr) Error() string {
+	if e.Query == "" {
+		// Don't include count when query is empty to allow proper deduplication.
+		return fmt.Sprintf("%s for metric %q", e.Err, e.metricName)
+	}
+	if e.count > 1 {
+		return fmt.Sprintf("%s for metric %q (%d occurrences) (%s)", e.Err, e.metricName, e.count, e.PositionRange.StartPosInput(e.Query, 0))
+	}
+	return fmt.Sprintf("%s for metric %q (%s)", e.Err, e.metricName, e.PositionRange.StartPosInput(e.Query, 0))
+}
+
+func (e *startTimeOverlapErr) Unwrap() error {
+	return e.Err
+}
+
+func (e *startTimeOverlapErr) SetQuery(query string) {
+	e.Query = query
+}
+
+func (e *startTimeOverlapErr) Merge(other error) error {
+	var o *startTimeOverlapErr
+	ok := errors.As(other, &o)
+	if !ok {
+		return e
+	}
+	if e.Err.Error() != o.Err.Error() || e.metricName != o.metricName {
+		return e
+	}
+	o.count += e.count
+	return o
+}
+
+// NewStartTimeOverlapWarning is used when a sample's start time overlaps with a
+// previous sample's timestamp, indicating potential data quality issues.
+// This applies to both delta and cumulative counter metrics.
+func NewStartTimeOverlapWarning(metricName string, pos posrange.PositionRange) error {
+	return &startTimeOverlapErr{
+		PositionRange: pos,
+		Err:           StartTimeOverlapWarning,
+		metricName:    metricName,
+		count:         1,
 	}
 }

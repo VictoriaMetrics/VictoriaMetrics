@@ -1,5 +1,6 @@
 ---
 title: Configuration
+description: "Detailed configuration reference for stream aggregation rules, match/filter patterns, and deduplication."
 weight: 1
 menu:
   docs:
@@ -66,6 +67,8 @@ specified individually per each `-remoteWrite.url`:
 
   # interval is the interval for the aggregation.
   # The aggregated stats is sent to remote storage once per interval.
+  # It is recommended to set `interval` to at least 2× the scrape or push interval of the input.
+  # Set it to a higher value if the input pipeline is prone to large delays.
   #
   interval: 1m
 
@@ -94,7 +97,7 @@ specified individually per each `-remoteWrite.url`:
   # - total_prometheus
   # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#staleness for more details.
   #
-  # staleness_interval: 2m
+  # staleness_interval: 1m
 
   # ignore_first_sample_interval specifies the interval after which the agent begins sending samples.
   # By default, it is set to the staleness interval, and it helps reduce the initial sample load after an agent restart.
@@ -116,8 +119,9 @@ specified individually per each `-remoteWrite.url`:
   # no_align_flush_to_interval: false
 
   # flush_on_shutdown instructs to flush aggregated data to the storage on the first and the last intervals
-  # during vmagent starts, restarts or configuration reloads.
+  # during vmagent starts, restarts or configuration reloads, which change this aggregation config.
   # Incomplete aggregated data isn't flushed to the storage by default, since it is usually confusing.
+  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#flush-time-alignment
   #
   # flush_on_shutdown: false
 
@@ -132,7 +136,7 @@ specified individually per each `-remoteWrite.url`:
   # by: [job, vmrange]
 
   # outputs is the list of unique aggregations to perform on the input data.
-  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-outputs
+  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-outputs
   #
   outputs: [total]
 
@@ -151,6 +155,8 @@ specified individually per each `-remoteWrite.url`:
   # ignore_old_samples: false
 
   # ignore_first_intervals instructs ignoring the first N aggregation intervals after process start.
+  # Only complete intervals are counted. If N > 0, then the incomplete first interval after the start is ignored as well,
+  # even if flush_on_shutdown is set.
   # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignore-aggregation-intervals-on-start
   # See also -remoteWrite.streamAggr.ignoreFirstIntervals and -streamAggr.ignoreFirstIntervals command-line flags.
   #
@@ -196,6 +202,9 @@ support the following approaches for hot reloading stream aggregation configs fr
 
 * By sending HTTP request to `/-/reload` endpoint (e.g. `http://vmagent:8429/-/reload` or `http://victoria-metrics:8428/-/reload`).
 
+Only the changed aggregation configs are restarted on reload. {{% available_from "#" %}} The aggregation config is considered unchanged
+if it stays identical and keeps the same position in the config file. Unchanged aggregation configs keep their aggregation state.
+
 ## Aggregation outputs
 
 The aggregations are calculated during the `interval` specified in the [config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config)
@@ -220,6 +229,7 @@ Below are aggregation functions that can be put in the `outputs` list at [stream
 * [stddev](#stddev)
 * [stdvar](#stdvar)
 * [sum_samples](#sum_samples)
+* [sum_samples_total](#sum_samples_total)
 * [total](#total)
 * [total_prometheus](#total_prometheus)
 * [unique_samples](#unique_samples)
@@ -290,9 +300,6 @@ The results of `histogram_bucket` is equal to the following [MetricsQL](https://
 ```metricsql
 sum(histogram_over_time(some_histogram_bucket[interval])) by (vmrange)
 ```
-
-Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
-or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#staleness) option.
 
 See also:
 - [quantiles](#quantiles)
@@ -506,6 +513,20 @@ See also:
 
 - [count_samples](#count_samples)
 - [count_series](#count_series)
+- [sum_samples_total](#sum_samples_total)
+
+### `sum_samples_total`
+
+`sum_samples_total` {{% available_from "v1.146.0" %}}. sums input delta values into a cumulative [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/index.html#counter) and outputs the result at the given `interval`.
+`sum_samples_total` makes sense only for aggregating delta values from clients such as [StatsD counter](https://github.com/statsd/statsd/blob/master/docs/metric_types.md#counting).
+
+The results of `sum_samples_total` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
+
+```metricsql
+sum(running_sum(some_delta_values))
+```
+
+>Note: The aggregator will forget the cumulative counter if it has not seen input samples for `staleness_interval`(set to `interval` by default) per output result, so the output counter will start from `0` the next time it sees the input again. Increase the `staleness_interval` option if you want to extend the window to tolerate bigger gaps.
 
 ### total
 
@@ -547,6 +568,7 @@ See also:
 - [total_prometheus](#total_prometheus)
 - [increase](#increase)
 - [increase_prometheus](#increase_prometheus)
+- [sum_samples_total](#sum_samples_total)
 - [rate_sum](#rate_sum)
 - [rate_avg](#rate_avg)
 
@@ -576,6 +598,7 @@ See also:
 - [total](#total)
 - [increase](#increase)
 - [increase_prometheus](#increase_prometheus)
+- [sum_samples_total](#sum_samples_total)
 - [rate_sum](#rate_sum)
 - [rate_avg](#rate_avg)
 

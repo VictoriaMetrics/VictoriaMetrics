@@ -1,5 +1,6 @@
 ---
 title: Migrate from InfluxDB to VictoriaMetrics
+description: "Differences and approaches for migrating from InfluxDB."
 weight: 8
 menu:
   docs:

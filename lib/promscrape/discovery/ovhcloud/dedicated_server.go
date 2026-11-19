@@ -97,12 +97,12 @@ func getDedicatedServerDetails(cfg *apiConfig, dedicatedServerName string) (*ded
 		request.Header, _ = getAuthHeaders(cfg, request.Header, cfg.client.APIServer(), reqPath)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("request %s error: %v", reqPath, err)
+		return nil, fmt.Errorf("cannot process %s: %w", reqPath, err)
 	}
 
 	var dedicatedServerDetails dedicatedServer
 	if err = json.Unmarshal(resp, &dedicatedServerDetails); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal %s response: %v", reqPath, err)
+		return nil, fmt.Errorf("cannot unmarshal response from %s: %w", reqPath, err)
 	}
 
 	// get IPs for this dedicated server.
@@ -113,12 +113,12 @@ func getDedicatedServerDetails(cfg *apiConfig, dedicatedServerName string) (*ded
 		request.Header, _ = getAuthHeaders(cfg, request.Header, cfg.client.APIServer(), reqPath)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("request %s error: %v", reqPath, err)
+		return nil, fmt.Errorf("cannot process %s: %w", reqPath, err)
 	}
 
 	var ips []string
 	if err = json.Unmarshal(resp, &ips); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal %s response: %v", reqPath, err)
+		return nil, fmt.Errorf("cannot unmarshal response from %s: %w", reqPath, err)
 	}
 
 	// handle different IP formats
@@ -141,11 +141,11 @@ func getDedicatedServerList(cfg *apiConfig) ([]string, error) {
 		request.Header, _ = getAuthHeaders(cfg, request.Header, cfg.client.APIServer(), reqPath)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("request %s error: %v", reqPath, err)
+		return nil, fmt.Errorf("cannot process %s: %w", reqPath, err)
 	}
 
 	if err = json.Unmarshal(resp, &dedicatedServerList); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal %s response: %v", reqPath, err)
+		return nil, fmt.Errorf("cannot unmarshal response from %s: %w", reqPath, err)
 	}
 
 	return dedicatedServerList, nil

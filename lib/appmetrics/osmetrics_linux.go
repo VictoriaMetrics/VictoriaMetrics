@@ -7,7 +7,7 @@ import (
 )
 
 func initOS() {
-	os = osInfo{name: "linux"}
+	hostOS = osInfo{name: "linux"}
 
 	var uname syscall.Utsname
 	if err := syscall.Uname(&uname); err != nil {
@@ -22,5 +22,5 @@ func initOS() {
 		}
 		ur = append(ur, byte(v))
 	}
-	os.release = string(ur)
+	hostOS.release = string(ur)
 }

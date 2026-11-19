@@ -15,7 +15,7 @@ and reduce programming effort.
 For example, "toarray" tag makes struct fields encode to CBOR array elements.  And
 "keyasint" makes a field encode to an element of CBOR map with specified int key.
 
-Latest docs can be viewed at https://github.com/fxamacker/cbor#cbor-library-in-go
+Latest docs can be viewed at https://github.com/fxamacker/cbor
 
 # Basics
 
@@ -40,7 +40,7 @@ Functions that simplify using CBOR Sequences (RFC 8742) include:
 Custom encoding and decoding is possible by implementing standard interfaces for
 user-defined Go types.
 
-Codec functions are available at package-level (using defaults options) or by
+Codec functions are available at package-level (using default options) or by
 creating modes from options at runtime.
 
 "Mode" in this API means definite way of encoding (EncMode) or decoding (DecMode).
@@ -56,20 +56,30 @@ modes won't accidentally change at runtime after they're created.
 
 Modes are intended to be reused and are safe for concurrent use.
 
-EncMode and DecMode Interfaces
+EncMode, UserBufferEncMode, and DecMode Interfaces
 
 	// EncMode interface uses immutable options and is safe for concurrent use.
 	type EncMode interface {
-		Marshal(v interface{}) ([]byte, error)
+		Marshal(v any) ([]byte, error)
 		NewEncoder(w io.Writer) *Encoder
-		EncOptions() EncOptions  // returns copy of options
+		EncOptions() EncOptions
+	}
+
+	// UserBufferEncMode extends EncMode with MarshalToBuffer, which supports
+	// user specified buffer rather than encoding into the built-in buffer pool.
+	type UserBufferEncMode interface {
+		EncMode
+		MarshalToBuffer(v any, buf *bytes.Buffer) error
 	}
 
 	// DecMode interface uses immutable options and is safe for concurrent use.
 	type DecMode interface {
-		Unmarshal(data []byte, v interface{}) error
+		Unmarshal(data []byte, v any) error
+		UnmarshalFirst(data []byte, v any) (rest []byte, err error)
+		Valid(data []byte) error          // Deprecated: use Wellformed instead.
+		Wellformed(data []byte) error
 		NewDecoder(r io.Reader) *Decoder
-		DecOptions() DecOptions  // returns copy of options
+		DecOptions() DecOptions
 	}
 
 Using Default Encoding Mode
@@ -111,42 +121,45 @@ Creating and Using Encoding Modes
 	b, err := em.Marshal(v)
 	// or
 	encoder := em.NewEncoder(w)
-	err := encoder.Encode(v)
+	err = encoder.Encode(v)
 
 	// NOTE: Both em.Marshal(v) and encoder.Encode(v) use encoding options
 	// specified during creation of em (encoding mode).
 
 # CBOR Options
 
-Predefined Encoding Options: https://github.com/fxamacker/cbor#predefined-encoding-options
+Predefined Encoding Options: https://github.com/fxamacker/cbor#presets
 
-Encoding Options: https://github.com/fxamacker/cbor#encoding-options
+Encoding Options: [EncOptions]
 
-Decoding Options: https://github.com/fxamacker/cbor#decoding-options
+Decoding Options: [DecOptions]
 
 # Struct Tags
 
 Struct tags like `cbor:"name,omitempty"` and `json:"name,omitempty"` work as expected.
 If both struct tags are specified then `cbor` is used.
+Except for the blank field "_", unexported fields must not have any `cbor` or
+`json` struct tags other than `cbor:"-"` or `json:"-"`. Only the blank field may
+have the `cbor:",toarray"` or `cbor:",toindefarray"` struct tag.
 
 Struct tag options like "keyasint", "toarray", "omitempty", and "omitzero" make it easy to use
 very compact formats like COSE and CWT (CBOR Web Tokens) with structs.
 
 The "omitzero" option omits zero values from encoding, matching
-[stdlib encoding/json behavior](https://pkg.go.dev/encoding/json#Marshal).
-When specified in the `cbor` tag, the option is always honored.
-When specified in the `json` tag, the option is honored when building with Go 1.24+.
+[stdlib encoding/json behavior].
 
 For example, "toarray" makes struct fields encode to array elements.  And "keyasint"
 makes struct fields encode to elements of CBOR map with int keys.
 
 https://raw.githubusercontent.com/fxamacker/images/master/cbor/v2.0.0/cbor_easy_api.png
 
-Struct tag options are listed at https://github.com/fxamacker/cbor#struct-tags-1
+Struct tag options are listed at https://github.com/fxamacker/cbor#struct-tags
 
 # Tests and Fuzzing
 
-Over 375 tests are included in this package. Cover-guided fuzzing is handled by
+Over 400 tests are included in this package. Coverage-guided fuzzing is handled by
 a private fuzzer that replaced fxamacker/cbor-fuzz years ago.
+
+[stdlib encoding/json behavior]: https://pkg.go.dev/encoding/json#Marshal
 */
 package cbor

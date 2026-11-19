@@ -87,7 +87,7 @@ type QueryClient struct {
 
 // Wrapper methods routed to the internal client.
 
-// Close closes the connection to the API service. The user should invoke this when
+// Close closes the connection to the API service. **Always** call Close() when
 // the client is no longer required.
 func (c *QueryClient) Close() error {
 	return c.internalClient.Close()
@@ -190,6 +190,33 @@ func NewQueryClient(ctx context.Context, opts ...option.ClientOption) (*QueryCli
 
 		client.CallOptions.QueryTimeSeries = append(client.CallOptions.QueryTimeSeries, gax.WithClientMetrics(metrics))
 	}
+	if gax.IsFeatureEnabled("TRACING") {
+		tracing := gax.NewClientTracing(
+			gax.WithTracingAttributes(map[string]string{
+				gax.ClientService:  "monitoring",
+				gax.ClientVersion:  getVersionClient(),
+				gax.ClientArtifact: "cloud.google.com/go/monitoring/apiv3/v2",
+				gax.RPCSystem:      "grpc",
+				gax.URLDomain:      "monitoring.googleapis.com",
+			}),
+		)
+
+		client.CallOptions.QueryTimeSeries = append(client.CallOptions.QueryTimeSeries, gax.WithClientTracing(tracing))
+	}
+	if gax.IsFeatureEnabled("LOGGING") {
+		logging := gax.NewClientLogging(
+			gax.WithLoggerProvider(c.logger),
+			gax.WithLoggingAttributes(map[string]string{
+				gax.ClientService:  "monitoring",
+				gax.ClientVersion:  getVersionClient(),
+				gax.ClientArtifact: "cloud.google.com/go/monitoring/apiv3/v2",
+				gax.RPCSystem:      "grpc",
+				gax.URLDomain:      "monitoring.googleapis.com",
+			}),
+		)
+
+		client.CallOptions.QueryTimeSeries = append(client.CallOptions.QueryTimeSeries, gax.WithClientLogging(logging))
+	}
 
 	client.internalClient = c
 
@@ -215,7 +242,7 @@ func (c *queryGRPCClient) setGoogleClientInfo(keyval ...string) {
 	}
 }
 
-// Close closes the connection to the API service. The user should invoke this when
+// Close closes the connection to the API service. **Always** call Close() when
 // the client is no longer required.
 func (c *queryGRPCClient) Close() error {
 	return c.connPool.Close()
@@ -231,7 +258,7 @@ func (c *queryGRPCClient) QueryTimeSeries(ctx context.Context, req *monitoringpb
 	}
 	opts = append((*c.CallOptions).QueryTimeSeries[0:len((*c.CallOptions).QueryTimeSeries):len((*c.CallOptions).QueryTimeSeries)], opts...)
 	it := &TimeSeriesDataIterator{}
-	req = proto.Clone(req).(*monitoringpb.QueryTimeSeriesRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoringpb.TimeSeriesData, string, error) {
 		resp := &monitoringpb.QueryTimeSeriesResponse{}
 		if pageToken != "" {

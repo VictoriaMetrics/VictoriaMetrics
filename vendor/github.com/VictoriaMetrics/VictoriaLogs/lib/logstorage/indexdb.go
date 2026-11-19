@@ -7,6 +7,7 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -105,7 +106,7 @@ func mustOpenIndexdb(path, partitionName string, s *Storage) *indexdb {
 		s:             s,
 	}
 	var isReadOnly atomic.Bool
-	idb.tb = mergeset.MustOpenTable(path, s.flushInterval, idb.invalidateStreamFilterCache, mergeTagToStreamIDsRows, &isReadOnly)
+	idb.tb = mergeset.MustOpenTable(path, s.flushInterval, idb.invalidateStreamFilterCache, time.Second, mergeTagToStreamIDsRows, &isReadOnly)
 	return idb
 }
 

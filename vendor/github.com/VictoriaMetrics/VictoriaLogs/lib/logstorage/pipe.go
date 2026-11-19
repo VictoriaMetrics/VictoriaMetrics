@@ -122,12 +122,13 @@ func parsePipes(lex *lexer) ([]pipe, error) {
 		pipes = append(pipes, p)
 
 		switch {
-		case lex.isKeyword("|"):
+		case lex.isQueryPartTrailer():
+			if !lex.isKeyword("|") {
+				return pipes, nil
+			}
 			lex.nextToken()
-		case lex.isKeyword(")", ""):
-			return pipes, nil
 		default:
-			return nil, fmt.Errorf("unexpected token after [%s]: %q; expecting '|' or ')'", pipes[len(pipes)-1], lex.token)
+			return nil, fmt.Errorf("unexpected token after [%s]: %q; expecting '|', ';' or ')'", pipes[len(pipes)-1], lex.token)
 		}
 	}
 }
@@ -145,23 +146,54 @@ func parsePipe(lex *lexer) (pipe, error) {
 		return p, nil
 	}
 
-	lexState := lex.backupState()
-
-	// Try parsing stats pipe without 'stats' keyword
-	ps, err := parsePipeStatsNoStatsKeyword(lex)
-	if err == nil {
+	if isLikelyStatsPipe(lex) {
+		// Try parsing stats pipe without 'stats' keyword
+		ps, err := parsePipeStatsNoStatsKeyword(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'stats' pipe: %w", err)
+		}
 		return ps, nil
 	}
-	lex.restoreState(lexState)
 
-	// Try parsing filter pipe without 'filter' keyword
-	pf, err := parsePipeFilterNoFilterKeyword(lex)
-	if err == nil {
+	if isLikelyFilterPipe(lex) {
+		// Try parsing filter pipe without 'filter' keyword
+		pf, err := parsePipeFilterNoFilterKeyword(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'filter' pipe: %w", err)
+		}
 		return pf, nil
 	}
-	lex.restoreState(lexState)
 
-	return nil, fmt.Errorf("unexpected pipe %q", lex.token)
+	return nil, fmt.Errorf("unexpected pipe name %q; probably, 'filter' is missing in front of %q; "+
+		"see https://docs.victoriametrics.com/victorialogs/logsql/#filter-pipe", lex.token, lex.token)
+}
+
+func isLikelyStatsPipe(lex *lexer) bool {
+	return isStatsFuncName(lex.rawToken) || lex.isKeyword("by", "(")
+}
+
+func isLikelyFilterPipe(lex *lexer) bool {
+	if lex.isQuotedToken() {
+		return true
+	}
+	if !isWord(lex.token) {
+		// Any token that isn't a word cannot clash with a pipe name,
+		// since all pipe names are words. So treat it as a filter.
+		return true
+	}
+	if lex.isKeyword("not") {
+		// 'not' is a logical filter operator rather than a pipe name.
+		return true
+	}
+
+	lexState := lex.backupState()
+	defer lex.restoreState(lexState)
+
+	stopTokens := []string{":"}
+	if _, err := lex.nextCompoundTokenExt(stopTokens); err != nil {
+		return false
+	}
+	return lex.isKeyword(":")
 }
 
 var pipeParsers map[string]pipeParseFunc
@@ -178,6 +210,7 @@ func initPipeParsers() {
 	pipeParsers = map[string]pipeParseFunc{
 		"block_stats":       parsePipeBlockStats,
 		"blocks_count":      parsePipeBlocksCount,
+		"coalesce":          parsePipeCoalesce,
 		"collapse_nums":     parsePipeCollapseNums,
 		"copy":              parsePipeCopy,
 		"cp":                parsePipeCopy,
@@ -199,6 +232,7 @@ func initPipeParsers() {
 		"generate_sequence": parsePipeGenerateSequence,
 		"hash":              parsePipeHash,
 		"join":              parsePipeJoin,
+		"json_array_concat": parsePipeJSONArrayConcat,
 		"json_array_len":    parsePipeJSONArrayLen,
 		"head":              parsePipeLimit,
 		"keep":              parsePipeFields,

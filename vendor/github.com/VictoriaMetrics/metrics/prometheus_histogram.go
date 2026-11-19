@@ -188,8 +188,11 @@ func ValidateBuckets(upperBounds []float64) error {
 	if len(upperBounds) == 0 {
 		return fmt.Errorf("upperBounds can't be empty")
 	}
-	for i := range len(upperBounds) - 1 {
-		if upperBounds[i] >= upperBounds[i+1] {
+	for i, ub := range upperBounds {
+		if math.IsNaN(ub) {
+			return fmt.Errorf("upper bounds for the buckets cannot contain NaN")
+		}
+		if i > 0 && upperBounds[i-1] >= ub {
 			return fmt.Errorf("upper bounds for the buckets must be strictly increasing")
 		}
 	}

@@ -51,7 +51,7 @@ func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 	}
 	q := req.URL.Query()
 	precision := q.Get("precision")
-	// Read db tag from https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint
+	// Read db tag from https://docs.influxdata.com/influxdb/v1/api/write/#operation/PostWrite
 	db := q.Get("db")
 	encoding := req.Header.Get("Content-Encoding")
 	isStreamMode := req.Header.Get("Stream-Mode") == "1"

@@ -2,12 +2,15 @@ package streamaggr
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
 func TestAggregatorsFailure(t *testing.T) {
@@ -192,71 +195,223 @@ func TestAggregatorsFailure(t *testing.T) {
 `)
 }
 
-func TestAggregatorsEqual(t *testing.T) {
-	f := func(a, b string, expectedResult bool) {
+func TestAggregatorsReload(t *testing.T) {
+	f := func(prevConfig, config, reusedExpected string) {
 		t.Helper()
 
 		pushFunc := func(_ []prompb.TimeSeries) {}
-		opts := Options{
-			EnableWindows: true,
-		}
-		aa, err := LoadFromData([]byte(a), pushFunc, &opts, "some_alias")
+		prev, err := loadFromData([]byte(prevConfig), "inmemory", pushFunc, nil, "some_alias", nil)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
-		ab, err := LoadFromData([]byte(b), pushFunc, &opts, "some_alias")
+		prevAggrs := make(map[*aggregator]struct{})
+		for _, aggr := range prev.as {
+			prevAggrs[aggr] = struct{}{}
+		}
+
+		a, err := loadFromData([]byte(config), "inmemory", pushFunc, nil, "some_alias", prev)
 		if err != nil {
-			t.Fatalf("cannot initialize aggregators: %s", err)
+			t.Fatalf("cannot reload aggregators: %s", err)
 		}
-		result := aa.Equal(ab)
-		if result != expectedResult {
-			t.Fatalf("unexpected result; got %v; want %v", result, expectedResult)
+		if a != prev {
+			prev.MustStop()
 		}
+
+		reused := ""
+		for _, aggr := range a.as {
+			if _, ok := prevAggrs[aggr]; ok {
+				reused += "1"
+			} else {
+				reused += "0"
+			}
+			select {
+			case <-aggr.stopCh:
+				t.Fatalf("unexpected stopped aggregator")
+			default:
+			}
+		}
+		if reused != reusedExpected {
+			t.Fatalf("unexpected reused aggregators; got %s; want %s", reused, reusedExpected)
+		}
+
+		// The previous aggregators that weren't reused, must be stopped
+		if a != prev {
+			for aggr := range prevAggrs {
+				if slices.Contains(a.as, aggr) {
+					continue
+				}
+				select {
+				case <-aggr.stopCh:
+				default:
+					t.Fatalf("expecting stopped aggregator")
+				}
+			}
+		}
+		a.MustStop()
 	}
-	f("", "", true)
+
+	f("", "", "")
+
+	// identical configs
 	f(`
-- outputs: [total]
-  interval: 5m
-`, ``, false)
-	f(`
-- outputs: [total]
-  interval: 5m
+- interval: 1m
+  outputs: [last]
 `, `
-- outputs: [total]
-  interval: 5m
-`, true)
+- interval: 1m
+  outputs: [last]
+`, "1")
+
+	// changed config
 	f(`
-- outputs: [total]
-  interval: 3m
+- interval: 1m
+  outputs: [last]
 `, `
-- outputs: [total]
-  interval: 5m
-`, false)
+- interval: 5m
+  outputs: [last]
+`, "0")
+
+	// added config
 	f(`
-- outputs: [total]
-  interval: 5m
-  flush_on_shutdown: true  
+- interval: 1m
+  outputs: [last]
 `, `
-- outputs: [total]
-  interval: 5m
-  flush_on_shutdown: false
-`, false)
+- interval: 1m
+  outputs: [last]
+- interval: 1m
+  outputs: [max]
+`, "10")
+
+	// removed config
 	f(`
-- outputs: [total]
-  interval: 5m
-  ignore_first_intervals: 2
+- interval: 1m
+  outputs: [last]
+- interval: 1m
+  outputs: [max]
 `, `
-- outputs: [total]
-  interval: 5m
-  ignore_first_intervals: 4`, false)
+- interval: 1m
+  outputs: [last]
+`, "1")
+
+	// changed the second config
+	f(`
+- interval: 1m
+  outputs: [max]
+- interval: 2m
+  outputs: [max]
+- interval: 3m
+  outputs: [max]
+`, `
+- interval: 1m
+  outputs: [max]
+- interval: 2m
+  outputs: [min]
+- interval: 3m
+  outputs: [max]
+`, "101")
+
+	// changed positions, aggregators aren't reused
+	f(`
+- interval: 1m
+  outputs: [max]
+- interval: 2m
+  outputs: [max]
+`, `
+- interval: 2m
+  outputs: [max]
+- interval: 1m
+  outputs: [max]
+`, "00")
+}
+
+func TestAggregatorsReloadFailure(t *testing.T) {
+	pushFunc := func(_ []prompb.TimeSeries) {}
+	prev, err := loadFromData([]byte(`
+- interval: 1m
+  outputs: [max]
+`), "inmemory", pushFunc, nil, "some_alias", nil)
+	if err != nil {
+		t.Fatalf("cannot initialize aggregators: %s", err)
+	}
+	a, err := loadFromData([]byte(`
+- interval: 1m
+  outputs: [max]
+- interval: 1m
+  outputs: [unknown]
+`), "inmemory", pushFunc, nil, "some_alias", prev)
+	if err == nil {
+		t.Fatalf("expecting non-nil error")
+	}
+	if a != nil {
+		t.Fatalf("expecting nil a")
+	}
+
+	aggr := prev.as[0]
+	select {
+	case <-aggr.stopCh:
+		t.Fatalf("unexpected stopped aggregator")
+	default:
+	}
+	prev.MustStop()
+	select {
+	case <-aggr.stopCh:
+	default:
+		t.Fatalf("expecting stopped aggregator")
+	}
+}
+
+func TestAggregatorsReloadKeepsState(t *testing.T) {
+	var tssOutput []prompb.TimeSeries
+	pushFunc := func(tss []prompb.TimeSeries) {
+		tssOutput = appendClonedTimeseries(tssOutput, tss)
+	}
+	prevConfig := `
+- interval: 1h
+  flush_on_shutdown: true
+  no_align_flush_to_interval: true
+  outputs: [sum_samples]
+`
+	config := prevConfig + `
+- interval: 1h
+  flush_on_shutdown: true
+  no_align_flush_to_interval: true
+  outputs: [count_samples]
+`
+	prev, err := loadFromData([]byte(prevConfig), "inmemory", pushFunc, nil, "some_alias", nil)
+	if err != nil {
+		t.Fatalf("cannot initialize aggregators: %s", err)
+	}
+	prev.Push(prometheus.MustParsePromMetrics("foo 1\nfoo 2", 0), nil)
+
+	a, err := loadFromData([]byte(config), "inmemory", pushFunc, nil, "some_alias", prev)
+	if err != nil {
+		t.Fatalf("cannot reload aggregators: %s", err)
+	}
+	prev.MustStop()
+	if len(tssOutput) > 0 {
+		t.Fatalf("unexpected output after stopping the previous aggregators: %s", timeSeriessToString(tssOutput))
+	}
+
+	a.Push(prometheus.MustParsePromMetrics("foo 3", 0), nil)
+	a.MustStop()
+
+	outputExpected := `foo:1h_count_samples 1
+foo:1h_sum_samples 6
+`
+	if output := timeSeriessToString(tssOutput); output != outputExpected {
+		t.Fatalf("unexpected output;\ngot\n%s\nwant\n%s", output, outputExpected)
+	}
 }
 
 func timeSeriessToString(tss []prompb.TimeSeries) string {
-	a := make([]string, len(tss))
-	for i, ts := range tss {
+	sorted := make([]prompb.TimeSeries, len(tss))
+	copy(sorted, tss)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return promrelabel.LabelsToString(sorted[i].Labels) < promrelabel.LabelsToString(sorted[j].Labels)
+	})
+	a := make([]string, len(sorted))
+	for i, ts := range sorted {
 		a[i] = timeSeriesToString(ts)
 	}
-	sort.Strings(a)
 	return strings.Join(a, "")
 }
 
@@ -276,4 +431,47 @@ func appendClonedTimeseries(dst, src []prompb.TimeSeries) []prompb.TimeSeries {
 		})
 	}
 	return dst
+}
+
+func TestFlushLag(t *testing.T) {
+	type push struct {
+		hasAccepted     bool
+		acceptedLagMsec int64
+		droppedLagMsec  int64
+	}
+	const interval = 10 * time.Second
+	f := func(pushes []push, delayExpected time.Duration) {
+		t.Helper()
+		var fl flushLag
+		for _, p := range pushes {
+			fl.update(p.hasAccepted, p.acceptedLagMsec, p.droppedLagMsec)
+		}
+		if delay := fl.takeFlushDelay(interval); delay != delayExpected {
+			t.Fatalf("unexpected delay; got %s; want %s", delay, delayExpected)
+		}
+		// The lags must be reset after takeFlushDelay.
+		if delay := fl.takeFlushDelay(interval); delay != 0 {
+			t.Fatalf("unexpected delay after reset; got %s; want 0s", delay)
+		}
+	}
+
+	// no pushes
+	f(nil, 0)
+
+	// nothing accepted or dropped
+	f([]push{{}}, 0)
+
+	// the max accepted lag is used
+	f([]push{{true, 1000, 0}, {true, 3000, 0}, {true, 2000, 0}}, 3*time.Second)
+
+	// accepted lag wins over dropped lag
+	f([]push{{true, 1000, 0}, {false, 0, 5000}}, time.Second)
+	f([]push{{false, 0, 5000}, {true, 0, 0}}, 0)
+
+	// dropped lag is used if no samples were accepted
+	f([]push{{false, 0, 4000}, {false, 0, 6000}}, 6*time.Second)
+
+	// the delay is capped at 90% of the interval
+	f([]push{{true, 15000, 0}}, 9*time.Second)
+	f([]push{{false, 0, 15000}}, 9*time.Second)
 }

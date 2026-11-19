@@ -334,7 +334,7 @@ func (shard *pipeTopkProcessorShard) getRowsByPartition(partition string) *pipeT
 		}
 		partition = strings.Clone(partition)
 		shard.rowsByPartition[partition] = rs
-		shard.stateSizeBudget += int(unsafe.Sizeof(*rs)+unsafe.Sizeof(rs)) + len(partition)
+		shard.stateSizeBudget -= int(unsafe.Sizeof(*rs)+unsafe.Sizeof(rs)) + len(partition)
 	}
 	return rs
 }

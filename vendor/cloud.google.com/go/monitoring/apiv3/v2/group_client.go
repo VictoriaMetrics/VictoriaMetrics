@@ -171,7 +171,7 @@ type GroupClient struct {
 
 // Wrapper methods routed to the internal client.
 
-// Close closes the connection to the API service. The user should invoke this when
+// Close closes the connection to the API service. **Always** call Close() when
 // the client is no longer required.
 func (c *GroupClient) Close() error {
 	return c.internalClient.Close()
@@ -309,6 +309,43 @@ func NewGroupClient(ctx context.Context, opts ...option.ClientOption) (*GroupCli
 		client.CallOptions.DeleteGroup = append(client.CallOptions.DeleteGroup, gax.WithClientMetrics(metrics))
 		client.CallOptions.ListGroupMembers = append(client.CallOptions.ListGroupMembers, gax.WithClientMetrics(metrics))
 	}
+	if gax.IsFeatureEnabled("TRACING") {
+		tracing := gax.NewClientTracing(
+			gax.WithTracingAttributes(map[string]string{
+				gax.ClientService:  "monitoring",
+				gax.ClientVersion:  getVersionClient(),
+				gax.ClientArtifact: "cloud.google.com/go/monitoring/apiv3/v2",
+				gax.RPCSystem:      "grpc",
+				gax.URLDomain:      "monitoring.googleapis.com",
+			}),
+		)
+
+		client.CallOptions.ListGroups = append(client.CallOptions.ListGroups, gax.WithClientTracing(tracing))
+		client.CallOptions.GetGroup = append(client.CallOptions.GetGroup, gax.WithClientTracing(tracing))
+		client.CallOptions.CreateGroup = append(client.CallOptions.CreateGroup, gax.WithClientTracing(tracing))
+		client.CallOptions.UpdateGroup = append(client.CallOptions.UpdateGroup, gax.WithClientTracing(tracing))
+		client.CallOptions.DeleteGroup = append(client.CallOptions.DeleteGroup, gax.WithClientTracing(tracing))
+		client.CallOptions.ListGroupMembers = append(client.CallOptions.ListGroupMembers, gax.WithClientTracing(tracing))
+	}
+	if gax.IsFeatureEnabled("LOGGING") {
+		logging := gax.NewClientLogging(
+			gax.WithLoggerProvider(c.logger),
+			gax.WithLoggingAttributes(map[string]string{
+				gax.ClientService:  "monitoring",
+				gax.ClientVersion:  getVersionClient(),
+				gax.ClientArtifact: "cloud.google.com/go/monitoring/apiv3/v2",
+				gax.RPCSystem:      "grpc",
+				gax.URLDomain:      "monitoring.googleapis.com",
+			}),
+		)
+
+		client.CallOptions.ListGroups = append(client.CallOptions.ListGroups, gax.WithClientLogging(logging))
+		client.CallOptions.GetGroup = append(client.CallOptions.GetGroup, gax.WithClientLogging(logging))
+		client.CallOptions.CreateGroup = append(client.CallOptions.CreateGroup, gax.WithClientLogging(logging))
+		client.CallOptions.UpdateGroup = append(client.CallOptions.UpdateGroup, gax.WithClientLogging(logging))
+		client.CallOptions.DeleteGroup = append(client.CallOptions.DeleteGroup, gax.WithClientLogging(logging))
+		client.CallOptions.ListGroupMembers = append(client.CallOptions.ListGroupMembers, gax.WithClientLogging(logging))
+	}
 
 	client.internalClient = c
 
@@ -334,7 +371,7 @@ func (c *groupGRPCClient) setGoogleClientInfo(keyval ...string) {
 	}
 }
 
-// Close closes the connection to the API service. The user should invoke this when
+// Close closes the connection to the API service. **Always** call Close() when
 // the client is no longer required.
 func (c *groupGRPCClient) Close() error {
 	return c.connPool.Close()
@@ -345,15 +382,12 @@ func (c *groupGRPCClient) ListGroups(ctx context.Context, req *monitoringpb.List
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//monitoring.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.monitoring.v3.GroupService/ListGroups")
 	}
 	opts = append((*c.CallOptions).ListGroups[0:len((*c.CallOptions).ListGroups):len((*c.CallOptions).ListGroups)], opts...)
 	it := &GroupIterator{}
-	req = proto.Clone(req).(*monitoringpb.ListGroupsRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoringpb.Group, string, error) {
 		resp := &monitoringpb.ListGroupsResponse{}
 		if pageToken != "" {
@@ -397,9 +431,6 @@ func (c *groupGRPCClient) GetGroup(ctx context.Context, req *monitoringpb.GetGro
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//monitoring.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.monitoring.v3.GroupService/GetGroup")
 	}
@@ -421,9 +452,6 @@ func (c *groupGRPCClient) CreateGroup(ctx context.Context, req *monitoringpb.Cre
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//monitoring.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.monitoring.v3.GroupService/CreateGroup")
 	}
@@ -466,9 +494,6 @@ func (c *groupGRPCClient) DeleteGroup(ctx context.Context, req *monitoringpb.Del
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//monitoring.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.monitoring.v3.GroupService/DeleteGroup")
 	}
@@ -486,15 +511,12 @@ func (c *groupGRPCClient) ListGroupMembers(ctx context.Context, req *monitoringp
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
-	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
-		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//monitoring.googleapis.com/%v", req.GetName()))
-	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.monitoring.v3.GroupService/ListGroupMembers")
 	}
 	opts = append((*c.CallOptions).ListGroupMembers[0:len((*c.CallOptions).ListGroupMembers):len((*c.CallOptions).ListGroupMembers)], opts...)
 	it := &MonitoredResourceIterator{}
-	req = proto.Clone(req).(*monitoringpb.ListGroupMembersRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoredrespb.MonitoredResource, string, error) {
 		resp := &monitoringpb.ListGroupMembersResponse{}
 		if pageToken != "" {

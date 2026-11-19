@@ -23,6 +23,8 @@ import (
 var (
 	configPath                    = flag.String("notifier.config", "", "Path to configuration file for notifiers")
 	suppressDuplicateTargetErrors = flag.Bool("notifier.suppressDuplicateTargetErrors", false, "Whether to suppress 'duplicate target' errors during discovery")
+	sanitizeLabelNames            = flag.Bool("notifier.sanitizeLabelNames", true, "Whether to replace characters outside [a-zA-Z0-9_:] in alert label names with underscores before sending alerts to notifiers. "+
+		"Set it to false only if all notifiers support UTF-8 label names, e.g. Alertmanager >= v0.27.0 not running in classic-mode.")
 
 	addrs = flagutil.NewArrayString("notifier.url", "Prometheus Alertmanager URL, e.g. http://127.0.0.1:9093. "+
 		"List all Alertmanager URLs if it runs in the cluster mode to ensure high availability.")
@@ -36,6 +38,7 @@ var (
 		"For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -notifier.url. "+
 		"Multiple headers must be delimited by '^^': -notifier.headers='header1:value1^^header2:value2,header3:value3'")
 	basicAuthUsername     = flagutil.NewArrayString("notifier.basicAuth.username", "Optional basic auth username for -notifier.url")
+	basicAuthUsernameFile = flagutil.NewArrayString("notifier.basicAuth.usernameFile", "Optional path to basic auth username file for -notifier.url")
 	basicAuthPassword     = flagutil.NewArrayString("notifier.basicAuth.password", "Optional basic auth password for -notifier.url")
 	basicAuthPasswordFile = flagutil.NewArrayString("notifier.basicAuth.passwordFile", "Optional path to basic auth password file for -notifier.url")
 
@@ -104,8 +107,6 @@ func InitAlertURLGeneratorFn(externalURL *url.URL, externalAlertSource string, v
 var (
 	// getActiveNotifiers returns the current list of Notifier objects.
 	getActiveNotifiers func() []Notifier
-	// globalRelabelCfg stores the parsed alert relabeling config from the config file if there is
-	globalRelabelCfg *promrelabel.ParsedConfigs
 
 	// cw holds a configWatcher for configPath configuration file
 	// configWatcher provides a list of Notifier objects discovered
@@ -177,9 +178,6 @@ func Init(extLabels map[string]string, extURL string) error {
 	if err != nil {
 		return err
 	}
-	if cfg.AlertRelabelConfigs != nil {
-		globalRelabelCfg = cfg.parsedAlertRelabelConfigs
-	}
 	cw, err = newWatcher(cfg, AlertURLGeneratorFn)
 	if err != nil {
 		return fmt.Errorf("failed to init config watcher: %w", err)
@@ -188,11 +186,13 @@ func Init(extLabels map[string]string, extURL string) error {
 	return nil
 }
 
-// InitSecretFlags must be called after flag.Parse and before any logging
+// InitSecretFlags manages the secret flags for this pkg and must be called by app-level initSecretFlags.
+// It should run before logger initialization and package Init() (if exists).
 func InitSecretFlags() {
 	if !*showNotifierURL {
 		flagutil.RegisterSecretFlag("notifier.url")
 	}
+	flagutil.RegisterSecretFlag("notifier.headers")
 }
 
 func notifiersFromFlags(gen AlertURLGenerator) ([]Notifier, error) {
@@ -213,6 +213,7 @@ func notifiersFromFlags(gen AlertURLGenerator) ([]Notifier, error) {
 			},
 			BasicAuth: &promauth.BasicAuthConfig{
 				Username:     basicAuthUsername.GetOptionalArg(i),
+				UsernameFile: basicAuthUsernameFile.GetOptionalArg(i),
 				Password:     promauth.NewSecret(basicAuthPassword.GetOptionalArg(i)),
 				PasswordFile: basicAuthPasswordFile.GetOptionalArg(i),
 			},
@@ -272,12 +273,7 @@ func GetTargets() map[TargetType][]Target {
 	targets := make(map[TargetType][]Target)
 	// use cached targets from configWatcher instead of getActiveNotifiers for the extra target labels
 	if cw != nil {
-		cw.targetsMu.RLock()
-		for key, ns := range cw.targets {
-			targets[key] = append(targets[key], ns...)
-		}
-		cw.targetsMu.RUnlock()
-		return targets
+		return cw.getTargets()
 	}
 
 	// static notifiers don't have labels
@@ -294,8 +290,12 @@ func Send(ctx context.Context, alerts []Alert, notifierHeaders map[string]string
 	alertsToSend := make([]Alert, 0, len(alerts))
 	lblss := make([][]prompb.Label, 0, len(alerts))
 	// apply global relabel config first without modifying original alerts in alerts
+	var rc *promrelabel.ParsedConfigs
+	if cw != nil {
+		rc = cw.alertRelabelConfigs()
+	}
 	for _, a := range alerts {
-		lbls := a.applyRelabelingIfNeeded(globalRelabelCfg)
+		lbls := a.applyRelabelingIfNeeded(rc)
 		if len(lbls) == 0 {
 			continue
 		}

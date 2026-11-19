@@ -42,7 +42,8 @@ type part struct {
 	valuesFile     fs.MustReadAtCloser
 	indexFile      fs.MustReadAtCloser
 
-	metaindex []metaindexRow
+	metaindex          []metaindexRow
+	metaindexSizeBytes uint64
 }
 
 // mustOpenFilePart opens file-based part from the given path.
@@ -67,15 +68,15 @@ func mustOpenFilePart(path string) *part {
 
 	var timestampsFile fs.MustReadAtCloser
 	var timestampsSize uint64
-	pro.Add(timestampsPath, &timestampsFile, &timestampsSize)
+	pro.Add(timestampsPath, &timestampsFile, &timestampsSize, true)
 
 	var valuesFile fs.MustReadAtCloser
 	var valuesSize uint64
-	pro.Add(valuesPath, &valuesFile, &valuesSize)
+	pro.Add(valuesPath, &valuesFile, &valuesSize, true)
 
 	var indexFile fs.MustReadAtCloser
 	var indexSize uint64
-	pro.Add(indexPath, &indexFile, &indexSize)
+	pro.Add(indexPath, &indexFile, &indexSize, false)
 
 	pro.Run()
 
@@ -102,6 +103,7 @@ func newPart(ph *partHeader, path string, size uint64, metaindexReader filestrea
 	p.valuesFile = valuesFile
 	p.indexFile = indexFile
 	p.metaindex = metaindex
+	p.metaindexSizeBytes = metaindexSizeBytes(metaindex)
 
 	return &p
 }
@@ -126,6 +128,10 @@ func (p *part) MustClose() {
 	fs.MustCloseParallel(cs)
 
 	ibCache.RemoveBlocksForPart(p)
+}
+
+func metaindexSizeBytes(metaindex []metaindexRow) uint64 {
+	return uint64(cap(metaindex)) * uint64(unsafe.Sizeof(metaindexRow{}))
 }
 
 type indexBlock struct {

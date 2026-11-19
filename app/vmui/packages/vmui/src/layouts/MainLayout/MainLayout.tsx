@@ -14,6 +14,9 @@ import useFetchDefaultTimezone from "../../hooks/useFetchDefaultTimezone";
 import useFetchAppConfig from "../../hooks/useFetchAppConfig";
 import WebStorageCheck from "../../components/WebStorageCheck/WebStorageCheck";
 import { migrateStorageToPrefixedKeys } from "../../utils/storage";
+import {
+  useBrowserTabSync
+} from "../../components/Configurators/GlobalSettings/BrowserTabController/hooks/useBrowserTabSync";
 
 const MainLayout: FC = () => {
   const appModeEnable = getAppModeEnable();
@@ -21,6 +24,7 @@ const MainLayout: FC = () => {
   const { pathname } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  useBrowserTabSync();
   useFetchDashboards();
   useFetchDefaultTimezone();
   useFetchAppConfig();

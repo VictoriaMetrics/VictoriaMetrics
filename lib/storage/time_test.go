@@ -134,7 +134,7 @@ func TestTimeRangeDateRange(t *testing.T) {
 	tr = TimeRange{1 * msecPerDay, 1 * msecPerDay}
 	f(tr, 1, 1)
 
-	// MinTimestamp is greater than MaxTimestamp MaxTimestamp. Max date must be
+	// MinTimestamp is greater than MaxTimestamp. Max date must be
 	// the same as min date.
 	tr = TimeRange{2*msecPerDay + 654, 1*msecPerDay + 321}
 	f(tr, 2, 2)
@@ -228,4 +228,11 @@ func TestIsFirstHourOfDay(t *testing.T) {
 
 	lastHourOfDay := time.Date(2000, 1, 1, 23, 59, 59, 999_999_999, time.UTC)
 	f(lastHourOfDay, false)
+}
+
+func TestMaxUnixMilli(t *testing.T) {
+	lastFuturePtMaxTime := time.Date(2262, 3, 31, 23, 59, 59, 999_000_000, time.UTC)
+	if got, want := lastFuturePtMaxTime.UnixMilli(), int64(maxUnixMilli); got != want {
+		t.Fatalf("unexpected maxUnixMilli: got %d, want %d", got, want)
+	}
 }

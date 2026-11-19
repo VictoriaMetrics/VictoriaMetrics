@@ -28,9 +28,9 @@ func (rs *Rows) Reset() {
 	rs.tu.reset()
 }
 
-// Unmarshal unmarshals influx line protocol rows from s.
+// Unmarshal unmarshals json line protocol from s.
 //
-// See https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#json-line-format
 //
 // s shouldn't be modified when rs is in use.
 func (rs *Rows) Unmarshal(s string) {
@@ -197,6 +197,11 @@ func (tu *tagsUnmarshaler) addBytes(b []byte) []byte {
 func (tu *tagsUnmarshaler) unmarshalTags(o *fastjson.Object) error {
 	tu.err = nil
 	o.Visit(func(key []byte, v *fastjson.Value) {
+		if len(key) == 0 {
+			// Skip tags with empty name, since they override the metric name.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4962
+			return
+		}
 		tag := tu.addTag()
 		tag.Key = tu.addBytes(key)
 		sb, err := v.StringBytes()

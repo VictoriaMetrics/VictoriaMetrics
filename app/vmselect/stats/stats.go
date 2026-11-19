@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 )
 
 // MetricNamesStatsHandler returns timeseries metric names usage statistics
@@ -44,7 +45,8 @@ func MetricNamesStatsHandler(startTime time.Time, at *auth.Token, qt *querytrace
 			return fmt.Errorf("match_pattern=%q must be valid regex: %w", matchPattern, err)
 		}
 	}
-	deadline := searchutil.GetDeadlineForStatusRequest(r, startTime)
+	ctx, cancel := searchutil.GetContextForStatusRequest(r, startTime)
+	defer cancel()
 	var tt *storage.TenantToken
 	if at != nil {
 		tt = &storage.TenantToken{
@@ -52,19 +54,40 @@ func MetricNamesStatsHandler(startTime time.Time, at *auth.Token, qt *querytrace
 			ProjectID: at.ProjectID,
 		}
 	}
-	stats, err := netstorage.GetMetricNamesStats(qt, tt, limit, le, matchPattern, deadline)
+	stats, err := netstorage.GetMetricNamesStats(ctx, qt, tt, limit, le, matchPattern)
 	if err != nil {
 		return err
 	}
+	finalizeMetricNamesStats(&stats, limit, le)
 	WriteMetricNamesStatsResponse(w, &stats, qt)
 	return nil
 }
 
 // ResetMetricNamesStatsHandler resets metric names usage state
 func ResetMetricNamesStatsHandler(startTime time.Time, qt *querytracer.Tracer, r *http.Request) error {
-	deadline := searchutil.GetDeadlineForStatusRequest(r, startTime)
-	if err := netstorage.ResetMetricNamesStats(qt, deadline); err != nil {
+	ctx, cancel := searchutil.GetContextForStatusRequest(r, startTime)
+	defer cancel()
+	if err := netstorage.ResetMetricNamesStats(ctx, qt); err != nil {
 		return err
 	}
 	return nil
+}
+
+func finalizeMetricNamesStats(mnuss *metricnamestats.StatsResult, limit, le int) {
+	if le >= 0 {
+		tmp := mnuss.Records[:0]
+		for _, record := range mnuss.Records {
+			if record.RequestsCount <= uint64(le) {
+				tmp = append(tmp, record)
+			}
+		}
+		mnuss.Records = tmp
+	}
+	mnuss.Sort()
+	if limit < 0 {
+		limit = 0
+	}
+	if len(mnuss.Records) > limit {
+		mnuss.Records = mnuss.Records[:limit]
+	}
 }

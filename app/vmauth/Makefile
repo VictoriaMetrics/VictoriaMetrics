@@ -45,6 +45,9 @@ vmauth-openbsd-amd64-prod:
 vmauth-windows-amd64-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-windows-amd64
 
+vmauth-windows-arm64-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-windows-arm64
+
 package-vmauth:
 	APP_NAME=vmauth $(MAKE) package-via-docker
 
@@ -108,8 +111,17 @@ vmauth-freebsd-amd64:
 vmauth-openbsd-amd64:
 	APP_NAME=vmauth CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
+vmauth-netbsd-amd64:
+	APP_NAME=vmauth CGO_ENABLED=0 GOOS=netbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmauth-solaris-amd64:
+	APP_NAME=vmauth CGO_ENABLED=0 GOOS=solaris GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
 vmauth-windows-amd64:
 	GOARCH=amd64 APP_NAME=vmauth $(MAKE) app-local-windows-goarch
+
+vmauth-windows-arm64:
+	GOARCH=arm64 APP_NAME=vmauth $(MAKE) app-local-windows-goarch
 
 vmauth-pure:
 	APP_NAME=vmauth $(MAKE) app-local-pure

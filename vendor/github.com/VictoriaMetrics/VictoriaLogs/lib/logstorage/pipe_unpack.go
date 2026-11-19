@@ -83,7 +83,6 @@ func (uctx *fieldsUnpackerContext) addField(name, value string) {
 
 func newPipeUnpackProcessor(unpackFunc func(uctx *fieldsUnpackerContext, s string), ppNext pipeProcessor,
 	fromField string, fieldPrefix string, keepOriginalFields, skipEmptyResults bool, iff *ifFilter) *pipeUnpackProcessor {
-
 	return &pipeUnpackProcessor{
 		unpackFunc: unpackFunc,
 		ppNext:     ppNext,

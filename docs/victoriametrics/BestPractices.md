@@ -1,6 +1,7 @@
 ---
 weight: 22
 title: Best practices
+description: "Production best practices for installation, configuration, hardware sizing, and maintenance."
 menu:
   docs:
     identifier: vm-best-practices
@@ -22,7 +23,7 @@ There is no need to tune VictoriaMetrics because it uses reasonable defaults for
 
 ## Swap
 
-It is recommended to disable swap for machines running [vmstorage](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#storage) or [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/).
+It is recommended to disable swap for machines running [vmstorage](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview) or [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/).
 If swap is enabled, the operating system may move actively used data from fast RAM to much slower disk storage when memory usage approaches system limits or configured thresholds.
 This leads to performance degradation and latency spikes. On systemd-based Linux distributions run:
 
@@ -68,7 +69,7 @@ VictoriaMetrics can also run on macOS for testing and development purposes.
 * **OpenBSD**: i386, amd64, arm
 * **Solaris/SmartOS**: i386, amd64
 * **macOS**: amd64, arm64 (for testing and development purposes)
-* **Windows**: amd64
+* **Windows**: amd64, arm64
 
 ## Kubernetes
 

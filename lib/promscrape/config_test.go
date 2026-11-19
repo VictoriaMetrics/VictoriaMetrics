@@ -120,6 +120,12 @@ global:
   - action: labeldrop
     source_labels: [id]
 `)
+	f(`
+scrape_configs:
+- job_name: vultr
+  vultr_sd_configs:
+  - port: 80
+`)
 }
 
 func TestGetClusterMemberNumsForScrapeWork(t *testing.T) {
@@ -146,6 +152,77 @@ func TestGetClusterMemberNumsForScrapeWork(t *testing.T) {
 	f("abc", 3, 2, []int{0, 1})
 	f("bar", 3, 2, []int{1, 2})
 	f("foo", 3, 2, []int{2, 0})
+}
+
+func TestAppendScrapeWorkKeyShardByLabels(t *testing.T) {
+	f := func(labels map[string]string, shardByLabels []string, expectedKey string) {
+		t.Helper()
+		originValue := *clusterShardByLabels
+		*clusterShardByLabels = shardByLabels
+		defer func() {
+			*clusterShardByLabels = originValue
+		}()
+		initClusterShardByLabels()
+		outputKey := string(appendScrapeWorkKey(nil, promutil.NewLabelsFromMap(labels)))
+		if expectedKey != outputKey {
+			t.Fatalf("unexpected sharding key:%q for target labels:%v with shardByLabels=%q, expect: %q",
+				outputKey, labels, shardByLabels, expectedKey)
+		}
+	}
+
+	// didn't specify -promscrape.cluster.shardByLabels, so all labels will be used for sharding
+	f(
+		map[string]string{
+			"a": "aa",
+			"b": "bb",
+			"c": "cc",
+			"d": "dd"},
+		[]string{},
+		"a=aa,b=bb,c=cc,d=dd,",
+	)
+
+	// match all labels in -promscrape.cluster.shardByLabels, so label "a" and "c" will be used for sharding
+	f(
+		map[string]string{
+			"a": "aa",
+			"b": "bb",
+			"c": "cc",
+			"d": "dd"},
+		[]string{"a", "c"},
+		"a=aa,c=cc,",
+	)
+
+	// match all labels in -promscrape.cluster.shardByLabels, so label "a" and "c" will be used for sharding even if they're not in order in -promscrape.cluster.shardByLabels.
+	f(
+		map[string]string{
+			"a": "aa",
+			"b": "bb",
+			"c": "cc",
+			"d": "dd"},
+		[]string{"c", "a"},
+		"a=aa,c=cc,",
+	)
+
+	// match part of labels in -promscrape.cluster.shardByLabels, label "a" and "c" will be used for sharding
+	f(
+		map[string]string{
+			"a": "aa",
+			"c": "cc",
+			"d": "dd"},
+
+		[]string{"a", "b", "c"},
+		"a=aa,c=cc,",
+	)
+
+	// none of labels in -promscrape.cluster.shardByLabels is matched, so all labels will be used for sharding
+	f(
+		map[string]string{
+			"d": "dd",
+			"e": "ee"},
+		[]string{"a", "b", "c"},
+		"d=dd,e=ee,",
+	)
+
 }
 
 func TestLoadStaticConfigs(t *testing.T) {
@@ -319,6 +396,73 @@ scrape_configs:
 		jobNameOriginal: "blackbox",
 	}}
 	checkEqualScrapeWorks(t, sws, swsExpected)
+}
+
+// testTargetLabelsGetter returns the given targets or fails with the given error.
+type testTargetLabelsGetter struct {
+	addr string
+	err  error
+}
+
+func (tlg *testTargetLabelsGetter) GetLabels(_ string) ([]*promutil.Labels, error) {
+	if tlg.err != nil {
+		return nil, tlg.err
+	}
+	return []*promutil.Labels{promutil.NewLabelsFromMap(map[string]string{
+		"__address__": tlg.addr,
+	})}, nil
+}
+
+func TestGetScrapeWorkGeneric(t *testing.T) {
+	data := `
+scrape_configs:
+- job_name: foo
+  static_configs:
+  - targets: [unused]
+`
+	var cfg Config
+	if err := cfg.parseData([]byte(data), "sss"); err != nil {
+		t.Fatalf("cannot parse data: %s", err)
+	}
+	visitConfigs := func(sdcs ...targetLabelsGetter) func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		return func(_ *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+			for _, sdc := range sdcs {
+				visitor(sdc)
+			}
+		}
+	}
+	getScrapeURLs := func(sws []*ScrapeWork) []string {
+		a := make([]string, 0, len(sws))
+		for _, sw := range sws {
+			a = append(a, sw.ScrapeURL)
+		}
+		return a
+	}
+	f := func(visitConfigs func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)), prev []*ScrapeWork, scrapeURLsExpected []string) {
+		t.Helper()
+		sws := cfg.getScrapeWorkGeneric(visitConfigs, "test_sd_config", prev)
+		scrapeURLs := getScrapeURLs(sws)
+		if !reflect.DeepEqual(scrapeURLs, scrapeURLsExpected) {
+			t.Fatalf("unexpected scrape urls;\ngot\n%q\nwant\n%q", scrapeURLs, scrapeURLsExpected)
+		}
+	}
+	errFailed := fmt.Errorf("some error")
+	prev := []*ScrapeWork{{
+		ScrapeURL:       "http://prev:80/metrics",
+		jobNameOriginal: "foo",
+	}}
+
+	// Successfully discovered targets replace the previous ones.
+	f(visitConfigs(&testTargetLabelsGetter{addr: "host1:80"}), prev, []string{"http://host1:80/metrics"})
+
+	// If all the sd_configs fail, then the previous targets are preserved.
+	f(visitConfigs(&testTargetLabelsGetter{err: errFailed}, &testTargetLabelsGetter{err: errFailed}), prev, []string{"http://prev:80/metrics"})
+
+	// If at least a single sd_config succeeds, then its targets are used without the previous ones.
+	f(visitConfigs(&testTargetLabelsGetter{err: errFailed}, &testTargetLabelsGetter{addr: "host1:80"}), prev, []string{"http://host1:80/metrics"})
+
+	// If the sd_configs are removed from the job, then the previous targets must be dropped.
+	f(visitConfigs(), prev, []string{})
 }
 
 func TestGetFileSDScrapeWork(t *testing.T) {
@@ -1075,6 +1219,57 @@ scrape_configs:
 			MaxScrapeSize:  8 * 1024 * 1024,
 			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
+				"job":      "foo",
+			}),
+			jobNameOriginal: "foo",
+		},
+	})
+	f(`
+scrape_configs:
+- job_name: foo
+  max_scrape_size: 8MiB
+  relabel_configs:
+  - source_labels: [__address__]
+    regex: foo1:.*
+    target_label: __max_scrape_size__
+    replacement: 2.5MiB
+  - source_labels: [__address__]
+    regex: foo2:.*
+    target_label: __max_scrape_size__
+    replacement: -1
+  static_configs:
+  - targets: ["foo1:1234", "foo2:1234", "foo3:1234"]
+`, []*ScrapeWork{
+		{
+			ScrapeURL:      "http://foo1:1234/metrics",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			MaxScrapeSize:  2.5 * 1024 * 1024,
+			Labels: promutil.NewLabelsFromMap(map[string]string{
+				"instance": "foo1:1234",
+				"job":      "foo",
+			}),
+			jobNameOriginal: "foo",
+		},
+		// invalid __max_scrape_size__ will be ignored
+		{
+			ScrapeURL:      "http://foo2:1234/metrics",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			MaxScrapeSize:  8 * 1024 * 1024,
+			Labels: promutil.NewLabelsFromMap(map[string]string{
+				"instance": "foo2:1234",
+				"job":      "foo",
+			}),
+			jobNameOriginal: "foo",
+		},
+		{
+			ScrapeURL:      "http://foo3:1234/metrics",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			MaxScrapeSize:  8 * 1024 * 1024,
+			Labels: promutil.NewLabelsFromMap(map[string]string{
+				"instance": "foo3:1234",
 				"job":      "foo",
 			}),
 			jobNameOriginal: "foo",

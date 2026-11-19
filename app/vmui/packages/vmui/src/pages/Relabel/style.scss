@@ -56,6 +56,10 @@
         padding-bottom: 0;
       }
 
+      &__error {
+        color: $color-error;
+      }
+
       &__row {
         display: grid;
         grid-template-columns: 100px 1fr;

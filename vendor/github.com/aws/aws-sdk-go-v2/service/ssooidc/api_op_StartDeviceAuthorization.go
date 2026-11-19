@@ -4,10 +4,9 @@ package ssooidc
 
 import (
 	"context"
-	"fmt"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
+	"github.com/aws/aws-sdk-go-v2/service/ssooidc/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Initiates device authorization by requesting a pair of verification codes from
@@ -53,6 +52,24 @@ type StartDeviceAuthorizationInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *StartDeviceAuthorizationInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.StartDeviceAuthorizationRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *StartDeviceAuthorizationInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.ClientId != nil {
+		s.WriteString(schemas.StartDeviceAuthorizationRequest_clientId, *v.ClientId)
+	}
+	if v.ClientSecret != nil {
+		s.WriteString(schemas.StartDeviceAuthorizationRequest_clientSecret, *v.ClientSecret)
+	}
+	if v.StartUrl != nil {
+		s.WriteString(schemas.StartDeviceAuthorizationRequest_startUrl, *v.StartUrl)
+	}
+}
+
 type StartDeviceAuthorizationOutput struct {
 
 	// The short-lived code that is used by the device when polling for a session
@@ -85,74 +102,73 @@ type StartDeviceAuthorizationOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *StartDeviceAuthorizationOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.StartDeviceAuthorizationResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *StartDeviceAuthorizationOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.DeviceCode != nil {
+		s.WriteString(schemas.StartDeviceAuthorizationResponse_deviceCode, *v.DeviceCode)
+	}
+	if v.ExpiresIn != 0 {
+		s.WriteInt32(schemas.StartDeviceAuthorizationResponse_expiresIn, v.ExpiresIn)
+	}
+	if v.Interval != 0 {
+		s.WriteInt32(schemas.StartDeviceAuthorizationResponse_interval, v.Interval)
+	}
+	if v.UserCode != nil {
+		s.WriteString(schemas.StartDeviceAuthorizationResponse_userCode, *v.UserCode)
+	}
+	if v.VerificationUri != nil {
+		s.WriteString(schemas.StartDeviceAuthorizationResponse_verificationUri, *v.VerificationUri)
+	}
+	if v.VerificationUriComplete != nil {
+		s.WriteString(schemas.StartDeviceAuthorizationResponse_verificationUriComplete, *v.VerificationUriComplete)
+	}
+}
+func (v *StartDeviceAuthorizationOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.StartDeviceAuthorizationResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.StartDeviceAuthorizationResponse_deviceCode:
+			v.DeviceCode = new(string)
+			return d.ReadString(schemas.StartDeviceAuthorizationResponse_deviceCode, v.DeviceCode)
+		case schemas.StartDeviceAuthorizationResponse_expiresIn:
+			return d.ReadInt32(schemas.StartDeviceAuthorizationResponse_expiresIn, &v.ExpiresIn)
+		case schemas.StartDeviceAuthorizationResponse_interval:
+			return d.ReadInt32(schemas.StartDeviceAuthorizationResponse_interval, &v.Interval)
+		case schemas.StartDeviceAuthorizationResponse_userCode:
+			v.UserCode = new(string)
+			return d.ReadString(schemas.StartDeviceAuthorizationResponse_userCode, v.UserCode)
+		case schemas.StartDeviceAuthorizationResponse_verificationUri:
+			v.VerificationUri = new(string)
+			return d.ReadString(schemas.StartDeviceAuthorizationResponse_verificationUri, v.VerificationUri)
+		case schemas.StartDeviceAuthorizationResponse_verificationUriComplete:
+			v.VerificationUriComplete = new(string)
+			return d.ReadString(schemas.StartDeviceAuthorizationResponse_verificationUriComplete, v.VerificationUriComplete)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationStartDeviceAuthorizationMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.StartDeviceAuthorization, schemas.StartDeviceAuthorizationRequest, schemas.StartDeviceAuthorizationResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsRestjson1_serializeOpStartDeviceAuthorization{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.StartDeviceAuthorization, schemas.StartDeviceAuthorizationRequest, schemas.StartDeviceAuthorizationResponse), output: &StartDeviceAuthorizationOutput{}}, middleware.After); err != nil {
 		return err
-	}
-	err = stack.Deserialize.Add(&awsRestjson1_deserializeOpStartDeviceAuthorization{}, middleware.After)
-	if err != nil {
-		return err
-	}
-	if err := addProtocolFinalizerMiddlewares(stack, options, "StartDeviceAuthorization"); err != nil {
-		return fmt.Errorf("add protocol finalizers: %v", err)
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
-	if err = addSetLoggerMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = addClientRequestID(stack); err != nil {
-		return err
-	}
-	if err = addComputeContentLength(stack); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addRetry(stack, options, c); err != nil {
-		return err
-	}
-	if err = addRawResponseToMetadata(stack); err != nil {
-		return err
-	}
-	if err = addRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addSpanRetryLoop(stack, options); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack, options); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addUserAgentRetryMode(stack, options); err != nil {
+	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
 	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpStartDeviceAuthorizationValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opStartDeviceAuthorization(options.Region), middleware.Before); err != nil {
-		return err
-	}
-	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -167,22 +183,8 @@ func (c *Client) addOperationStartDeviceAuthorizationMiddlewares(stack *middlewa
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAttempt(stack, options); err != nil {
-		return err
-	}
 	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil
-}
-
-func newServiceMetadataMiddleware_opStartDeviceAuthorization(region string) *awsmiddleware.RegisterServiceMetadata {
-	return &awsmiddleware.RegisterServiceMetadata{
-		Region:        region,
-		ServiceID:     ServiceID,
-		OperationName: "StartDeviceAuthorization",
-	}
 }

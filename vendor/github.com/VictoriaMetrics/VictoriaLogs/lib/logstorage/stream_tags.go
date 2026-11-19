@@ -44,46 +44,54 @@ func (st *StreamTags) Reset() {
 	st.tags = st.tags[:0]
 }
 
+// CopyFrom copies src to dst.
+func (st *StreamTags) CopyFrom(src *StreamTags) {
+	st.Reset()
+	st.tags = append(st.tags[:0], src.tags...)
+}
+
 // String returns string representation of st.
 func (st *StreamTags) String() string {
 	b := st.marshalString(nil)
 	return string(b)
 }
 
-func (st *StreamTags) verifyCanonicalFieldValues(fields []Field) error {
-	// Verify that the unmarshaled stream tags match the corresponding fields' values.
-	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/38
+// normalize synchronizes st with the provided fields and returns true if st was updated.
+//
+// This function updates or keeps tags that exist in fields and removes missing ones.
+func (st *StreamTags) normalize(fields []Field) bool {
+	updated := false
 
-	prevTagName := ""
-	for _, tag := range st.tags {
+	tags := st.tags
+	dstTags := tags[:0]
+	for _, tag := range tags {
 		tagName := tag.Name
 
-		if err := CheckStreamFieldName(tagName); err != nil {
-			return fmt.Errorf("invalid stream tag name: %s; streamTags: %s", tagName, st)
+		var f *Field
+		for j := range fields {
+			if fields[j].Name == tagName {
+				f = &fields[j]
+				// break is skipped intentionally in order to get the last matching field
+			}
+		}
+		if f == nil {
+			updated = true
+			continue
 		}
 
-		if tagName <= prevTagName {
-			return fmt.Errorf("stream tag names must be sorted; got %q after %q; streamTags: %s", tagName, prevTagName, st)
+		if tag.Value != f.Value {
+			tag.Value = f.Value
+			updated = true
 		}
-
-		tagValue := tag.Value
-		found := false
-		for _, f := range fields {
-			if f.Name != tagName {
-				continue
-			}
-			if f.Value != tagValue {
-				line := MarshalFieldsToJSON(nil, fields)
-				return fmt.Errorf("unexpected value for the stream tag %q; got %q; want %q; streamTags: %s; fields: %s", tagName, f.Value, tagValue, st, line)
-			}
-			found = true
-		}
-		if !found {
-			line := MarshalFieldsToJSON(nil, fields)
-			return fmt.Errorf("cannot find value for the stream tag %q in fields; want %q; streamTags: %s; fields: %s", tagName, tagValue, st, line)
-		}
+		dstTags = append(dstTags, tag)
 	}
-	return nil
+
+	if updated {
+		clear(tags[len(dstTags):])
+		st.tags = dstTags
+	}
+
+	return updated
 }
 
 func (st *StreamTags) marshalString(dst []byte) []byte {
@@ -112,7 +120,13 @@ func (st *StreamTags) unmarshalStringInplace(s string) error {
 
 	var err error
 	st.tags, err = parseStreamFields(st.tags[:0], s)
-	return err
+	if err != nil {
+		return err
+	}
+
+	sort.Sort(st)
+
+	return nil
 }
 
 // Add adds (name:value) tag to st.
@@ -136,7 +150,10 @@ func (st *StreamTags) Add(name, value string) {
 // MarshalCanonical marshal st in a canonical way
 func (st *StreamTags) MarshalCanonical(dst []byte) []byte {
 	sort.Sort(st)
+	return st.marshalCanonicalInternal(dst)
+}
 
+func (st *StreamTags) marshalCanonicalInternal(dst []byte) []byte {
 	tags := st.tags
 	dst = encoding.MarshalVarUint64(dst, uint64(len(tags)))
 	for i := range tags {
@@ -160,6 +177,7 @@ func (st *StreamTags) UnmarshalCanonicalInplace(src []byte) ([]byte, error) {
 		return srcOrig, fmt.Errorf("cannot unmarshal tags len")
 	}
 	src = src[nSize:]
+
 	for range n {
 		name, nSize := encoding.UnmarshalBytes(src)
 		if nSize <= 0 {
@@ -178,11 +196,26 @@ func (st *StreamTags) UnmarshalCanonicalInplace(src []byte) ([]byte, error) {
 		st.Add(sName, sValue)
 	}
 
-	if !sort.IsSorted(st) {
-		return srcOrig, fmt.Errorf("stream tags must be sorted in alphabetical order; got unsorted: %s", st)
+	if err := st.checkCorrectness(); err != nil {
+		return srcOrig, err
 	}
 
 	return src, nil
+}
+
+func (st *StreamTags) checkCorrectness() error {
+	prevTagName := ""
+	for _, tag := range st.tags {
+		tagName := tag.Name
+		if err := CheckStreamFieldName(tagName); err != nil {
+			return fmt.Errorf("invalid stream tag name: %w", err)
+		}
+		if tagName <= prevTagName {
+			return fmt.Errorf("stream tags must be sorted in alphabetical order; got %q which is less or equal than %q; streamTags=%s", tagName, prevTagName, st)
+		}
+		prevTagName = tagName
+	}
+	return nil
 }
 
 func getStreamTagsString(streamTagsCanonical string) string {

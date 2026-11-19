@@ -5,11 +5,14 @@ package storage
 import (
 	"fmt"
 	"math/rand"
+	"path/filepath"
+	"slices"
 	"testing"
 	"testing/synctest"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -62,14 +65,14 @@ func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
 		tfssAll := []*TagFilters{tfsAll}
 
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			metricIDs, err := idb.searchMetricIDs(noDeadlineContext, tfssAll, tr, 1e9)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
 			return metricIDs.AppendTo(nil)
 		}
 		searchTSIDs := func() []TSID {
-			tsids, err := s.SearchTSIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			tsids, err := s.SearchTSIDs(noDeadlineContext, nil, tfssAll, tr, 1e9)
 			if err != nil {
 				panic(fmt.Sprintf("SearchTSIDs() failed unexpectedly: %v", err))
 			}
@@ -169,14 +172,14 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 		tfssAll := []*TagFilters{tfsAll}
 
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			metricIDs, err := idb.searchMetricIDs(noDeadlineContext, tfssAll, tr, 1e9)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
 			return metricIDs.AppendTo(nil)
 		}
 		searchMetricNames := func() []string {
-			metricNames, err := s.SearchMetricNames(nil, tfssAll, tr, 1e9, noDeadline)
+			metricNames, err := s.SearchMetricNames(noDeadlineContext, nil, tfssAll, tr, 1e9)
 			if err != nil {
 				panic(fmt.Sprintf("SearchMetricNames() failed unexpectedly: %v", err))
 			}
@@ -305,7 +308,7 @@ func TestStorageRotateIndexDBPrefill(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			// Prefill of the next partition indexDB happens during the
 			// (nextMonth-prefillStart, nextMonth] time interval.
-			// Advance current time right before the the beginning of that interval.
+			// Advance current time right before the beginning of that interval.
 			ct := time.Now().UTC()
 			nextMonth := time.Date(ct.Year(), ct.Month()+1, 1, 0, 0, 0, 0, time.UTC)
 			time.Sleep(nextMonth.Sub(ct.Add(prefillStart)))
@@ -433,7 +436,7 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 		if err := tfs.Add(nil, []byte(prefix+".*"), false, true); err != nil {
 			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
 		}
-		ids := testSearchMetricIDs(s, []*TagFilters{tfs}, tr, 1e9, noDeadline)
+		ids := testSearchMetricIDs(noDeadlineContext, s, []*TagFilters{tfs}, tr, 1e9)
 		return len(ids)
 	}
 
@@ -570,7 +573,7 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 		nextDaySlowInserts := m.SlowPerDayIndexInserts
 		slowInserts := nextDaySlowInserts - currDaySlowInserts
 		if slowInserts >= numSeries {
-			t.Errorf("unexpected amount of slow inserts: got %d, want < %d", slowInserts, numSeries)
+			t.Fatalf("unexpected amount of slow inserts: got %d, want < %d", slowInserts, numSeries)
 		}
 
 	})
@@ -857,66 +860,797 @@ func TestStorageNextDayMetricIDs_update(t *testing.T) {
 	})
 }
 
+// TestStorageLastPartitionMetrics checks that "last partition" metrics
+// correspond to the current partition and not some future partition.
 func TestStorageLastPartitionMetrics(t *testing.T) {
 	defer testRemoveAll(t)
+
+	const (
+		accountID = 12
+		projectID = 34
+	)
+
+	addRows := func(t *testing.T, s *Storage, prefix string, tr TimeRange) {
+		t.Helper()
+		const numSeries = 1000
+		rng := rand.New(rand.NewSource(1))
+		mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, numSeries, prefix, tr)
+		want := s.newTimeseriesCreated.Load() + numSeries
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		if got := s.newTimeseriesCreated.Load(); got != want {
+			t.Fatalf("unexpected number of new timeseries: got %d, want %d", got, want)
+		}
+		// wait for merged parts to be attached to the table
+		time.Sleep(time.Minute)
+	}
+	assertLastPartitionEmpty := func(t *testing.T, s *Storage) {
+		t.Helper()
+		var m Metrics
+		s.UpdateMetrics(&m)
+		lpm := m.TableMetrics.LastPartition
+		if lpm.SmallPartsCount != 0 {
+			t.Fatalf("unexpected last partition SmallPartsCount: got %d, want 0", lpm.SmallPartsCount)
+		}
+		if lpm.IndexDBMetrics.FileBlocksCount != 0 {
+			t.Fatalf("unexpected last partition IndexDBMetrics.FileBlocksCount: got %d, want 0", lpm.IndexDBMetrics.FileBlocksCount)
+		}
+	}
+	assertLastPartitionNonEmpty := func(t *testing.T, s *Storage) {
+		t.Helper()
+		var m Metrics
+		s.UpdateMetrics(&m)
+		lpm := m.TableMetrics.LastPartition
+		if lpm.SmallPartsCount == 0 {
+			t.Fatalf("unexpected last partition SmallPartsCount: got 0, want > 0")
+		}
+		if lpm.IndexDBMetrics.FileBlocksCount == 0 {
+			t.Fatalf("unexpected last partition IndexDBMetrics.FileBlocksCount: got 0, want > 0")
+		}
+	}
+
 	synctest.Test(t, func(t *testing.T) {
 		// Advance current time to 2h before the next month, 2000-01-31T22:00:00Z.
 		time.Sleep(31*24*time.Hour - 2*time.Hour)
 		ct := time.Now().UTC()
 
+		// Open the storage, make sure current partition is empty.
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			FutureRetention: 2 * 365 * 24 * time.Hour,
+		})
+		defer s.MustClose()
+		assertLastPartitionEmpty(t, s)
+
+		// Insert rows with future timestamps. Current partition must be empty.
+		addRows(t, s, "future", TimeRange{
+			MinTimestamp: ct.Add(365 * 24 * time.Hour).UnixMilli(),
+			MaxTimestamp: ct.Add(366 * 24 * time.Hour).UnixMilli(),
+		})
+		assertLastPartitionEmpty(t, s)
+
+		// Insert rows with timestamps within current partition.
+		// Current partition must be not empty.
+		addRows(t, s, "current", TimeRange{
+			MinTimestamp: ct.UnixMilli(),
+			MaxTimestamp: ct.Add(time.Hour).UnixMilli(),
+		})
+		assertLastPartitionNonEmpty(t, s)
+
+		// Advance current time to the next month, 2000-02-01T00:30:00Z.
+		// last partition is now 2000-02 and it must be empty.
+		time.Sleep(2*time.Hour + time.Minute*30)
+		assertLastPartitionEmpty(t, s)
+	})
+}
+
+func TestStorage_futureAndHistoricalRetention(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const (
+		accountID = 12
+		projectID = 34
+	)
+
+	assertData := func(t *testing.T, s *Storage, tr TimeRange, want []MetricRow) {
+		t.Helper()
+		tfs := NewTagFilters(accountID, projectID)
+		if err := tfs.Add(nil, []byte(".*"), false, true); err != nil {
+			t.Fatalf("TagFilters.Add() failed unexpectedly: %v", err)
+		}
+		if err := testAssertSearchResult(s, tr, tfs, want); err != nil {
+			t.Fatalf("[now: %v tr: %v] search failed unexpectedly: %v", time.Now().UTC(), &tr, err)
+		}
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		// synctests start at 2000-01-01T00:00:00Z
+
+		var s *Storage
+		retention := 180 * 24 * time.Hour
+		futureRetention := 180 * 24 * time.Hour
+
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:       retention,
+			FutureRetention: futureRetention,
+		})
+
+		// Ingest samples for previous and future year. 10 samples per day.
+		const numSeries = 10
+		start := time.Date(1999, 1, 1, 0, 0, 0, 0, time.UTC)
+		end := time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC)
+		rng := rand.New(rand.NewSource(1))
+		wantData := make(map[TimeRange][]MetricRow)
+		for day := start; day.Before(end); {
+			prefix := fmt.Sprintf("metric_%d_%d_%d", day.Year(), day.Month(), day.Day())
+			tr := TimeRange{
+				MinTimestamp: day.UnixMilli(),
+				MaxTimestamp: day.UnixMilli() + msecPerDay - 1,
+			}
+			mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, numSeries, prefix, tr)
+			wantData[tr] = mrs
+			s.AddRows(mrs, defaultPrecisionBits)
+
+			day = time.Date(day.Year(), day.Month(), day.Day()+1, 0, 0, 0, 0, time.UTC)
+		}
+		s.DebugFlush()
+
+		// Advance time one partition at a time. Before each time advancement,
+		// check the query results for each day between the original start and end
+		// time.
+		//
+		// This is to test how historical and future retentions affect the
+		// stored data over time.
+		now := time.Now().UTC()
+		dataEnd := now.Add(futureRetention - 24*time.Hour)
+		for now.Before(end) {
+			for day := start; day.Before(end); {
+				tr := TimeRange{
+					MinTimestamp: day.UnixMilli(),
+					MaxTimestamp: day.UnixMilli() + msecPerDay - 1,
+				}
+				dataStart := now.Add(-retention)
+				if day.Before(dataStart) || day.After(dataEnd) {
+					assertData(t, s, tr, nil)
+				} else {
+					assertData(t, s, tr, wantData[tr])
+				}
+				day = time.Date(day.Year(), day.Month(), day.Day()+1, 0, 0, 0, 0, time.UTC)
+			}
+
+			s.MustClose()
+			nextMonth := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC)
+			time.Sleep(nextMonth.Sub(now))
+			now = nextMonth
+			s = MustOpenStorage(t.Name(), OpenOptions{
+				Retention:       retention,
+				FutureRetention: futureRetention,
+			})
+		}
+
+		s.MustClose()
+	})
+}
+
+func TestStorage_defaultFutureRetention(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const (
+		accountID = 12
+		projectID = 34
+	)
+
+	assertData := func(t *testing.T, s *Storage, tr TimeRange, want []MetricRow) {
+		t.Helper()
+		tfs := NewTagFilters(accountID, projectID)
+		if err := tfs.Add(nil, []byte(".*"), false, true); err != nil {
+			t.Fatalf("TagFilters.Add() failed unexpectedly: %v", err)
+		}
+		if err := testAssertSearchResult(s, tr, tfs, want); err != nil {
+			t.Fatalf("[now: %v tr: %v] search failed unexpectedly: %v", time.Now().UTC(), &tr, err)
+		}
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		// synctests start at 2000-01-01T00:00:00Z
+
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
 
-		assertLastPartitionEmpty := func() {
-			t.Helper()
-			var m Metrics
-			s.UpdateMetrics(&m)
-			lpm := m.TableMetrics.LastPartition
-			if lpm.SmallPartsCount != 0 {
-				t.Fatalf("unexpected last partition SmallPartsCount: got %d, want 0", lpm.SmallPartsCount)
-			}
-			if lpm.IndexDBMetrics.FileBlocksCount != 0 {
-				t.Fatalf("unexpected last partition IndexDBMetrics.FileBlocksCount: got %d, want 0", lpm.IndexDBMetrics.FileBlocksCount)
-			}
-		}
-		assertLastPartitionNonEmpty := func() {
-			t.Helper()
-			var m Metrics
-			s.UpdateMetrics(&m)
-			lpm := m.TableMetrics.LastPartition
-			if lpm.SmallPartsCount == 0 {
-				t.Fatalf("unexpected last partition SmallPartsCount: got 0, want > 0")
-			}
-			if lpm.IndexDBMetrics.FileBlocksCount == 0 {
-				t.Fatalf("unexpected last partition IndexDBMetrics.FileBlocksCount: got 0, want > 0")
-			}
-		}
-
-		// make sure last partition is empty before ingestion
-		assertLastPartitionEmpty()
-
-		const numSeries = 1000
-
+		// Ingest samples for this and several days in the future. 10 samples
+		// per hour.
+		const numSeries = 10
+		start := time.Now().UTC()
+		end := start.Add(10 * 24 * time.Hour)
 		rng := rand.New(rand.NewSource(1))
-		tr := TimeRange{
-			MinTimestamp: ct.Add(-time.Hour).UnixMilli(),
-			MaxTimestamp: ct.UnixMilli(),
-		}
-		mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, 0, 0, numSeries, "metric.", tr)
-		s.AddRows(mrs, 1)
-		s.DebugFlush()
-		if got, want := s.newTimeseriesCreated.Load(), uint64(numSeries); got != want {
-			t.Errorf("unexpected number of new timeseries: got %d, want %d", got, want)
-		}
-		// wait for merged parts to be attached to the table
-		time.Sleep(time.Minute)
+		wantData := make(map[TimeRange][]MetricRow)
+		for ts := start; ts.Before(end); {
+			prefix := fmt.Sprintf("metric_%04d_%02d_%02d_%02d", ts.Year(), ts.Month(), ts.Day(), ts.Hour())
+			tr := TimeRange{
+				MinTimestamp: ts.UnixMilli(),
+				MaxTimestamp: ts.UnixMilli() + msecPerHour - 1,
+			}
+			mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, numSeries, prefix, tr)
+			wantData[tr] = mrs
+			s.AddRows(mrs, defaultPrecisionBits)
 
-		// last created partition is empty, but we're still at current month
-		assertLastPartitionNonEmpty()
-		// Advance current time to the the next month, 2000-02-01T00:30:00Z.
-		// last partition must be 2000-02 now
-		time.Sleep(2*time.Hour + time.Minute*30)
-		// current month partition has no data ingested
-		assertLastPartitionEmpty()
+			ts = ts.Add(time.Hour)
+		}
+		s.DebugFlush()
+
+		dataStart := start
+		dataEnd := dataStart.Add(2*24*time.Hour - time.Hour)
+		for ts := start; ts.Before(end); ts = ts.Add(time.Hour) {
+			tr := TimeRange{
+				MinTimestamp: ts.UnixMilli(),
+				MaxTimestamp: ts.UnixMilli() + msecPerHour - 1,
+			}
+			if ts.Before(dataStart) || ts.After(dataEnd) {
+				assertData(t, s, tr, nil)
+			} else {
+				assertData(t, s, tr, wantData[tr])
+			}
+		}
+	})
+}
+
+func TestStorage_partitionsOutsideRetentionAreRemoved(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const (
+		accountID = 12
+		projectID = 34
+	)
+
+	assertPathExists := func(t *testing.T, path string, want bool) {
+		t.Helper()
+		if got := fs.IsPathExist(path); got != want {
+			t.Fatalf("unexpected path existence test result for %s: got %t, want %t", path, got, want)
+		}
+	}
+
+	assertPtExists := func(t *testing.T, pt string, want bool) {
+		t.Helper()
+		assertPathExists(t, filepath.Join(t.Name(), "data", "small", pt), want)
+		assertPathExists(t, filepath.Join(t.Name(), "data", "big", pt), want)
+		assertPathExists(t, filepath.Join(t.Name(), "data", "indexdb", pt), want)
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		// synctests start at 2000-01-01T00:00:00Z
+
+		retention := 80 * 24 * time.Hour
+		futureRetention := 180 * 24 * time.Hour
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			Retention:       retention,
+			FutureRetention: futureRetention,
+		})
+
+		// Ingest samples with future timestamps that span the entire retention.
+		// This should create the corresponding partitions.
+		rng := rand.New(rand.NewSource(1))
+		mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", TimeRange{
+			MinTimestamp: time.Now().Add(-retention).UnixMilli(),
+			MaxTimestamp: time.Now().Add(futureRetention - time.Second).UnixMilli(),
+		})
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		assertPtExists(t, "1999_09", false)
+		assertPtExists(t, "1999_10", true)
+		assertPtExists(t, "1999_11", true)
+		assertPtExists(t, "1999_12", true)
+		assertPtExists(t, "2000_01", true)
+		assertPtExists(t, "2000_02", true)
+		assertPtExists(t, "2000_03", true)
+		assertPtExists(t, "2000_04", true)
+		assertPtExists(t, "2000_05", true)
+		assertPtExists(t, "2000_06", true)
+		assertPtExists(t, "2000_07", false)
+
+		// Reopen storage with smaller future retention. Future partitions
+		// outside the new future retention must be removed.
+		s.MustClose()
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:       retention,
+			FutureRetention: 45 * 24 * time.Hour,
+		})
+
+		// Wait for background task to remove future partitions.
+		time.Sleep(2 * time.Minute)
+
+		assertPtExists(t, "1999_09", false)
+		assertPtExists(t, "1999_10", true)
+		assertPtExists(t, "1999_11", true)
+		assertPtExists(t, "1999_12", true)
+		assertPtExists(t, "2000_01", true)
+		assertPtExists(t, "2000_02", true)
+		assertPtExists(t, "2000_03", false)
+		assertPtExists(t, "2000_04", false)
+		assertPtExists(t, "2000_05", false)
+		assertPtExists(t, "2000_06", false)
+		assertPtExists(t, "2000_07", false)
+
+		// Reopen storage with smaller retention. Historical partitions
+		// outside the new future retention must be removed.
+		s.MustClose()
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:       45 * 24 * time.Hour,
+			FutureRetention: 45 * 24 * time.Hour,
+		})
+
+		// Wait for background task to remove future partitions.
+		time.Sleep(2 * time.Minute)
+
+		assertPtExists(t, "1999_09", false)
+		assertPtExists(t, "1999_10", false)
+		assertPtExists(t, "1999_11", true)
+		assertPtExists(t, "1999_12", true)
+		assertPtExists(t, "2000_01", true)
+		assertPtExists(t, "2000_02", true)
+		assertPtExists(t, "2000_03", false)
+		assertPtExists(t, "2000_04", false)
+		assertPtExists(t, "2000_05", false)
+		assertPtExists(t, "2000_06", false)
+		assertPtExists(t, "2000_07", false)
+
+		s.MustClose()
+	})
+}
+
+func TestStorage_denyQueriesOutsideRetention(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const (
+		accountID = 12
+		projectID = 34
+	)
+
+	tfsAll := NewTagFilters(accountID, projectID)
+	if err := tfsAll.Add(nil, []byte(".*"), false, true); err != nil {
+		t.Fatalf("TagFilters.Add() failed unexpectedly: %v", err)
+	}
+	tfssAll := []*TagFilters{tfsAll}
+
+	assertData := func(t *testing.T, s *Storage, tr TimeRange, wantData []MetricRow, wantErr bool) {
+		t.Helper()
+		err := testAssertSearchResult(s, tr, tfsAll, wantData)
+		gotErr := err != nil
+		if gotErr != wantErr {
+			t.Fatalf("Search: unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
+		}
+	}
+	assertMetricNames := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
+		t.Helper()
+		metricNames, err := s.SearchMetricNames(noDeadlineContext, nil, tfssAll, tr, 1e9)
+		gotErr := err != nil
+		if gotErr != wantErr {
+			t.Fatalf("SearchMetricNames(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
+		}
+		var gotData []string
+		for _, name := range metricNames {
+			var mn MetricName
+			if err := mn.UnmarshalString(name); err != nil {
+				t.Fatalf("Could not unmarshal metric name %q: %v", name, err)
+			}
+			gotData = append(gotData, string(mn.MetricGroup))
+		}
+		if diff := cmp.Diff(wantData, gotData); diff != "" {
+			t.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
+		}
+	}
+	assertLabelNames := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
+		t.Helper()
+		gotData, err := s.SearchLabelNames(noDeadlineContext, nil, accountID, projectID, nil, tr, 1e9, 1e9)
+		gotErr := err != nil
+		if gotErr != wantErr {
+			t.Fatalf("SearchLabelNames(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
+		}
+		slices.Sort(gotData)
+		slices.Sort(wantData)
+		if diff := cmp.Diff(wantData, gotData); diff != "" {
+			t.Fatalf("unexpected label names (-want, +got):\n%s", diff)
+		}
+	}
+	assertLabelValues := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
+		t.Helper()
+		gotData, err := s.SearchLabelValues(noDeadlineContext, nil, accountID, projectID, "__name__", nil, tr, 1e9, 1e9)
+		gotErr := err != nil
+		if gotErr != wantErr {
+			t.Fatalf("SearchLabelValues(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
+		}
+		slices.Sort(gotData)
+		slices.Sort(wantData)
+		if diff := cmp.Diff(wantData, gotData); diff != "" {
+			t.Fatalf("unexpected label values (-want, +got):\n%s", diff)
+		}
+	}
+	assertTagValueSuffixes := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
+		t.Helper()
+		gotData, err := s.SearchTagValueSuffixes(noDeadlineContext, nil, accountID, projectID, tr, "", "", '.', 1e9)
+		gotErr := err != nil
+		if gotErr != wantErr {
+			t.Fatalf("SearchTagValueSuffixes(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
+		}
+		slices.Sort(gotData)
+
+		if diff := cmp.Diff(wantData, gotData); diff != "" {
+			t.Fatalf("unexpected tag value suffixes (-want, +got):\n%s", diff)
+		}
+	}
+
+	assertGraphitePaths := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
+		t.Helper()
+		gotData, err := s.SearchGraphitePaths(noDeadlineContext, nil, accountID, projectID, tr, []byte("*"), 1e9)
+		gotErr := err != nil
+		if gotErr != wantErr {
+			t.Fatalf("SearchTagValueSuffixes(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
+		}
+		slices.Sort(gotData)
+
+		if diff := cmp.Diff(wantData, gotData); diff != "" {
+			t.Errorf("unexpected graphite paths (-want, +got):\n%s", diff)
+		}
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		// synctests start at 2000-01-01T00:00:00Z
+		now := time.Now().UTC()
+		retention := 30 * 24 * time.Hour
+		futureRetention := 30 * 24 * time.Hour
+		day := 24 * time.Hour
+		trMatches := TimeRange{
+			MinTimestamp: now.Add(-retention).UnixMilli(),
+			MaxTimestamp: now.Add(futureRetention).UnixMilli(),
+		}
+		trContains := TimeRange{
+			MinTimestamp: now.Add(-(retention + day)).UnixMilli(),
+			MaxTimestamp: now.Add(futureRetention + day).UnixMilli(),
+		}
+		trInside := TimeRange{
+			MinTimestamp: now.Add(-(retention - day)).UnixMilli(),
+			MaxTimestamp: now.Add(futureRetention - day).UnixMilli(),
+		}
+		trOverlapsLeft := TimeRange{
+			MinTimestamp: now.Add(-(retention + day)).UnixMilli(),
+			MaxTimestamp: now.Add(futureRetention - day).UnixMilli(),
+		}
+		trOverlapsRight := TimeRange{
+			MinTimestamp: now.Add(-(retention - day)).UnixMilli(),
+			MaxTimestamp: now.Add(futureRetention + day).UnixMilli(),
+		}
+		trOutsideLeft := TimeRange{
+			MinTimestamp: now.Add(-(retention + 2*day)).UnixMilli(),
+			MaxTimestamp: now.Add(-(retention + day)).UnixMilli(),
+		}
+		trOutsideRight := TimeRange{
+			MinTimestamp: now.Add(futureRetention + day).UnixMilli(),
+			MaxTimestamp: now.Add(futureRetention + 2*day).UnixMilli(),
+		}
+
+		mn := MetricName{
+			AccountID:   accountID,
+			ProjectID:   projectID,
+			MetricGroup: []byte("metric"),
+		}
+		metricNameRaw := mn.marshalRaw(nil)
+		mr := MetricRow{
+			MetricNameRaw: metricNameRaw,
+			Timestamp:     now.UnixMilli(),
+			Value:         123,
+		}
+		wantMRs := []MetricRow{mr}
+		wantMetricNames := []string{"metric"}
+		wantLabelNames := []string{"__name__"}
+		emptyLabelNames := []string{}
+		wantLabelValues := []string{"metric"}
+		emptyLabelValues := []string{}
+		wantTagValueSuffixes := []string{"metric"}
+		emptyTagValueSuffixes := []string{}
+		wantGraphitePaths := []string{"metric"}
+		emptyGraphitePaths := []string{}
+
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			Retention:       retention,
+			FutureRetention: futureRetention,
+		})
+
+		s.AddRows([]MetricRow{mr}, defaultPrecisionBits)
+		s.DebugFlush()
+
+		assertData(t, s, trInside, wantMRs, false)
+		assertData(t, s, trMatches, wantMRs, false)
+		assertData(t, s, trContains, wantMRs, false)
+		assertData(t, s, trOverlapsLeft, wantMRs, false)
+		assertData(t, s, trOverlapsRight, wantMRs, false)
+		assertData(t, s, trOutsideLeft, nil, false)
+		assertData(t, s, trOutsideRight, nil, false)
+
+		assertMetricNames(t, s, trInside, wantMetricNames, false)
+		assertMetricNames(t, s, trMatches, wantMetricNames, false)
+		assertMetricNames(t, s, trContains, wantMetricNames, false)
+		assertMetricNames(t, s, trOverlapsLeft, wantMetricNames, false)
+		assertMetricNames(t, s, trOverlapsRight, wantMetricNames, false)
+		assertMetricNames(t, s, trOutsideLeft, nil, false)
+		assertMetricNames(t, s, trOutsideRight, nil, false)
+
+		assertLabelNames(t, s, trInside, wantLabelNames, false)
+		assertLabelNames(t, s, trMatches, wantLabelNames, false)
+		assertLabelNames(t, s, trContains, wantLabelNames, false)
+		assertLabelNames(t, s, trOverlapsLeft, wantLabelNames, false)
+		assertLabelNames(t, s, trOverlapsRight, wantLabelNames, false)
+		assertLabelNames(t, s, trOutsideLeft, emptyLabelNames, false)
+		assertLabelNames(t, s, trOutsideRight, emptyLabelNames, false)
+
+		assertLabelValues(t, s, trInside, wantLabelValues, false)
+		assertLabelValues(t, s, trMatches, wantLabelValues, false)
+		assertLabelValues(t, s, trContains, wantLabelValues, false)
+		assertLabelValues(t, s, trOverlapsLeft, wantLabelValues, false)
+		assertLabelValues(t, s, trOverlapsRight, wantLabelValues, false)
+		assertLabelValues(t, s, trOutsideLeft, emptyLabelValues, false)
+		assertLabelValues(t, s, trOutsideRight, emptyLabelValues, false)
+
+		assertTagValueSuffixes(t, s, trInside, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trMatches, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trContains, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trOverlapsLeft, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trOverlapsRight, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trOutsideLeft, emptyTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trOutsideRight, emptyTagValueSuffixes, false)
+
+		assertGraphitePaths(t, s, trInside, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trMatches, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trContains, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trOverlapsLeft, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trOverlapsRight, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trOutsideLeft, emptyGraphitePaths, false)
+		assertGraphitePaths(t, s, trOutsideRight, emptyGraphitePaths, false)
+
+		// Restart storage with DenyQueriesOutsideRetention on.
+		s.MustClose()
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:                   retention,
+			FutureRetention:             futureRetention,
+			DenyQueriesOutsideRetention: true,
+		})
+		defer s.MustClose()
+
+		assertData(t, s, trInside, wantMRs, false)
+		assertData(t, s, trMatches, wantMRs, false)
+		assertData(t, s, trContains, nil, true)
+		assertData(t, s, trOverlapsLeft, nil, true)
+		assertData(t, s, trOverlapsRight, nil, true)
+		assertData(t, s, trOutsideLeft, nil, true)
+		assertData(t, s, trOutsideRight, nil, true)
+
+		assertMetricNames(t, s, trInside, wantMetricNames, false)
+		assertMetricNames(t, s, trMatches, wantMetricNames, false)
+		assertMetricNames(t, s, trContains, nil, true)
+		assertMetricNames(t, s, trOverlapsLeft, nil, true)
+		assertMetricNames(t, s, trOverlapsRight, nil, true)
+		assertMetricNames(t, s, trOutsideLeft, nil, true)
+		assertMetricNames(t, s, trOutsideRight, nil, true)
+
+		// DenyQueriesOutsideRetention does not apply to searching label names.
+		assertLabelNames(t, s, trInside, wantLabelNames, false)
+		assertLabelNames(t, s, trMatches, wantLabelNames, false)
+		assertLabelNames(t, s, trContains, wantLabelNames, false)
+		assertLabelNames(t, s, trOverlapsLeft, wantLabelNames, false)
+		assertLabelNames(t, s, trOverlapsRight, wantLabelNames, false)
+		assertLabelNames(t, s, trOutsideLeft, emptyLabelNames, false)
+		assertLabelNames(t, s, trOutsideRight, emptyLabelNames, false)
+
+		// DenyQueriesOutsideRetention does not apply to searching label values.
+		assertLabelValues(t, s, trInside, wantLabelValues, false)
+		assertLabelValues(t, s, trMatches, wantLabelValues, false)
+		assertLabelValues(t, s, trContains, wantLabelValues, false)
+		assertLabelValues(t, s, trOverlapsLeft, wantLabelValues, false)
+		assertLabelValues(t, s, trOverlapsRight, wantLabelValues, false)
+		assertLabelValues(t, s, trOutsideLeft, emptyLabelValues, false)
+		assertLabelValues(t, s, trOutsideRight, emptyLabelValues, false)
+
+		// DenyQueriesOutsideRetention does not apply to searching tag value suffixes.
+		assertTagValueSuffixes(t, s, trInside, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trMatches, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trContains, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trOverlapsLeft, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trOverlapsRight, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trOutsideLeft, emptyTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trOutsideRight, emptyTagValueSuffixes, false)
+
+		// DenyQueriesOutsideRetention does not apply to searching graphite paths.
+		assertGraphitePaths(t, s, trInside, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trMatches, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trContains, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trOverlapsLeft, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trOverlapsRight, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trOutsideLeft, emptyGraphitePaths, false)
+		assertGraphitePaths(t, s, trOutsideRight, emptyGraphitePaths, false)
+
+	})
+}
+
+func TestStorageAddRows_MaxBackfillAge(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const (
+		accountID = 12
+		projectID = 34
+	)
+
+	mn := MetricName{
+		AccountID:   accountID,
+		ProjectID:   projectID,
+		MetricGroup: []byte("metric"),
+	}
+	mr := MetricRow{
+		MetricNameRaw: mn.marshalRaw(nil),
+		Value:         123,
+	}
+
+	f := func(s *Storage, age time.Duration, want uint64) {
+		t.Helper()
+
+		mr.Timestamp = time.Now().UTC().Add(-age).UnixMilli()
+		s.AddRows([]MetricRow{mr}, defaultPrecisionBits)
+		s.DebugFlush()
+		if got := s.tooSmallTimestampRows.Load(); got != want {
+			t.Fatalf("unexpected number of tooSmallTimestampRows: got %d, want %d", got, want)
+		}
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		// synctest time begins at 2000-01-01T00:00:00Z.
+
+		retention1y := 365 * 24 * time.Hour
+		var s *Storage
+
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention: retention1y,
+			// By default MaxBackfillAge must be the same as Retention
+		})
+		// Verify that the sample with timestamp 1ms older than retention is
+		// rejected.
+		f(s, retention1y+time.Millisecond, 1)
+		// Verify that the sample with timestamp which is exactly at retention
+		// boundary is accepted.
+		f(s, retention1y, 1)
+
+		// Restart storage with negative MaxBackfillAge. In this case,
+		// MaxBackfillAge must be the same as Retention.
+		// Also advance time a bit so that the storage will not use the same
+		// nanosecond for creating a new part for storing the samples.
+		s.MustClose()
+		time.Sleep(time.Nanosecond)
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:      retention1y,
+			MaxBackfillAge: -1,
+		})
+		f(s, retention1y+time.Millisecond, 1)
+		f(s, retention1y, 1)
+
+		// Restart storage with MaxBackfillAge bigger than Retention. In this
+		// case, MaxBackfillAge must be the same as Retention.
+		s.MustClose()
+		time.Sleep(time.Nanosecond)
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:      retention1y,
+			MaxBackfillAge: retention1y + time.Millisecond,
+		})
+		f(s, retention1y+time.Millisecond, 1)
+		f(s, retention1y, 1)
+
+		// Restart storage with MaxBackfillAge smaller than Retention.
+		s.MustClose()
+		time.Sleep(time.Nanosecond)
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:      retention1y,
+			MaxBackfillAge: retention1y - time.Millisecond,
+		})
+		f(s, retention1y, 1)
+		f(s, retention1y-time.Millisecond, 1)
+
+		s.MustClose()
+	})
+}
+
+func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const (
+		accountID = 12
+		projectID = 34
+	)
+
+	f := func(t *testing.T, disablePerDayIndex bool) {
+		synctest.Test(t, func(t *testing.T) {
+			s := MustOpenStorage(t.Name(), OpenOptions{
+				DisablePerDayIndex: disablePerDayIndex,
+			})
+			defer s.MustClose()
+
+			now := time.Now().UTC()
+			currHourTR := TimeRange{
+				MinTimestamp: time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, time.UTC).UnixMilli(),
+				MaxTimestamp: time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 59, 59, 999_999_999, time.UTC).UnixMilli(),
+			}
+			currHour := uint64(currHourTR.MinTimestamp / 1000 / 3600)
+			prevHourTR := TimeRange{
+				MinTimestamp: currHourTR.MinTimestamp - msecPerHour,
+				MaxTimestamp: currHourTR.MaxTimestamp - msecPerHour,
+			}
+			rng := rand.New(rand.NewSource(1))
+
+			// Test current hour metricIDs population when data ingestion takes the
+			// slow path. The database is empty, therefore the index and the
+			// tsidCache contain no metricIDs, therefore the data ingestion will
+			// take slow path.
+
+			mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "slow_path", currHourTR)
+			s.AddRows(mrs, defaultPrecisionBits)
+			s.DebugFlush()
+			s.updateCurrHourMetricIDs(currHour)
+			if got, want := s.currHourMetricIDs.Load().m.Len(), 1000; got != want {
+				t.Fatalf("[slow path] unexpected current hour metric ID count: got %d, want %d", got, want)
+			}
+
+			// Test current hour metricIDs population when data ingestion takes the
+			// fast path (when the metricIDs are found in the tsidCache)
+
+			// First insert samples to populate the tsidCache. The samples belong to
+			// the previous hour, therefore the metricIDs won't be added to
+			// currHourMetricIDs.
+			mrs = testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "fast_path", prevHourTR)
+			s.AddRows(mrs, defaultPrecisionBits)
+			s.DebugFlush()
+			s.updateCurrHourMetricIDs(currHour)
+			if got, want := s.currHourMetricIDs.Load().m.Len(), 1000; got != want {
+				t.Fatalf("[fast path] unexpected current hour metric ID count after ingesting samples for previous hour: got %d, want %d", got, want)
+			}
+
+			// Now ingest the same metrics. This time the metricIDs will be found in
+			// tsidCache so the ingestion will take the fast path.
+			mrs = testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "fast_path", currHourTR)
+			s.AddRows(mrs, defaultPrecisionBits)
+			s.DebugFlush()
+			s.updateCurrHourMetricIDs(currHour)
+			if got, want := s.currHourMetricIDs.Load().m.Len(), 2000; got != want {
+				t.Fatalf("[fast path] unexpected current hour metric ID count: got %d, want %d", got, want)
+			}
+
+			// Test current hour metricIDs population when data ingestion takes the
+			// slower path (when the metricIDs are not found in the tsidCache but
+			// found in the index)
+
+			// First insert samples to populate the index. The samples belong to
+			// the previous hour, therefore the metricIDs won't be added to
+			// currHourMetricIDs.
+			mrs = testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "slower_path", prevHourTR)
+			s.AddRows(mrs, defaultPrecisionBits)
+			s.DebugFlush()
+			s.updateCurrHourMetricIDs(currHour)
+			if got, want := s.currHourMetricIDs.Load().m.Len(), 2000; got != want {
+				t.Fatalf("[slower path] unexpected current hour metric ID count after ingesting samples for previous hour: got %d, want %d", got, want)
+			}
+			// Inserted samples were also added to the tsidCache. Drop it to
+			// enforce the fallback to index search.
+			s.resetAndSaveTSIDCache()
+
+			// Now ingest the same metrics. This time the metricIDs will be searched
+			// and found in index so the ingestion will take the slower path.
+			mrs = testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "slower_path", currHourTR)
+			s.AddRows(mrs, defaultPrecisionBits)
+			s.DebugFlush()
+			s.updateCurrHourMetricIDs(currHour)
+			if got, want := s.currHourMetricIDs.Load().m.Len(), 3000; got != want {
+				t.Fatalf("[slower path] unexpected current hour metric ID count: got %d, want %d", got, want)
+			}
+		})
+	}
+
+	t.Run("disablePerDayIndex=false", func(t *testing.T) {
+		f(t, false)
+	})
+	t.Run("disablePerDayIndex=true", func(t *testing.T) {
+		f(t, true)
 	})
 }

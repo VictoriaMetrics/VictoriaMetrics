@@ -1,3 +1,75 @@
+# v1.7.26 (2026-11-04)
+
+* **Dependency Update**: Update to smithy-go v1.28.8.
+
+# v1.7.25 (2026-10-27)
+
+* **Dependency Update**: Update to smithy-go v1.28.7.
+
+# v1.7.24 (2026-10-22)
+
+* **Bug Fix**: Update smithy-go to v1.28.6
+
+# v1.7.23 (2026-10-21)
+
+* **Bug Fix**: Enforce event stream header key value length limit instead of truncating
+
+# v1.7.22 (2026-10-09.2)
+
+* **Dependency Update**: Update to smithy-go v1.28.5.
+
+# v1.7.21 (2026-10-08)
+
+* **Dependency Update**: Update to smithy-go v1.28.4.
+
+# v1.7.20 (2026-08-26)
+
+* **Dependency Update**: Update to smithy-go v1.28.0.
+
+# v1.7.19 (2026-08-25)
+
+* **Dependency Update**: Update to smithy-go v1.27.10.
+
+# v1.7.18 (2026-08-14)
+
+* **Dependency Update**: Update to smithy-go v1.27.8.
+
+# v1.7.17 (2026-08-10)
+
+* **Dependency Update**: Update to smithy-go v1.27.7.
+
+# v1.7.16 (2026-07-31.2)
+
+* **Dependency Update**: Upgrade to smithy-go v1.27.6 to fix various serde issues in HTTP binding services.
+
+# v1.7.15 (2026-07-28)
+
+* **Dependency Update**: Update to smithy-go v1.27.5.
+
+# v1.7.14 (2026-07-01)
+
+* No change notes available for this release.
+
+# v1.7.13 (2026-06-04)
+
+* **Dependency Update**: Update to smithy-go v1.27.1 to fix several union-related deserialization bugs in schema-serde-enabled services.
+
+# v1.7.12 (2026-06-03)
+
+* No change notes available for this release.
+
+# v1.7.11 (2026-05-29)
+
+* **Dependency Update**: Update to smithy-go v1.26.0.
+
+# v1.7.10 (2026-04-29)
+
+* **Dependency Update**: Update to smithy-go v1.25.1.
+
+# v1.7.9 (2026-04-17)
+
+* **Dependency Update**: Bump smithy-go to 1.25.0 to support endpointBdd trait
+
 # v1.7.8 (2026-03-23)
 
 * No change notes available for this release.

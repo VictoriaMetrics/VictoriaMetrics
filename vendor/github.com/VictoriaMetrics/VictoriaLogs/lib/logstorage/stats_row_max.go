@@ -21,7 +21,7 @@ type statsRowMax struct {
 func (sm *statsRowMax) String() string {
 	s := "row_max(" + quoteTokenIfNeeded(sm.srcField)
 	if !prefixfilter.MatchAll(sm.fieldFilters) {
-		s += ", " + fieldNamesString(sm.fieldFilters)
+		s += ", " + fieldFiltersString(sm.fieldFilters)
 	}
 	s += ")"
 	return s
