@@ -29,7 +29,7 @@ func BenchmarkBinaryOpOr(b *testing.B) {
 				Values:     []float64{1},
 			}
 		}
-		return &timeseries{
+		t := &timeseries{
 			MetricName: storage.MetricName{
 				MetricGroup: []byte(name),
 				// Real series have labels, which make metric name marshaling noticeably more expensive.
@@ -43,6 +43,10 @@ func BenchmarkBinaryOpOr(b *testing.B) {
 			Timestamps: []int64{1},
 			Values:     []float64{1},
 		}
+		// Sort the labels upfront. Otherwise binaryOpOr sorts them in place,
+		// which races between parallel benchmark goroutines sharing the same series.
+		sortMetricTags(&t.MetricName)
+		return t
 	}
 	tsWithPoints := func(name string, points int) *timeseries {
 		t := ts(name)
