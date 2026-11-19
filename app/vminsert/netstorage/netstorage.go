@@ -28,7 +28,9 @@ import (
 
 var (
 	disableCompression = flag.Bool("rpc.disableCompression", false, "Flag is deprecated and kept for backward compatibility, vminsert performs per block compression instead of streaming compression on RPC connection")
-	replicationFactor  = flag.Int("replicationFactor", 1, "Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. "+
+	rpcCompressLevel   = flag.Int("rpc.compressLevel", 1, "The compression level for the internal protocol between vminsert and vmstorage. "+
+		"Higher values reduce network traffic at the cost of higher CPU usage. Negative values reduce CPU usage at the cost of increased network traffic.")
+	replicationFactor = flag.Int("replicationFactor", 1, "Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. "+
 		"Note that vmselect must run with -dedup.minScrapeInterval=1ms for data de-duplication when replicationFactor is greater than 1. "+
 		"Higher values for -dedup.minScrapeInterval at vmselect is OK")
 	disableRerouting      = flag.Bool("disableRerouting", false, "Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -disableReroutingOnUnavailable and -dropSamplesOnOverload")
@@ -317,7 +319,7 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		}
 		err = vminsertapi.SendToConn(sn.bc, br.buf)
 	} else {
-		err = vminsertapi.SendRPCRequestToConn(sn.bc, sn.rpcCall.VersionedName, br.buf)
+		err = vminsertapi.SendRPCRequestToConn(sn.bc, sn.rpcCall.VersionedName, br.buf, *rpcCompressLevel)
 	}
 	duration := time.Since(startTime)
 	sn.sendDurationSeconds.Add(duration.Seconds())
@@ -986,7 +988,7 @@ func (sn *storageNode) checkReadOnlyMode() {
 	if sn.bc.IsLegacy {
 		err = vminsertapi.SendToConn(sn.bc, nil)
 	} else {
-		err = vminsertapi.SendRPCRequestToConn(sn.bc, sn.rpcCall.VersionedName, nil)
+		err = vminsertapi.SendRPCRequestToConn(sn.bc, sn.rpcCall.VersionedName, nil, *rpcCompressLevel)
 	}
 	if err == nil {
 		// The storage switched from readonly to non-readonly mode
