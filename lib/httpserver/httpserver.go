@@ -771,12 +771,20 @@ func SendError(w http.ResponseWriter, err error) {
 	http.Error(w, errStr, statusCode)
 }
 
+// VMAuthUserHeader is the request header, which vmauth sets to the name of the authenticated user.
+const VMAuthUserHeader = "X-VictoriaMetrics-User"
+
 // LogHTTPError logs the errStr with the client remote address and the request URI obtained from r.
 func LogHTTPError(r *http.Request, errStr string) {
-	remoteAddr := GetQuotedRemoteAddr(r)
-	requestURI := GetRequestURI(r)
-	errStr = fmt.Sprintf("remoteAddr: %s; requestURI: %s; %s", remoteAddr, requestURI, errStr)
-	logger.WarnfSkipframes(2, "%s", errStr)
+	logger.WarnfSkipframes(2, "%s; %s", requestLogPrefix(r), errStr)
+}
+
+func requestLogPrefix(r *http.Request) string {
+	prefix := "remoteAddr: " + GetQuotedRemoteAddr(r)
+	if user := r.Header.Get(VMAuthUserHeader); user != "" {
+		prefix += "; user: " + stringsutil.JSONString(user)
+	}
+	return prefix + "; requestURI: " + GetRequestURI(r)
 }
 
 // ErrorWithStatusCode is error with HTTP status code.

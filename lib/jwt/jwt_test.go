@@ -1096,3 +1096,29 @@ func TestTokenMatchClaims(t *testing.T) {
 	// wrongly routing account 100 to the tenant-0/1/2 backend.
 	f(&tokenWithStrFields, map[string]string{"security.audit.user_id": "0|1|2"}, false)
 }
+
+func TestTokenClaimString(t *testing.T) {
+	body := `{"exp":1725629232,"sub":"alice","user":{"login":"bob"},"groups":["a","b"]}`
+	tokenStr := "eyJhbGciOiJSUzI1NiJ9." + base64.RawURLEncoding.EncodeToString([]byte(body)) + ".c2ln"
+	var tkn Token
+	if err := tkn.Parse(tokenStr, false); err != nil {
+		t.Fatalf("cannot parse JWT token: %s", err)
+	}
+
+	f := func(key, expected string) {
+		t.Helper()
+
+		if got := tkn.ClaimString(ParseClaimKey(key)); got != expected {
+			t.Fatalf("unexpected value for claim %q; got %q; want %q", key, got, expected)
+		}
+	}
+
+	f("sub", "alice")
+	f("user.login", "bob")
+
+	f("user.email", "")
+
+	f("exp", "")
+	f("user", "")
+	f("groups", "")
+}

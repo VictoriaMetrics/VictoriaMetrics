@@ -39,6 +39,30 @@ func TestGetQuotedRemoteAddr(t *testing.T) {
 	f("1.2\n\"3.4", "foo\nb\"ar", `"1.2\n\"3.4, X-Forwarded-For: foo\nb\"ar"`)
 }
 
+func TestRequestLogPrefix(t *testing.T) {
+	f := func(header http.Header, expected string) {
+		t.Helper()
+
+		req := &http.Request{
+			RemoteAddr: "1.2.3.4",
+			RequestURI: "/foo?bar=baz",
+			Header:     header,
+		}
+		if got := requestLogPrefix(req); got != expected {
+			t.Fatalf("unexpected prefix;\ngot\n%s\nwant\n%s", got, expected)
+		}
+	}
+
+	// no vmauth user header
+	f(http.Header{"X-Auth-User": {"foo"}}, `remoteAddr: "1.2.3.4"; requestURI: /foo?bar=baz`)
+
+	// vmauth user header exists
+	f(http.Header{
+		"X-Forwarded-For":        {"5.6.7.8"},
+		"X-Victoriametrics-User": {"foo"},
+	}, `remoteAddr: "1.2.3.4, X-Forwarded-For: 5.6.7.8"; user: "foo"; requestURI: /foo?bar=baz`)
+}
+
 func TestBasicAuthMetrics(t *testing.T) {
 	origUsername := *httpAuthUsername
 	origPasswd := httpAuthPassword.Get()
