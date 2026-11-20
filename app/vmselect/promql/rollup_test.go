@@ -3,6 +3,7 @@ package promql
 import (
 	"math"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/metricsql"
 
@@ -300,6 +301,112 @@ func TestRollupShareLEOverTime(t *testing.T) {
 	f(100, 0.9166666666666666)
 	f(123, 1)
 	f(1000, 1)
+}
+
+func TestRollupAvgOverTimeSkipGaps(t *testing.T) {
+	hour := time.Hour.Milliseconds()
+	tests := []struct {
+		name       string
+		values     []float64
+		timestamps []int64
+		window     int64
+		want       float64
+		wantNaN    bool
+	}{
+		{
+			name:       "crosses weekend gap",
+			values:     []float64{1, 2, 3, 4, 5, 6},
+			timestamps: []int64{6 * hour, 7 * hour, 8 * hour, 9 * hour, 78 * hour, 79 * hour},
+			window:     3 * hour,
+			// Three active hours include the last Friday sample and the two Monday samples.
+			want: 5,
+		},
+		{
+			name:       "regular intervals",
+			values:     []float64{2, 4, 6},
+			timestamps: []int64{0, hour, 2 * hour},
+			window:     2 * hour,
+			want:       5,
+		},
+		{
+			name:       "duplicate timestamps",
+			values:     []float64{2, 4, 6, 8},
+			timestamps: []int64{0, hour, hour, 2 * hour},
+			window:     2 * hour,
+			want:       6,
+		},
+		{
+			name:       "not enough history",
+			values:     []float64{2, 4, 6},
+			timestamps: []int64{0, hour, 2 * hour},
+			window:     10 * hour,
+			want:       4,
+		},
+		{
+			name:       "single sample",
+			values:     []float64{42},
+			timestamps: []int64{hour},
+			window:     10 * hour,
+			want:       42,
+		},
+		{
+			name:    "empty input",
+			window:  hour,
+			wantNaN: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			rfa := &rollupFuncArg{
+				values:     tc.values,
+				timestamps: tc.timestamps,
+				window:     tc.window,
+			}
+			got := rollupAvgOverTimeSkipGaps(rfa)
+			if tc.wantNaN {
+				if !math.IsNaN(got) {
+					t.Fatalf("unexpected value; got %v; want NaN", got)
+				}
+				return
+			}
+			if got != tc.want {
+				t.Fatalf("unexpected value; got %v; want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestRollupConfigAvgOverTimeSkipGaps(t *testing.T) {
+	hour := time.Hour.Milliseconds()
+	values := make([]float64, 27)
+	timestamps := make([]int64, 27)
+	for i := 0; i < 25; i++ {
+		values[i] = 7
+		timestamps[i] = int64(i) * hour
+	}
+	values[25] = 7
+	timestamps[25] = 94 * hour
+	values[26] = 11
+	timestamps[26] = 95 * hour
+	rc := rollupConfig{
+		Func:               rollupAvgOverTimeSkipGaps,
+		Start:              95 * hour,
+		End:                95 * hour,
+		Step:               hour,
+		Window:             24 * hour,
+		SkipGaps:           true,
+		MaxPointsPerSeries: 10,
+		Timestamps:         []int64{95 * hour},
+	}
+	got, _ := rc.Do(nil, values, timestamps)
+	if len(got) != 1 {
+		t.Fatalf("unexpected number of values; got %d; want 1", len(got))
+	}
+	want := 172.0 / 24
+	if got[0] != want {
+		t.Fatalf("unexpected value; got %v; want %v", got[0], want)
+	}
 }
 
 func TestRollupShareGTOverTime(t *testing.T) {
