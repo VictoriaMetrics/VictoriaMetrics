@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/azremote"
@@ -16,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/gcsremote"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/s3remote"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 var (
@@ -100,6 +102,114 @@ func runParallelInternal(concurrency int, parts []common.Part, f func(p common.P
 	wg.Wait()
 
 	return err
+}
+
+func (r *Restore) runParallelPerPath(ctx context.Context, concurrency int, perPath map[string][]common.Part, bytesDownloaded *atomic.Uint64, progress func(elapsed time.Duration)) error {
+	var err error
+	runWithProgress(progress, func() {
+		err = r.runParallelPerPathInternal(ctx, concurrency, perPath, bytesDownloaded)
+	})
+	return err
+}
+
+func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency int, perPath map[string][]common.Part, bytesDownloaded *atomic.Uint64) error {
+	concurrency = max(concurrency, 1)
+	type fileToRestore struct {
+		parts       []common.Part
+		remaining   atomic.Int64
+		prepareOnce sync.Once
+		prepareErr  error
+	}
+	type restoreJob struct {
+		file  *fileToRestore
+		parts []common.Part
+	}
+	var files []*fileToRestore
+	for _, parts := range perPath {
+		if len(parts) == 0 {
+			continue
+		}
+		common.SortParts(parts)
+		f := &fileToRestore{parts: parts}
+		f.remaining.Store(int64(len(parts)))
+		files = append(files, f)
+	}
+	var jobs []restoreJob
+	if !r.SkipPreallocation {
+		for i := 0; len(files) > 0; i++ {
+			remaining := files[:0]
+			for _, f := range files {
+				jobs = append(jobs, restoreJob{file: f, parts: f.parts[i : i+1]})
+				if i+1 < len(f.parts) {
+					remaining = append(remaining, f)
+				}
+			}
+			files = remaining
+		}
+	} else {
+		// Resuming by file size requires completed writes to form a contiguous prefix.
+		for _, f := range files {
+			jobs = append(jobs, restoreJob{file: f, parts: f.parts})
+		}
+	}
+	workCh := make(chan restoreJob, len(jobs))
+	for _, job := range jobs {
+		workCh <- job
+	}
+	close(workCh)
+
+	ctxLocal, cancelLocal := context.WithCancel(ctx)
+	defer cancelLocal()
+
+	var errOnce sync.Once
+	var firstErr error
+	setErr := func(err error) {
+		errOnce.Do(func() {
+			firstErr = err
+			cancelLocal()
+		})
+	}
+	var wg sync.WaitGroup
+	for range min(concurrency, len(jobs)) {
+		wg.Go(func() {
+			for job := range workCh {
+				if ctxLocal.Err() != nil {
+					return
+				}
+				f := job.file
+				f.prepareOnce.Do(func() {
+					if !r.SkipPreallocation {
+						f.prepareErr = r.Dst.PreallocateFile(f.parts[0])
+					}
+				})
+				if f.prepareErr != nil {
+					setErr(fmt.Errorf("cannot preallocate %s: %w", f.parts[0].Path, f.prepareErr))
+					return
+				}
+				for _, p := range job.parts {
+					if ctxLocal.Err() != nil {
+						return
+					}
+					logger.Infof("downloading %s from %s to %s", &p, r.Src, r.Dst)
+					if err := pipelinedDownload(r.Src, r.Dst, p, bytesDownloaded); err != nil {
+						setErr(err)
+						return
+					}
+					if f.remaining.Add(-1) == 0 {
+						if err := r.Dst.FinalizeFile(p); err != nil {
+							setErr(fmt.Errorf("cannot finalize %s: %w", p.Path, err))
+							return
+						}
+					}
+				}
+			}
+		})
+	}
+	wg.Wait()
+	if firstErr != nil {
+		return firstErr
+	}
+	return ctx.Err()
 }
 
 func runWithProgress(progress func(elapsed time.Duration), f func()) {
