@@ -59,6 +59,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): correctly serve concurrent JSON and CSV [export API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-time-series) requests with mixed `reduce_mem_usage=0` and `reduce_mem_usage=1` settings. Previously, responses could be corrupted. See [#11912](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11912).
 * BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly calculate `vmstorage` node saturation used by [slowness based re-routing](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#slowness-based-re-routing) on platforms with low timer resolution, e.g. Windows. Previously, the saturation could permanently become `NaN` when sends to `vmstorage` completed within a single timer tick. See [#11937](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11937). Thanks to @mikepop7 for the contribution.
 
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix [replay](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules-backfilling) of `vlogs` recording and alerting rules writing every point one group `interval` too early. See [#11889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11889).
+
 ## [v1.156.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.156.0)
 
 Released at 2026-11-09
