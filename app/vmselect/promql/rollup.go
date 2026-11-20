@@ -21,11 +21,24 @@ var minStalenessInterval = flag.Duration("search.minStalenessInterval", 0, "The 
 	"This flag could be useful for removing gaps on graphs generated from time series with irregular intervals between samples. "+
 	"See also '-search.maxStalenessInterval'")
 
+// maxRollupGapLookback is the maximum extra time to search for samples before
+// the requested window when evaluating avg_over_time across gaps.
+const maxRollupGapLookback = int64(7 * 24 * 60 * 60 * 1000)
+
+func getRollupGapLookback(window int64) int64 {
+	// Limit extra work for short windows while allowing a 1d window to cross
+	// weekends. The extra lookback is capped at one week.
+	if window >= maxRollupGapLookback/3 {
+		return maxRollupGapLookback
+	}
+	return window * 3
+}
+
 var rollupFuncs = map[string]newRollupFunc{
 	"absent_over_time":        newRollupFuncOneArg(rollupAbsent),
 	"aggr_over_time":          newRollupFuncTwoArgs(rollupFake),
 	"ascent_over_time":        newRollupFuncOneArg(rollupAscentOverTime),
-	"avg_over_time":           newRollupFuncOneArg(rollupAvg),
+	"avg_over_time":           newRollupFuncOneArg(rollupAvgOverTimeSkipGaps),
 	"changes":                 newRollupFuncOneArg(rollupChanges),
 	"changes_prometheus":      newRollupFuncOneArg(rollupChangesPrometheus),
 	"count_eq_over_time":      newRollupCountEQ,
@@ -147,7 +160,7 @@ var needSilenceIntervalForRollupFunc = map[string]bool{
 var rollupAggrFuncs = map[string]rollupFunc{
 	"absent_over_time":        rollupAbsent,
 	"ascent_over_time":        rollupAscentOverTime,
-	"avg_over_time":           rollupAvg,
+	"avg_over_time":           rollupAvgOverTimeSkipGaps,
 	"changes":                 rollupChanges,
 	"count_over_time":         rollupCount,
 	"decreases_over_time":     rollupDecreases,
@@ -405,6 +418,7 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 
 			MayAdjustWindow:       rollupFuncsCanAdjustWindow[funcName],
 			LookbackDelta:         lookbackDelta,
+			SkipGaps:              funcName == "avg_over_time",
 			Timestamps:            sharedTimestamps,
 			isDefaultRollup:       funcName == "default_rollup",
 			samplesScannedPerCall: samplesScannedPerCall,
@@ -596,6 +610,9 @@ type rollupConfig struct {
 	// LoookbackDelta is the analog to `-query.lookback-delta` from Prometheus world.
 	LookbackDelta int64
 
+	// SkipGaps extends the input window for gap-aware rollup functions.
+	SkipGaps bool
+
 	// Whether default_rollup is used.
 	isDefaultRollup bool
 
@@ -766,8 +783,12 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	f := rc.Func
 	samplesScanned := uint64(len(values))
 	samplesScannedPerCall := uint64(rc.samplesScannedPerCall)
+	lookbehindWindow := window
+	if rc.SkipGaps {
+		lookbehindWindow += getRollupGapLookback(window)
+	}
 	for _, tEnd := range rc.Timestamps {
-		tStart := tEnd - window
+		tStart := tEnd - lookbehindWindow
 		ni = seekFirstTimestampIdxAfter(timestamps[i:], tStart, ni)
 		i += ni
 		if j < i {
@@ -2310,6 +2331,44 @@ var float64sPool sync.Pool
 
 type float64s struct {
 	A []float64
+}
+
+func rollupAvgOverTimeSkipGaps(rfa *rollupFuncArg) float64 {
+	values := rfa.values
+	timestamps := rfa.timestamps
+	if len(values) == 0 {
+		return nan
+	}
+	// Infer the regular sample interval from recent timestamps. Long gaps,
+	// such as weekends, contribute at most one regular sample interval.
+	scrapeInterval := getScrapeInterval(timestamps, rfa.window)
+	if scrapeInterval <= 0 {
+		return rollupAvg(rfa)
+	}
+	remainingWindow := rfa.window
+	first := len(values) - 1
+
+	for i := len(values) - 1; i > 0 && remainingWindow > 0; i-- {
+		gap := timestamps[i] - timestamps[i-1]
+		if gap < 0 {
+			continue
+		}
+		if gap > scrapeInterval {
+			gap = scrapeInterval
+		}
+		remainingWindow -= gap
+		if remainingWindow <= 0 {
+			// Match the open start boundary used by regular rollup windows.
+			first = i
+			break
+		}
+		first = i - 1
+	}
+	var sum float64
+	for _, v := range values[first:] {
+		sum += v
+	}
+	return sum / float64(len(values[first:]))
 }
 
 func rollupAscentOverTime(rfa *rollupFuncArg) float64 {
