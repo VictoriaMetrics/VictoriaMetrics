@@ -2,8 +2,10 @@ package actions
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"maps"
 	"path/filepath"
 	"strings"
@@ -190,8 +192,7 @@ func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency in
 					if ctxLocal.Err() != nil {
 						return
 					}
-					logger.Infof("downloading %s from %s to %s", &p, r.Src, r.Dst)
-					if err := pipelinedDownload(r.Src, r.Dst, p, bytesDownloaded); err != nil {
+					if err := r.downloadPartWithRetry(ctxLocal, p, bytesDownloaded); err != nil {
 						setErr(err)
 						return
 					}
@@ -210,6 +211,35 @@ func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency in
 		return firstErr
 	}
 	return ctx.Err()
+}
+
+func (r *Restore) downloadPartWithRetry(ctx context.Context, p common.Part, bytesDownloaded *atomic.Uint64) error {
+	const maxAttempts = 3
+	for attempt := 1; ; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		logger.Infof("downloading %s from %s to %s", &p, r.Src, r.Dst)
+		n, err := pipelinedDownload(r.Src, r.Dst, p, bytesDownloaded)
+		if err == nil || !errors.Is(err, io.ErrUnexpectedEOF) {
+			return err
+		}
+		if attempt == maxAttempts {
+			return fmt.Errorf("download of %s failed after %d attempts: %w", &p, attempt, err)
+		}
+		// Failed-attempt writes are overwritten; exclude them from restore progress.
+		// The cumulative downloaded-bytes metric still counts all writes.
+		bytesDownloaded.Add(-n)
+		delay := time.Duration(attempt) * time.Second
+		logger.Warnf("download of %s interrupted: %s; retrying the whole part in %s (attempt %d/%d)", &p, err, delay, attempt+1, maxAttempts)
+		t := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			t.Stop()
+			return ctx.Err()
+		case <-t.C:
+		}
+	}
 }
 
 func runWithProgress(progress func(elapsed time.Duration), f func()) {

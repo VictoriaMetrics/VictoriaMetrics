@@ -117,6 +117,9 @@ Non-partition files (metadata etc.) are always restored regardless of this flag.
 * If `vmrestore` consumes all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
 * Keep the source backup unchanged throughout the restore. In particular, don't restore from a `latest`
   backup while a backup job is updating it.
+* Downloads interrupted with `unexpected EOF` retry the same whole backup part from its original file
+  offset, with up to three total worker attempts and delays of 1s and 2s. Other errors aren't retried by
+  the restore worker. Retrying cannot make a changing backup consistent.
 * `-concurrency` limits all concurrent downloads, including downloads belonging to the same file.
   With preallocation enabled, workers can download multiple existing backup parts of the same file concurrently.
   This applies to S3/S3-compatible storage, GCS, Azure Blob Storage, and local filesystem backups.

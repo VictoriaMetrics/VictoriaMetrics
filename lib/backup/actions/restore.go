@@ -259,10 +259,10 @@ var readBufPool = sync.Pool{
 	},
 }
 
-func pipelinedDownload(src common.RemoteFS, dst *fslocal.FS, p common.Part, bytesDownloaded *atomic.Uint64) error {
+func pipelinedDownload(src common.RemoteFS, dst *fslocal.FS, p common.Part, bytesDownloaded *atomic.Uint64) (uint64, error) {
 	wc, err := dst.NewDirectWriteCloser(p)
 	if err != nil {
-		return fmt.Errorf("cannot create writer for %q to %s: %w", &p, dst, err)
+		return 0, fmt.Errorf("cannot create writer for %q to %s: %w", &p, dst, err)
 	}
 
 	pr, pw := io.Pipe()
@@ -294,24 +294,26 @@ func pipelinedDownload(src common.RemoteFS, dst *fslocal.FS, p common.Part, byte
 	closeErr := wc.Close()
 
 	if writeErr != nil {
-		return fmt.Errorf("cannot write %s to %s: %w", &p, dst, writeErr)
+		return sw.n, fmt.Errorf("cannot write %s to %s: %w", &p, dst, writeErr)
 	}
 	if downloadErr != nil {
-		return fmt.Errorf("cannot download %s from %s: %w", &p, src, downloadErr)
+		return sw.n, fmt.Errorf("cannot download %s from %s: %w", &p, src, downloadErr)
 	}
 	if closeErr != nil {
-		return fmt.Errorf("cannot close writer for %s at %s: %w", &p, dst, closeErr)
+		return sw.n, fmt.Errorf("cannot close writer for %s at %s: %w", &p, dst, closeErr)
 	}
-	return nil
+	return sw.n, nil
 }
 
 type statWriter struct {
 	w            io.Writer
 	bytesWritten *atomic.Uint64
+	n            uint64
 }
 
 func (sw *statWriter) Write(p []byte) (int, error) {
 	n, err := sw.w.Write(p)
+	sw.n += uint64(n)
 	sw.bytesWritten.Add(uint64(n))
 	bytesDownloadedTotal.Add(n)
 	return n, err

@@ -173,29 +173,6 @@ func TestRestoreDownloadInterleavesFiles(t *testing.T) {
 	}
 }
 
-func TestRestoreDownloadUnexpectedEOFFailsWithoutRetry(t *testing.T) {
-	p := common.Part{Path: "data/file", FileSize: 4, Size: 4, ActualSize: 4}
-	src := &concurrencyTrackingRemoteFS{data: map[common.Part][]byte{p: []byte("data")}}
-	src.downloadPart = func(_ common.Part, w io.Writer) error {
-		if _, err := w.Write([]byte("da")); err != nil {
-			return err
-		}
-		return fmt.Errorf("reading object body: %w", io.ErrUnexpectedEOF)
-	}
-	r := &Restore{Src: src, Dst: &fslocal.FS{Dir: t.TempDir(), UseTmpFiles: true}}
-	var downloaded atomic.Uint64
-	err := r.runParallelPerPathInternal(context.Background(), 1, map[string][]common.Part{p.Path: {p}}, &downloaded)
-	if !errors.Is(err, io.ErrUnexpectedEOF) {
-		t.Fatalf("unexpected download error: %v", err)
-	}
-	if len(src.downloaded) != 1 {
-		t.Fatalf("unexpected EOF was retried: %d attempts", len(src.downloaded))
-	}
-	if _, err := os.Stat(p.LocalPath(r.Dst.Dir)); !os.IsNotExist(err) {
-		t.Fatalf("failed part was finalized: %v", err)
-	}
-}
-
 func TestRestoreDownloadCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
