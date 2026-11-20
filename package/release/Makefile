@@ -1,7 +1,7 @@
 GITHUB_RELEASE_SPEC_FILE="/tmp/vm-github-release-$(TAG)"
 GITHUB_DEBUG_FILE="/tmp/vm-github-debug"
 
-GITHUB_ASSETS_COUNT ?= 112
+GITHUB_ASSETS_COUNT ?= 120
 
 github-token-check:
 ifndef GITHUB_TOKEN
