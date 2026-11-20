@@ -10,20 +10,20 @@ import (
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
-type testLegacyDeleteSeriesOpts struct {
+type testLegacy132DeleteSeriesOpts struct {
 	startLegacySUT func() at.PrometheusWriteQuerier
 	startNewSUT    func() at.PrometheusWriteQuerier
 	stopLegacySUT  func()
 	stopNewSUT     func()
 }
 
-func TestLegacySingleDeleteSeries(t *testing.T) {
+func TestLegacy132SingleDeleteSeries(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
 	storageDataPath := filepath.Join(tc.Dir(), "vmsingle")
 
-	opts := testLegacyDeleteSeriesOpts{
+	opts := testLegacy132DeleteSeriesOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
 			return tc.MustStartVmsingle_v1_132_0("vmsingle-legacy", []string{
 				"-storageDataPath=" + storageDataPath,
@@ -46,17 +46,17 @@ func TestLegacySingleDeleteSeries(t *testing.T) {
 		},
 	}
 
-	testLegacyDeleteSeries(tc, opts)
+	testLegacy132DeleteSeries(tc, opts)
 }
 
-func TestLegacyClusterDeleteSeries(t *testing.T) {
+func TestLegacy132ClusterDeleteSeries(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
 	storage1DataPath := filepath.Join(tc.Dir(), "vmstorage1")
 	storage2DataPath := filepath.Join(tc.Dir(), "vmstorage2")
 
-	opts := testLegacyDeleteSeriesOpts{
+	opts := testLegacy132DeleteSeriesOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
 			return tc.MustStartCluster_v1_132_0(&at.ClusterOptions{
 				Vmstorage1Instance: "vmstorage1-legacy",
@@ -111,10 +111,10 @@ func TestLegacyClusterDeleteSeries(t *testing.T) {
 		},
 	}
 
-	testLegacyDeleteSeries(tc, opts)
+	testLegacy132DeleteSeries(tc, opts)
 }
 
-func testLegacyDeleteSeries(tc *at.TestCase, opts testLegacyDeleteSeriesOpts) {
+func testLegacy132DeleteSeries(tc *at.TestCase, opts testLegacy132DeleteSeriesOpts) {
 	t := tc.T()
 
 	type want struct {
@@ -230,7 +230,7 @@ func testLegacyDeleteSeries(tc *at.TestCase, opts testLegacyDeleteSeriesOpts) {
 	opts.stopNewSUT()
 }
 
-type testLegacyBackupRestoreOpts struct {
+type testLegacy132BackupRestoreOpts struct {
 	startLegacySUT     func() at.PrometheusWriteQuerier
 	startNewSUT        func() at.PrometheusWriteQuerier
 	stopLegacySUT      func()
@@ -239,13 +239,13 @@ type testLegacyBackupRestoreOpts struct {
 	snapshotCreateURLs func(at.PrometheusWriteQuerier) []string
 }
 
-func TestLegacySingleBackupRestore(t *testing.T) {
+func TestLegacy132SingleBackupRestore(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
 	storageDataPath := filepath.Join(tc.Dir(), "vmsingle")
 
-	opts := testLegacyBackupRestoreOpts{
+	opts := testLegacy132BackupRestoreOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
 			return tc.MustStartVmsingle_v1_132_0("vmsingle-legacy", []string{
 				"-storageDataPath=" + storageDataPath,
@@ -278,17 +278,17 @@ func TestLegacySingleBackupRestore(t *testing.T) {
 		},
 	}
 
-	testLegacyBackupRestore(tc, opts)
+	testLegacy132BackupRestore(tc, opts)
 }
 
-func TestLegacyClusterBackupRestore(t *testing.T) {
+func TestLegacy132ClusterBackupRestore(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
 	storage1DataPath := filepath.Join(tc.Dir(), "vmstorage1")
 	storage2DataPath := filepath.Join(tc.Dir(), "vmstorage2")
 
-	opts := testLegacyBackupRestoreOpts{
+	opts := testLegacy132BackupRestoreOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
 			return tc.MustStartCluster_v1_132_0(&at.ClusterOptions{
 				Vmstorage1Instance: "vmstorage1-legacy",
@@ -355,10 +355,10 @@ func TestLegacyClusterBackupRestore(t *testing.T) {
 		},
 	}
 
-	testLegacyBackupRestore(tc, opts)
+	testLegacy132BackupRestore(tc, opts)
 }
 
-func testLegacyBackupRestore(tc *at.TestCase, opts testLegacyBackupRestoreOpts) {
+func testLegacy132BackupRestore(tc *at.TestCase, opts testLegacy132BackupRestoreOpts) {
 	t := tc.T()
 
 	const msecPerMinute = 60 * 1000
@@ -558,20 +558,20 @@ func testLegacyBackupRestore(tc *at.TestCase, opts testLegacyBackupRestoreOpts) 
 	opts.stopNewSUT()
 }
 
-type testLegacyDowngradeOpts struct {
+type testLegacy132DowngradeOpts struct {
 	startLegacySUT func() at.PrometheusWriteQuerier
 	startNewSUT    func() at.PrometheusWriteQuerier
 	stopLegacySUT  func()
 	stopNewSUT     func()
 }
 
-func TestLegacySingleDowngrade(t *testing.T) {
+func TestLegacy132SingleDowngrade(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
 	storageDataPath := filepath.Join(tc.Dir(), "vmsingle")
 
-	opts := testLegacyDowngradeOpts{
+	opts := testLegacy132DowngradeOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
 			return tc.MustStartVmsingle_v1_132_0("vmsingle-legacy", []string{
 				"-storageDataPath=" + storageDataPath,
@@ -596,17 +596,17 @@ func TestLegacySingleDowngrade(t *testing.T) {
 		},
 	}
 
-	testLegacyDowngrade(tc, opts)
+	testLegacy132Downgrade(tc, opts)
 }
 
-func TestLegacyClusterDowngrade(t *testing.T) {
+func TestLegacy132ClusterDowngrade(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
 	storage1DataPath := filepath.Join(tc.Dir(), "vmstorage1")
 	storage2DataPath := filepath.Join(tc.Dir(), "vmstorage2")
 
-	opts := testLegacyDowngradeOpts{
+	opts := testLegacy132DowngradeOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
 			return tc.MustStartCluster_v1_132_0(&at.ClusterOptions{
 				Vmstorage1Instance: "vmstorage1-legacy",
@@ -663,10 +663,10 @@ func TestLegacyClusterDowngrade(t *testing.T) {
 		},
 	}
 
-	testLegacyDowngrade(tc, opts)
+	testLegacy132Downgrade(tc, opts)
 }
 
-func testLegacyDowngrade(tc *at.TestCase, opts testLegacyDowngradeOpts) {
+func testLegacy132Downgrade(tc *at.TestCase, opts testLegacy132DowngradeOpts) {
 	t := tc.T()
 
 	type want struct {
