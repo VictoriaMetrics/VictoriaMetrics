@@ -3,10 +3,8 @@
 package actions
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"sync/atomic"
 	"testing"
@@ -17,14 +15,6 @@ import (
 )
 
 func TestRestoreDownloadFinalizesAfterAllParts(t *testing.T) {
-	for _, ranged := range []bool{false, true} {
-		t.Run(fmt.Sprintf("ranged=%v", ranged), func(t *testing.T) {
-			testRestoreFinalizesAfterAllParts(t, ranged)
-		})
-	}
-}
-
-func testRestoreFinalizesAfterAllParts(t *testing.T, ranged bool) {
 	for _, fail := range []bool{false, true} {
 		name := "success"
 		if fail {
@@ -39,19 +29,10 @@ func testRestoreFinalizesAfterAllParts(t *testing.T, ranged bool) {
 					parts = append(parts, p)
 					src.data[p] = []byte("data")
 				}
-				wantData := []byte("datadatadata")
-				wantDownloaded := uint64(8)
-				if ranged {
-					wantData = bytes.Repeat([]byte("data"), (192<<20)/4)
-					p := common.Part{Path: "data/file", FileSize: uint64(len(wantData)), Size: uint64(len(wantData)), ActualSize: uint64(len(wantData))}
-					parts = []common.Part{p}
-					src.data = map[common.Part][]byte{p: wantData}
-					wantDownloaded = 128 << 20
-				}
 				releaseFirst := make(chan struct{})
 				downloadErr := errors.New("first part failed")
-				src.beforeRange = func(task downloadTask) error {
-					if task.part.Offset+task.offset == 0 {
+				src.beforeDownload = func(p common.Part) error {
+					if p.Offset == 0 {
 						<-releaseFirst
 						if fail {
 							return downloadErr
@@ -66,10 +47,10 @@ func testRestoreFinalizesAfterAllParts(t *testing.T, ranged bool) {
 				var downloaded atomic.Uint64
 				done := make(chan error, 1)
 				go func() {
-					done <- r.runParallelPerPathInternal(context.Background(), 3, map[string][]common.Part{parts[0].Path: parts}, &downloaded)
+					done <- r.runParallelPerPathInternal(context.Background(), 3, true, map[string][]common.Part{parts[0].Path: parts}, &downloaded)
 				}()
 				synctest.Wait()
-				if downloaded.Load() != wantDownloaded {
+				if downloaded.Load() != 8 {
 					t.Errorf("later parts didn't finish while the first was blocked: %d bytes", downloaded.Load())
 				}
 				path := parts[0].LocalPath(r.Dst.Dir)
@@ -91,7 +72,7 @@ func testRestoreFinalizesAfterAllParts(t *testing.T, ranged bool) {
 					t.Fatal(err)
 				}
 				data, err := os.ReadFile(path)
-				if err != nil || !bytes.Equal(data, wantData) {
+				if err != nil || string(data) != "datadatadata" {
 					t.Fatalf("restored contents don't match the backup; err=%v", err)
 				}
 			})

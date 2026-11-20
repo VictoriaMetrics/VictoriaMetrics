@@ -116,11 +116,11 @@ Non-partition files (metadata etc.) are always restored regardless of this flag.
 * See [Connecting VM components to cloud storage](https://docs.victoriametrics.com/guides/connecting-vm-components-to-cloud-storage/) for instructions on configuring credentials.
 * If `vmrestore` consumes all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
 * `-concurrency` limits all concurrent downloads, including downloads belonging to the same file.
-  When multiple workers are available, large backup objects in S3 and S3-compatible storage are divided into balanced byte-range requests,
-  keeping the original object keys unchanged. Ranges target multiple tasks per worker and are sized
-  between 64 MiB and 256 MiB to balance worker utilization and request overhead. Objects smaller than 128 MiB aren't split.
+  For S3 and S3-compatible storage, workers can download multiple existing backup parts of the same file concurrently.
+  Each backup object is downloaded whole; object keys and the backup format are unchanged.
+  No additional splitting or HTTP Range requests are used.
   GCS, Azure, and local filesystem backups retain whole-object downloads in sequential order per file;
-  different files can still download concurrently. Additional byte-range splitting is enabled only for S3.
+  different files can still download concurrently.
   With `-skipFilePreallocation`, each file's objects are downloaded whole and sequentially in offset order
   so an interrupted restore can safely resume within the file; different files can still download concurrently.
 * If `vmrestore` has been interrupted due to temporary error, then just restart it with the same args. It will resume the restore process.

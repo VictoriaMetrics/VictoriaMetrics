@@ -394,35 +394,16 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 
 // DownloadPart downloads part p from fs to w.
 func (fs *FS) DownloadPart(p common.Part, w io.Writer) error {
-	return fs.DownloadPartRange(p, 0, p.Size, w)
-}
-
-// DownloadPartRange downloads a range within the original backup object p.
-func (fs *FS) DownloadPartRange(p common.Part, offset, size uint64, w io.Writer) error {
-	if err := p.ValidateRange(offset, size); err != nil {
-		return err
-	}
 	path := fs.path(p)
 	input := &s3.GetObjectInput{
 		Bucket: aws.String(fs.Bucket),
 		Key:    aws.String(path),
-	}
-	partial := offset != 0 || size != p.Size
-	if partial {
-		input.Range = aws.String(fmt.Sprintf("bytes=%d-%d", offset, offset+size-1))
 	}
 	o, err := fs.s3.GetObject(fs.ctx, input)
 	if err != nil {
 		return fmt.Errorf("cannot open %q at %s (remote path %q): %w", p.Path, fs, path, err)
 	}
 	r := o.Body
-	if partial {
-		wantRange := fmt.Sprintf("bytes %d-%d/%d", offset, offset+size-1, p.Size)
-		if aws.ToString(o.ContentRange) != wantRange {
-			_ = r.Close()
-			return fmt.Errorf("unexpected Content-Range for %q at %s; got %q; want %q", path, fs, aws.ToString(o.ContentRange), wantRange)
-		}
-	}
 	n, err := io.Copy(w, r)
 	if err1 := r.Close(); err1 != nil && err == nil {
 		err = err1
@@ -430,8 +411,8 @@ func (fs *FS) DownloadPartRange(p common.Part, offset, size uint64, w io.Writer)
 	if err != nil {
 		return fmt.Errorf("cannot download %q from at %s (remote path %q): %w", p.Path, fs, path, err)
 	}
-	if uint64(n) != size {
-		return fmt.Errorf("wrong data size downloaded from %q at %s; got %d bytes; want %d bytes", p.Path, fs, n, size)
+	if uint64(n) != p.Size {
+		return fmt.Errorf("wrong data size downloaded from %q at %s; got %d bytes; want %d bytes", p.Path, fs, n, p.Size)
 	}
 	return nil
 }

@@ -19,13 +19,6 @@ type OriginFS interface {
 	ListParts() ([]Part, error)
 }
 
-// RangeDownloader optionally supports reading byte ranges within an existing backup object.
-type RangeDownloader interface {
-	// DownloadPartRange downloads size bytes starting at offset within p, not within the original file.
-	// The fields of p must identify the original, unsplit backup object.
-	DownloadPartRange(p Part, offset, size uint64, w io.Writer) error
-}
-
 // RemoteFS is a filesystem where backups are stored.
 type RemoteFS interface {
 	// MustStop must be called when the RemoteFS is no longer needed.
