@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: MetricsQL: make `avg_over_time` extend its lookbehind across long gaps between samples, so samples before the gap can contribute to the average. The additional lookback is limited to `min(3 * window, 7d)`. See the [MetricsQL documentation](https://docs.victoriametrics.com/victoriametrics/metricsql/#avg_over_time).
+
 **Update Note 1:** `vmctl` in [vm-native](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/) mode: `--vm-native-filter-time-end` is now a required parameter. See [#11830](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11830) for details.
 
 **Update Note 2:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) change for [Vultr service discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#vultr_sd_configs): Vultr service discovery params now should be provided via `vultr_sd_configs` field. Previously, vmagent was expecting `vultr_configs` field to be set, which didn't match vmagent's documentation and Prometheus service discovery settings for Vultr. See [#11950](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11950) for details.
