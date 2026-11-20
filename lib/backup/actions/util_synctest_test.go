@@ -95,6 +95,9 @@ func TestRestoreDownloadUnexpectedEOFRetries(t *testing.T) {
 					if _, err := os.Stat(path); !os.IsNotExist(err) {
 						t.Fatalf("failed or canceled part was finalized: %v", err)
 					}
+					if errors.Is(tc.wantErr, io.ErrUnexpectedEOF) && progress.Load() != 37 {
+						t.Fatalf("failed EOF attempts remained in restore progress: got %d; want 37", progress.Load())
+					}
 					return
 				}
 				got, err := os.ReadFile(path)

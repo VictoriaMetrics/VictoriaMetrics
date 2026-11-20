@@ -224,12 +224,12 @@ func (r *Restore) downloadPartWithRetry(ctx context.Context, p common.Part, byte
 		if err == nil || !errors.Is(err, io.ErrUnexpectedEOF) {
 			return err
 		}
+		// Exclude every failed EOF attempt from restore progress, including the last.
+		// The cumulative downloaded-bytes metric still counts all writes.
+		bytesDownloaded.Add(-n)
 		if attempt == maxAttempts {
 			return fmt.Errorf("download of %s failed after %d attempts: %w", &p, attempt, err)
 		}
-		// Failed-attempt writes are overwritten; exclude them from restore progress.
-		// The cumulative downloaded-bytes metric still counts all writes.
-		bytesDownloaded.Add(-n)
 		delay := time.Duration(attempt) * time.Second
 		logger.Warnf("download of %s interrupted: %s; retrying the whole part in %s (attempt %d/%d)", &p, err, delay, attempt+1, maxAttempts)
 		t := time.NewTimer(delay)
