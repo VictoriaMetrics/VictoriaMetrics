@@ -323,6 +323,7 @@ func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency in
 						break
 					}
 					p := f.parts[i]
+					logger.Infof("downloading %s from %s to %s", &p, r.Src, r.Dst)
 					if err := pipelinedDownload(r.Src, r.Dst, p, bytesDownloaded); err != nil {
 						setErr(err)
 						return
