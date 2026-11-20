@@ -69,6 +69,17 @@ oldest data. Both `--vm-native-filter-time-start` and `--vm-native-filter-time-e
 It is recommended using default `month` step when migrating the data over the long time intervals. If you hit query
 limits on `--vm-native-src-addr` and can't or don't want to change them, try lowering the step interval to `week`, `day` or `hour`.
 
+By default, `--vm-native-filter-time-start` and `--vm-native-filter-time-end` are inclusive: vmctl migrates data with timestamps
+`>= start` and `<= end`. Prefix a value with `>` (strictly after) or `<` (strictly before) to exclude the specified time.
+For example, the following flags migrate exactly January 2026, up to `2026-01-31T23:59:59.999Z`:
+
+```sh
+--vm-native-filter-time-start='2026-01-01T00:00:00Z' \
+--vm-native-filter-time-end='<2026-02-01T00:00:00Z'
+```
+
+Quote values starting with `<` or `>`, since the shell treats them as redirections.
+
 Usage example:
 ```sh
 ./vmctl vm-native \

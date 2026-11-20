@@ -75,6 +75,9 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to parse %s, provided: %s: %w", vmNativeFilterTimeEnd, p.filter.TimeEnd, err)
 	}
+	// The source doesn't understand vmctl-only syntax such as the `<` and `>` prefixes.
+	p.filter.TimeStart = start.Format(vmctlutil.RFC3339Milli)
+	p.filter.TimeEnd = end.Format(vmctlutil.RFC3339Milli)
 
 	// The state isn't tracked without per-metric requests, since there is no distinct metric names to track.
 	var st *migrationstate.State
@@ -438,8 +441,8 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, st *migrationsta
 			r := nativeRequest{
 				f: native.Filter{
 					Match:     match,
-					TimeStart: times[0].Format(time.RFC3339),
-					TimeEnd:   times[1].Format(time.RFC3339),
+					TimeStart: times[0].Format(vmctlutil.RFC3339Milli),
+					TimeEnd:   times[1].Format(vmctlutil.RFC3339Milli),
 				},
 			}
 			if st != nil {
