@@ -43,6 +43,7 @@ type client struct {
 	setProxyHeaders         func(req *http.Request) error
 	maxScrapeSize           int64
 	disableCompression      bool
+	acceptEncoding          string
 }
 
 func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
@@ -127,18 +128,19 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 		setProxyHeaders:         setProxyHeaders,
 		maxScrapeSize:           sw.MaxScrapeSize,
 		disableCompression:      *disableCompression || sw.DisableCompression,
+		acceptEncoding:          sw.AcceptEncoding,
 	}
 	return c, nil
 }
 
-func (c *client) ReadData(dst *chunkedbuffer.Buffer) (bool, error) {
+func (c *client) ReadData(dst *chunkedbuffer.Buffer) (string, error) {
 	deadline := time.Now().Add(c.c.Timeout)
 	ctx, cancel := context.WithDeadline(c.ctx, deadline)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.scrapeURL, nil)
 	if err != nil {
-		return false, fmt.Errorf("cannot create request for %q: %w", c.scrapeURL, err)
+		return "", fmt.Errorf("cannot create request for %q: %w", c.scrapeURL, err)
 	}
 	// The following `Accept` header has been copied from Prometheus sources.
 	// See https://github.com/prometheus/prometheus/blob/f9d21f10ecd2a343a381044f131ea4e46381ce09/scrape/scrape.go#L532 .
@@ -151,13 +153,17 @@ func (c *client) ReadData(dst *chunkedbuffer.Buffer) (bool, error) {
 	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
 	req.Header.Set("User-Agent", "vm_promscrape")
 	if err := c.setHeaders(req); err != nil {
-		return false, fmt.Errorf("failed to set request headers for %q: %w", c.scrapeURL, err)
+		return "", fmt.Errorf("failed to set request headers for %q: %w", c.scrapeURL, err)
 	}
 	if err := c.setProxyHeaders(req); err != nil {
-		return false, fmt.Errorf("failed to set proxy request headers for %q: %w", c.scrapeURL, err)
+		return "", fmt.Errorf("failed to set proxy request headers for %q: %w", c.scrapeURL, err)
 	}
 	if !c.disableCompression {
-		req.Header.Set("Accept-Encoding", "gzip")
+		if c.acceptEncoding != "" {
+			req.Header.Set("Accept-Encoding", c.acceptEncoding)
+		} else {
+			req.Header.Set("Accept-Encoding", "gzip")
+		}
 	}
 
 	scrapeRequests.Inc()
@@ -166,7 +172,7 @@ func (c *client) ReadData(dst *chunkedbuffer.Buffer) (bool, error) {
 		if ue, ok := err.(*url.Error); ok && ue.Timeout() {
 			scrapesTimedout.Inc()
 		}
-		return false, fmt.Errorf("cannot perform request to %q: %w", c.scrapeURL, err)
+		return "", fmt.Errorf("cannot perform request to %q: %w", c.scrapeURL, err)
 	}
 	defer resp.Body.Close()
 
@@ -178,7 +184,7 @@ func (c *client) ReadData(dst *chunkedbuffer.Buffer) (bool, error) {
 		if err != nil {
 			respBody = []byte(err.Error())
 		}
-		return false, fmt.Errorf("unexpected status code returned when scraping %q: %d; expecting %d; response body: %q",
+		return "", fmt.Errorf("unexpected status code returned when scraping %q: %d; expecting %d; response body: %q",
 			c.scrapeURL, resp.StatusCode, http.StatusOK, respBody)
 	}
 	scrapesOK.Inc()
@@ -191,17 +197,17 @@ func (c *client) ReadData(dst *chunkedbuffer.Buffer) (bool, error) {
 		if ue, ok := err.(*url.Error); ok && ue.Timeout() {
 			scrapesTimedout.Inc()
 		}
-		return false, fmt.Errorf("cannot read data from %s: %w", c.scrapeURL, err)
+		return "", fmt.Errorf("cannot read data from %s: %w", c.scrapeURL, err)
 	}
 	if int64(dst.Len()) > c.maxScrapeSize {
 		maxScrapeSizeExceeded.Inc()
-		return false, fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize or max_scrape_size in the scrape config (%d bytes). "+
+		return "", fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize or max_scrape_size in the scrape config (%d bytes). "+
 			"Possible solutions are: reduce the response size for the target, increase -promscrape.maxScrapeSize command-line flag, "+
 			"increase max_scrape_size value in scrape config for the given target", c.scrapeURL, c.maxScrapeSize)
 	}
 
-	isGzipped := resp.Header.Get("Content-Encoding") == "gzip"
-	return isGzipped, nil
+	contentEncoding := resp.Header.Get("Content-Encoding")
+	return contentEncoding, nil
 }
 
 var (
