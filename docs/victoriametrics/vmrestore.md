@@ -116,10 +116,7 @@ Non-partition files (metadata etc.) are always restored regardless of this flag.
 * See [Connecting VM components to cloud storage](https://docs.victoriametrics.com/guides/connecting-vm-components-to-cloud-storage/) for instructions on configuring credentials.
 * If `vmrestore` consumes all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
 * Keep the source backup unchanged throughout the restore. In particular, don't restore from a `latest`
-  backup while a backup job is updating it. Retries cannot make a changing backup consistent.
-* S3 downloads interrupted with `unexpected EOF` retry the same whole backup part from its original
-  file offset, with up to three total part attempts and delays of 1s and 2s. Other errors aren't retried
-  by the restore worker. If interruptions persist, check storage/network/proxy timeouts and try reducing `-concurrency`.
+  backup while a backup job is updating it.
 * `-concurrency` limits all concurrent downloads, including downloads belonging to the same file.
   For S3 and S3-compatible storage, workers can download multiple existing backup parts of the same file concurrently.
   With preallocation enabled, S3 work is queued in FIFO rounds: the first pending part of every file comes

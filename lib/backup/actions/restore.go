@@ -3,7 +3,6 @@ package actions
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -331,7 +330,8 @@ func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency in
 					if ctxLocal.Err() != nil {
 						return
 					}
-					if err := r.downloadPart(ctxLocal, p, bytesDownloaded, isS3); err != nil {
+					logger.Infof("downloading %s from %s to %s", &p, r.Src, r.Dst)
+					if err := pipelinedDownload(r.Src, r.Dst, p, bytesDownloaded); err != nil {
 						setErr(err)
 						return
 					}
@@ -352,35 +352,6 @@ func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency in
 	return ctx.Err()
 }
 
-func (r *Restore) downloadPart(ctx context.Context, p common.Part, bytesDownloaded *atomic.Uint64, retryEOF bool) error {
-	const maxAttempts = 3
-	for attempt := 1; ; attempt++ {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		logger.Infof("downloading %s from %s to %s", &p, r.Src, r.Dst)
-		n, err := pipelinedDownload(r.Src, r.Dst, p, bytesDownloaded)
-		if err == nil || !retryEOF || !errors.Is(err, io.ErrUnexpectedEOF) {
-			return err
-		}
-		if attempt == maxAttempts {
-			return fmt.Errorf("download of %s failed after %d attempts: %w", &p, attempt, err)
-		}
-		// Retried bytes overwrite the same part, so don't count them twice in restore progress.
-		// The downloaded-bytes metric still includes the actual bytes transferred.
-		bytesDownloaded.Add(-n)
-		delay := time.Duration(attempt) * time.Second
-		logger.Warnf("download of %s interrupted: %s; retrying the whole part in %s (attempt %d/%d)", &p, err, delay, attempt+1, maxAttempts)
-		t := time.NewTimer(delay)
-		select {
-		case <-ctx.Done():
-			t.Stop()
-			return ctx.Err()
-		case <-t.C:
-		}
-	}
-}
-
 const writeBufSize = 2 * 1024 * 1024
 
 var writeBufPool = sync.Pool{
@@ -398,10 +369,10 @@ var readBufPool = sync.Pool{
 	},
 }
 
-func pipelinedDownload(src common.RemoteFS, dst *fslocal.FS, p common.Part, bytesDownloaded *atomic.Uint64) (uint64, error) {
+func pipelinedDownload(src common.RemoteFS, dst *fslocal.FS, p common.Part, bytesDownloaded *atomic.Uint64) error {
 	wc, err := dst.NewDirectWriteCloser(p)
 	if err != nil {
-		return 0, fmt.Errorf("cannot create writer for %q to %s: %w", &p, dst, err)
+		return fmt.Errorf("cannot create writer for %q to %s: %w", &p, dst, err)
 	}
 
 	pr, pw := io.Pipe()
@@ -433,26 +404,24 @@ func pipelinedDownload(src common.RemoteFS, dst *fslocal.FS, p common.Part, byte
 	closeErr := wc.Close()
 
 	if writeErr != nil {
-		return sw.n, fmt.Errorf("cannot write %s to %s: %w", &p, dst, writeErr)
+		return fmt.Errorf("cannot write %s to %s: %w", &p, dst, writeErr)
 	}
 	if downloadErr != nil {
-		return sw.n, fmt.Errorf("cannot download %s from %s: %w", &p, src, downloadErr)
+		return fmt.Errorf("cannot download %s from %s: %w", &p, src, downloadErr)
 	}
 	if closeErr != nil {
-		return sw.n, fmt.Errorf("cannot close writer for %s at %s: %w", &p, dst, closeErr)
+		return fmt.Errorf("cannot close writer for %s at %s: %w", &p, dst, closeErr)
 	}
-	return sw.n, nil
+	return nil
 }
 
 type statWriter struct {
 	w            io.Writer
 	bytesWritten *atomic.Uint64
-	n            uint64
 }
 
 func (sw *statWriter) Write(p []byte) (int, error) {
 	n, err := sw.w.Write(p)
-	sw.n += uint64(n)
 	sw.bytesWritten.Add(uint64(n))
 	bytesDownloadedTotal.Add(n)
 	return n, err
