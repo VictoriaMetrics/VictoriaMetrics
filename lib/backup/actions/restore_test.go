@@ -1,13 +1,108 @@
 package actions
 
 import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"errors"
+	"io"
+	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fsremote"
 )
+
+func TestRestoreBackupObjects(t *testing.T) {
+	data := bytes.Repeat([]byte("vmrestore"), 128*1024)
+	p := common.Part{Path: "data/big/2026_11/file", FileSize: uint64(len(data)), Size: uint64(len(data)), ActualSize: uint64(len(data))}
+	src := &fsremote.FS{Dir: t.TempDir()}
+	if err := src.UploadPart(p, bytes.NewReader(data)); err != nil {
+		t.Fatal(err)
+	}
+	empty := common.Part{Path: "metadata/empty"}
+	if err := src.UploadPart(empty, bytes.NewReader(nil)); err != nil {
+		t.Fatal(err)
+	}
+	if err := src.CreateFile(backupnames.BackupCompleteFilename, nil); err != nil {
+		t.Fatal(err)
+	}
+	r := &Restore{
+		Src:         src,
+		Dst:         &fslocal.FS{Dir: t.TempDir()},
+		Concurrency: 10,
+	}
+	if err := r.Run(context.Background()); err != nil {
+		t.Fatalf("cannot restore original backup object: %s", err)
+	}
+	f, err := os.Open(p.LocalPath(r.Dst.Dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	h := sha256.New()
+	n, err := io.Copy(h, f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantHash := sha256.Sum256(data)
+	if n != int64(len(data)) || !bytes.Equal(h.Sum(nil), wantHash[:]) {
+		t.Fatal("restored file differs from backup")
+	}
+	fi, err := os.Stat(empty.LocalPath(r.Dst.Dir))
+	if err != nil || fi.Size() != 0 {
+		t.Fatalf("empty file wasn't restored: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(r.Dst.Dir, backupnames.RestoreInProgressFilename)); !os.IsNotExist(err) {
+		t.Fatalf("incomplete restore marker remains after success: %v", err)
+	}
+}
+
+func TestRestoreDownloadFailureAndResume(t *testing.T) {
+	data := []byte("restored data")
+	p := common.Part{Path: "data/file", FileSize: uint64(len(data)), Size: uint64(len(data)), ActualSize: uint64(len(data))}
+	src := &concurrencyTrackingRemoteFS{parts: []common.Part{p}, data: map[common.Part][]byte{p: data}}
+	downloadErr := errors.New("interrupted download")
+	src.downloadPart = func(_ common.Part, w io.Writer) error {
+		if _, err := w.Write(data[:3]); err != nil {
+			return err
+		}
+		return downloadErr
+	}
+	r := &Restore{
+		Src:                     src,
+		Dst:                     &fslocal.FS{Dir: t.TempDir()},
+		Concurrency:             2,
+		SkipBackupCompleteCheck: true,
+	}
+	if err := r.Run(context.Background()); !errors.Is(err, downloadErr) {
+		t.Fatalf("unexpected restore error: %v", err)
+	}
+	if _, err := os.Stat(p.LocalPath(r.Dst.Dir)); !os.IsNotExist(err) {
+		t.Fatalf("failed download was finalized: %v", err)
+	}
+	lockPath := filepath.Join(r.Dst.Dir, backupnames.RestoreInProgressFilename)
+	if _, err := os.Stat(lockPath); err != nil {
+		t.Fatalf("missing incomplete restore marker: %s", err)
+	}
+	src.downloadPart = nil
+	if err := r.Run(context.Background()); err != nil {
+		t.Fatalf("cannot resume failed restore: %s", err)
+	}
+	got, err := os.ReadFile(p.LocalPath(r.Dst.Dir))
+	if err != nil || !bytes.Equal(got, data) {
+		t.Fatalf("unexpected resumed file: %q; err=%v", got, err)
+	}
+	if _, err := os.Stat(lockPath); !os.IsNotExist(err) {
+		t.Fatalf("incomplete restore marker remains after success: %v", err)
+	}
+}
 
 func TestExtractPartitionName(t *testing.T) {
 	f := func(partPath, expectedName string) {
