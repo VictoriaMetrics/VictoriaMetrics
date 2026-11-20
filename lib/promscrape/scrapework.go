@@ -283,6 +283,7 @@ func (sw *scrapeWork) storeLastScrape(lastScrapeStr string) {
 
 func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) {
 	var randSleep uint64
+	var timestamp int64
 	scrapeInterval := sw.Config.ScrapeInterval
 	scrapeAlignInterval := sw.Config.ScrapeAlignInterval
 	scrapeOffset := sw.Config.ScrapeOffset
@@ -314,16 +315,31 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 		}
 		randSleep -= sleepOffset
 	} else {
-		d := uint64(scrapeAlignInterval)
-		randSleep = d - uint64(time.Now().UnixNano())%d
-		if scrapeOffset > 0 {
-			randSleep += uint64(scrapeOffset)
-		}
-		randSleep %= uint64(scrapeInterval)
+		// The first timestamp is the planned time, not the wake-up time. Replicas that scrape the same
+		// target write the same timestamp, so deduplication can keep a scraped value.
+		timestamp, randSleep = firstAlignedScrape(time.Now().UnixNano(), scrapeAlignInterval, scrapeOffset, scrapeInterval)
 	}
 	timer := timerpool.Get(time.Duration(randSleep))
-	var timestamp int64
 	var ticker *time.Ticker
+	realign := false
+	tick := func(t int64) {
+		ts, next := scrapeTimestampAt(t, timestamp, scrapeInterval.Milliseconds(), scrapeAlignInterval > 0)
+		timestamp = ts
+		switch {
+		case next > 0:
+			// Too late for a grid point. Fire the ticker at the next grid point. This puts
+			// the ticker back on the grid, so later scrapes run close to their timestamps.
+			ticker.Reset(time.Duration(next-t) * time.Millisecond)
+			timestamp = next - scrapeInterval.Milliseconds()
+			realign = true
+		case realign:
+			// Count the scrape interval from grid point ts, not from now, so a tick read late,
+			// e.g. after a slow scrape, does not make every later tick late.
+			ticker.Reset(scrapeInterval - time.Duration(t-ts)*time.Millisecond)
+			realign = t != ts
+		}
+		sw.scrapeAndLogError(ts, t)
+	}
 	select {
 	case <-stopCh:
 		timerpool.Put(timer)
@@ -331,8 +347,11 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 	case <-timer.C:
 		timerpool.Put(timer)
 		ticker = time.NewTicker(scrapeInterval)
-		timestamp = time.Now().UnixMilli()
-		sw.scrapeAndLogError(timestamp, timestamp)
+		t := time.Now().UnixMilli()
+		if scrapeAlignInterval <= 0 {
+			timestamp = t
+		}
+		tick(t)
 	}
 	defer ticker.Stop()
 	for {
@@ -370,11 +389,11 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 			return
 		case tt := <-ticker.C:
 			t := tt.UnixMilli()
-			if d := math.Abs(float64(t - timestamp)); d > 0 && d/float64(scrapeInterval.Milliseconds()) > 0.1 {
-				// Too big jitter. Adjust timestamp
-				timestamp = t
+			if scrapeAlignInterval > 0 {
+				// A tick received late still carries the time it was due, which can be a grid point.
+				t = time.Now().UnixMilli()
 			}
-			sw.scrapeAndLogError(timestamp, t)
+			tick(t)
 		}
 	}
 }
@@ -402,6 +421,51 @@ func (sw *scrapeWork) logParseError(s string) {
 	logger.ErrorfSkipframes(1, "error when scraping %q from job %q with labels %s: %s; "+
 		"see how to limit or disable these errors at https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting",
 		sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.Labels.String(), s)
+}
+
+// firstAlignedScrape returns the time of the first scrape in Unix milliseconds,
+// and the nanoseconds to wait for it. now is Unix time in nanoseconds.
+// If now is a grid point, the first scrape is now. Otherwise it is the next grid point.
+// Replicas that start between the same two grid points get the same timestamp.
+func firstAlignedScrape(now int64, alignInterval, offset, scrapeInterval time.Duration) (timestamp int64, sleep uint64) {
+	d := uint64(alignInterval)
+	sleep = d - uint64(now)%d
+	if offset > 0 {
+		sleep += uint64(offset)
+	}
+	sleep %= uint64(scrapeInterval)
+	return (now + int64(sleep)) / 1e6, sleep
+}
+
+// scrapeTimestampAt returns the timestamp for a scrape that starts at clock time now.
+// planned is the planned scrape time, according to the interval. Both are Unix milliseconds.
+// If now is at most 10% of interval away from planned, it returns planned.
+// An aligned scrape returns the last planned time no later than now, according to the interval,
+// if now is at most 10% of interval after it.
+// Otherwise, it returns now. An aligned scrape then also gets next, the next planned time,
+// so the ticker can move back to the grid. In all other cases next is 0.
+func scrapeTimestampAt(now, planned, interval int64, aligned bool) (ts, next int64) {
+	if d := math.Abs(float64(now - planned)); d == 0 || d/float64(interval) <= 0.1 {
+		return planned, 0
+	}
+	if !aligned {
+		return now, 0
+	}
+	prev := planned + int64(math.Floor(float64(now-planned)/float64(interval)))*interval
+	if now-prev <= interval/10 {
+		return prev, 0
+	}
+	return now, prev + interval
+}
+
+// staleTimestamp returns the timestamp for the stale markers of a scrape.
+// An aligned scrape uses scrapeTimestamp, so the markers tie with the samples a replica scraped
+// for the same grid point, and deduplication prefers a scraped value over them, e.g. after this scrape failed.
+func (sw *scrapeWork) staleTimestamp(scrapeTimestamp, realTimestamp int64) int64 {
+	if sw.Config.ScrapeAlignInterval > 0 || sw.Config.ScrapeOffset > 0 {
+		return scrapeTimestamp
+	}
+	return realTimestamp
 }
 
 func (sw *scrapeWork) scrapeAndLogError(scrapeTimestamp, realTimestamp int64) {
@@ -646,7 +710,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	if !areIdenticalSeries && (lastScrapeSuccess || err == nil) {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
-		sw.sendStaleSeries(lastScrapeStr, bodyString, realTimestamp, false)
+		sw.sendStaleSeries(lastScrapeStr, bodyString, sw.staleTimestamp(scrapeTimestamp, realTimestamp), false)
 	}
 
 	if !areIdenticalSeries && err == nil {
@@ -758,7 +822,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	if !areIdenticalSeries && (lastScrapeSuccess || err == nil) {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
-		sw.sendStaleSeries(lastScrapeStr, bodyString, realTimestamp, false)
+		sw.sendStaleSeries(lastScrapeStr, bodyString, sw.staleTimestamp(scrapeTimestamp, realTimestamp), false)
 	}
 
 	if !areIdenticalSeries && err == nil {
