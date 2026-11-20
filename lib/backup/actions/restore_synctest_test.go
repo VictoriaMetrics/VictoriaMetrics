@@ -47,7 +47,7 @@ func TestRestoreDownloadFinalizesAfterAllParts(t *testing.T) {
 				var downloaded atomic.Uint64
 				done := make(chan error, 1)
 				go func() {
-					done <- r.runParallelPerPathInternal(context.Background(), 3, true, map[string][]common.Part{parts[0].Path: parts}, &downloaded)
+					done <- r.runParallelPerPathInternal(context.Background(), 3, map[string][]common.Part{parts[0].Path: parts}, &downloaded)
 				}()
 				synctest.Wait()
 				if downloaded.Load() != 8 {

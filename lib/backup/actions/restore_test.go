@@ -28,16 +28,14 @@ func TestRestoreDownloadConcurrency(t *testing.T) {
 		concurrency       int
 		files             int
 		skipPreallocation bool
-		parallelParts     bool
 		wantActive        int
 		wantPerFile       int
 	}{
-		{"same-file", 4, 1, false, true, 4, 4},
-		{"multiple-files", 6, 2, false, true, 6, 4},
-		{"global-limit", 3, 2, false, true, 3, 3},
-		{"sequential-resume", 4, 2, true, true, 2, 1},
-		{"non-S3-source", 4, 2, false, false, 2, 1},
-		{"zero-limit", 0, 1, false, true, 1, 1},
+		{"same-file", 4, 1, false, 4, 4},
+		{"multiple-files", 6, 2, false, 6, 4},
+		{"global-limit", 3, 2, false, 3, 3},
+		{"sequential-resume", 4, 2, true, 2, 1},
+		{"zero-limit", 0, 1, false, 1, 1},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -69,7 +67,7 @@ func TestRestoreDownloadConcurrency(t *testing.T) {
 			var downloaded atomic.Uint64
 			done := make(chan error, 1)
 			go func() {
-				done <- r.runParallelPerPathInternal(context.Background(), tc.concurrency, tc.parallelParts, perPath, &downloaded)
+				done <- r.runParallelPerPath(context.Background(), tc.concurrency, perPath, &downloaded, func(time.Duration) {})
 			}()
 			initial := make(map[string]int)
 			for range tc.wantActive {
@@ -82,7 +80,7 @@ func TestRestoreDownloadConcurrency(t *testing.T) {
 					t.Fatal("timed out waiting for concurrent downloads")
 				}
 			}
-			if tc.parallelParts && !tc.skipPreallocation {
+			if !tc.skipPreallocation {
 				minActive, maxActive := tc.wantActive, 0
 				for _, n := range initial {
 					minActive, maxActive = min(minActive, n), max(maxActive, n)
@@ -116,7 +114,7 @@ func TestRestoreDownloadConcurrency(t *testing.T) {
 					t.Fatalf("unexpected restored contents: %q", data)
 				}
 			}
-			if tc.skipPreallocation || !tc.parallelParts {
+			if tc.skipPreallocation {
 				nextOffset := make(map[string]uint64)
 				for _, p := range src.downloaded {
 					if p.Offset != nextOffset[p.Path] {
@@ -144,7 +142,7 @@ func TestRestoreDownloadInterleavesFiles(t *testing.T) {
 	}
 	r := &Restore{Src: src, Dst: &fslocal.FS{Dir: t.TempDir(), UseTmpFiles: true}}
 	var downloaded atomic.Uint64
-	if err := r.runParallelPerPathInternal(context.Background(), 1, true, perPath, &downloaded); err != nil {
+	if err := r.runParallelPerPathInternal(context.Background(), 1, perPath, &downloaded); err != nil {
 		t.Fatal(err)
 	}
 	next := 0
@@ -276,7 +274,7 @@ func TestRestoreDownloadUnexpectedEOFFailsWithoutRetry(t *testing.T) {
 	}
 	r := &Restore{Src: src, Dst: &fslocal.FS{Dir: t.TempDir(), UseTmpFiles: true}}
 	var downloaded atomic.Uint64
-	err := r.runParallelPerPathInternal(context.Background(), 1, true, map[string][]common.Part{p.Path: {p}}, &downloaded)
+	err := r.runParallelPerPathInternal(context.Background(), 1, map[string][]common.Part{p.Path: {p}}, &downloaded)
 	if !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Fatalf("unexpected download error: %v", err)
 	}
@@ -304,7 +302,7 @@ func TestRestoreDownloadCancellation(t *testing.T) {
 	}
 	r := &Restore{Src: src, Dst: &fslocal.FS{Dir: t.TempDir(), UseTmpFiles: true}}
 	var downloaded atomic.Uint64
-	err := r.runParallelPerPathInternal(ctx, 1, true, map[string][]common.Part{parts[0].Path: parts}, &downloaded)
+	err := r.runParallelPerPathInternal(ctx, 1, map[string][]common.Part{parts[0].Path: parts}, &downloaded)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("unexpected cancellation error: %v", err)
 	}

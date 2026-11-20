@@ -19,7 +19,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/s3remote"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/formatutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -244,15 +243,14 @@ func (r *Restore) Run(ctx context.Context) error {
 }
 
 func (r *Restore) runParallelPerPath(ctx context.Context, concurrency int, perPath map[string][]common.Part, bytesDownloaded *atomic.Uint64, progress func(elapsed time.Duration)) error {
-	_, isS3 := r.Src.(*s3remote.FS)
 	var err error
 	runWithProgress(progress, func() {
-		err = r.runParallelPerPathInternal(ctx, concurrency, isS3, perPath, bytesDownloaded)
+		err = r.runParallelPerPathInternal(ctx, concurrency, perPath, bytesDownloaded)
 	})
 	return err
 }
 
-func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency int, isS3 bool, perPath map[string][]common.Part, bytesDownloaded *atomic.Uint64) error {
+func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency int, perPath map[string][]common.Part, bytesDownloaded *atomic.Uint64) error {
 	concurrency = max(concurrency, 1)
 	type fileToRestore struct {
 		parts       []common.Part
@@ -275,7 +273,7 @@ func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency in
 		files = append(files, f)
 	}
 	var jobs []restoreJob
-	if isS3 && !r.SkipPreallocation {
+	if !r.SkipPreallocation {
 		for i := 0; len(files) > 0; i++ {
 			remaining := files[:0]
 			for _, f := range files {

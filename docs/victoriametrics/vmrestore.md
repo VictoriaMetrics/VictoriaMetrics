@@ -118,13 +118,12 @@ Non-partition files (metadata etc.) are always restored regardless of this flag.
 * Keep the source backup unchanged throughout the restore. In particular, don't restore from a `latest`
   backup while a backup job is updating it.
 * `-concurrency` limits all concurrent downloads, including downloads belonging to the same file.
-  For S3 and S3-compatible storage, workers can download multiple existing backup parts of the same file concurrently.
-  With preallocation enabled, S3 work is queued in FIFO rounds: the first pending part of every file comes
+  With preallocation enabled, workers can download multiple existing backup parts of the same file concurrently.
+  This applies to S3/S3-compatible storage, GCS, Azure Blob Storage, and local filesystem backups.
+  Work is queued in FIFO rounds: the first pending part of every file comes
   before any second pending part, then the second parts are queued, and so on.
   Each backup object is downloaded whole; object keys and the backup format are unchanged.
   No additional splitting or HTTP Range requests are used.
-  GCS, Azure, and local filesystem backups retain whole-object downloads in sequential order per file;
-  different files can still download concurrently.
   With `-skipFilePreallocation`, each file's objects are downloaded whole and sequentially in offset order
   so an interrupted restore can safely resume within the file; different files can still download concurrently.
 * If `vmrestore` has been interrupted due to temporary error, then just restart it with the same args. It will resume the restore process.
