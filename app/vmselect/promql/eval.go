@@ -1048,7 +1048,16 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	}
 
 	ecSQ := copyEvalConfig(ec)
-	ecSQ.Start -= window + step + maxSilenceInterval()
+	lookback := window + step + maxSilenceInterval()
+	_, isMetricExpr := re.Expr.(*metricsql.MetricExpr)
+	if funcName == "avg_over_time" && isMetricExpr {
+		gapWindow := window
+		if gapWindow < step {
+			gapWindow = step
+		}
+		lookback += getRollupGapLookback(gapWindow)
+	}
+	ecSQ.Start -= lookback
 	ecSQ.End += step
 	ecSQ.Step = step
 	ecSQ.MaxPointsPerSeries = *maxPointsSubqueryPerTimeseries
@@ -1266,31 +1275,8 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 	}
 	switch funcName {
 	case "avg_over_time":
-		if iafc != nil {
-			qt.Printf("do not apply instant rollup optimization for incremental aggregate %s()", iafc.ae.Name)
-			return evalAt(qt, timestamp, window)
-		}
-		qt.Printf("optimized calculation for instant rollup avg_over_time(m[d]) as (sum_over_time(m[d]) / count_over_time(m[d]))")
-		fe := expr.(*metricsql.FuncExpr)
-		// copy RollupExpr to drop possible offset,
-		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9762
-		newArg := copyRollupExpr(fe.Args[0].(*metricsql.RollupExpr))
-		newArg.Offset = nil
-		be := &metricsql.BinaryOpExpr{
-			Op:              "/",
-			KeepMetricNames: fe.KeepMetricNames,
-			Left: &metricsql.FuncExpr{
-				Name:            "sum_over_time",
-				Args:            []metricsql.Expr{newArg},
-				KeepMetricNames: fe.KeepMetricNames,
-			},
-			Right: &metricsql.FuncExpr{
-				Name:            "count_over_time",
-				Args:            []metricsql.Expr{newArg},
-				KeepMetricNames: fe.KeepMetricNames,
-			},
-		}
-		return evalExpr(qt, ec, be)
+		qt.Printf("do not apply instant rollup optimization for gap-aware avg_over_time")
+		return evalAt(qt, timestamp, window)
 	// the cached rate result could be inaccurate in edge cases, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10098
 	case "rate":
 		if iafc != nil {
@@ -1830,6 +1816,13 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		minTimestamp -= window
 	} else {
 		minTimestamp -= ec.Step
+	}
+	if funcName == "avg_over_time" {
+		gapWindow := window
+		if gapWindow < ec.Step {
+			gapWindow = ec.Step
+		}
+		minTimestamp -= getRollupGapLookback(gapWindow)
 	}
 	sq := storage.NewSearchQuery(minTimestamp, ec.End, tfss, ec.MaxSeries)
 	rss, err := netstorage.ProcessSearchQuery(ec.Context, qt, sq)

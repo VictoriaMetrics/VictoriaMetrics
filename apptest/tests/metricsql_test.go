@@ -50,6 +50,61 @@ func TestClusterInstantQuery(t *testing.T) {
 	testLabelValuesWithUTFNames(t, sut)
 }
 
+func TestSingleAvgOverTimeAcrossWeekendGap(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	sut := tc.MustStartDefaultVmsingle()
+	testAvgOverTimeAcrossWeekendGap(t, sut)
+}
+
+func testAvgOverTimeAcrossWeekendGap(t *testing.T, sut apptest.PrometheusWriteQuerier) {
+	t.Helper()
+	start := time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2026, 11, 18, 0, 0, 0, 0, time.UTC)
+	market := prompb.TimeSeries{
+		Labels: []prompb.Label{
+			{Name: "__name__", Value: "stock_price"},
+			{Name: "schedule", Value: "market"},
+			{Name: "symbol", Value: "ACME"},
+		},
+	}
+	continuous := prompb.TimeSeries{
+		Labels: []prompb.Label{
+			{Name: "__name__", Value: "stock_price"},
+			{Name: "schedule", Value: "continuous"},
+			{Name: "symbol", Value: "ACME"},
+		},
+	}
+	for day := start; day.Before(end); day = day.AddDate(0, 0, 1) {
+		for hour := 0; hour < 24; hour += 6 {
+			ts := day.Add(time.Duration(hour) * time.Hour)
+			value := float64(100 + (int(day.Sub(start)/(24*time.Hour)) * 10) + (hour / 6))
+			sample := prompb.Sample{Timestamp: ts.UnixMilli(), Value: value}
+			continuous.Samples = append(continuous.Samples, sample)
+			if day.Weekday() != time.Saturday && day.Weekday() != time.Sunday {
+				market.Samples = append(market.Samples, sample)
+			}
+		}
+	}
+	sut.PrometheusAPIV1Write(t, prompb.WriteRequest{Timeseries: []prompb.TimeSeries{market, continuous}}, apptest.QueryOpts{})
+	sut.ForceFlush(t)
+
+	got := sut.PrometheusAPIV1Query(t, `avg_over_time(stock_price{symbol="ACME"}[1d])`, apptest.QueryOpts{
+		Time: "2026-11-16T12:00:00Z",
+	})
+	want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data":{"result":[
+		{"metric":{"__name__":"stock_price","schedule":"continuous","symbol":"ACME"},"value":[1794830400,"239"]},
+		{"metric":{"__name__":"stock_price","schedule":"market","symbol":"ACME"},"value":[1794830400,"234"]}
+	]}}`)
+	cmpOptions := []cmp.Option{
+		cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
+	}
+	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
+		t.Fatalf("unexpected /api/v1/query response (-want, +got):\n%s", diff)
+	}
+}
+
 func testInstantQueryWithUTFNames(t *testing.T, sut apptest.PrometheusWriteQuerier) {
 	data := prompb.WriteRequest{
 		Timeseries: []prompb.TimeSeries{

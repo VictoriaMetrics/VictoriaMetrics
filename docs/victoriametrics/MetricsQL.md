@@ -265,6 +265,12 @@ from the given [series_selector](https://docs.victoriametrics.com/victoriametric
 
 This function is usually applied to [gauges](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge).
 
+VictoriaMetrics can extend the lookbehind window across long gaps between samples. It estimates the regular sample interval
+from recent samples and counts a longer gap as at most one regular sample interval. This allows, for example,
+`avg_over_time(stock_price[1d])` evaluated on Monday to include Friday's samples when there are no samples during the weekend.
+The extra lookback is limited to `min(3 * d, 7d)`. Range queries still produce results at every requested evaluation step,
+including steps that fall inside a gap.
+
 This function is supported by PromQL.
 
 See also [median_over_time](#median_over_time), [min_over_time](#min_over_time) and [max_over_time](#max_over_time).
