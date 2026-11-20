@@ -2512,7 +2512,7 @@ See [series updates](#series-updates).
 
 [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) can apply updates to already stored [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series)
 at query time. An update is a regular time series with the same labels as the original series plus an extra revision label
-with an integer value. Pass the name of the revision label via `merge_latest_label` {{% available_from "#" %}} query arg
+with an integer value. Pass the name of the revision label via `merge_latest_label` {{% available_from "v1.157.0" %}} query arg
 to [/api/v1/query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query)
 and [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) in order to apply it.
 

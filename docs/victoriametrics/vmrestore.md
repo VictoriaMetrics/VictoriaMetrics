@@ -77,7 +77,7 @@ can be combined — only partitions that satisfy both filters are restored.
 
 ### Restore only recent data
 
-Use `-restoreSince=<duration>` to restore every monthly partition that overlaps the last `<duration>`{{% available_from "#" %}}:
+Use `-restoreSince=<duration>` to restore every monthly partition that overlaps the last `<duration>`{{% available_from "v1.157.0" %}}:
 
 ```sh
 ./vmrestore -src=<storageType>://<path/to/backup> -storageDataPath=<local/path/to/restore> \
@@ -97,7 +97,7 @@ restores two partitions: `2026_10` and `2026_11`.
 ### Restore specific partitions
 
 Use `-restorePartitions` with a regular expression matched against partition names to select
-which partitions to download{{% available_from "#" %}}:
+which partitions to download{{% available_from "v1.157.0" %}}:
 
 ```sh
 ./vmrestore -src=<storageType>://<path/to/backup> -storageDataPath=<local/path/to/restore> \
