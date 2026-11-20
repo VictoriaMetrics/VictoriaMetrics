@@ -15,7 +15,6 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -121,6 +120,7 @@ func main() {
 	httpserver.CheckHealth(listenAddrs)
 	logger.Infof("starting vmauth at %q...", listenAddrs)
 	startTime := time.Now()
+	concurrencyLimitInit()
 	initAuthConfig()
 
 	disableInternalRoutes := len(*httpInternalListenAddr) > 0
@@ -363,7 +363,6 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tk
 }
 
 func beginConcurrencyLimit(ctx context.Context) error {
-	concurrencyLimitOnce.Do(concurrencyLimitInit)
 	select {
 	case concurrencyLimitCh <- struct{}{}:
 		return nil
@@ -810,10 +809,7 @@ func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, i
 	return rt, nil
 }
 
-var (
-	concurrencyLimitCh   chan struct{}
-	concurrencyLimitOnce sync.Once
-)
+var concurrencyLimitCh chan struct{}
 
 func concurrencyLimitInit() {
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
