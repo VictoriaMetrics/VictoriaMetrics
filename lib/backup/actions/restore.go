@@ -255,21 +255,17 @@ func (r *Restore) runParallelPerPath(ctx context.Context, concurrency int, perPa
 
 func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency int, isS3 bool, perPath map[string][]common.Part, bytesDownloaded *atomic.Uint64) error {
 	concurrency = max(concurrency, 1)
-	perFile := concurrency
-	if !isS3 || r.SkipPreallocation {
-		// Keep non-S3 sources sequential per file. Resuming by file size also
-		// requires completed writes to form a contiguous prefix.
-		perFile = 1
-	}
-
 	type fileToRestore struct {
 		parts       []common.Part
-		nextPart    atomic.Int64
 		remaining   atomic.Int64
 		prepareOnce sync.Once
 		prepareErr  error
 	}
-	var workers []*fileToRestore
+	type restoreJob struct {
+		file  *fileToRestore
+		parts []common.Part
+	}
+	var files []*fileToRestore
 	for _, parts := range perPath {
 		if len(parts) == 0 {
 			continue
@@ -277,13 +273,29 @@ func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency in
 		common.SortParts(parts)
 		f := &fileToRestore{parts: parts}
 		f.remaining.Store(int64(len(parts)))
-		for range min(perFile, len(parts)) {
-			workers = append(workers, f)
+		files = append(files, f)
+	}
+	var jobs []restoreJob
+	if isS3 && !r.SkipPreallocation {
+		for i := 0; len(files) > 0; i++ {
+			remaining := files[:0]
+			for _, f := range files {
+				jobs = append(jobs, restoreJob{file: f, parts: f.parts[i : i+1]})
+				if i+1 < len(f.parts) {
+					remaining = append(remaining, f)
+				}
+			}
+			files = remaining
+		}
+	} else {
+		// Resuming by file size requires completed writes to form a contiguous prefix.
+		for _, f := range files {
+			jobs = append(jobs, restoreJob{file: f, parts: f.parts})
 		}
 	}
-	workCh := make(chan *fileToRestore, len(workers))
-	for _, f := range workers {
-		workCh <- f
+	workCh := make(chan restoreJob, len(jobs))
+	for _, job := range jobs {
+		workCh <- job
 	}
 	close(workCh)
 
@@ -298,14 +310,14 @@ func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency in
 			cancelLocal()
 		})
 	}
-
 	var wg sync.WaitGroup
-	for range min(concurrency, len(workers)) {
+	for range min(concurrency, len(jobs)) {
 		wg.Go(func() {
-			for f := range workCh {
+			for job := range workCh {
 				if ctxLocal.Err() != nil {
 					return
 				}
+				f := job.file
 				f.prepareOnce.Do(func() {
 					if !r.SkipPreallocation {
 						f.prepareErr = r.Dst.PreallocateFile(f.parts[0])
@@ -315,15 +327,10 @@ func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency in
 					setErr(fmt.Errorf("cannot preallocate %s: %w", f.parts[0].Path, f.prepareErr))
 					return
 				}
-				for {
+				for _, p := range job.parts {
 					if ctxLocal.Err() != nil {
 						return
 					}
-					i := f.nextPart.Add(1) - 1
-					if i >= int64(len(f.parts)) {
-						break
-					}
-					p := f.parts[i]
 					if err := r.downloadPart(ctxLocal, p, bytesDownloaded, isS3); err != nil {
 						setErr(err)
 						return

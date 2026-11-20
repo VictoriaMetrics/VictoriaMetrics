@@ -122,6 +122,8 @@ Non-partition files (metadata etc.) are always restored regardless of this flag.
   by the restore worker. If interruptions persist, check storage/network/proxy timeouts and try reducing `-concurrency`.
 * `-concurrency` limits all concurrent downloads, including downloads belonging to the same file.
   For S3 and S3-compatible storage, workers can download multiple existing backup parts of the same file concurrently.
+  With preallocation enabled, S3 work is queued in FIFO rounds: the first pending part of every file comes
+  before any second pending part, then the second parts are queued, and so on.
   Each backup object is downloaded whole; object keys and the backup format are unchanged.
   No additional splitting or HTTP Range requests are used.
   GCS, Azure, and local filesystem backups retain whole-object downloads in sequential order per file;

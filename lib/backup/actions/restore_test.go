@@ -71,13 +71,24 @@ func TestRestoreDownloadConcurrency(t *testing.T) {
 			go func() {
 				done <- r.runParallelPerPathInternal(context.Background(), tc.concurrency, tc.parallelParts, perPath, &downloaded)
 			}()
+			initial := make(map[string]int)
 			for range tc.wantActive {
 				select {
-				case <-started:
+				case p := <-started:
+					initial[p.Path]++
 				case err := <-done:
 					t.Fatalf("restore finished before reaching expected concurrency: %v", err)
 				case <-time.After(5 * time.Second):
 					t.Fatal("timed out waiting for concurrent downloads")
+				}
+			}
+			if tc.parallelParts && !tc.skipPreallocation {
+				minActive, maxActive := tc.wantActive, 0
+				for _, n := range initial {
+					minActive, maxActive = min(minActive, n), max(maxActive, n)
+				}
+				if len(initial) != min(tc.files, tc.wantActive) || maxActive-minActive > 1 {
+					t.Errorf("initial downloads weren't spread across files: %v", initial)
 				}
 			}
 			unblock()
@@ -89,8 +100,8 @@ func TestRestoreDownloadConcurrency(t *testing.T) {
 			case <-time.After(5 * time.Second):
 				t.Fatal("timed out waiting for restore")
 			}
-			if src.maxActiveTotal != tc.wantActive || src.maxActivePerPath != tc.wantPerFile {
-				t.Fatalf("unexpected maximum concurrency: total=%d, per file=%d; want %d, %d",
+			if src.maxActiveTotal != tc.wantActive || src.maxActivePerPath > tc.wantPerFile {
+				t.Fatalf("unexpected maximum concurrency: total=%d, per file=%d; want total=%d, per file<=%d",
 					src.maxActiveTotal, src.maxActivePerPath, tc.wantActive, tc.wantPerFile)
 			}
 			if downloaded.Load() != uint64(tc.files*16) {
@@ -115,6 +126,57 @@ func TestRestoreDownloadConcurrency(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestRestoreDownloadInterleavesFiles(t *testing.T) {
+	src := &concurrencyTrackingRemoteFS{data: make(map[common.Part][]byte)}
+	perPath := make(map[string][]common.Part)
+	partCounts := make(map[string]int)
+	for i, n := range []int{2, 4, 3} {
+		path := fmt.Sprintf("round-robin/file%d", i)
+		partCounts[path] = n
+		for j := n - 1; j >= 0; j-- {
+			p := common.Part{Path: path, FileSize: uint64(n * 4), Offset: uint64(j * 4), Size: 4, ActualSize: 4}
+			src.data[p] = bytes.Repeat([]byte{byte('a' + j)}, 4)
+			perPath[path] = append(perPath[path], p)
+		}
+	}
+	r := &Restore{Src: src, Dst: &fslocal.FS{Dir: t.TempDir(), UseTmpFiles: true}}
+	var downloaded atomic.Uint64
+	if err := r.runParallelPerPathInternal(context.Background(), 1, true, perPath, &downloaded); err != nil {
+		t.Fatal(err)
+	}
+	next := 0
+	for partIndex := 0; partIndex < 4; partIndex++ {
+		seen := make(map[string]bool)
+		for _, n := range partCounts {
+			if n <= partIndex {
+				continue
+			}
+			if next >= len(src.downloaded) {
+				t.Fatal("missing part download")
+			}
+			p := src.downloaded[next]
+			next++
+			if p.Offset != uint64(partIndex*4) || seen[p.Path] || partCounts[p.Path] <= partIndex {
+				t.Fatalf("part wasn't queued in its file round: %s", &p)
+			}
+			seen[p.Path] = true
+		}
+	}
+	if next != len(src.downloaded) || downloaded.Load() != 36 {
+		t.Fatalf("unexpected downloads: parts=%d, bytes=%d", len(src.downloaded), downloaded.Load())
+	}
+	for path, n := range partCounts {
+		data, err := os.ReadFile(filepath.Join(r.Dst.Dir, filepath.FromSlash(path)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []byte("aaaabbbbccccdddd")[:n*4]
+		if !bytes.Equal(data, want) {
+			t.Fatalf("unexpected restored contents for %q: %q", path, data)
+		}
 	}
 }
 
