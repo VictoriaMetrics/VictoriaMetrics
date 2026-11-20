@@ -1,6 +1,7 @@
 package fslocal
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -103,7 +104,23 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 			offset += n
 		}
 	}
-	return parts, nil
+	return common.FillHashes(parts, fs.DownloadPart)
+}
+
+// DownloadPart copies part p from fs to w.
+func (fs *FS) DownloadPart(p common.Part, w io.Writer) error {
+	rc, err := fs.NewReadCloser(p)
+	if err != nil {
+		return err
+	}
+	n, err := io.Copy(w, rc)
+	if err := errors.Join(err, rc.Close()); err != nil {
+		return err
+	}
+	if uint64(n) != p.Size {
+		return fmt.Errorf("wrong data size read from %q at %q; got %d bytes; want %d bytes", p.Path, fs.Dir, n, p.Size)
+	}
+	return nil
 }
 
 // NewReadCloser returns io.ReadCloser for the given part p located in fs.

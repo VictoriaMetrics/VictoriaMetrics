@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/) and [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/): skip copying `parts.json` and `appliedRetention.txt` files if their contents didn't change. This reduces the number of write and delete requests to the backup storage, and allows retrying backups to storage with immutability policies. Previously, these files were deleted and copied again on every run. See [#11914](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11914).
+
 ## [v1.157.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.157.0)
 
 Release candidate

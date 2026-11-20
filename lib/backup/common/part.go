@@ -2,12 +2,15 @@ package common
 
 import (
 	"fmt"
+	"io"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
-	"sync/atomic"
+
+	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -36,24 +39,46 @@ type Part struct {
 	// The part is considered broken if it isn't equal to Size.
 	// Such a part must be removed from remote storage.
 	ActualSize uint64
+
+	// Hash is the content hash of mutable files. It isn't stored remotely, so FillHashes computes it on every listing.
+	Hash string
 }
 
 // key returns a string, which uniquely identifies p.
 func (p *Part) key() string {
-	if strings.HasSuffix(p.Path, "/parts.json") ||
-		strings.HasSuffix(p.Path, "/appliedRetention.txt") {
-		// parts.json and appliedRetention.txt files contents changes over time,
-		// so it must have an unique key in order to always copy it during
-		// backup, restore and server-side copy.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5005
-		id := uniqueKeyID.Add(1)
-		return fmt.Sprintf("unique-%016X", id)
-	}
 	// Do not use p.FileSize in the key, since it cannot be properly initialized when resuming the restore for partially restored file
-	return fmt.Sprintf("%s%016X%016X%016X", p.Path, p.Offset, p.Size, p.ActualSize)
+	// p.Hash distinguishes mutable files with the same size. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5005
+	return fmt.Sprintf("%s%016X%016X%016X%s", p.Path, p.Offset, p.Size, p.ActualSize, p.Hash)
 }
 
-var uniqueKeyID atomic.Uint64
+// isMutableFile returns true for files which may be rewritten in place without changing size.
+func isMutableFile(partPath string) bool {
+	name := path.Base(partPath)
+	return name == "parts.json" || name == "appliedRetention.txt"
+}
+
+// FillHashes sets Hash for mutable parts by downloading and hashing their content.
+func FillHashes(parts []Part, download func(p Part, w io.Writer) error) ([]Part, error) {
+	for i := range parts {
+		if err := fillHash(&parts[i], download); err != nil {
+			return nil, err
+		}
+	}
+	return parts, nil
+}
+
+func fillHash(p *Part, download func(p Part, w io.Writer) error) error {
+	// Empty parts have nothing to hash; incomplete parts already differ via ActualSize.
+	if !isMutableFile(p.Path) || p.Size == 0 || p.ActualSize != p.Size {
+		return nil
+	}
+	h := xxhash.New()
+	if err := download(*p, h); err != nil {
+		return fmt.Errorf("cannot read %s for hashing: %w", p, err)
+	}
+	p.Hash = fmt.Sprintf("%016X", h.Sum64())
+	return nil
+}
 
 // String returns human-readable representation of the part.
 func (p *Part) String() string {

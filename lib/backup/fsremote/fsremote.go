@@ -70,7 +70,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 		p.ActualSize = uint64(fi.Size())
 		parts = append(parts, p)
 	}
-	return parts, nil
+	return common.FillHashes(parts, fs.DownloadPart)
 }
 
 // DeletePart deletes the given part p from fs.
