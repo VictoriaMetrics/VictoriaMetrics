@@ -94,3 +94,47 @@ func TestState(t *testing.T) {
 		t.Fatalf("expecting error for incomplete header")
 	}
 }
+
+func TestBlockUnits(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "blocks.state")
+	params := testParams{SrcAddr: "thanos", DstExtraLabels: []string{"cluster=a"}}
+	st, err := Load(path, params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := &BlockUnit{ULID: "01ARZ3NDEKTSV4RRFFQ69G5FAV", Resolution: "raw", Aggregate: "<unknown>"}
+	fiveCount := &BlockUnit{ULID: raw.ULID, Resolution: "5m", Aggregate: "count"}
+	fiveSum := &BlockUnit{ULID: raw.ULID, Resolution: "5m", Aggregate: "sum"}
+	if err := st.MarkBlockDone(raw); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.MarkBlockDone(fiveCount); err != nil {
+		t.Fatal(err)
+	}
+	st.Close()
+	st, err = Load(path, params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if !st.IsBlockDone(raw) || !st.IsBlockDone(fiveCount) || st.IsBlockDone(fiveSum) {
+		t.Fatalf("unexpected block state")
+	}
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString("block incomplete"); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	st.Close()
+	st, err = Load(path, params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if st.DoneCount() != 2 {
+		t.Fatalf("unexpected done count: %d", st.DoneCount())
+	}
+}
