@@ -52,3 +52,24 @@ func TestIsLocalPathInsideDir(t *testing.T) {
 	// sibling directory whose name shares a prefix with dir
 	f("/data/storage", "../storagefoo/evil.txt", false)
 }
+
+func TestIsMutableFile(t *testing.T) {
+	f := func(partPath string, expected bool) {
+		t.Helper()
+		if got := isMutableFile(partPath); got != expected {
+			t.Fatalf("isMutableFile(%q): got %v, want %v", partPath, got, expected)
+		}
+	}
+
+	f("parts.json", true)
+	f("data/small/2024_01/parts.json", true)
+	f("indexdb/1838A2E6BE5C4E9F/parts.json", true)
+	f("appliedRetention.txt", true)
+	f("data/appliedRetention.txt", true)
+
+	f("data/small/2024_01/18C736C75B72F86E/metadata.json", false)
+	f("data/small/2024_01/18C736C75B72F86E/values.bin", false)
+	f("data/small/2024_01/oldparts.json", false)
+	f("data/small/2024_01/parts.json/foo", false)
+	f("", false)
+}
