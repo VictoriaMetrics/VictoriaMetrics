@@ -10,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/cespare/xxhash/v2"
 )
@@ -23,6 +24,12 @@ var missesBeforeCaching = flag.Int("blockcache.missesBeforeCaching", 2, "The num
 type Cache struct {
 	shards []*cache
 
+	// getMaxShardSizeBytes returns the current max size of a single cache shard.
+	//
+	// The cache budget is split between shards, so blocks bigger than this value
+	// cannot be stored in the cache. See CanStoreBlock.
+	getMaxShardSizeBytes func() int
+
 	cleanerMustStopCh chan struct{}
 	cleanerStoppedCh  chan struct{}
 }
@@ -33,11 +40,24 @@ type Cache struct {
 // Call MustStop() in order to free up resources occupied by Cache.
 func NewCache(getMaxSizeBytes func() int) *Cache {
 	cpusCount := cgroup.AvailableCPUs()
-	shardsCount := cgroup.AvailableCPUs()
 	// Increase the number of shards with the increased number of available CPU cores.
 	// This should reduce contention on per-shard mutexes.
 	multiplier := min(cpusCount, 16)
-	shardsCount *= multiplier
+	return NewCacheWithShardsCount(getMaxSizeBytes, cpusCount*multiplier)
+}
+
+// NewCacheWithShardsCount creates new cache with the given number of shards.
+//
+// It is used by tests which need a deterministic number of shards instead of the
+// number derived from the available CPUs. Production code must use NewCache.
+//
+// The cache size in bytes is limited by the value returned by getMaxSizeBytes() callback,
+// and this budget is split between shards, so each shard is limited by
+// getMaxSizeBytes()/shardsCount bytes.
+func NewCacheWithShardsCount(getMaxSizeBytes func() int, shardsCount int) *Cache {
+	if shardsCount < 1 {
+		logger.Panicf("BUG: shardsCount must be at least 1; got %d", shardsCount)
+	}
 	shards := make([]*cache, shardsCount)
 	getMaxShardBytes := func() int {
 		n := getMaxSizeBytes()
@@ -47,12 +67,29 @@ func NewCache(getMaxSizeBytes func() int) *Cache {
 		shards[i] = newCache(getMaxShardBytes)
 	}
 	c := &Cache{
-		shards:            shards,
-		cleanerMustStopCh: make(chan struct{}),
-		cleanerStoppedCh:  make(chan struct{}),
+		shards:               shards,
+		getMaxShardSizeBytes: getMaxShardBytes,
+		cleanerMustStopCh:    make(chan struct{}),
+		cleanerStoppedCh:     make(chan struct{}),
 	}
 	go c.cleaner()
 	return c
+}
+
+// CanStoreBlock reports whether a block of the given size can be stored in a single shard of c.
+//
+// The cache budget is split between shards, so only the blocks which fit into a single
+// shard are stored. Bigger blocks are evicted right after being stored, so callers may
+// avoid reading them at all.
+//
+// The check uses the current value returned by the getMaxSizeBytes() callback, so it
+// reflects the current cache budget.
+func (c *Cache) CanStoreBlock(sizeBytes int) bool {
+	if sizeBytes <= 0 {
+		// There is nothing to store, so report the block as non-storable.
+		return false
+	}
+	return c.getMaxShardSizeBytes() >= sizeBytes
 }
 
 // MustStop frees up resources occupied by c.
