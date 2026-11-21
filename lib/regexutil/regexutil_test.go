@@ -135,6 +135,10 @@ func TestSimplifyRegex(t *testing.T) {
 	f("fo\\Bo[x]*bar?", "fo", "\\Box*bar?")
 	f("foo.+bar", "foo", "(?s:.+bar)")
 	f("a(b|c.*).+", "a", "(?s:(?:b|c.*).+)")
+	// The dot must keep matching the newline char when it remains the only suffix.
+	f(".", "", "(?s:.)")
+	f("foo.", "foo", "(?s:.)")
+	f("foo(.)", "foo", "(?s:.)")
 	f("ab|ac", "a", "[bc]")
 	f("(?i)xyz", "", "(?i:XYZ)")
 	f("(?i)foo|bar", "", "(?i:FOO|BAR)")
@@ -208,6 +212,10 @@ func TestSimplifyPromRegex(t *testing.T) {
 	f("fo\\Bo[x]*bar?", "fo", "\\Box*bar?")
 	f("foo.+bar", "foo", "(?s:.+bar)")
 	f("a(b|c.*).+", "a", "(?s:(?:b|c.*).+)")
+	// The dot must keep matching the newline char when it remains the only suffix.
+	f(".", "", "(?s:.)")
+	f("foo.", "foo", "(?s:.)")
+	f("foo(.)", "foo", "(?s:.)")
 	f("ab|ac", "a", "[bc]")
 	f("(?i)xyz", "", "(?i:XYZ)")
 	f("(?i)foo|bar", "", "(?i:FOO|BAR)")

@@ -239,7 +239,6 @@ func simplifyRegex(expr string, keepAnchors bool) (string, string) {
 	}
 	s := sre.String()
 	s = strings.ReplaceAll(s, "(?:)", "")
-	s = strings.ReplaceAll(s, "(?s:.)", ".")
 	s = strings.ReplaceAll(s, "(?m:$)", "$")
 	return prefix, s
 }

@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: all VictoriaMetrics components: correctly match the newline char with `.` in regular expressions such as `foo.` (used in [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) rules and series label filters). Previously `foo.` did not match `foo\n`, while `foo.?`, `foo.+` and `foo.*` did. See [#11986](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11986).
+
 ## [v1.157.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.157.0)
 
 Release candidate

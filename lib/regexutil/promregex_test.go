@@ -147,3 +147,48 @@ func TestPromRegex(t *testing.T) {
 	f(".*foo(bar|baz)", "fooxfooban", false)
 	f(".*foo(bar|baz)", "fooxfooban foobar", true)
 }
+
+func TestPromRegexDotMatchesNewline(t *testing.T) {
+	f := func(expr, s string, resultExpected bool) {
+		t.Helper()
+
+		pr, err := NewPromRegex(expr)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		result := pr.MatchString(s)
+		if result != resultExpected {
+			t.Fatalf("unexpected result when matching %q against %q; got %v; want %v", expr, s, result, resultExpected)
+		}
+
+		// PromRegex follows Prometheus, which matches the newline char with the dot.
+		// Make sure the result is the same for regular regexp with `s` flag.
+		exprAnchored := "^(?s:" + expr + ")$"
+		re := regexp.MustCompile(exprAnchored)
+		result = re.MatchString(s)
+		if result != resultExpected {
+			t.Fatalf("unexpected result when matching %q against %q during sanity check; got %v; want %v", exprAnchored, s, result, resultExpected)
+		}
+	}
+
+	f(".", "\n", true)
+	f(".", "a", true)
+	f(".", "", false)
+	f(".", "\n\n", false)
+	f("(.)", "\n", true)
+	f(".|a", "\n", true)
+	f("^.$", "\n", true)
+	f("foo.", "foo\n", true)
+	f("foo.", "foox", true)
+	f("foo.", "foo", false)
+	f("foo.", "foo\n\n", false)
+	f("foo(.)", "foo\n", true)
+	f("foo.|bar", "foo\n", true)
+	f("[ab].", "a\n", true)
+	f("foo.bar", "foo\nbar", true)
+
+	// These regexps already matched the newline char.
+	f("foo.?", "foo\n", true)
+	f("foo.+", "foo\n", true)
+	f("foo.*", "foo\n", true)
+}
