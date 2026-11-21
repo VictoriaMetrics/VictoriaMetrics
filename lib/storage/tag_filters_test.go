@@ -936,6 +936,20 @@ func TestTagFilterMatchSuffix(t *testing.T) {
 		match("foobar")
 		mismatch("foobarx")
 	})
+	t.Run("regexp-prefix-dot-suffix", func(_ *testing.T) {
+		value := "http."
+		isNegative := false
+		isRegexp := true
+		expectedPrefix := tvNoTrailingTagSeparator("http")
+		init(value, isNegative, isRegexp, expectedPrefix)
+
+		// Must match any single char suffix including the newline char
+		mismatch("")
+		match("x")
+		match("\n")
+		mismatch("xy")
+		mismatch("\n\n")
+	})
 	t.Run("negative-regexp-prefix-special-suffix", func(_ *testing.T) {
 		value := "http.*bar"
 		isNegative := true
