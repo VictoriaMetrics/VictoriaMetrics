@@ -621,6 +621,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/
      Whether to ignore input samples with old timestamps outside the current aggregation interval. See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignoring-old-samples
   -streamAggr.keepInput
      Whether to keep input samples that match any rule in -streamAggr.config. By default, matched raw samples are aggregated and dropped, while unmatched samples are written to the remote storage. See also -streamAggr.dropInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/
+  -streamAggr.labelsCompressorCleanupInterval duration
+     How often to free labels that stream aggregation no longer uses. Zero disables it. See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#high-resource-usage (default 1m0s)
   -tls array
      Whether to enable TLS for incoming HTTP requests at the given -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
      Supports array of values separated by comma or specified via multiple flags.

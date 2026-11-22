@@ -749,6 +749,11 @@ The following solutions can help reduce memory usage and CPU usage during stream
 - To generate a lower number of output time series by using less specific [`by` list](#aggregating-by-labels) or more specific [`without` list](#aggregating-by-labels).
 - To drop unneeded labels from input samples via [input_relabel_configs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#relabeling) or [dropInputLabels](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#dropping-unneeded-labels).
 
+Stream aggregation keeps label names and values in memory.
+A label is freed {{% available_from "#" %}} some time after no aggregation or deduplication uses it.
+This is checked every `-streamAggr.labelsCompressorCleanupInterval` (1m by default).
+The memory used by labels is shown by `vm_streamaggr_labels_compressor_size_bytes` and `vm_streamaggr_labels_compressor_items_count` metrics.
+
 ## Cluster mode
 
 If you use [vmagent in cluster mode](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets) for streaming aggregation

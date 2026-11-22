@@ -466,6 +466,19 @@ type aggregator struct {
 	// dedupInterval is optional deduplication interval for incoming samples
 	dedupInterval time.Duration
 
+	// keysGoneBeforeMsec is the time before which no key in the state was compressed
+	keysGoneBeforeMsec atomic.Int64
+
+	// pushes tracks the Push calls in flight
+	pushes pushesInFlight
+
+	// prevDedupOldestPushMsec and lastDedupOldestPushMsec are pushes.oldestMsec() at the last two dedup flushes
+	prevDedupOldestPushMsec int64
+	lastDedupOldestPushMsec int64
+
+	// flushedDedups holds the dedup flushes whose samples may still be in aggrOutputs
+	flushedDedups []flushedDedup
+
 	// da is set to non-nil if input samples must be de-duplicated
 	da *dedupAggr
 
@@ -760,6 +773,8 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, opts *Options, a
 
 	metrics.RegisterSet(ms)
 
+	registerLabelsCompressorUser(&a.keysGoneBeforeMsec)
+
 	a.wg.Go(func() {
 		a.runFlusher(pushFunc, alignFlushToInterval, isIncompleteFirstInterval, skipFlushOnShutdown, ignoreFirstIntervals)
 	})
@@ -990,9 +1005,17 @@ func (a *aggregator) dedupFlush(dedupTime time.Time, cs *currentState) {
 
 	a.minDeadline.Store(cs.maxDeadline)
 	startTime := time.Now()
+	oldestPushMsec := a.pushes.oldestMsec()
 	deleteDeadline := dedupTime.Add(a.stalenessInterval)
 
 	a.da.flush(a.aggrOutputs.pushSamples, deleteDeadline.UnixMilli(), cs.isGreen)
+	// With enable_windows a sample may wait for two dedup flushes,
+	// so the flushed keys may be from the dedup flush before the last one.
+	a.flushedDedups = append(a.flushedDedups, flushedDedup{
+		deleteDeadlineMsec: deleteDeadline.UnixMilli(),
+		oldestKeyMsec:      a.prevDedupOldestPushMsec,
+	})
+	a.prevDedupOldestPushMsec, a.lastDedupOldestPushMsec = a.lastDedupOldestPushMsec, oldestPushMsec
 
 	d := time.Since(startTime)
 	a.da.flushDuration.Update(d.Seconds())
@@ -1018,6 +1041,8 @@ func (a *aggregator) dedupFlush(dedupTime time.Time, cs *currentState) {
 func (a *aggregator) flush(pushFunc PushFunc, flushTime time.Time, cs *currentState, isLast bool) {
 	startTime := time.Now()
 	ao := a.aggrOutputs
+	// A Push in flight may store its keys after flushState, so get its start time before it.
+	oldestPushMsec := a.pushes.oldestMsec()
 
 	ctx := getFlushCtx(a, ao, pushFunc, flushTime.UnixMilli(), isLast)
 	if a.dedupInterval <= 0 {
@@ -1028,6 +1053,23 @@ func (a *aggregator) flush(pushFunc PushFunc, flushTime time.Time, cs *currentSt
 	ctx.flushSeries()
 	putFlushCtx(ctx)
 
+	var keysGoneBeforeMsec int64
+	if a.dedupInterval > 0 {
+		// aggrOutputs gets keys only from dedup flushes. flushState dropped samples with deleteDeadline
+		// before flushTime. The first dedup flush left has the oldest keys. Its time also covers
+		// the keys still in the dedup state.
+		a.flushedDedups = slices.DeleteFunc(a.flushedDedups, func(fd flushedDedup) bool {
+			return fd.deleteDeadlineMsec < flushTime.UnixMilli()
+		})
+		if len(a.flushedDedups) > 0 {
+			keysGoneBeforeMsec = a.flushedDedups[0].oldestKeyMsec
+		}
+	} else {
+		// flushState dropped entries not pushed since flushTime-stalenessInterval.
+		keysGoneBeforeMsec = min(flushTime.UnixMilli()-a.stalenessInterval.Milliseconds(), oldestPushMsec)
+	}
+	a.keysGoneBeforeMsec.Store(keysGoneBeforeMsec)
+
 	d := time.Since(startTime)
 	a.flushDuration.Update(d.Seconds())
 	if d > a.interval {
@@ -1036,6 +1078,17 @@ func (a *aggregator) flush(pushFunc PushFunc, flushTime time.Time, cs *currentSt
 			"possible solutions: increase interval; use match filter matching smaller number of series; "+
 			"reduce samples' ingestion rate to stream aggregation", a.interval, d.Seconds())
 	}
+
+	cleanupLabelsCompressorIfDue()
+}
+
+// flushedDedup describes the samples a dedup flush passed to aggrOutputs.
+type flushedDedup struct {
+	// deleteDeadlineMsec is the deleteDeadline of the samples.
+	deleteDeadlineMsec int64
+
+	// oldestKeyMsec is the time before which none of their keys were compressed.
+	oldestKeyMsec int64
 }
 
 var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
@@ -1049,6 +1102,7 @@ func (a *aggregator) MustStop() {
 
 	close(a.stopCh)
 	a.wg.Wait()
+	unregisterLabelsCompressorUser(&a.keysGoneBeforeMsec)
 }
 
 // Push pushes tss to a.
@@ -1060,7 +1114,8 @@ func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []uint32) {
 	labels := &ctx.labels
 	inputLabels := &ctx.inputLabels
 	outputLabels := &ctx.outputLabels
-	now := time.Now()
+	now, inFlight := a.pushes.start()
+	defer a.pushes.done(inFlight)
 	nowMsec := now.UnixMilli()
 	deleteDeadline := now.Add(a.stalenessInterval)
 	deleteDeadlineMsec := deleteDeadline.UnixMilli()

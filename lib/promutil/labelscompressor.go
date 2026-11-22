@@ -1,8 +1,10 @@
 package promutil
 
 import (
+	"slices"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -16,9 +18,24 @@ type LabelsCompressor struct {
 	labelToIdx sync.Map
 	idxToLabel labelsMap
 
-	nextIdx atomic.Uint64
-
 	totalSizeBytes atomic.Uint64
+	itemsCount     atomic.Uint64
+
+	cleanupLock sync.Mutex
+
+	mu           sync.Mutex
+	nextIdx      uint64
+	freeIdxs     []uint64
+	standby      map[prompb.Label]*labelEntry
+	standbySince time.Time
+}
+
+// labelEntry is the labelToIdx value of a label.
+type labelEntry struct {
+	idx uint64
+
+	// referenced is set by Compress and cleared by Cleanup.
+	referenced atomic.Bool
 }
 
 // SizeBytes returns the size of lc data in bytes
@@ -28,7 +45,7 @@ func (lc *LabelsCompressor) SizeBytes() uint64 {
 
 // ItemsCount returns the number of items in lc
 func (lc *LabelsCompressor) ItemsCount() uint64 {
-	return lc.nextIdx.Load()
+	return lc.itemsCount.Load()
 }
 
 // Compress compresses labels, appends the compressed labels to dst and returns the result.
@@ -54,32 +71,143 @@ func (lc *LabelsCompressor) compress(dst []uint64, labels []prompb.Label) {
 	}
 	_ = dst[len(labels)-1]
 	for i, label := range labels {
-		v, ok := lc.labelToIdx.Load(label)
-		if !ok {
-			idx := lc.nextIdx.Add(1)
-			v = idx
-			labelCopy := cloneLabel(label)
-
-			// Must store idxToLabel entry before labelToIdx,
-			// so it can be found by possible concurrent goroutines.
-			//
-			// We might store duplicated entries for single label with different indexes,
-			// and it's fine, see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7118.
-			lc.idxToLabel.Store(idx, labelCopy)
-			vNew, loaded := lc.labelToIdx.LoadOrStore(labelCopy, v)
-			if loaded {
-				// This label has been stored by a concurrent goroutine with different index,
-				// use it for key consistency in aggrState.
-				v = vNew
-			}
-
-			// Update lc.totalSizeBytes
-			labelSizeBytes := uint64(len(label.Name) + len(label.Value))
-			entrySizeBytes := labelSizeBytes + uint64(2*(unsafe.Sizeof(label)+unsafe.Sizeof(&label))+unsafe.Sizeof(v))
-			lc.totalSizeBytes.Add(entrySizeBytes)
+		var e *labelEntry
+		if v, ok := lc.labelToIdx.Load(label); ok {
+			e = v.(*labelEntry)
+		} else {
+			e = lc.insert(label)
 		}
-		dst[i] = v.(uint64)
+		if !e.referenced.Load() {
+			e.referenced.Store(true)
+		}
+		dst[i] = e.idx
 	}
+}
+
+func (lc *LabelsCompressor) insert(label prompb.Label) *labelEntry {
+	lc.mu.Lock()
+	defer lc.mu.Unlock()
+
+	if v, ok := lc.labelToIdx.Load(label); ok {
+		return v.(*labelEntry)
+	}
+	if e, ok := lc.standby[label]; ok {
+		// The label is on standby. Restore it with the same idx, since keys may still use it.
+		delete(lc.standby, label)
+		labelCopy, _ := lc.idxToLabel.Load(e.idx)
+		lc.labelToIdx.Store(labelCopy, e)
+		return e
+	}
+
+	var idx uint64
+	if n := len(lc.freeIdxs); n > 0 {
+		idx = lc.freeIdxs[n-1]
+		lc.freeIdxs = lc.freeIdxs[:n-1]
+	} else {
+		lc.nextIdx++
+		idx = lc.nextIdx
+	}
+	e := &labelEntry{
+		idx: idx,
+	}
+	labelCopy := cloneLabel(label)
+	// Must store idxToLabel entry before labelToIdx, so it can be found by concurrent goroutines.
+	lc.idxToLabel.Store(idx, labelCopy)
+	lc.labelToIdx.Store(labelCopy, e)
+
+	lc.totalSizeBytes.Add(labelEntrySizeBytes(label))
+	lc.itemsCount.Add(1)
+	return e
+}
+
+func labelEntrySizeBytes(label prompb.Label) uint64 {
+	labelSizeBytes := uint64(len(label.Name) + len(label.Value))
+	return labelSizeBytes + uint64(2*(unsafe.Sizeof(label)+unsafe.Sizeof(&label))+unsafe.Sizeof(labelEntry{}))
+}
+
+// Cleanup frees labels that no key uses and returns the number of freed labels.
+//
+// The caller must make sure that every key in use was compressed at or after keysGoneBefore.
+// now returns the time for the labels moved to standby. It must not be earlier than any key
+// compressed before now is called.
+//
+// Compress marks every label it uses, and Cleanup clears the marks. Labels that were not used
+// since the last Cleanup go to standby. A standby label can still be decoded, and Compress
+// restores it with the same idx. A later Cleanup frees standby labels moved before keysGoneBefore.
+//
+// It is safe calling Cleanup concurrently with Compress and Decompress.
+func (lc *LabelsCompressor) Cleanup(keysGoneBefore time.Time, now func() time.Time) int {
+	lc.cleanupLock.Lock()
+	defer lc.cleanupLock.Unlock()
+
+	lc.mu.Lock()
+	if len(lc.standby) > 0 && !lc.standbySince.Before(keysGoneBefore) {
+		lc.mu.Unlock()
+		return 0
+	}
+
+	// No key uses the standby labels anymore. A key that used one was compressed before standbySince,
+	// and a later Compress would have restored the label.
+	standby := lc.standby
+	lc.standby = make(map[prompb.Label]*labelEntry)
+	lc.mu.Unlock()
+	freed := lc.free(standby)
+
+	// Move labels that were not used since the last Cleanup to standby.
+	// lc.mu is held only while a batch is moved, so inserts are blocked only for a short time.
+	labels := make([]prompb.Label, 0, cleanupBatchSize)
+	entries := make([]*labelEntry, 0, cleanupBatchSize)
+	moveToStandby := func() {
+		lc.mu.Lock()
+		for i, label := range labels {
+			if lc.labelToIdx.CompareAndDelete(label, entries[i]) {
+				lc.standby[label] = entries[i]
+			}
+		}
+		lc.mu.Unlock()
+		labels, entries = labels[:0], entries[:0]
+	}
+	lc.labelToIdx.Range(func(k, v any) bool {
+		if e := v.(*labelEntry); !e.referenced.Swap(false) {
+			labels = append(labels, k.(prompb.Label))
+			entries = append(entries, e)
+			if len(labels) == cleanupBatchSize {
+				moveToStandby()
+			}
+		}
+		return true
+	})
+	moveToStandby()
+
+	// A Compress that runs during the scan may still use a label that was moved to standby.
+	// So set the time after the scan.
+	lc.mu.Lock()
+	lc.standbySince = now()
+	lc.mu.Unlock()
+	return freed
+}
+
+// cleanupBatchSize is the number of labels Cleanup moves or frees at once.
+const cleanupBatchSize = 4096
+
+// free frees the given standby labels in batches, so inserts and loads are blocked only for a short time.
+func (lc *LabelsCompressor) free(standby map[prompb.Label]*labelEntry) int {
+	idxs := make([]uint64, 0, len(standby))
+	var sizeBytes uint64
+	for label, e := range standby {
+		idxs = append(idxs, e.idx)
+		sizeBytes += labelEntrySizeBytes(label)
+	}
+	for batch := range slices.Chunk(idxs, cleanupBatchSize) {
+		lc.idxToLabel.deleteBatch(batch)
+	}
+	lc.totalSizeBytes.Add(-sizeBytes)
+	lc.itemsCount.Add(-uint64(len(idxs)))
+
+	lc.mu.Lock()
+	lc.freeIdxs = append(lc.freeIdxs, idxs...)
+	lc.mu.Unlock()
+	return len(idxs)
 }
 
 func cloneLabel(label prompb.Label) prompb.Label {
@@ -207,6 +335,25 @@ func (lm *labelsMap) loadSlow(idx uint64) (prompb.Label, bool) {
 		return prompb.Label{}, false
 	}
 	return *pLabel, true
+}
+
+// deleteBatch removes the labels at idxs, so the idxs can be used again.
+//
+// No key uses idxs, so nothing loads them and readOnly can be changed in place.
+func (lm *labelsMap) deleteBatch(idxs []uint64) {
+	lm.mutableLock.Lock()
+	defer lm.mutableLock.Unlock()
+
+	var readOnly []*prompb.Label
+	if p := lm.readOnly.Load(); p != nil {
+		readOnly = *p
+	}
+	for _, idx := range idxs {
+		delete(lm.mutable, idx)
+		if idx < uint64(len(readOnly)) {
+			readOnly[idx] = nil
+		}
+	}
 }
 
 func (lm *labelsMap) moveMutableToReadOnlyLocked(pReadOnly *[]*prompb.Label) {
