@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: all VictoriaMetrics components: correctly match regular expressions with `\b`, `\B` or `^` after a literal prefix in [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) rules and series label filters. Previously, the part after the prefix was matched without the char before it, so `foo\b.*` did not match `foo bar` but matched `foobar`. See [#11987](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11987).
+
 ## [v1.157.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.157.0)
 
 Release candidate
