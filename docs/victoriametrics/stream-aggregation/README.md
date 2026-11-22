@@ -751,8 +751,8 @@ The following solutions can help reduce memory usage and CPU usage during stream
 
 Stream aggregation keeps label names and values in memory.
 A label is freed {{% available_from "#" %}} some time after no aggregation or deduplication uses it.
-This is checked every `-streamAggr.labelsCompressorCleanupInterval` (1m by default).
-The memory used by labels is shown by `vm_streamaggr_labels_compressor_size_bytes` and `vm_streamaggr_labels_compressor_items_count` metrics.
+This is checked after flushes, at most once per `-streamAggr.labelsCompressorCleanupInterval` (1m by default). 0 disables it.
+`vm_streamaggr_labels_compressor_size_bytes` shows the memory used by labels, and `vm_streamaggr_labels_compressor_items_count` shows the number of labels.
 
 ## Cluster mode
 

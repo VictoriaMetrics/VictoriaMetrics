@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): free labels that are no longer used. Before, memory used by labels grew until restart. See `-streamAggr.labelsCompressorCleanupInterval` and [#7146](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7146).
+* FEATURE: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): free labels that are no longer used. Before, memory used by labels grew until restart. Cleanup runs at most once per `-streamAggr.labelsCompressorCleanupInterval` (1m by default, 0 disables it). See [#7146](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7146).
 
 ## [v1.157.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.157.0)
 

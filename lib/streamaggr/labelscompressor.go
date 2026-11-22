@@ -19,6 +19,9 @@ var (
 
 	lcNextCleanupMsec atomic.Int64
 
+	// lcCleanupRunning is set while a cleanup runs in the background.
+	lcCleanupRunning atomic.Bool
+
 	// lcCleanupWG tracks the cleanups running in the background.
 	lcCleanupWG sync.WaitGroup
 
@@ -48,11 +51,20 @@ func cleanupLabelsCompressorIfDue() {
 	}
 	nowMsec := time.Now().UnixMilli()
 	next := lcNextCleanupMsec.Load()
-	if nowMsec < next || !lcNextCleanupMsec.CompareAndSwap(next, nowMsec+interval.Milliseconds()) {
+	// next is more than one interval ahead only if the clock went back.
+	if nowMsec < next && next-nowMsec <= interval.Milliseconds() {
+		return
+	}
+	if !lcNextCleanupMsec.CompareAndSwap(next, nowMsec+interval.Milliseconds()) {
+		return
+	}
+	// Skip this run if the previous cleanup is still running.
+	if !lcCleanupRunning.CompareAndSwap(false, true) {
 		return
 	}
 	lcCleanupWG.Go(func() {
 		cleanupLabelsCompressor()
+		lcCleanupRunning.Store(false)
 	})
 }
 

@@ -101,6 +101,7 @@ func resetLabelsCompressor(t *testing.T) {
 	lcCleanupWG.Wait()
 	lc = promutil.LabelsCompressor{}
 	lcNextCleanupMsec.Store(0)
+	lcCleanupRunning.Store(false)
 	lcClockMsec.Store(0)
 	cleanupInterval := *labelsCompressorCleanupInterval
 	*labelsCompressorCleanupInterval = 0
@@ -310,6 +311,35 @@ func TestLabelsCompressorCleanupRunsAfterFlushes(t *testing.T) {
 
 	f(time.Minute, true)
 	f(0, false)
+}
+
+func TestCleanupLabelsCompressorIfDue(t *testing.T) {
+	f := func(nextCleanupIn time.Duration, running, cleanupExpected bool) {
+		t.Helper()
+		resetLabelsCompressor(t)
+		*labelsCompressorCleanupInterval = time.Minute
+		next := time.Now().Add(nextCleanupIn).UnixMilli()
+		lcNextCleanupMsec.Store(next)
+		lcCleanupRunning.Store(running)
+		cleanupLabelsCompressorIfDue()
+		lcCleanupWG.Wait()
+		// A cleanup that ran moved the schedule and cleared lcCleanupRunning when done.
+		if cleanup := lcNextCleanupMsec.Load() != next && !lcCleanupRunning.Load(); cleanup != cleanupExpected {
+			t.Fatalf("unexpected cleanup; got %v; want %v", cleanup, cleanupExpected)
+		}
+	}
+
+	// not due yet
+	f(30*time.Second, false, false)
+
+	// due
+	f(-time.Second, false, true)
+
+	// the clock went back by an hour
+	f(time.Hour, false, true)
+
+	// the previous cleanup is still running
+	f(-time.Second, true, false)
 }
 
 func TestLabelsCompressorNowIgnoresClockStepBack(t *testing.T) {
