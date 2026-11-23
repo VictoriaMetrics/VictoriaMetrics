@@ -74,6 +74,11 @@ func (rss *Results) Len() int {
 	return len(rss.packedTimeseries)
 }
 
+// MetricName returns the marshaled metric name for the i-th result in rss.
+func (rss *Results) MetricName(i int) string {
+	return rss.packedTimeseries[i].metricName
+}
+
 // Cancel cancels rss work.
 func (rss *Results) Cancel() {
 	rss.mustClose()
