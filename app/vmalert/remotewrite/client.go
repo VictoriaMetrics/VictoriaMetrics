@@ -59,6 +59,9 @@ type Client struct {
 	maxBatchSize  int
 	maxQueueSize  int
 
+	// blockingPushGuard is nil unless Config.BlockOnFullQueue is set.
+	blockingPushGuard *blockingPushGuard
+
 	wg     sync.WaitGroup
 	doneCh chan struct{}
 
@@ -66,6 +69,16 @@ type Client struct {
 	// It is set to true by default, and will be switched to false if the client
 	// receives specific errors indicating that the remote storage doesn't support VictoriaMetrics remote write protocol.
 	isVMRemoteWrite atomic.Bool
+}
+
+// blockingPushGuard keeps a blocking Push from sending to the queue after Close closes it.
+// NewClient creates it only if Config.BlockOnFullQueue is set.
+type blockingPushGuard struct {
+	// mu is read-locked during every blocking Push and write-locked by Close before it closes the queue.
+	mu     sync.RWMutex
+	closed bool
+	// closing is closed when Close starts, so blocked pushes return and unlock mu.
+	closing chan struct{}
 }
 
 // Config is config for remote write client.
@@ -82,8 +95,12 @@ type Config struct {
 	MaxBatchSize int
 	// MaxQueueSize defines max length of input queue
 	// populated by Push method.
-	// Push will be rejected once queue is full.
+	// Push will be rejected once queue is full,
+	// unless BlockOnFullQueue is set.
 	MaxQueueSize int
+	// BlockOnFullQueue makes Push wait for free space
+	// in the queue instead of rejecting the time series.
+	BlockOnFullQueue bool
 	// FlushInterval defines time interval for flushing batches
 	FlushInterval time.Duration
 	// Transport will be used by the underlying http.Client
@@ -132,6 +149,11 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 		input:         make(chan prompb.TimeSeries, cfg.MaxQueueSize),
 	}
 	c.isVMRemoteWrite.Store(true)
+	if cfg.BlockOnFullQueue {
+		c.blockingPushGuard = &blockingPushGuard{
+			closing: make(chan struct{}),
+		}
+	}
 
 	for i := 0; i < cc; i++ {
 		c.wg.Go(func() {
@@ -143,8 +165,12 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 
 // Push adds timeseries into queue for writing into remote storage.
 // Push returns and error if client is stopped or if queue is full.
+// If the client is configured with BlockOnFullQueue, Push waits for free space in the queue instead, see pushBlocking.
 func (c *Client) Push(s prompb.TimeSeries) error {
 	rwTotal.Inc()
+	if c.blockingPushGuard != nil {
+		return c.pushBlocking(s)
+	}
 	select {
 	case <-c.doneCh:
 		rwErrors.Inc()
@@ -161,12 +187,49 @@ func (c *Client) Push(s prompb.TimeSeries) error {
 	}
 }
 
+// pushBlocking adds s into the queue and waits for free space if the queue is full.
+// Push uses it if the client has a blockingPushGuard.
+//
+// pushBlocking stops waiting and drops s once Close starts.
+// Writers keep draining the queue until Close even if the context passed to NewClient is canceled,
+// so pushBlocking doesn't need to watch that context.
+func (c *Client) pushBlocking(s prompb.TimeSeries) error {
+	g := c.blockingPushGuard
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	if !g.closed {
+		select {
+		case c.input <- s:
+			return nil
+		case <-g.closing:
+		}
+	}
+	rwErrors.Inc()
+	droppedRows.Add(len(s.Samples))
+	return fmt.Errorf("client is closed")
+}
+
+// stopBlockingPushes makes later blocking pushes fail and waits for the blocking pushes in progress to return.
+// It releases the pushes that wait for free space in the queue first, so it never waits for the queue to drain.
+// Close calls it before it closes the queue. It does nothing if the client doesn't block pushes.
+func (c *Client) stopBlockingPushes() {
+	g := c.blockingPushGuard
+	if g == nil {
+		return
+	}
+	close(g.closing)
+	g.mu.Lock()
+	g.closed = true
+	g.mu.Unlock()
+}
+
 // Close stops the client and waits for all goroutines
 // to exit.
 func (c *Client) Close() error {
 	if c.doneCh == nil {
 		return fmt.Errorf("client is already closed")
 	}
+	c.stopBlockingPushes()
 	close(c.input)
 
 	start := time.Now()

@@ -366,6 +366,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Optional bearer auth token to use for -remoteWrite.url.
   -remoteWrite.bearerTokenFile string
      Optional path to bearer token file to use for -remoteWrite.url.
+  -remoteWrite.blockOnFullQueue
+     Whether to wait for free space in the remote write queue instead of dropping time series when the queue is full. Waiting delays rule evaluation until the remote write workers drain the queue
   -remoteWrite.concurrency int
      Defines number of writers for concurrent writing into remote write endpoint. Default value depends on the number of available CPU cores. (default 2x CPU cores)
   -remoteWrite.disablePathAppend

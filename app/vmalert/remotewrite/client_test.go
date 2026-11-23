@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -255,4 +256,282 @@ func (bc *batchCntRWServer) handler(w http.ResponseWriter, r *http.Request) {
 
 func (bc *batchCntRWServer) acceptedBatches() int {
 	return int(bc.batchCnt.Load())
+}
+
+func TestClient_Push_fullQueue(t *testing.T) {
+	srv := newGatedRWServer()
+	defer srv.Close()
+	defer srv.open()
+	client := newSmallQueueClient(t, context.Background(), srv.URL, false)
+
+	// The only writer waits for the server, so the queue fills up.
+	var err error
+	for range 100 {
+		if err = client.Push(newTestSeries()); err != nil {
+			break
+		}
+	}
+	if err == nil || !strings.Contains(err.Error(), "queue is full") {
+		t.Fatalf("expected queue is full error; got %v", err)
+	}
+
+	srv.open()
+	if err := client.Close(); err != nil {
+		t.Fatalf("failed to close client: %s", err)
+	}
+}
+
+func TestClient_Push_blockOnFullQueue(t *testing.T) {
+	srv := newGatedRWServer()
+	defer srv.Close()
+	defer srv.open()
+	client := newSmallQueueClient(t, context.Background(), srv.URL, true)
+
+	const rowsN = 100
+	pushed := make(chan error, 1)
+	go func() {
+		for range rowsN {
+			if err := client.Push(newTestSeries()); err != nil {
+				pushed <- err
+				return
+			}
+		}
+		pushed <- nil
+	}()
+
+	// The only writer waits for the server, so the queue fills up and Push must wait.
+	select {
+	case err := <-pushed:
+		t.Fatalf("expected Push to wait for free space in the full queue; got %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	srv.open()
+	if err := <-pushed; err != nil {
+		t.Fatalf("unexpected err: %s", err)
+	}
+	if err := client.Close(); err != nil {
+		t.Fatalf("failed to close client: %s", err)
+	}
+	if got := srv.accepted(); got != rowsN {
+		t.Fatalf("expected to have %d series; got %d", rowsN, got)
+	}
+}
+
+func TestClient_Push_blockOnFullQueue_canceledContext(t *testing.T) {
+	srv := newGatedRWServer()
+	defer srv.Close()
+	defer srv.open()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	client := newSmallQueueClient(t, ctx, srv.URL, true)
+
+	// The writer holds the first series and the queue holds the second,
+	// so the third Push waits for free space.
+	const rowsN = 3
+	pushed := make(chan error, 1)
+	go func() {
+		for range rowsN {
+			if err := client.Push(newTestSeries()); err != nil {
+				pushed <- err
+				return
+			}
+		}
+		pushed <- nil
+	}()
+	select {
+	case err := <-pushed:
+		t.Fatalf("expected Push to wait for free space in the full queue; got %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	// The writer keeps draining the queue after the client context is canceled,
+	// even while the server does not respond, so the waiting Push completes.
+	cancel()
+	select {
+	case err := <-pushed:
+		if err != nil {
+			t.Fatalf("unexpected err: %s", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatalf("expected Push to complete after the client context is canceled")
+	}
+
+	srv.open()
+	if err := client.Close(); err != nil {
+		t.Fatalf("failed to close client: %s", err)
+	}
+}
+
+func TestClient_Close_blockOnFullQueue(t *testing.T) {
+	srv := newGatedRWServer()
+	defer srv.Close()
+	defer srv.open()
+	client := newSmallQueueClient(t, context.Background(), srv.URL, true)
+
+	// The only writer waits for the server, so the queue fills up and the pushes wait.
+	const pushersN = 8
+	var accepted, inFlight atomic.Int64
+	pushed := make(chan error, pushersN)
+	for range pushersN {
+		go func() {
+			for {
+				inFlight.Add(1)
+				err := client.Push(newTestSeries())
+				inFlight.Add(-1)
+				if err != nil {
+					pushed <- err
+					return
+				}
+				accepted.Add(1)
+			}
+		}()
+	}
+
+	// Wait until the writer is stuck in a request to the server, the queue is full and every pusher is in Push.
+	// No Push can complete in this state, so Close must release blocked pushes.
+	select {
+	case <-srv.requested:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("expected the writer to send a request to the server")
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for len(client.input) < cap(client.input) || inFlight.Load() < pushersN {
+		if time.Now().After(deadline) {
+			t.Fatalf("expected all the pushers to wait for free space in the full queue")
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	closed := make(chan error, 1)
+	go func() {
+		closed <- client.Close()
+	}()
+
+	// Close releases the waiting pushes while the server still does not respond.
+	for range pushersN {
+		select {
+		case err := <-pushed:
+			if err == nil || !strings.Contains(err.Error(), "client is closed") {
+				t.Fatalf("expected client is closed error; got %v", err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("expected Close to release the waiting pushes")
+		}
+	}
+
+	srv.open()
+	if err := <-closed; err != nil {
+		t.Fatalf("failed to close client: %s", err)
+	}
+	if got, want := srv.accepted(), int(accepted.Load()); got != want {
+		t.Fatalf("expected to have %d series; got %d", want, got)
+	}
+}
+
+func TestClient_Push_blockOnFullQueue_duringClose(t *testing.T) {
+	srv := newRWServer()
+	defer srv.Close()
+	client, err := NewClient(context.Background(), Config{
+		Addr:             srv.URL,
+		Concurrency:      2,
+		MaxBatchSize:     10,
+		MaxQueueSize:     10,
+		BlockOnFullQueue: true,
+		FlushInterval:    10 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatalf("failed to create client: %s", err)
+	}
+
+	// Pushes run before, during and after Close. None of them may panic,
+	// and every accepted series must reach the server.
+	const pushersN = 8
+	var accepted atomic.Int64
+	var wg sync.WaitGroup
+	for range pushersN {
+		wg.Go(func() {
+			for {
+				err := client.Push(newTestSeries())
+				if err == nil {
+					accepted.Add(1)
+					continue
+				}
+				if !strings.Contains(err.Error(), "client is closed") {
+					t.Errorf("expected client is closed error; got %s", err)
+				}
+				return
+			}
+		})
+	}
+	time.Sleep(50 * time.Millisecond)
+	if err := client.Close(); err != nil {
+		t.Fatalf("failed to close client: %s", err)
+	}
+	wg.Wait()
+
+	for range 100 {
+		if err := client.Push(newTestSeries()); err == nil || !strings.Contains(err.Error(), "client is closed") {
+			t.Fatalf("expected client is closed error after Close; got %v", err)
+		}
+	}
+	if got, want := srv.accepted(), int(accepted.Load()); got != want {
+		t.Fatalf("expected to have %d series; got %d", want, got)
+	}
+}
+
+func newSmallQueueClient(t *testing.T, ctx context.Context, addr string, blockOnFullQueue bool) *Client {
+	t.Helper()
+	client, err := NewClient(ctx, Config{
+		Addr:             addr,
+		Concurrency:      1,
+		MaxBatchSize:     1,
+		MaxQueueSize:     1,
+		BlockOnFullQueue: blockOnFullQueue,
+		// The writer starts after a jitter of up to FlushInterval.
+		FlushInterval: 10 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatalf("failed to create client: %s", err)
+	}
+	return client
+}
+
+func newTestSeries() prompb.TimeSeries {
+	return prompb.TimeSeries{
+		Labels:  []prompb.Label{{Name: "__name__", Value: "m"}},
+		Samples: []prompb.Sample{{Value: 1, Timestamp: 1000}},
+	}
+}
+
+// gatedRWServer accepts requests only after open is called.
+type gatedRWServer struct {
+	*rwServer
+
+	gate     chan struct{}
+	openOnce sync.Once
+
+	// requested is closed when the server receives the first request.
+	requested     chan struct{}
+	requestedOnce sync.Once
+}
+
+func newGatedRWServer() *gatedRWServer {
+	rw := &gatedRWServer{
+		rwServer:  &rwServer{},
+		gate:      make(chan struct{}),
+		requested: make(chan struct{}),
+	}
+	rw.Server = httptest.NewServer(http.HandlerFunc(rw.handler))
+	return rw
+}
+
+func (grw *gatedRWServer) open() {
+	grw.openOnce.Do(func() { close(grw.gate) })
+}
+
+func (grw *gatedRWServer) handler(w http.ResponseWriter, r *http.Request) {
+	grw.requestedOnce.Do(func() { close(grw.requested) })
+	<-grw.gate
+	grw.rwServer.handler(w, r)
 }

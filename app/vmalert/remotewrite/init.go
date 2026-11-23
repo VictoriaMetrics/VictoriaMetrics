@@ -36,7 +36,9 @@ var (
 	idleConnectionTimeout = flag.Duration("remoteWrite.idleConnTimeout", 50*time.Second, `Defines a duration for idle (keep-alive connections) to exist. Consider settings this value less to the value of "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors.`)
 	maxIdleConnections    = flag.Int("remoteWrite.maxIdleConnections", 100, `Defines the number of idle (keep-alive connections) to -remoteWrite.url for the vmalert-tool debug writer, which sends every series in a separate request. Too low a value may result in a high number of sockets in TIME_WAIT state.`)
 
-	maxQueueSize = flag.Int("remoteWrite.maxQueueSize", defaultMaxQueueSize, "Defines the max number of pending datapoints to remote write endpoint")
+	maxQueueSize     = flag.Int("remoteWrite.maxQueueSize", defaultMaxQueueSize, "Defines the max number of pending datapoints to remote write endpoint")
+	blockOnFullQueue = flag.Bool("remoteWrite.blockOnFullQueue", false, "Whether to wait for free space in the remote write queue instead of dropping time series when the queue is full. "+
+		"Waiting delays rule evaluation until the remote write workers drain the queue")
 	maxBatchSize = flag.Int("remoteWrite.maxBatchSize", defaultMaxBatchSize, "Defines max number of timeseries to be flushed at once")
 	concurrency  = flagutil.NewIntWithDynamicDefault("remoteWrite.concurrency", defaultConcurrency, "2x CPU cores",
 		"Defines number of writers for concurrent writing into remote write endpoint. Default value depends on the number of available CPU cores.")
@@ -97,12 +99,13 @@ func Init(ctx context.Context) (*Client, error) {
 	}
 
 	return NewClient(ctx, Config{
-		Addr:          *addr,
-		AuthCfg:       authCfg,
-		Concurrency:   *concurrency,
-		MaxQueueSize:  *maxQueueSize,
-		MaxBatchSize:  *maxBatchSize,
-		FlushInterval: *flushInterval,
-		Transport:     tr,
+		Addr:             *addr,
+		AuthCfg:          authCfg,
+		Concurrency:      *concurrency,
+		MaxQueueSize:     *maxQueueSize,
+		BlockOnFullQueue: *blockOnFullQueue,
+		MaxBatchSize:     *maxBatchSize,
+		FlushInterval:    *flushInterval,
+		Transport:        tr,
 	})
 }
