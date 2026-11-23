@@ -86,41 +86,66 @@ func TestGetPartition_concurrent(t *testing.T) {
 	}
 }
 
-func TestTableRetentionClockRollback(t *testing.T) {
-	path := t.TempDir()
-	s := MustOpenStorage(path, OpenOptions{FutureRetention: 2 * 24 * time.Hour})
-	defer s.MustClose()
-
+func TestTableFuturePartitionRetention(t *testing.T) {
 	now := time.Now().UTC()
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
-	timestamp := monthStart.UnixMilli()
-	rows := []MetricRow{{
-		MetricNameRaw: MarshalMetricNameRaw(nil, []prompb.Label{{Name: "__name__", Value: "clock_rollback"}}),
-		Timestamp:     timestamp,
-		Value:         42,
-	}}
-	s.AddRows(rows, defaultPrecisionBits)
-	s.DebugFlush()
+	futureMonth := monthStart.AddDate(0, 2, 0)
+	metricName := MarshalMetricNameRaw(nil, []prompb.Label{{Name: "__name__", Value: "retention_test"}})
+	currentRow := MetricRow{MetricNameRaw: metricName, Timestamp: monthStart.UnixMilli(), Value: 42}
+	futureRow := MetricRow{MetricNameRaw: metricName, Timestamp: futureMonth.UnixMilli(), Value: 43}
 
-	tr := TimeRange{MinTimestamp: timestamp, MaxTimestamp: timestamp}
-	tfs := NewTagFilters()
-	if err := tfs.Add(nil, []byte("clock_rollback"), false, false); err != nil {
-		t.Fatal(err)
-	}
-	if err := testAssertSearchResult(s, tr, tfs, rows); err != nil {
-		t.Fatalf("cannot read sample before rollback: %s", err)
-	}
+	f := func(t *testing.T, firstPass time.Time) {
+		t.Helper()
 
-	// Move the wall clock far enough back that the partition starts past futureRetention.
-	s.tb.removeExpiredPartitions(monthStart.AddDate(0, 0, -3).UnixMilli(), nil)
+		path := t.TempDir()
+		s := MustOpenStorage(path, OpenOptions{FutureRetention: 90 * 24 * time.Hour})
+		s.AddRows([]MetricRow{currentRow, futureRow}, defaultPrecisionBits)
+		s.MustClose()
 
-	for _, dirname := range []string{smallDirname, bigDirname, indexdbDirname} {
-		partitionPath := filepath.Join(path, dataDirname, dirname, monthStart.Format("2006_01"))
-		if !fs.IsPathExist(partitionPath) {
-			t.Errorf("partition directory %q was removed after a clock rollback", partitionPath)
+		s = MustOpenStorage(path, OpenOptions{FutureRetention: 2 * 24 * time.Hour})
+		defer s.MustClose()
+
+		assertPartitionPaths := func(month time.Time, want bool) {
+			t.Helper()
+			for _, dirname := range []string{smallDirname, bigDirname, indexdbDirname} {
+				partitionPath := filepath.Join(path, dataDirname, dirname, month.Format("2006_01"))
+				if got := fs.IsPathExist(partitionPath); got != want {
+					t.Errorf("partition directory %q exists: got %t, want %t", partitionPath, got, want)
+				}
+			}
 		}
+		assertRows := func(want []MetricRow) {
+			t.Helper()
+			tr := TimeRange{MinTimestamp: currentRow.Timestamp, MaxTimestamp: futureRow.Timestamp}
+			tfs := NewTagFilters()
+			if err := tfs.Add(nil, []byte("retention_test"), false, false); err != nil {
+				t.Fatal(err)
+			}
+			if err := testAssertSearchResult(s, tr, tfs, want); err != nil {
+				t.Error(err)
+			}
+		}
+
+		assertPartitionPaths(monthStart, true)
+		assertPartitionPaths(futureMonth, true)
+		assertRows([]MetricRow{currentRow, futureRow})
+
+		_, startupCutoff := s.tb.getMinMaxRetentionTimestamps()
+		futurePartitions := s.tb.collectFuturePartitions(startupCutoff)
+		if len(futurePartitions) != 1 {
+			t.Fatalf("unexpected startup future partition count: got %d, want 1", len(futurePartitions))
+		}
+		s.tb.removeExpiredPartitions(firstPass.UnixMilli(), futurePartitions)
+
+		assertPartitionPaths(monthStart, true)
+		assertPartitionPaths(futureMonth, false)
+		assertRows([]MetricRow{currentRow})
 	}
-	if err := testAssertSearchResult(s, tr, tfs, rows); err != nil {
-		t.Errorf("cannot read sample after rollback: %s", err)
-	}
+
+	t.Run("clock rollback before first pass", func(t *testing.T) {
+		f(t, monthStart.AddDate(0, 0, -3))
+	})
+	t.Run("smaller future retention after restart", func(t *testing.T) {
+		f(t, now)
+	})
 }

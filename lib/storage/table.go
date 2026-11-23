@@ -445,15 +445,23 @@ func (tb *table) startRetentionWatcher() {
 	// removed as future partitions. A clock rollback must not make an
 	// accepted partition eligible for removal.
 	_, maxTimestamp := tb.getMinMaxRetentionTimestamps()
+	futurePartitions := tb.collectFuturePartitions(maxTimestamp)
+	tb.retentionWatcherWG.Go(func() {
+		tb.retentionWatcher(futurePartitions)
+	})
+}
+
+func (tb *table) collectFuturePartitions(maxTimestamp int64) map[*partitionWrapper]bool {
+	tb.ptwsLock.Lock()
+	defer tb.ptwsLock.Unlock()
+
 	futurePartitions := make(map[*partitionWrapper]bool)
 	for _, ptw := range tb.ptws {
 		if ptw.pt.tr.MinTimestamp > maxTimestamp {
 			futurePartitions[ptw] = true
 		}
 	}
-	tb.retentionWatcherWG.Go(func() {
-		tb.retentionWatcher(futurePartitions)
-	})
+	return futurePartitions
 }
 
 func (tb *table) retentionWatcher(futurePartitions map[*partitionWrapper]bool) {
