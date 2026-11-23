@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* BUGFIX: use monotonic time for pending sample and index flush deadlines so a backward system clock adjustment doesn't leave recently ingested data buffered and unsearchable. See [#11974](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11974).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): use monotonic time for pending sample and index flush deadlines so a backward system clock adjustment doesn't leave recently ingested data buffered and unsearchable. See [#11974](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11974).
 
 ## [v1.157.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.157.0)
 
