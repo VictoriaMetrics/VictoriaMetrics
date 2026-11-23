@@ -1,11 +1,13 @@
 package storage
 
 import (
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 func TestTableOpenClose(t *testing.T) {
@@ -81,5 +83,44 @@ func TestGetPartition_concurrent(t *testing.T) {
 			})
 		}
 		wg.Wait()
+	}
+}
+
+func TestTableRetentionClockRollback(t *testing.T) {
+	path := t.TempDir()
+	s := MustOpenStorage(path, OpenOptions{FutureRetention: 2 * 24 * time.Hour})
+	defer s.MustClose()
+
+	now := time.Now().UTC()
+	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	timestamp := monthStart.UnixMilli()
+	rows := []MetricRow{{
+		MetricNameRaw: MarshalMetricNameRaw(nil, []prompb.Label{{Name: "__name__", Value: "clock_rollback"}}),
+		Timestamp:     timestamp,
+		Value:         42,
+	}}
+	s.AddRows(rows, defaultPrecisionBits)
+	s.DebugFlush()
+
+	tr := TimeRange{MinTimestamp: timestamp, MaxTimestamp: timestamp}
+	tfs := NewTagFilters()
+	if err := tfs.Add(nil, []byte("clock_rollback"), false, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := testAssertSearchResult(s, tr, tfs, rows); err != nil {
+		t.Fatalf("cannot read sample before rollback: %s", err)
+	}
+
+	// Move the wall clock far enough back that the partition starts past futureRetention.
+	s.tb.removeExpiredPartitions(monthStart.AddDate(0, 0, -3).UnixMilli(), nil)
+
+	for _, dirname := range []string{smallDirname, bigDirname, indexdbDirname} {
+		partitionPath := filepath.Join(path, dataDirname, dirname, monthStart.Format("2006_01"))
+		if !fs.IsPathExist(partitionPath) {
+			t.Errorf("partition directory %q was removed after a clock rollback", partitionPath)
+		}
+	}
+	if err := testAssertSearchResult(s, tr, tfs, rows); err != nil {
+		t.Errorf("cannot read sample after rollback: %s", err)
 	}
 }

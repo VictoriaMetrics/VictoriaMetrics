@@ -125,6 +125,7 @@ func mustOpenTable(path string, s *Storage) *table {
 
 		stopCh: make(chan struct{}),
 	}
+
 	for _, pt := range pts {
 		tb.addPartitionLocked(pt)
 	}
@@ -440,10 +441,22 @@ func (tb *table) getMinMaxTimestampsForAge(minAgeMsecs int64) (int64, int64) {
 }
 
 func (tb *table) startRetentionWatcher() {
-	tb.retentionWatcherWG.Go(tb.retentionWatcher)
+	// Only partitions already beyond the future cutoff on startup can be
+	// removed as future partitions. A clock rollback must not make an
+	// accepted partition eligible for removal.
+	_, maxTimestamp := tb.getMinMaxRetentionTimestamps()
+	futurePartitions := make(map[*partitionWrapper]bool)
+	for _, ptw := range tb.ptws {
+		if ptw.pt.tr.MinTimestamp > maxTimestamp {
+			futurePartitions[ptw] = true
+		}
+	}
+	tb.retentionWatcherWG.Go(func() {
+		tb.retentionWatcher(futurePartitions)
+	})
 }
 
-func (tb *table) retentionWatcher() {
+func (tb *table) retentionWatcher(futurePartitions map[*partitionWrapper]bool) {
 	d := timeutil.AddJitterToDuration(time.Minute)
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
@@ -454,34 +467,34 @@ func (tb *table) retentionWatcher() {
 		case <-ticker.C:
 		}
 
-		nowMsecs := int64(fasttime.UnixTimestamp() * 1000)
-		minTimestamp := nowMsecs - tb.s.retentionMsecs
-		maxTimestamp := nowMsecs + tb.s.futureRetentionMsecs
-		var ptwsDrop []*partitionWrapper
-		tb.ptwsLock.Lock()
-		dst := tb.ptws[:0]
-		for _, ptw := range tb.ptws {
-			if ptw.pt.tr.MaxTimestamp < minTimestamp || ptw.pt.tr.MinTimestamp > maxTimestamp {
-				ptwsDrop = append(ptwsDrop, ptw)
-			} else {
-				dst = append(dst, ptw)
-			}
-		}
-		tb.ptws = dst
-		tb.ptwsLock.Unlock()
+		tb.removeExpiredPartitions(int64(fasttime.UnixTimestamp()*1000), futurePartitions)
+		// Check future partitions at the first tick only. During normal
+		// operation time can only bring them closer to the retention window.
+		futurePartitions = nil
+	}
+}
 
-		if len(ptwsDrop) == 0 {
-			continue
+func (tb *table) removeExpiredPartitions(nowMsecs int64, futurePartitions map[*partitionWrapper]bool) {
+	minTimestamp := nowMsecs - tb.s.retentionMsecs
+	maxTimestamp := nowMsecs + tb.s.futureRetentionMsecs
+	var ptwsDrop []*partitionWrapper
+	tb.ptwsLock.Lock()
+	dst := tb.ptws[:0]
+	for _, ptw := range tb.ptws {
+		if ptw.pt.tr.MaxTimestamp < minTimestamp || (ptw.pt.tr.MinTimestamp > maxTimestamp && futurePartitions[ptw]) {
+			ptwsDrop = append(ptwsDrop, ptw)
+		} else {
+			dst = append(dst, ptw)
 		}
+	}
+	tb.ptws = dst
+	tb.ptwsLock.Unlock()
 
-		// There are partitions to drop. Drop them.
-
-		// Remove table references from partitions, so they will be eventually
-		// closed and dropped after all the pending searches are done.
-		for _, ptw := range ptwsDrop {
-			ptw.scheduleToDrop()
-			ptw.decRef()
-		}
+	// Remove table references from partitions, so they will be eventually
+	// closed and dropped after all the pending searches are done.
+	for _, ptw := range ptwsDrop {
+		ptw.scheduleToDrop()
+		ptw.decRef()
 	}
 }
 
