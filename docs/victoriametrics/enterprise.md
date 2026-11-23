@@ -250,10 +250,10 @@ Section below contains backward-compatible anchors for links that were moved or 
 ###### Running releases before v1.157.0
 
 > [!NOTE]
-> This section applies only to Enterprise releases before v1.157.0, and LTS releases before v1.136.23 and v1.148.9.
+> This section applies only to Enterprise releases before v1.156.0, and LTS releases before v1.136.23 and v1.148.9.
 > Consider upgrading to a newer version, which uses [the `-eula` flag](#running-victoriametrics-enterprise) instead of the license key.
 
-Releases older than v1.157.0 (or older than v1.136.23 and v1.148.9 for the LTS lines) require one of the following license flags instead of `-eula`:
+Releases older than v1.156.0 (or older than v1.136.23 and v1.148.9 for the LTS lines) require one of the following license flags instead of `-eula`:
 
 - `-license` - this flag accepts VictoriaMetrics Enterprise license key, which can be obtained at [this page](https://victoriametrics.com/products/enterprise/trial/).
 - `-licenseFile` - this flag accepts a path to file with VictoriaMetrics Enterprise license key,
@@ -354,7 +354,7 @@ Note that the license key provided by using a secret is mounted as a file. This 
 ###### Updating the license key
 
 > [!NOTE]
-> License key is only required to run VictoriaMetrics Enterprise releases before v1.157.0, v1.136.23 and v1.148.9. Please see [how to run VictoriaMetrics Enterprise](#running-victoriametrics-enterprise).
+> License key is only required to run VictoriaMetrics Enterprise releases before v1.156.0, v1.136.23 and v1.148.9. Please see [how to run VictoriaMetrics Enterprise](#running-victoriametrics-enterprise).
 > Consider upgrading to a newer version, which doesn't check license expiration.
 
 Updating the license key for Enterprise components depends on the way
@@ -377,7 +377,7 @@ the license key is provided to the component:
 ###### What Happens to Licensed Components When a License Expires
 
 > [!NOTE]
-> License key is only required to run VictoriaMetrics Enterprise releases before v1.157.0, v1.136.23 and v1.148.9. Please see [how to run VictoriaMetrics Enterprise](#running-victoriametrics-enterprise).
+> License key is only required to run VictoriaMetrics Enterprise releases before v1.156.0, v1.136.23 and v1.148.9. Please see [how to run VictoriaMetrics Enterprise](#running-victoriametrics-enterprise).
 > Consider upgrading to a newer version, which doesn't check license expiration.
 
 When a license expires, all licensed components continue to function normally until a restart occurs.
@@ -395,7 +395,7 @@ See [updating the license key](https://docs.victoriametrics.com/victoriametrics/
 ###### Monitoring license expiration
 
 > [!NOTE]
-> License metrics are exposed only by VictoriaMetrics Enterprise releases before v1.157.0, v1.136.23 and v1.148.9. Please see [how to run VictoriaMetrics Enterprise](#running-victoriametrics-enterprise).
+> License metrics are exposed only by VictoriaMetrics Enterprise releases before v1.156.0, v1.136.23 and v1.148.9. Please see [how to run VictoriaMetrics Enterprise](#running-victoriametrics-enterprise).
 > Consider upgrading to a newer version, which doesn't check license expiration.
 
 All the Enterprise components expose the following metrics at the `/metrics` page:
