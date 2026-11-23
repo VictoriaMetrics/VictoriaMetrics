@@ -20,6 +20,22 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
 {{% collapse name="2026" open=true %}}
 
+## v1.33.0
+Released: 2026-11-19
+
+- UI: Update to [v1.12.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v1120), with refined model controls, [guided tours](https://docs.victoriametrics.com/anomaly-detection/ui/#guided-tours), sharing and fixes for tours with collapsed panels.
+- FEATURE: Add optional [`is_holiday`](https://docs.victoriametrics.com/anomaly-detection/components/models/#holiday-output) output for [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) and [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) (v1/v2, including multivariate). Request a timestamp-aligned `0`/`1` flag through `provide_series`; Prophet also supports structured country and special-event calendars.
+- IMPROVEMENT: Add explicit [ESA acceptance](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing) with `-eula`, retaining compatibility with existing license settings.
+- IMPROVEMENT: Speed up point-by-point [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) inference by up to 2× for v2 and 1.4× for v1 in tested workloads, with unchanged results. Reduce preparation overhead for series sharing timestamp grids.
+- IMPROVEMENT: Parallelize conversion of large compact fit responses in [on-disk mode](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode), with 6.9× conversion throughput using eight workers versus one in a 10-million-point benchmark.
+- IMPROVEMENT: Reduce data-dump disk usage by approximately 50–60% in tested workloads with compact Parquet encodings, and release freed Arrow buffers more promptly. Existing data dumps remain readable.
+- IMPROVEMENT: Improve [deployment sizing](https://docs.victoriametrics.com/anomaly-detection/components/server/#deployment-sizing) accuracy to reflect the latest [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope), data-preparation and storage optimizations.
+- DEPRECATION: Deprecate [`holtwinters`](https://docs.victoriametrics.com/anomaly-detection/components/models/#holt-winters), [`isolation_forest_univariate`](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate) and [`isolation_forest_multivariate`](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate), with removal planned for v1.34.0. Existing configurations still run with warnings; migrate to [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope).
+- BUGFIX: Improve [Temporal Envelope (v2)](https://docs.victoriametrics.com/anomaly-detection/components/models/#experimental-temporal-envelope-implementations) cold-start weekly profiles and holiday-response learning. Previously, sparse weekly history could produce forecast overshoot, and ordinary recurring patterns could be learned as holiday effects. Previously saved warm-up states benefit on subsequent inference; fully trained models retain their predictions.
+- BUGFIX: Exclude unusable series from unsupervised [replay tuning](https://docs.victoriametrics.com/anomaly-detection/components/server/#time-series-analysis-and-autotune-api) and report the exclusions, allowing tuning to continue when some sampled series lack training or evaluation observations instead of failing the whole run.
+- BUGFIX: Keep [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/) range chunks within the VictoriaMetrics server’s per-series point limit and record HTTP status for rejected requests. Previously, full chunks exceeded the limit by one point, and HTTP rejections were reported as `io_error`.
+- BUGFIX: Fix [Isolation Forest](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate) fitting failures when `contamination` is supplied in `args`. It applies when model-level `contamination` remains `auto`; an explicit model-level value takes precedence and logs a warning.
+
 ## v1.32.0
 Released: 2026-11-04
 
@@ -30,7 +46,7 @@ Released: 2026-11-04
 - IMPROVEMENT: Improved [deployment sizing](https://docs.victoriametrics.com/anomaly-detection/components/server/#deployment-sizing) accuracy for CPU, RAM and disk estimates.
 - IMPROVEMENT: Reduced data-preparation overhead before model fitting when reading large, uncompressed responses from a VictoriaMetrics datasource.
 - IMPROVEMENT: Compress Temporal Envelope snapshots losslessly while retaining support for older snapshots. See [migration guidance](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix) before switching model versions or rolling back.
-- FEATURE: Added a lightweight `--healthcheck` command and default container health checks, including HTTPS configurations.
+- FEATURE: Added a lightweight `--healthcheck` command and default [container health checks](https://docs.victoriametrics.com/anomaly-detection/quickstart/#container-health-checks), including HTTPS configurations.
 - BUGFIX: Improved [autotune](https://docs.victoriametrics.com/anomaly-detection/components/server/#time-series-analysis-and-autotune-api) quality evaluation and historical replay, keeping training and validation data separate and preserving fixed model settings and query policies. Insufficient history now produces clearer errors, and disabling gap interpolation preserves missing observations.
 - BUGFIX: Excluded review labels and prior anomaly scores from model inputs. Refit persisted multivariate `auto` models that learned these metadata columns; see [migration guidance](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix).
 - BUGFIX: Corrected online-model state resets on refit and prevented Temporal Envelope forecast spikes caused by nearly duplicate timestamps; refit models with previously affected trends.
