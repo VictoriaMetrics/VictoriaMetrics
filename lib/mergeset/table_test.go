@@ -4,12 +4,62 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
+
+func TestRawItemsFlushUsesElapsedTime(t *testing.T) {
+	// Keep the table in memory and let the test drive flushing instead of starting background workers.
+	stopCh := make(chan struct{})
+	close(stopCh)
+	tb := Table{
+		rawItems:             rawItemsShards{shards: make([]rawItemsShard, 1)},
+		inmemoryPartsLimitCh: make(chan struct{}, 1),
+		stopCh:               stopCh,
+	}
+	defer func() {
+		for _, pw := range tb.inmemoryParts {
+			pw.decRef()
+		}
+	}()
+	assertItems := func(want []string) {
+		t.Helper()
+		var ts TableSearch
+		ts.Init(&tb, false)
+		defer ts.MustClose()
+		ts.Seek(nil)
+		var items []string
+		for ts.NextItem() {
+			items = append(items, string(ts.Item))
+		}
+		if err := ts.Error(); err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(items, want) {
+			t.Fatalf("searchable items: got %q, want %q", items, want)
+		}
+	}
+
+	start := timeutil.MonotonicMilliseconds()
+	tb.AddItems([][]byte{[]byte("shard")})
+	var queued inmemoryBlock
+	if !queued.Add([]byte("queued")) {
+		t.Fatal("cannot add item to the queued block")
+	}
+	tb.rawItems.addIbsToFlush(&tb, []*inmemoryBlock{&queued})
+
+	tb.rawItems.flush(&tb, start, false)
+	assertItems(nil)
+
+	afterDeadline := timeutil.MonotonicMilliseconds() + pendingItemsFlushInterval.Milliseconds()
+	tb.rawItems.flush(&tb, afterDeadline, false)
+	assertItems([]string{"queued", "shard"})
+}
 
 func TestTableOpenClose(t *testing.T) {
 	const path = "TestTableOpenClose"

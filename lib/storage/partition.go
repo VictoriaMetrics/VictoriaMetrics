@@ -1019,7 +1019,7 @@ func (pt *partition) pendingRowsFlusher() {
 
 func (pt *partition) flushPendingRows(isFinal bool) {
 	pt.flushPendingItemsWG.Add(1)
-	pt.rawRows.flush(pt.flushRowssToInmemoryParts, isFinal)
+	pt.rawRows.flush(pt.flushRowssToInmemoryParts, timeutil.MonotonicMilliseconds(), isFinal)
 	pt.flushPendingItemsWG.Done()
 }
 

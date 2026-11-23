@@ -205,7 +205,7 @@ func (riss *rawItemsShards) Len() int {
 }
 
 func (riss *rawItemsShards) updateFlushDeadline() {
-	riss.flushDeadlineMs.Store(time.Now().Add(pendingItemsFlushInterval).UnixMilli())
+	riss.flushDeadlineMs.Store(timeutil.MonotonicMilliseconds() + pendingItemsFlushInterval.Milliseconds())
 }
 
 type rawItemsShardNopad struct {
@@ -275,7 +275,7 @@ func (ris *rawItemsShard) addItems(items [][]byte) ([][]byte, []*inmemoryBlock) 
 }
 
 func (ris *rawItemsShard) updateFlushDeadline() {
-	ris.flushDeadlineMs.Store(time.Now().Add(pendingItemsFlushInterval).UnixMilli())
+	ris.flushDeadlineMs.Store(timeutil.MonotonicMilliseconds() + pendingItemsFlushInterval.Milliseconds())
 }
 
 var tooLongItemLogger = logger.WithThrottler("tooLongItem", 5*time.Second)
@@ -778,7 +778,7 @@ func (tb *Table) inmemoryPartsFlusher() {
 
 func (tb *Table) flushPendingItems(isFinal bool) {
 	tb.flushPendingItemsWG.Add(1)
-	tb.rawItems.flush(tb, isFinal)
+	tb.rawItems.flush(tb, timeutil.MonotonicMilliseconds(), isFinal)
 	tb.flushPendingItemsWG.Done()
 }
 
@@ -805,10 +805,9 @@ func (tb *Table) flushInmemoryPartsToFiles(isFinal bool) {
 	}
 }
 
-func (riss *rawItemsShards) flush(tb *Table, isFinal bool) {
+func (riss *rawItemsShards) flush(tb *Table, currentTimeMs int64, isFinal bool) {
 	var dst []*inmemoryBlock
 
-	currentTimeMs := time.Now().UnixMilli()
 	flushDeadlineMs := riss.flushDeadlineMs.Load()
 	if isFinal || currentTimeMs >= flushDeadlineMs {
 		riss.ibsToFlushLock.Lock()

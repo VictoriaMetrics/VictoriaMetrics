@@ -1,8 +1,42 @@
 package storage
 
 import (
+	"slices"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
+
+func TestRawRowsFlushUsesElapsedTime(t *testing.T) {
+	pending := rawRowsShards{shards: make([]rawRowsShard, 1)}
+	var flushed []int64
+	collect := func(batches [][]rawRow) {
+		for _, batch := range batches {
+			for _, row := range batch {
+				flushed = append(flushed, row.Timestamp)
+			}
+		}
+	}
+
+	start := timeutil.MonotonicMilliseconds()
+	pending.addRows(collect, []rawRow{{Timestamp: 1}})
+	pending.addRowsToFlush(collect, []rawRow{{Timestamp: 2}})
+
+	pending.flush(collect, start, false)
+	if len(flushed) != 0 {
+		t.Fatalf("flushed rows before the deadline: %v", flushed)
+	}
+
+	afterDeadline := timeutil.MonotonicMilliseconds() + pendingRowsFlushInterval.Milliseconds()
+	pending.flush(collect, afterDeadline, false)
+	slices.Sort(flushed)
+	if want := []int64{1, 2}; !slices.Equal(flushed, want) {
+		t.Fatalf("rows flushed after the deadline: got %v, want %v", flushed, want)
+	}
+	if n := pending.Len(); n != 0 {
+		t.Fatalf("rows still pending after flushing: %d", n)
+	}
+}
 
 func TestRawRowsShardReleasesIdleBuffer(t *testing.T) {
 	var rrs rawRowsShard

@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 // The number of shards for rawRow entries.
@@ -239,13 +240,12 @@ func (rrss *rawRowsShards) addRowsToFlush(flush func([][]rawRow), rowsToFlush []
 }
 
 func (rrss *rawRowsShards) updateFlushDeadline() {
-	rrss.flushDeadlineMs.Store(time.Now().Add(pendingRowsFlushInterval).UnixMilli())
+	rrss.flushDeadlineMs.Store(timeutil.MonotonicMilliseconds() + pendingRowsFlushInterval.Milliseconds())
 }
 
-func (rrss *rawRowsShards) flush(flush func(rrs [][]rawRow), isFinal bool) {
+func (rrss *rawRowsShards) flush(flush func(rrs [][]rawRow), currentTimeMs int64, isFinal bool) {
 	var dst [][]rawRow
 
-	currentTimeMs := time.Now().UnixMilli()
 	flushDeadlineMs := rrss.flushDeadlineMs.Load()
 	if isFinal || currentTimeMs >= flushDeadlineMs {
 		rrss.rowssToFlushLock.Lock()
@@ -316,7 +316,7 @@ func newRawRows() []rawRow {
 }
 
 func (rrs *rawRowsShard) updateFlushDeadline() {
-	rrs.flushDeadlineMs.Store(time.Now().Add(pendingRowsFlushInterval).UnixMilli())
+	rrs.flushDeadlineMs.Store(timeutil.MonotonicMilliseconds() + pendingRowsFlushInterval.Milliseconds())
 }
 
 func (rrs *rawRowsShard) appendRawRowsToFlush(dst [][]rawRow, currentTimeMs int64, isFinal bool) [][]rawRow {
