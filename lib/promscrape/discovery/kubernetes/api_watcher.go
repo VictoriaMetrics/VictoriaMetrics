@@ -880,12 +880,12 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader, isProtobuf bool) error
 	var wr watchEventReader = newJSONWatchEventReader(r)
 	parseObject := uw.parseObject
 	parseBookmarkRV := parseBookmarkResourceVersionJSON
-	parseErrorCode := parseErrorCodeJSON
+	parseErrorFunc := parseError
 	if isProtobuf {
 		wr = newProtobufWatchEventReader(r)
 		parseObject = uw.parseObjectProtobuf
 		parseBookmarkRV = parseBookmarkResourceVersionProtobuf
-		parseErrorCode = parseErrorCodeProtobuf
+		parseErrorFunc = parseErrorProtobuf
 	}
 
 	for {
@@ -920,17 +920,17 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader, isProtobuf bool) error
 			}
 			uw.resourceVersion = rv
 		case "ERROR":
-			code, err := parseErrorCode(obj)
+			em, err := parseErrorFunc(obj)
 			if err != nil {
 				return fmt.Errorf("cannot parse error message: %w", err)
 			}
-			if code == 410 {
+			if em.Code == 410 {
 				// See https://kubernetes.io/docs/reference/using-api/api-concepts/#410-gone-responses
 				uw.staleResourceVersions.Inc()
 				uw.resourceVersion = ""
 				return nil
 			}
-			return fmt.Errorf("unexpected error code: %d", code)
+			return fmt.Errorf("unexpected error code: %d; message: %q", em.Code, em.Message)
 		default:
 			return fmt.Errorf("unexpected WatchEvent type %q", eventType)
 		}
@@ -1028,7 +1028,8 @@ func parseBookmark(data []byte) (*Bookmark, error) {
 
 // Error is an error message from Kubernetes Watch API.
 type Error struct {
-	Code int
+	Code    int
+	Message string
 }
 
 func parseError(data []byte) (*Error, error) {
@@ -1046,15 +1047,6 @@ func parseBookmarkResourceVersionJSON(data []byte) (string, error) {
 		return "", err
 	}
 	return bm.Metadata.ResourceVersion, nil
-}
-
-// parseErrorCodeJSON returns the code from JSON-encoded Status object.
-func parseErrorCodeJSON(data []byte) (int, error) {
-	em, err := parseError(data)
-	if err != nil {
-		return 0, err
-	}
-	return em.Code, nil
 }
 
 // getAcceptHeader returns the value for the Accept header for requests to Kubernetes API server.

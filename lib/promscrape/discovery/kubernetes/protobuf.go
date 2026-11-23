@@ -20,7 +20,7 @@ import (
 )
 
 var useProtobuf = flag.Bool("promscrape.kubernetes.useProtobuf", false, "Whether to request Kubernetes objects from Kubernetes API server in protobuf format instead of JSON. "+
-	"This may reduce CPU usage, memory usage and network traffic when discovering big number of Kubernetes objects. "+
+	"This may reduce CPU usage, memory usage and network traffic when discovering a large number of Kubernetes objects. "+
 	"Currently protobuf is requested only for pods, including pods watched for role: endpoints and role: endpointslice, while other objects are requested in JSON. "+
 	"JSON responses are still accepted if Kubernetes API server cannot return protobuf for the requested objects")
 
@@ -130,20 +130,27 @@ func parseBookmarkResourceVersionProtobuf(data []byte) (string, error) {
 	return strings.Clone(rv), nil
 }
 
-// parseErrorCodeProtobuf returns the code from protobuf-encoded Status object.
-func parseErrorCodeProtobuf(data []byte) (int, error) {
+// parseErrorProtobuf parses protobuf-encoded Status object.
+func parseErrorProtobuf(data []byte) (*Error, error) {
 	kind, raw, err := unwrapProtobufObject(data)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	if err := checkProtobufKind(kind, "Status"); err != nil {
-		return 0, err
+		return nil, err
+	}
+	message, _, err := easyproto.GetString(raw, 3)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read message: %w", err)
 	}
 	code, _, err := easyproto.GetInt32(raw, 6)
 	if err != nil {
-		return 0, fmt.Errorf("cannot read code: %w", err)
+		return nil, fmt.Errorf("cannot read code: %w", err)
 	}
-	return int(code), nil
+	return &Error{
+		Code:    int(code),
+		Message: strings.Clone(message),
+	}, nil
 }
 
 // watchEventReader reads Kubernetes watch events from the watch response body.
@@ -167,6 +174,8 @@ func newJSONWatchEventReader(r io.Reader) *jsonWatchEventReader {
 }
 
 func (wr *jsonWatchEventReader) readEvent() (string, []byte, error) {
+	// Reset the previous event, since Decode leaves fields missing in the next event unchanged.
+	wr.we = WatchEvent{}
 	if err := wr.d.Decode(&wr.we); err != nil {
 		return "", nil, fmt.Errorf("cannot parse WatchEvent json response: %w", err)
 	}
@@ -397,8 +406,9 @@ func getProtobufString(fc *easyproto.FieldContext, name string) (string, error) 
 
 // getProtobufInt returns int32 value for the field fc.
 func getProtobufInt(fc *easyproto.FieldContext, name string) (int, error) {
-	n, ok := fc.Int32()
-	if !ok {
+	// Negative int32 values are encoded as 64-bit varints, so they cannot be read via fc.Int32().
+	n, ok := fc.Int64()
+	if !ok || n < math.MinInt32 || n > math.MaxInt32 {
 		return 0, fmt.Errorf("cannot read %s", name)
 	}
 	return int(n), nil

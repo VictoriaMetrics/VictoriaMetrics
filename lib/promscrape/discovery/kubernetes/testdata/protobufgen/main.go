@@ -308,7 +308,8 @@ func newFullPod() *corev1.Pod {
 					Name:        "config-reloader",
 					ContainerID: "containerd://3333333333333333",
 					State: corev1.ContainerState{
-						Terminated: &corev1.ContainerStateTerminated{ExitCode: 2, Reason: "Error"},
+						// Negative exit code is encoded as 10-byte varint in protobuf.
+						Terminated: &corev1.ContainerStateTerminated{ExitCode: -1, Reason: "Error"},
 					},
 				},
 			},

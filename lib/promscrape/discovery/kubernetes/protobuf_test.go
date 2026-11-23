@@ -1,16 +1,22 @@
 package kubernetes
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/VictoriaMetrics/easyproto"
 )
 
 func mustReadTestFile(tb testing.TB, name string) []byte {
@@ -214,15 +220,95 @@ func TestWatchEventReaders(t *testing.T) {
 				t.Fatalf("unexpected bookmark resourceVersion; got %q; want %q", rv, "1005")
 			}
 		case "ERROR":
-			code, err := parseErrorCodeProtobuf(pbEvents[i].obj)
+			emPB, err := parseErrorProtobuf(pbEvents[i].obj)
 			if err != nil {
 				t.Fatalf("cannot parse protobuf error: %s", err)
 			}
-			if code != 410 {
-				t.Fatalf("unexpected error code; got %d; want 410", code)
+			emJSON, err := parseError(jsonEvents[i].obj)
+			if err != nil {
+				t.Fatalf("cannot parse JSON error: %s", err)
+			}
+			emExpected := &Error{
+				Code:    410,
+				Message: "too old resource version: 1 (1001)",
+			}
+			if !reflect.DeepEqual(emPB, emExpected) {
+				t.Fatalf("unexpected protobuf error;\ngot\n%v\nwant\n%v", emPB, emExpected)
+			}
+			if !reflect.DeepEqual(emJSON, emExpected) {
+				t.Fatalf("unexpected JSON error;\ngot\n%v\nwant\n%v", emJSON, emExpected)
 			}
 		}
 	}
+}
+
+// TestJSONWatchEventReaderMissingObject verifies that the object from the previous event isn't returned
+// for the event without object.
+func TestJSONWatchEventReaderMissingObject(t *testing.T) {
+	data := `{"type":"ADDED","object":{"metadata":{"name":"foo"}}}{"type":"DELETED"}`
+	wr := newJSONWatchEventReader(bytes.NewReader([]byte(data)))
+	events := readAllTestWatchEvents(t, wr)
+	if len(events) != 2 {
+		t.Fatalf("unexpected number of events; got %d; want 2", len(events))
+	}
+	if len(events[1].obj) != 0 {
+		t.Fatalf("unexpected object for the event without object: %q", events[1].obj)
+	}
+}
+
+// TestProtobufMessageSizeLimit verifies that too big protobuf messages are rejected before allocating the buffer for them.
+func TestProtobufMessageSizeLimit(t *testing.T) {
+	// Watch event with the length prefix exceeding maxProtobufMessageSize.
+	var hdr [4]byte
+	binary.BigEndian.PutUint32(hdr[:], maxProtobufMessageSize+1)
+	wr := newProtobufWatchEventReader(bytes.NewReader(hdr[:]))
+	if _, _, err := wr.readEvent(); err == nil || !strings.Contains(err.Error(), "too big protobuf WatchEvent length") {
+		t.Fatalf("expecting too big WatchEvent length error; got %v", err)
+	}
+	if cap(wr.buf) != 0 {
+		t.Fatalf("unexpected buffer allocation for too big WatchEvent; cap=%d", cap(wr.buf))
+	}
+
+	// Field in object list exceeding maxProtobufMessageSize.
+	sr := &protobufStreamReader{
+		br: bufio.NewReader(bytes.NewReader(nil)),
+	}
+	if _, err := sr.readBytes(maxProtobufMessageSize + 1); err == nil || !strings.Contains(err.Error(), "too big protobuf field length") {
+		t.Fatalf("expecting too big field length error; got %v", err)
+	}
+	if cap(sr.buf) != 0 {
+		t.Fatalf("unexpected buffer allocation for too big field; cap=%d", cap(sr.buf))
+	}
+}
+
+// TestGetProtobufInt verifies decoding of int32 fields, including negative values encoded as 64-bit varints.
+func TestGetProtobufInt(t *testing.T) {
+	f := func(src []byte, resultExpected int, okExpected bool) {
+		t.Helper()
+		var fc easyproto.FieldContext
+		if _, err := fc.NextField(src); err != nil {
+			t.Fatalf("cannot read field: %s", err)
+		}
+		result, err := getProtobufInt(&fc, "test")
+		if (err == nil) != okExpected {
+			t.Fatalf("unexpected error: %v; want ok=%v", err, okExpected)
+		}
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got %d; want %d", result, resultExpected)
+		}
+	}
+	// field 1, varint wire type
+	f([]byte{0x08, 0x00}, 0, true)
+	f([]byte{0x08, 0x89, 0x01}, 137, true)
+	f([]byte{0x08, 0xff, 0xff, 0xff, 0xff, 0x07}, math.MaxInt32, true)
+	// -1 encoded as 10-byte varint
+	f([]byte{0x08, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01}, -1, true)
+	// math.MinInt32
+	f([]byte{0x08, 0x80, 0x80, 0x80, 0x80, 0xf8, 0xff, 0xff, 0xff, 0xff, 0x01}, math.MinInt32, true)
+	// math.MaxInt32+1 doesn't fit int32
+	f([]byte{0x08, 0x80, 0x80, 0x80, 0x80, 0x08}, 0, false)
+	// length-delimited wire type
+	f([]byte{0x0a, 0x00}, 0, false)
 }
 
 // TestProtobufWatchEventReaderTruncated verifies that a truncated watch stream never returns a corrupt event.
