@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `-promscrape.kubernetes.useProtobuf` command-line flag for requesting pods from Kubernetes API server in protobuf format instead of JSON in [Kubernetes service discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs). This reduces network traffic, CPU usage and memory usage when discovering a large number of pods. The flag is disabled by default. See [#8512](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8512).
+
 ## [v1.157.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.157.0)
 
 Release candidate
