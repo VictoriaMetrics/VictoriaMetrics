@@ -149,12 +149,17 @@ func parseInstancesResponse(data []byte) (*InstancesResponse, error) {
 }
 
 func (inst *Instance) appendTargetLabels(ms []*promutil.Labels, ownerID, region string, port int, azMap map[string]string) []*promutil.Labels {
-	if len(inst.PrivateIPAddress) == 0 {
-		// Cannot scrape instance without private IP address
+	defaultIPv6Addr, primaryIPv6Addrs, ipv6Addrs := inst.getIPv6Addresses()
+	host := inst.PrivateIPAddress
+	if len(host) == 0 {
+		// IPv6-only instances have no private IPv4 address.
+		host = defaultIPv6Addr
+	}
+	if len(host) == 0 {
+		// Cannot scrape instance without private IPv4 or IPv6 address
 		return ms
 	}
-	addr := discoveryutil.JoinHostPort(inst.PrivateIPAddress, port)
-	defaultIPv6Addr, primaryIPv6Addrs, ipv6Addrs := inst.getIPv6Addresses()
+	addr := discoveryutil.JoinHostPort(host, port)
 	m := promutil.NewLabels(24)
 	m.Add("__address__", addr)
 	m.Add("__meta_ec2_architecture", inst.Architecture)

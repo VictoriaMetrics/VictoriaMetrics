@@ -687,7 +687,8 @@ scrape_configs:
 
 Each discovered target has an [`__address__`](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) label set
 to `<instance_ip>:<port>`, where `<instance_ip>` is the private IP of the instance, while the `<port>` is set to the `port` value
-obtain from `ec2_sd_configs`.
+obtain from `ec2_sd_configs`. IPv6-only instances without a private IPv4 address use `__meta_ec2_default_ipv6_address` as `<instance_ip>`.
+Pass `-enableTCP6` command-line flag in order to scrape such targets.
 
 The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 

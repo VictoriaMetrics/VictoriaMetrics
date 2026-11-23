@@ -359,6 +359,84 @@ func ptrInt(n int) *int {
 	return &n
 }
 
+func TestParseInstancesResponseIPv6Only(t *testing.T) {
+	data := `<?xml version="1.0" encoding="UTF-8"?>
+<DescribeInstancesResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
+    <reservationSet>
+        <item>
+            <ownerId>793614593844</ownerId>
+            <instancesSet>
+                <item>
+                    <instanceId>i-0e730b692d9c15460</instanceId>
+                    <instanceState>
+                        <code>16</code>
+                        <name>running</name>
+                    </instanceState>
+                    <placement>
+                        <availabilityZone>eu-west-2c</availabilityZone>
+                    </placement>
+                    <subnetId>subnet-57044c3e</subnetId>
+                    <vpcId>vpc-f1eaad99</vpcId>
+                    <ipv6Address>2001:db8:1:2::10</ipv6Address>
+                    <networkInterfaceSet>
+                        <item>
+                            <subnetId>subnet-57044c3e</subnetId>
+                            <attachment>
+                                <deviceIndex>0</deviceIndex>
+                            </attachment>
+                            <ipv6AddressesSet>
+                                <item>
+                                    <ipv6Address>2001:db8:1:2::11</ipv6Address>
+                                    <isPrimaryIpv6>false</isPrimaryIpv6>
+                                </item>
+                                <item>
+                                    <ipv6Address>2001:db8:1:2::10</ipv6Address>
+                                    <isPrimaryIpv6>true</isPrimaryIpv6>
+                                </item>
+                            </ipv6AddressesSet>
+                        </item>
+                    </networkInterfaceSet>
+                </item>
+            </instancesSet>
+        </item>
+    </reservationSet>
+</DescribeInstancesResponse>
+`
+	ir, err := parseInstancesResponse([]byte(data))
+	if err != nil {
+		t.Fatalf("unexpected error when parsing data: %s", err)
+	}
+	rs := ir.ReservationSet.Items[0]
+	labelss := rs.InstanceSet.Items[0].appendTargetLabels(nil, rs.OwnerID, "region-a", 9100, nil)
+	expectedLabels := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
+			"__address__":                       "[2001:db8:1:2::10]:9100",
+			"__meta_ec2_ami":                    "",
+			"__meta_ec2_architecture":           "",
+			"__meta_ec2_availability_zone":      "eu-west-2c",
+			"__meta_ec2_availability_zone_id":   "",
+			"__meta_ec2_default_ipv6_address":   "2001:db8:1:2::10",
+			"__meta_ec2_instance_id":            "i-0e730b692d9c15460",
+			"__meta_ec2_instance_lifecycle":     "",
+			"__meta_ec2_instance_state":         "running",
+			"__meta_ec2_instance_type":          "",
+			"__meta_ec2_ipv6_addresses":         ",2001:db8:1:2::11,2001:db8:1:2::10,",
+			"__meta_ec2_owner_id":               "793614593844",
+			"__meta_ec2_platform":               "",
+			"__meta_ec2_primary_ipv6_addresses": ",2001:db8:1:2::10,",
+			"__meta_ec2_primary_subnet_id":      "subnet-57044c3e",
+			"__meta_ec2_private_dns_name":       "",
+			"__meta_ec2_private_ip":             "",
+			"__meta_ec2_public_dns_name":        "",
+			"__meta_ec2_public_ip":              "",
+			"__meta_ec2_region":                 "region-a",
+			"__meta_ec2_subnet_id":              ",subnet-57044c3e,",
+			"__meta_ec2_vpc_id":                 "vpc-f1eaad99",
+		}),
+	}
+	discoveryutil.TestEqualLabelss(t, labelss, expectedLabels)
+}
+
 func TestInstanceGetIPv6Addresses(t *testing.T) {
 	f := func(nis []NetworkInterface, defaultExpected string, primaryExpected, allExpected []string) {
 		t.Helper()
