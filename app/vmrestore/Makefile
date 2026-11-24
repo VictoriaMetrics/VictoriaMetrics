@@ -49,6 +49,9 @@ vmrestore-openbsd-amd64-prod:
 vmrestore-windows-amd64-prod:
 	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) $(MAKE) app-via-docker-windows-amd64
 
+vmrestore-windows-arm64-prod:
+	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) $(MAKE) app-via-docker-windows-arm64
+
 package-vmrestore:
 	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) $(MAKE) package-via-docker
 
@@ -114,6 +117,9 @@ vmrestore-solaris-amd64:
 
 vmrestore-windows-amd64:
 	GOARCH=amd64 APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) $(MAKE) app-local-windows-goarch
+
+vmrestore-windows-arm64:
+	GOARCH=arm64 APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) $(MAKE) app-local-windows-goarch
 
 vmrestore-pure:
 	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) $(MAKE) app-local-pure

@@ -83,8 +83,16 @@ func TestPromRegex(t *testing.T) {
 	f(".+foo.+", "afoobar", true)
 	f(".+foo.+", "afoo", false)
 	f(".+foo.+", "abc", false)
+	// The literal appears first at the start of the string, but a later
+	// occurrence still matches `.+foo.+`. The fast path must not stop at the
+	// first occurrence.
+	f(".+foo.+", "foofoox", true)
+	f(".+foo.+", "xfoofoo", true)
+	f(".+foo.+", "foofoo", false)
 	f("foo.+bar.+", "foobar", false)
 	f("foo.+bar.+", "foo_bar_", true)
+	f("foo.+bar.+", "foobarbarx", true)
+	f("foo.+bar.+", "foobarbar", false)
 	f("foo.+bar.+", "foobaz", false)
 	f(".+foo.*", "foo", false)
 	f(".+foo.*", "afoo", true)
