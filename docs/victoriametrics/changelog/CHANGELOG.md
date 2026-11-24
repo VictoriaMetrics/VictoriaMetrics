@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/): correctly parse samples without labels followed by OpenMetrics exemplars or comments containing `{`. Previously, exemplar labels could be mistaken for sample labels, corrupting the metric name and sample value or timestamp, or causing the sample to be dropped. See [#12005](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/12005) for details.
+
 ## [v1.157.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.157.0)
 
 Released at 2026-11-23

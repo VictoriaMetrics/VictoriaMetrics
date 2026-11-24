@@ -160,6 +160,12 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 	s = skipLeadingWhitespace(s)
 	n := strings.IndexByte(s, '{')
 	if n >= 0 {
+		// Ignore braces in trailing comments, but preserve '#' in metric names.
+		if i := nextWhitespace(s[:n]); i >= 0 && strings.Contains(s[i:n], "#") {
+			n = -1
+		}
+	}
+	if n >= 0 {
 		// Tags found. Parse them.
 		r.Metric = skipTrailingWhitespace(s[:n])
 		s = s[n+1:]

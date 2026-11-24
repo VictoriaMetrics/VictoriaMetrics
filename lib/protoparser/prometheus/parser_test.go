@@ -259,6 +259,39 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f(`{"a"="ok"} 1`)
 }
 
+func TestRowsUnmarshalExemplars(t *testing.T) {
+	for _, tc := range []struct {
+		s    string
+		want Row
+	}{
+		{`A 0 # {} 00`, Row{Metric: "A"}},
+		{`A 17 # {trace_id="abc"} 9.8`, Row{Metric: "A", Value: 17}},
+		{`A 17 456 # {} 9.8`, Row{Metric: "A", Value: 17, Timestamp: 456000}},
+		{`A 17 456 # {trace_id="abc"} 9.8`, Row{Metric: "A", Value: 17, Timestamp: 456000}},
+		{`A 17#{trace_id="abc"} 9.8`, Row{Metric: "A", Value: 17}},
+		{`A 17 456#{} 9.8`, Row{Metric: "A", Value: 17, Timestamp: 456000}},
+		{"A\t17\t# comment with {", Row{Metric: "A", Value: 17}},
+		{`A#name 17 # {trace_id="abc"} 9.8`, Row{Metric: "A#name", Value: 17}},
+		{`A#name {label="#{}"} 17 # {trace_id="abc"} 9.8`, Row{
+			Metric: "A#name", Tags: []Tag{{Key: "label", Value: "#{}"}}, Value: 17,
+		}},
+		{`A{label="\"#{}\\"} 17 # {trace_id="abc"} 9.8`, Row{
+			Metric: "A", Tags: []Tag{{Key: "label", Value: "\"#{}\\"}}, Value: 17,
+		}},
+		{`{"A#{}\"", "label#{}"="v#{}"} 17 # {} 9.8`, Row{
+			Metric: "A#{}\"", Tags: []Tag{{Key: "label#{}", Value: "v#{}"}}, Value: 17,
+		}},
+	} {
+		t.Run(tc.s, func(t *testing.T) {
+			var rows Rows
+			rows.UnmarshalWithErrLogger(tc.s, func(s string) { t.Fatal(s) })
+			if !reflect.DeepEqual(rows.Rows, []Row{tc.want}) {
+				t.Fatalf("unexpected rows; got %+v; want %+v", rows.Rows, []Row{tc.want})
+			}
+		})
+	}
+}
+
 func TestRowsUnmarshalSuccess(t *testing.T) {
 	f := func(s string, rowsExpected *Rows) {
 		t.Helper()
