@@ -3444,10 +3444,6 @@ const maxFastAllocBlockSize = 32 * 1024
 
 var errStorageSearchAborted = errors.New("storage search aborted")
 
-func isExpectedSearchCancellation(err, cause error) bool {
-	return errors.Is(err, context.Canceled) && errors.Is(cause, errStorageSearchAborted)
-}
-
 // execSearchQueryRequest executes processSearchQuery for each searchQuery tenant.
 func execSearchQueryRequest(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, workerID uint, sn *storageNode, f func(rawBlock []byte, workerID uint) error) error {
 	var requestData []byte
