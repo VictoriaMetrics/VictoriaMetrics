@@ -3457,7 +3457,7 @@ func execSearchQueryRequest(ctx context.Context, qt *querytracer.Tracer, sq *sto
 		}
 		sn.searchRequests.Inc()
 		if err := sn.processSearchQuery(ctx, qtL, requestData, f, workerID); err != nil {
-			if !errors.Is(err, context.Canceled) || errors.Is(context.Cause(ctx), errStorageSearchAborted) {
+			if !errors.Is(err, context.Canceled) || !errors.Is(context.Cause(ctx), errStorageSearchAborted) {
 				sn.searchErrors.Inc()
 			}
 			if sq.IsMultiTenant {
