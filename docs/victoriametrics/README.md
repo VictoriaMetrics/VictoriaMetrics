@@ -1634,6 +1634,11 @@ For example, the following command starts VictoriaMetrics, which accepts samples
 /path/to/victoria-metrics -futureRetention=1y
 ```
 
+When vmsingle or vmstorage starts, it uses the host clock to identify monthly partitions that start after
+`now + futureRetention`. It deletes those partitions if they are still beyond that limit at the first retention check.
+If you restart with the clock still set too far back, this can permanently delete previously accepted data.
+Correct the host clock before restarting storage after a backward clock adjustment.
+
 VictoriaMetrics does not support stamples after `2262-03-31T23:59:59.999Z`. If the future retention includes dates after this timestamp,
 the samples for those dates will be rejected.
 
