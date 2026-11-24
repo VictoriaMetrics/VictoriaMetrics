@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): respect `-search.maxUniqueTimeseries` when executing search queries. Previously, query requests could scan more series than the configured `-search.maxUniqueTimeseries` if the request-specific series limit was higher. See [#11905](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11905).
+
 ## [v1.157.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.157.0)
 
 Released at 2026-11-23
@@ -62,8 +64,6 @@ Released at 2026-11-23
 [v1.109.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.109.0). See [#6642](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6642).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): correctly serve concurrent JSON and CSV [export API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-time-series) requests with mixed `reduce_mem_usage=0` and `reduce_mem_usage=1` settings. Previously, responses could be corrupted. See [#11912](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11912).
 * BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly calculate `vmstorage` node saturation used by [slowness based re-routing](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#slowness-based-re-routing) on platforms with low timer resolution, e.g. Windows. Previously, the saturation could permanently become `NaN` when sends to `vmstorage` completed within a single timer tick. See [#11937](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11937). Thanks to @mikepop7 for the contribution.
-
-* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): respect `-search.maxUniqueTimeseries` when executing search queries. Previously, query requests could scan more series than the configured `-search.maxUniqueTimeseries` if the request-specific series limit was higher. See [#11905](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11905).
 
 ## [v1.156.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.156.0)
 
