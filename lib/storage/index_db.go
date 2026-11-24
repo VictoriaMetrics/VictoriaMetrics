@@ -355,7 +355,10 @@ func (db *indexDB) putMetricIDsToTagFiltersCache(qt *querytracer.Tracer, metricI
 	qt.Printf("stored %d metricIDs into cache", metricIDs.Len())
 }
 
-func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, date uint64) []byte {
+func (db *indexDB) marshalTagFiltersKey(dst []byte, tfss []*TagFilters, date uint64) []byte {
+	// Prefix the key with the number of cache resets, so metricIDs found
+	// before a reset aren't returned to searches started after it.
+	dst = encoding.MarshalUint64(dst, db.tagFiltersToMetricIDsCache.Resets())
 	dst = encoding.MarshalUint64(dst, date)
 	if len(tfss) == 0 {
 		return dst
@@ -2071,7 +2074,7 @@ func (db *indexDB) searchMetricIDsByDateAndFilters(ctx context.Context, qt *quer
 
 	tfKeyBuf := tagFiltersKeyBufPool.Get()
 	defer tagFiltersKeyBufPool.Put(tfKeyBuf)
-	tfKeyBuf.B = marshalTagFiltersKey(tfKeyBuf.B[:0], tfss, date)
+	tfKeyBuf.B = db.marshalTagFiltersKey(tfKeyBuf.B[:0], tfss, date)
 	if metricIDs, ok := db.getMetricIDsFromTagFiltersCache(qt, tfKeyBuf.B); ok {
 		// Fast path - metricIDs found in the cache
 		if metricIDs.Len() > maxMetrics {
