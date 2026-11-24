@@ -252,6 +252,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
      Interval for checking for changes in '-relabelConfig' file. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes
   -replicationFactor int
      Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. Note that vmselect must run with -dedup.minScrapeInterval=1ms for data de-duplication when replicationFactor is greater than 1. Higher values for -dedup.minScrapeInterval at vmselect is OK (default 1)
+  -rpc.compressLevel int
+     The compression level for the internal protocol between vminsert and vmstorage. Higher values reduce network traffic at the cost of higher CPU usage. Negative values reduce CPU usage at the cost of increased network traffic. (default 1)
   -rpc.disableCompression
      Flag is deprecated and kept for backward compatibility, vminsert performs per block compression instead of streaming compression on RPC connection
   -rpc.handshakeTimeout duration

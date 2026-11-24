@@ -1019,7 +1019,7 @@ The `arg=value` format means exact matching of **the whole** `arg` query arg val
 The `arg=~regex` format means regex matching of **the whole** `arg` query arg value to the given `regex`.
 If at least a single query arg in the request matches at least one `src_query_args` entry, then the request is routed to the given `url_prefix`.
 
-Set `src_query_args_match_all: true`{{% available_from "#" %}} in order to route the request to the given `url_prefix` only if all the `src_query_args` entries match.
+Set `src_query_args_match_all: true`{{% available_from "v1.157.0" %}} in order to route the request to the given `url_prefix` only if all the `src_query_args` entries match.
 For example, the following config routes requests to `http://app1-backend/` only if they contain both `db=foo` and `env=prod` query args:
 
 ```yaml
@@ -1048,7 +1048,7 @@ unauthorized_user:
 
 If `src_headers` contains multiple entries, then it is enough to match only a single entry in order to route the request to the given `url_prefix`.
 
-Set `src_headers_match_all: true`{{% available_from "#" %}} in order to route the request to the given `url_prefix` only if all the `src_headers` entries match.
+Set `src_headers_match_all: true`{{% available_from "v1.157.0" %}} in order to route the request to the given `url_prefix` only if all the `src_headers` entries match.
 For example, the following config routes requests to `http://app1-backend/` only if they contain both `AccountID: 1` and `ProjectID: 0` headers:
 
 ```yaml
