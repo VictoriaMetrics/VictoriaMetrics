@@ -2012,8 +2012,8 @@ func processBlocksInternal(ctx context.Context, qt *querytracer.Tracer, sns []*s
 		return nil
 	})
 	// Stop outstanding requests before waiting for in-flight block processing.
-	if *skipSlowReplicas && err == nil && !isPartial {
-		cancelOutstandingSubQueries(errSlowReplicaSkipped)
+	if err != nil || (*skipSlowReplicas && !isPartial) {
+		cancelOutstandingSubQueries(errStorageSearchAborted)
 	} else {
 		cancelOutstandingSubQueries(nil)
 	}
@@ -3442,7 +3442,11 @@ func (pnc *perNodeCounter) GetTotal() uint64 {
 // See https://github.com/golang/go/blob/704401ffa06c60e059c9e6e4048045b4ff42530a/src/runtime/malloc.go#L11
 const maxFastAllocBlockSize = 32 * 1024
 
-var errSlowReplicaSkipped = errors.New("slow replica skipped")
+var errStorageSearchAborted = errors.New("storage search aborted")
+
+func isExpectedSearchCancellation(err, cause error) bool {
+	return errors.Is(err, context.Canceled) && errors.Is(cause, errStorageSearchAborted)
+}
 
 // execSearchQueryRequest executes processSearchQuery for each searchQuery tenant.
 func execSearchQueryRequest(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, workerID uint, sn *storageNode, f func(rawBlock []byte, workerID uint) error) error {
@@ -3457,7 +3461,7 @@ func execSearchQueryRequest(ctx context.Context, qt *querytracer.Tracer, sq *sto
 		}
 		sn.searchRequests.Inc()
 		if err := sn.processSearchQuery(ctx, qtL, requestData, f, workerID); err != nil {
-			if !errors.Is(context.Cause(ctx), errSlowReplicaSkipped) {
+			if !errors.Is(err, context.Canceled) || errors.Is(context.Cause(ctx), errStorageSearchAborted) {
 				sn.searchErrors.Inc()
 			}
 			if sq.IsMultiTenant {
