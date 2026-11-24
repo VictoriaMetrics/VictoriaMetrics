@@ -2,6 +2,7 @@ package stream
 
 import (
 	"bytes"
+	"strings"
 	"sync"
 	"testing"
 
@@ -10,11 +11,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
-func TestParseDropsEmptyTagKeys(t *testing.T) {
+func TestParseRejectsEmptyTagKeys(t *testing.T) {
 	protoparserutil.StartUnmarshalWorkers()
 	defer protoparserutil.StopUnmarshalWorkers()
 
-	f := func(metricName []byte, resultExpected string) {
+	f := func(metricName []byte, resultExpected, errExpected string) {
 		t.Helper()
 
 		const timestamp = 1700000000000
@@ -37,6 +38,15 @@ func TestParseDropsEmptyTagKeys(t *testing.T) {
 			mu.Unlock()
 			return nil
 		})
+		if errExpected != "" {
+			if err == nil || !strings.Contains(err.Error(), errExpected) {
+				t.Fatalf("unexpected error; want error containing %q, got %v", errExpected, err)
+			}
+			if len(results) != 0 {
+				t.Fatalf("callback called for invalid metric name: %q", results)
+			}
+			return
+		}
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -45,17 +55,26 @@ func TestParseDropsEmptyTagKeys(t *testing.T) {
 		}
 	}
 
-	// Empty tag key must be dropped, since it overrides the metric name.
+	// An empty tag key would override the metric name at ingestion.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4962
-	f([]byte("m\x01\x01v\x01"), "m{}")
-
-	mn := &storage.MetricName{
+	mn := storage.MetricName{
 		MetricGroup: []byte("m"),
 		Tags: []storage.Tag{
-			{Key: []byte("a"), Value: []byte("1")},
 			{Key: []byte(""), Value: []byte("v")},
-			{Key: []byte("b"), Value: []byte("2")},
 		},
 	}
-	f(mn.Marshal(nil), `m{a="1",b="2"}`)
+	f(mn.Marshal(nil), "", "invalid metricName: tag name cannot be empty")
+
+	mn.Tags = []storage.Tag{
+		{Key: []byte("a"), Value: []byte("1")},
+		{Key: []byte(""), Value: []byte("v")},
+		{Key: []byte("b"), Value: []byte("2")},
+	}
+	f(mn.Marshal(nil), "", "invalid metricName: tag name cannot be empty")
+
+	mn.Tags = []storage.Tag{
+		{Key: []byte("a"), Value: []byte("1")},
+		{Key: []byte("b"), Value: []byte("2")},
+	}
+	f(mn.Marshal(nil), `m{a="1",b="2"}`, "")
 }

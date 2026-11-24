@@ -182,9 +182,13 @@ func (uw *unmarshalWork) unmarshal() error {
 		return fmt.Errorf("cannot unmarshal metricName from %d bytes: %w", len(uw.metricNameBuf), err)
 	}
 
-	// Drop tags with empty name, since they override the metric name, to be consistent with /api/v1/import.
+	// Stop if empty tag name found, since it can override the metric name.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4962
-	block.MetricName.RemoveTag("")
+	for _, tag := range block.MetricName.Tags {
+		if len(tag.Key) == 0 {
+			return fmt.Errorf("invalid metricName: tag name cannot be empty")
+		}
+	}
 	tmpBlock := blockPool.Get().(*storage.Block)
 	defer blockPool.Put(tmpBlock)
 	tail, err := tmpBlock.UnmarshalPortable(uw.blockBuf)
