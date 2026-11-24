@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): return an error for out-of-range [`@` modifier](https://docs.victoriametrics.com/victoriametrics/metricsql/) values such as `foo @ 1e16` or `offset` values that move evaluation timestamps out of the int64 range, instead of returning wrong results because of int64 timestamp overflow. See [#12003](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/12003) for details.
+
 ## [v1.157.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.157.0)
 
 Released at 2026-11-23

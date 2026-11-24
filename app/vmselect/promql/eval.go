@@ -898,6 +898,11 @@ func getRollupExprArg(arg metricsql.Expr) *metricsql.RollupExpr {
 	return &reNew
 }
 
+// maxAtSeconds is the maximum absolute `@` modifier value in seconds.
+//
+// This conservative limit keeps `@` timestamps within year 2262 (approximately math.MaxInt64 / 1_000_000_000).
+const maxAtSeconds int64 = math.MaxInt64 / 1_000_000_000
+
 // expr may contain:
 // - rollupFunc(m) if iafc is nil
 // - aggrFunc(rollupFunc(m)) if iafc isn't nil
@@ -930,6 +935,11 @@ func evalRollupFunc(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf 
 			Err: fmt.Errorf("`@` modifier must return a non-NaN value"),
 		}
 	}
+	if math.Abs(atValue) > float64(maxAtSeconds) {
+		return nil, &httpserver.UserReadableError{
+			Err: fmt.Errorf("`@` modifier value %v is out of allowed range [%d...%d]", atValue, -maxAtSeconds, maxAtSeconds),
+		}
+	}
 	atTimestamp := int64(atValue * 1000)
 	ecNew := copyEvalConfig(ec)
 	ecNew.Start = atTimestamp
@@ -960,6 +970,11 @@ func evalRollupFuncWithoutAt(qt *querytracer.Tracer, ec *EvalConfig, funcName st
 	var offset int64
 	if re.Offset != nil {
 		offset = re.Offset.Duration(ec.Step)
+		if offset > 0 && ec.Start < math.MinInt64+offset || offset < 0 && ec.End > math.MaxInt64+offset {
+			return nil, &httpserver.UserReadableError{
+				Err: fmt.Errorf("offset %dms moves evaluation timestamps out of int64 range", offset),
+			}
+		}
 		ecNew = copyEvalConfig(ecNew)
 		ecNew.Start -= offset
 		ecNew.End -= offset

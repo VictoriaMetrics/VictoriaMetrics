@@ -1208,6 +1208,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("time() @ max", func(t *testing.T) {
+		t.Parallel()
+		q := `time() @ 9223372000`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{9223372000, 9223372000, 9223372000, 9223372000, 9223372000, 9223372000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("time() @ start()", func(t *testing.T) {
 		t.Parallel()
 		q := `time() @ start()`
@@ -10510,6 +10521,17 @@ func TestExecError(t *testing.T) {
 
 	// Non-existing func
 	f(`nonexisting()`)
+
+	// `@` modifier out of range
+	f(`0@10000000000000000`)
+	f(`0@-10000000000000000`)
+	f(`time()@9223372037`)
+	f(`time()@-9223372037`)
+	f(`time()@1e19`)
+	f(`rate(time()[5m:])@Inf`)
+
+	// `@` and offset must not overflow when combined.
+	f(`time() @ 9223372036 offset -9223372036854774s`)
 
 	// Invalid number of args
 	f(`range_stddev()`)
