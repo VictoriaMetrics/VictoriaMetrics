@@ -1,7 +1,6 @@
 package vmstorage
 
 import (
-	"context"
 	"math"
 	"strconv"
 	"strings"
@@ -80,39 +79,46 @@ func TestGetSearchMaxMetrics(t *testing.T) {
 	}
 	s.AddRows(rows, 64)
 	s.DebugFlush()
-	for _, tc := range []struct {
-		name      string
-		filter    string
-		limit     int
-		wantCount int
-		wantError bool
-	}{
-		{"hit storage limit", "metric.*", 1000, 0, true},   // the number of matching series is 3, which exceeds the storage limit
-		{"request limit unset", "metric.*", 0, 0, true},    // the number of matching series is 3, which exceeds the storage limit
-		{"at storage limit", "metric[12]", 1000, 2, false}, // the number of matching series is 2.
-		{"hit request limit", "metric[12]", 1, 0, true},    // the number of matching series is 2, which exceeds the request limit
-		{"at request limit", "metric1", 1, 1, false},       // the number of matching series is 1
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			sq := storage.NewSearchQuery(timestamp-1000, timestamp+1000, [][]storage.TagFilter{{{
-				Value: []byte(tc.filter), IsRegexp: true,
-			}}}, tc.limit)
-			sr, count, err := vms.GetSearch(context.Background(), nil, sq)
-			if err != nil {
-				t.Fatalf("cannot initialize search: %s", err)
+	f := func(sq *storage.SearchQuery, wantCount int, wantError bool) {
+		t.Helper()
+		sr, count, err := vms.GetSearch(t.Context(), nil, sq)
+		if err != nil {
+			t.Fatalf("cannot initialize search: %s", err)
+		}
+		defer vms.PutSearch(sr)
+		err = sr.Error()
+		if wantError {
+			if err == nil || !strings.Contains(err.Error(), "the number of matching timeseries exceeds") {
+				t.Fatalf("expected series limit error, got %v", err)
 			}
-			defer vms.PutSearch(sr)
-			err = sr.Error()
-			if tc.wantError {
-				if err == nil || !strings.Contains(err.Error(), "the number of matching timeseries exceeds") {
-					t.Fatalf("expected series limit error, got %v", err)
-				}
-			} else if err != nil {
-				t.Fatalf("unexpected search error: %s", err)
-			}
-			if count != tc.wantCount {
-				t.Fatalf("unexpected series count: got %d, want %d", count, tc.wantCount)
-			}
-		})
+		} else if err != nil {
+			t.Fatalf("unexpected search error: %s", err)
+		}
+		if count != wantCount {
+			t.Fatalf("unexpected series count: got %d, want %d", count, wantCount)
+		}
 	}
+
+	// 3 matching series exceed the storage limit.
+	sq := storage.NewSearchQuery(timestamp-1000, timestamp+1000, [][]storage.TagFilter{{{
+		Value: []byte("metric.*"), IsRegexp: true,
+	}}}, 1000)
+	f(sq, 0, true)
+
+	// An unset request limit falls back to the storage limit.
+	sq.MaxMetrics = 0
+	f(sq, 0, true)
+
+	// 2 matching series are allowed at the storage limit.
+	sq.TagFilterss[0][0].Value = []byte("metric[12]")
+	sq.MaxMetrics = 1000
+	f(sq, 2, false)
+
+	// 2 matching series exceed the request limit，which is the lower one.
+	sq.MaxMetrics = 1
+	f(sq, 0, true)
+
+	// 1 matching series is allowed at the request limit.
+	sq.TagFilterss[0][0].Value = []byte("metric1")
+	f(sq, 1, false)
 }
