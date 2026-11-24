@@ -402,14 +402,22 @@ docker run -it --rm \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
-  victoriametrics/vmanomaly:v1.32.0 \
-  vmanomaly_config.yaml
+  victoriametrics/vmanomaly:v1.33.0 \
+  vmanomaly_config.yaml -eula
 ```
 
 
 ## Guided tours
 
-{{< available_from "v1.32.0" anomaly >}} Use **Take a tour** in the header to explore the UI with built-in demo data, without connecting a datasource. **Get started** walks through queries, model settings and detection; **Tune a model with marks** demonstrates marking a missed anomaly and reviewing a tuned candidate. Tours start only when selected and restore your previous workspace when they end. Demo data is for exploration, not a production datasource.
+Use **Take a tour** in the header to explore the UI with built-in demo data, without connecting a datasource. Follow the tours in workflow order:
+
+- {{< available_from "v1.32.0" anomaly >}} **Get started** — Add queries, configure a model and run anomaly detection.
+- {{< available_from "v1.32.0" anomaly >}} **Tune a model with marks** — Mark what’s anomalous to guide model tuning toward the patterns and deviations that matter to you.
+- {{< available_from "v1.33.0" anomaly >}} **Work with results** — Review the last-run summary, export configuration and explore example alert rules.
+- {{< available_from "v1.33.0" anomaly >}} **Share results** — Share links and download results with privacy options.
+
+> [!NOTE]
+> Tours start only when selected and restore your previous workspace when they end. Demo data is for exploration, not a production datasource.
 
 ## UI Navigation
 
@@ -462,7 +470,7 @@ The plot groups model output by input series and compares actual values (`y`) wi
 
 Toggle individual output series from the legend.
 
-{{< available_from "v1.29.2" anomaly >}} Enable **Business Boundaries** to overlay the configured [detection direction](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) and combined [absolute](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) and [relative](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-relative-deviation-from-expected) minimum-deviation bands. Toggle individual bands from the legend or all bands with the main control.
+{{< available_from "v1.33.0" anomaly >}} Configured **Business Boundaries** appear automatically, showing [detection direction](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) and combined [absolute](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) and [relative](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-relative-deviation-from-expected) minimum-deviation bands. Use legend controls in single-series charts; for multivariate results, expand a signal to see its bounds. Earlier UI versions require enabling **Business Boundaries** manually.
 
 [Back to UI navigation](#ui-navigation)
 
@@ -536,6 +544,9 @@ Based on the needs, either
 
 ### URL Sharing
 
+> [!TIP]
+> From VMUI v1.12.0 (vmanomaly v1.33.0), use the header **Copy link** button to copy a URL for the current view.
+
 Similarly to vmui, vmanomaly UI supports **configuration sharing via URL** by encoding the UI state in the URL. This allows users to share their UI state (including queries, time ranges, model type and hyperparameters, and other settings) by copying and sharing the URL from the browser's address bar.
 
 Once the desired UI state is set up (query, time range, model configuration, etc.), the URL can be copied from the browser's address bar and shared with others, who can then open the URL in their browsers to see the same UI state (given that the data source is accessible to them).
@@ -574,18 +585,7 @@ After that, accessing `http://<vmanomaly-host>:<port>/vmui/` (e.g. `http://local
 
 ### YAML Configuration
 
-Once the configuration is set up and saved in the UI (selected model type and validated hyperparameters), equivalent configuration in production-ready YAML format can be obtained by:
-
-Accessing the "YAML" Tab in the model configuration section
-![vmanomaly-ui-model-config-menu](vmanomaly-ui-model-config-menu.webp)
-![vmanomaly-ui-model-config-yaml-tab](vmanomaly-ui-model-config-menu-yaml-tab.webp)
-
-
-Clicking the "Show Config" button to access (model-only or full) configuration and hitting "Download" button to get the configuration as a YAML file.
-
-![vmanomaly-ui-open-config-btn](vmanomaly-ui-open-config-btn.webp)
-
-![vmanomaly-ui-open-config-menu](vmanomaly-ui-open-config-menu.webp)
+{{< available_from "v1.33.0" anomaly >}} After choosing a model and validating its settings, open **More → Export config (YAML)**. Turn **Model only** on to export the `models` section for an existing configuration, or off for a complete configuration. Select **Copy** or **Download** to save the YAML.
 
 ## Optimize Resource Usage
 
@@ -757,7 +757,7 @@ If the **results** do not look good, the model hyperparameters and domain knowle
 
 If the **results** look good, but should be shared with others first, {{< available_from "v1.32.0" anomaly >}} use **More → Download results** to export query or anomaly results as JSON. Choose the current range and, when needed, privacy replacements that stay consistent within the loaded results. See also [configuration sharing](#configuration-sharing) section for details.
 
-If the **results** look good and the **model configuration should be deployed in production jobs of anomaly detection**, the equivalent configuration in production-ready YAML format can be obtained by accessing the "YAML" Tab in the model configuration section and hitting the "Show Config" button to access (model-only or full) configuration to download/copy as a YAML file.
+If the results look good, export a production configuration through **More → Export config (YAML)**. See [YAML Configuration](#yaml-configuration) for model-only and full configuration options.
 
 ![vmanomaly-ui-open-config-menu](vmanomaly-ui-open-config-menu.webp)
 
@@ -806,6 +806,16 @@ In multivariate results, **Channels outside expected range** is a diagnostic vie
 <div class="collapse-group mb-3">
 
 {{% collapse name="Release history" %}}
+
+### v1.12.0
+Released: 2026-11-19
+
+Recommended vmanomaly version: [v1.33.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1330)
+
+- IMPROVEMENT: Place **Advanced settings** and **More** beside **Detect anomalies** in the model row. Rename **Show current config** to **Last run summary**, and **Generated YAML** to **Export config (YAML)**.
+- IMPROVEMENT: Always show configured business boundaries, with legend controls in single-series charts and bounds on expanded multivariate signals. **Streaks** remains in Advanced settings; a minimum length of `1` flags each anomalous point.
+- FEATURE: Add **Work with results** and **Share results** [guided tours](#guided-tours), and a header **Copy link** button for the current view.
+- BUGFIX: Improve tour positioning and recovery when a menu closes, and avoid scrolling to detection results after the user starts interacting with the page.
 
 ### v1.11.0
 Released: 2026-11-04

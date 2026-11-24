@@ -15,7 +15,7 @@ VictoriaMetrics Anomaly Detection, also known as `vmanomaly`, is a service for d
 
 Please refer to [our QuickStart section](https://docs.victoriametrics.com/anomaly-detection/#practical-guides-and-installation) to find out more.
 
-> **`vmanomaly` is a part of [enterprise package](https://docs.victoriametrics.com/victoriametrics/enterprise/). You need to get a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.**
+> **`vmanomaly` is a part of [enterprise package](https://docs.victoriametrics.com/victoriametrics/enterprise/). See [licensing](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing) for startup requirements and evaluation options.**
 
 ## What is anomaly score?
 Among the metrics produced by `vmanomaly` (as detailed in [vmanomaly output metrics](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output)), `anomaly_score` is a pivotal one. It is **a continuous score > 0**, calculated in such a way that **scores ranging from 0.0 to 1.0 usually represent normal data**, while **scores exceeding 1.0 are typically classified as anomalous**. However, it's important to note that the threshold for anomaly detection can be customized in the alert configuration settings.
@@ -50,7 +50,7 @@ Please see example graph illustrating this logic below:
 ## What data does vmanomaly operate on?
 
 > [!NOTE]
-> `vmanomaly` operates on timeseries (metrics) data, and supports both **VictoriaMetrics** and **VictoriaLogs/VictoriaTraces** as data sources to get metrics-compatible data. Choose the source depending on the use case. Single-node / Cluster and OpenSource / Enterprise datasources are supported as well, `vmanomaly` is compatible with both, yet itself requires an [Enterprise license](https://victoriametrics.com/products/enterprise/) to run.
+> `vmanomaly` operates on timeseries (metrics) data, and supports both **VictoriaMetrics** and **VictoriaLogs/VictoriaTraces** as data sources to get metrics-compatible data. Choose the source depending on the use case. Single-node / Cluster and OpenSource / Enterprise datasources are supported as well, `vmanomaly` is compatible with both, and follows the [vmanomaly licensing requirements](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing).
 
 **VictoriaMetrics (metrics):** use full [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) for selection, sampling, and processing; [global filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements) are also supported. See the [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) for the details.
 
@@ -470,7 +470,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.32.0
+    image: victoriametrics/vmanomaly:v1.33.0
     # ...
     restart: always
     volumes:
@@ -691,7 +691,7 @@ For a side-by-side comparison of all split modes and their resulting sub-configu
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.32.0 && docker image tag victoriametrics/vmanomaly:v1.32.0 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.33.0 && docker image tag victoriametrics/vmanomaly:v1.33.0 vmanomaly
 ```
 
 ```sh

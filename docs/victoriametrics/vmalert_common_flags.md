@@ -55,6 +55,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Optional OAuth2 tokenURL to use for -datasource.url
   -datasource.queryStep duration
      How far a value can fallback to when evaluating queries to the configured -datasource.url and -remoteRead.url. Only valid for prometheus datasource. For example, if -datasource.queryStep=15s then param "step" with value "15s" will be added to every query. If set to 0, rule's evaluation interval will be used instead. (default 5m0s)
+  -datasource.queryTimeout duration
+     Timeout for a single request to -datasource.url and -remoteRead.url. If set to 0, the evaluation interval of the rule's group is used for rule evaluation, and no timeout is applied in replay mode.
   -datasource.roundDigits int
      Adds "round_digits" GET param to datasource requests which limits the number of digits after the decimal point in response values. Only valid for VictoriaMetrics as the datasource.
   -datasource.showURL
