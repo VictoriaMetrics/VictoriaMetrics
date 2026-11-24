@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent excessive memory usage at multi-core systems with many storageNodes. See [#9218](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9218)
+
 ## [v1.157.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.157.0)
 
 Released at 2026-11-23
