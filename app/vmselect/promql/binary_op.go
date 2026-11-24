@@ -675,34 +675,17 @@ func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
 		return
 	}
 
-	nameLeft := make([]byte, 0, 64)
-	nameRight := make([]byte, 0, 64)
+	var nameLeft []byte
 
 	// namesRight holds marshaled tssRight names back to back.
 	// The name for tssRight[j] is namesRight[namesRightStarts[j]:namesRightStarts[j+1]].
-	// The names are precomputed only if they are compared more than once,
-	// otherwise they are marshaled on the fly.
 	var namesRight []byte
-	var namesRightStarts []int
-	if len(tssLeft) > 1 {
-		namesRight = make([]byte, 0, 64*len(tssRight))
-		namesRightStarts = make([]int, len(tssRight)+1)
-		for j, tsRight := range tssRight {
-			namesRightStarts[j] = len(namesRight)
-			namesRight = marshalMetricNameSorted(namesRight, &tsRight.MetricName)
-		}
-		namesRightStarts[len(tssRight)] = len(namesRight)
+	namesRightStarts := make([]int, len(tssRight)+1)
+	for j, tsRight := range tssRight {
+		namesRightStarts[j] = len(namesRight)
+		namesRight = marshalMetricNameSorted(namesRight, &tsRight.MetricName)
 	}
-
-	// getRightName returns the marshaled name of tssRight[idx].
-	getRightName := func(idx int) []byte {
-		if len(namesRightStarts) == 0 {
-			nameRight = marshalMetricNameSorted(nameRight[:0], &tssRight[idx].MetricName)
-			return nameRight
-		}
-		start, end := namesRightStarts[idx], namesRightStarts[idx+1]
-		return namesRight[start:end]
-	}
+	namesRightStarts[len(tssRight)] = len(namesRight)
 
 	// canMergeRight[j] reports whether the current tsLeft can be merged with tssRight[j].
 	canMergeRight := make([]bool, len(tssRight))
@@ -710,7 +693,8 @@ func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
 		valuesLeft := tsLeft.Values
 		nameLeft = marshalMetricNameSorted(nameLeft[:0], &tsLeft.MetricName)
 		for j := range tssRight {
-			canMergeRight[j] = bytes.Equal(nameLeft, getRightName(j))
+			nameRight := namesRight[namesRightStarts[j]:namesRightStarts[j+1]]
+			canMergeRight[j] = bytes.Equal(nameLeft, nameRight)
 		}
 		for i, v := range valuesLeft {
 			leftIsNaN := math.IsNaN(v)
