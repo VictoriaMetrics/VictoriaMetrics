@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): return an error instead of panicking with `index out of range` or excessive memory allocation when reading a corrupted `indexdb` block whose first item doesn't start with the block common prefix. See [#12002](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/12002) for details.
+
 ## [v1.157.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.157.0)
 
 Released at 2026-11-23

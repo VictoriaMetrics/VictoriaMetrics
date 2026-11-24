@@ -376,6 +376,11 @@ func (ib *inmemoryBlock) UnmarshalData(sb *storageBlock, firstItem, commonPrefix
 
 	// Unmarshal mt = marshalTypeZSTD
 
+	// firstItem must start with commonPrefix, since items below are built as commonPrefix + suffix.
+	if !bytes.HasPrefix(firstItem, commonPrefix) {
+		return fmt.Errorf("firstItem=%X must start with commonPrefix=%X", firstItem, commonPrefix)
+	}
+
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
 

@@ -1,6 +1,7 @@
 package mergeset
 
 import (
+	"fmt"
 	"math/rand"
 	"reflect"
 	"sort"
@@ -187,6 +188,47 @@ func TestInmemoryBlockMarshalUnmarshal(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestInmemoryBlockUnmarshalDataInvalidFirstItem(t *testing.T) {
+	var ib inmemoryBlock
+	var sb storageBlock
+
+	// Fill ib with compressible items sharing a common prefix, so ZSTD encoding is chosen.
+	for i := range 100 {
+		item := fmt.Sprintf("commonprefix_item_%05d", i)
+		if !ib.Add([]byte(item)) {
+			t.Fatalf("cannot add item %q", item)
+		}
+	}
+	firstItem, commonPrefix, itemsLen, mt := ib.MarshalSortedData(&sb, nil, nil, 0)
+	if mt != marshalTypeZSTD {
+		t.Fatalf("unexpected marshalType; got %d; want %d", mt, marshalTypeZSTD)
+	}
+	if len(commonPrefix) == 0 {
+		t.Fatalf("expecting non-empty commonPrefix")
+	}
+
+	f := func(firstItem []byte, resultExpected bool) {
+		t.Helper()
+
+		var ib2 inmemoryBlock
+		err := ib2.UnmarshalData(&sb, firstItem, commonPrefix, itemsLen, mt)
+		if (err == nil) != resultExpected {
+			t.Fatalf("unexpected result for firstItem=%q, commonPrefix=%q; got err=%v; want success=%v", firstItem, commonPrefix, err, resultExpected)
+		}
+	}
+
+	// valid firstItem
+	f(firstItem, true)
+
+	// firstItem shorter than commonPrefix
+	f(commonPrefix[:len(commonPrefix)-1], false)
+
+	// firstItem of the same length, which doesn't start with commonPrefix
+	invalid := append([]byte{}, firstItem...)
+	invalid[0]++
+	f(invalid, false)
 }
 
 func getRandomBytes(r *rand.Rand) []byte {
