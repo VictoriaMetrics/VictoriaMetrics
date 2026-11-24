@@ -851,7 +851,8 @@ Please refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriam
 * `http://<vmalert-addr>/vmalert/api/v1/alert?group_id=<group_id>&alert_id=<alert_id>` - returns the alert status in JSON format;
 * `http://<vmalert-addr>/vmalert/api/v1/rule?group_id=<group_id>&rule_id=<rule_id>` - returns the rule status in JSON format;
 * `http://<vmalert-addr>/vmalert/api/v1/group?group_id=<group_id>` - returns the group status in JSON format. Used as the alert source in AlertManager;
-* `http://<vmalert-addr>/vmalert/alert?group_id=<group_id>&alert_id=<alert_id>` - displays the alert status in the web UI;
+* `http://<vmalert-addr>/vmalert/alert?group_id=<group_id>&alert_id=<alert_id>` - displays the alert status in the web UI.
+  Annotation values that are `http://` or `https://` URLs are displayed as clickable links {{% available_from "#" %}};
 * `http://<vmalert-addr>/vmalert/rule?group_id=<group_id>&rule_id=<rule_id>` - displays the rule status in the web UI;
 * `http://<vmalert-addr>/metrics` - application metrics endpoint;
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.

@@ -503,3 +503,26 @@ func TestMatchesRule(t *testing.T) {
 		false,
 	)
 }
+
+func TestIsHTTPURL(t *testing.T) {
+	f := func(s string, resultExpected bool) {
+		t.Helper()
+
+		result := isHTTPURL(s)
+		if result != resultExpected {
+			t.Fatalf("unexpected result for isHTTPURL(%q); got %v; want %v", s, result, resultExpected)
+		}
+	}
+
+	f("https://grafana.example.com/d/bouncer?var-host=gandalf", true)
+	f("http://localhost:3000", true)
+
+	f("", false)
+	f("No Bouncer requests", false)
+	f("see https://grafana.example.com", false)
+	f("https://grafana.example.com some text", false)
+	f("https://", false)
+	f("ftp://example.com", false)
+	f("javascript:alert(1)", false)
+	f("/relative/path", false)
+}
