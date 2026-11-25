@@ -1132,10 +1132,19 @@ func TestAlertingRuleLimit_ResolvesPreviouslyFiring(t *testing.T) {
 	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "bar"))
 	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "baz"))
 
-	_, err := ar.exec(context.TODO(), time.Now(), 1, nil)
+	tss, err := ar.exec(context.TODO(), time.Now(), 1, nil)
 	if err == nil || !errors.Is(err, errExecLimitExceeded) {
 		t.Fatalf("expected limit error, got %v", err)
 	}
+	if len(tss) != 2 {
+		t.Fatalf("expected stale ALERTS and ALERTS_FOR_STATE series, got %d", len(tss))
+	}
+	for _, series := range tss {
+		if len(series.Samples) != 1 || !decimal.IsStaleNaN(series.Samples[0].Value) {
+			t.Fatalf("expected stale resolve sample, got %+v", series)
+		}
+	}
+
 	if len(ar.alerts) != 1 {
 		t.Fatalf("expected the previously firing alert to stay until it is resolved, got %d alerts", len(ar.alerts))
 	}

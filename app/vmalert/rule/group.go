@@ -819,10 +819,8 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 			}
 		}
 	}
-	if limitExceeded && !notifyFailed {
-		// Drop the rule's alerts only after resolves were handed to the notifier.
-		// A failed send leaves them in place so the next evaluation retries.
-		ar.purgeAlerts()
+	if !notifyFailed {
+		ar.ackLimitResolves(alerts)
 	}
 
 	return errors.Join(errs...)

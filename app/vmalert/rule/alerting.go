@@ -45,6 +45,8 @@ type AlertingRule struct {
 	alertsMu sync.RWMutex
 	// stores list of active alerts
 	alerts map[uint64]*notifier.Alert
+	// limitResolves tracks inactive alerts until their resolve notification succeeds.
+	limitResolves map[uint64]struct{}
 
 	// state stores recent state changes
 	// during evaluations
@@ -511,6 +513,9 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int, getRe
 	defer ar.alertsMu.Unlock()
 
 	for h, a := range ar.alerts {
+		if _, pending := ar.limitResolves[h]; pending {
+			continue
+		}
 		// cleanup inactive alerts from previous Exec
 		if a.State == notifier.StateInactive && ts.Sub(a.ResolvedAt) > resolvedRetention {
 			ar.logDebugf(ts, a, "deleted as inactive")
@@ -540,6 +545,10 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int, getRe
 		}
 		updated[alertID] = struct{}{}
 		if a, ok := ar.alerts[alertID]; ok {
+			if _, pending := ar.limitResolves[alertID]; pending {
+				// Deliver the previous firing episode's resolve before reactivating it.
+				continue
+			}
 			if a.State == notifier.StateInactive {
 				// alert could be in inactive state for resolvedRetention
 				// so when we again receive metrics for it - we switch it
@@ -573,6 +582,12 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int, getRe
 	var numActivePending int
 	var tss []prompb.TimeSeries
 	for h, a := range ar.alerts {
+		if _, pending := ar.limitResolves[h]; pending {
+			if _, present := updated[h]; present {
+				numActivePending++
+			}
+			continue
+		}
 		// if alert wasn't updated in this iteration
 		// means it is resolved already
 		if _, ok := updated[h]; !ok {
@@ -620,14 +635,23 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int, getRe
 		}
 	}
 	if limit > 0 && numActivePending > limit {
+		if ar.limitResolves == nil {
+			ar.limitResolves = make(map[uint64]struct{})
+		}
 		for h, a := range ar.alerts {
+			if _, pending := ar.limitResolves[h]; pending {
+				continue
+			}
 			if _, ok := previouslyFiring[h]; !ok {
 				delete(ar.alerts, h)
 				continue
 			}
-			a.State = notifier.StateInactive
-			a.ResolvedAt = ts
-			tss = append(tss, firingAlertStaleTimeSeries(a.Labels, ts.Unix())...)
+			if a.State == notifier.StateFiring {
+				a.State = notifier.StateInactive
+				a.ResolvedAt = ts
+				tss = append(tss, firingAlertStaleTimeSeries(a.Labels, ts.Unix())...)
+			}
+			ar.limitResolves[h] = struct{}{}
 		}
 		curState.Err = fmt.Errorf("exec exceeded limit of %d with %d alerts: %w", limit, numActivePending, errExecLimitExceeded)
 		return tss, curState.Err
@@ -893,10 +917,15 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 
 // alertsToSend walks through the current alerts of AlertingRule
 // and returns only those which should be sent to notifier.
-// Isn't concurrent safe.
+// Resolves caused by the result limit bypass the resend delay until acknowledged.
 func (ar *AlertingRule) alertsToSend(resolveDuration, resendDelay time.Duration) []notifier.Alert {
+	ar.alertsMu.Lock()
+	defer ar.alertsMu.Unlock()
 	currentTime := time.Now()
 	needsSending := func(a *notifier.Alert) bool {
+		if _, pending := ar.limitResolves[a.ID]; pending {
+			return true
+		}
 		if a.State == notifier.StatePending {
 			return false
 		}
@@ -918,15 +947,27 @@ func (ar *AlertingRule) alertsToSend(resolveDuration, resendDelay time.Duration)
 		if a.State == notifier.StateInactive {
 			a.End = a.ResolvedAt
 		}
-		a.LastSent = currentTime
+		if _, pending := ar.limitResolves[a.ID]; !pending {
+			a.LastSent = currentTime
+		}
 		alerts = append(alerts, *a)
 	}
 	return alerts
 }
 
-// purgeAlerts drops every alert held by the rule.
-func (ar *AlertingRule) purgeAlerts() {
+// ackLimitResolves removes only resolves that were selected and delivered.
+func (ar *AlertingRule) ackLimitResolves(alerts []notifier.Alert) {
 	ar.alertsMu.Lock()
 	defer ar.alertsMu.Unlock()
-	ar.alerts = make(map[uint64]*notifier.Alert)
+	for _, sent := range alerts {
+		if _, pending := ar.limitResolves[sent.ID]; !pending {
+			continue
+		}
+		a := ar.alerts[sent.ID]
+		if a == nil || a.State != notifier.StateInactive || !a.ResolvedAt.Equal(sent.ResolvedAt) {
+			continue
+		}
+		delete(ar.alerts, sent.ID)
+		delete(ar.limitResolves, sent.ID)
+	}
 }
