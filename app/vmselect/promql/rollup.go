@@ -1,6 +1,7 @@
 package promql
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"math"
@@ -371,7 +372,7 @@ func getRollupTag(expr metricsql.Expr) (string, error) {
 	return se.S, nil
 }
 
-func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start, end, step int64, maxPointsPerSeries int,
+func getRollupConfigs(ctx context.Context, funcName string, rf rollupFunc, expr metricsql.Expr, start, end, step int64, maxPointsPerSeries int,
 	window, lookbackDelta int64, sharedTimestamps []int64) (
 	func(values []float64, timestamps []int64), []*rollupConfig, error) {
 	preFunc := func(_ []float64, _ []int64) {}
@@ -394,6 +395,7 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 	samplesScannedPerCall := rollupFuncsSamplesScannedPerCall[funcName]
 	newRollupConfig := func(rf rollupFunc, tagValue string) *rollupConfig {
 		return &rollupConfig{
+			ctx:      ctx,
 			TagValue: tagValue,
 			Func:     rf,
 			Start:    start,
@@ -572,6 +574,9 @@ func (rfa *rollupFuncArg) reset() {
 type rollupFunc func(rfa *rollupFuncArg) float64
 
 type rollupConfig struct {
+	// ctx stops the rollup early on query cancel or timeout. May be nil.
+	ctx context.Context
+
 	// This tag value must be added to "rollup" tag if non-empty.
 	TagValue string
 
@@ -619,6 +624,10 @@ var (
 	nan = math.NaN()
 	inf = math.Inf(1)
 )
+
+// rollupCtxCheckInterval is the number of output points between ctx checks in rollupConfig.doInternal.
+// This is used to keep ctx.Err() checks off the hot path.
+const rollupCtxCheckInterval = 64
 
 type timeseriesMap struct {
 	origin *timeseries
@@ -766,7 +775,18 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	f := rc.Func
 	samplesScanned := uint64(len(values))
 	samplesScannedPerCall := uint64(rc.samplesScannedPerCall)
-	for _, tEnd := range rc.Timestamps {
+	canceled := false
+	for idx, tEnd := range rc.Timestamps {
+		// A single series may take minutes on huge subqueries, e.g. `quantile_over_time(0.5, rand()[1d])[1w:10s]`.
+		// Fill the rest with NaN once canceled; callers must check ctx and return an error.
+		if !canceled && rc.ctx != nil && idx%rollupCtxCheckInterval == 0 {
+			canceled = rc.ctx.Err() != nil
+		}
+		if canceled {
+			dstValues = append(dstValues, nan)
+			continue
+		}
+
 		tStart := tEnd - window
 		ni = seekFirstTimestampIdxAfter(timestamps[i:], tStart, ni)
 		i += ni
