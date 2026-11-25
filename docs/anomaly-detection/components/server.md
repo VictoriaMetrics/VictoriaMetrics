@@ -119,7 +119,7 @@ The built-in [health check](https://docs.victoriametrics.com/anomaly-detection/q
 
 For the connection directions and endpoint variables, see the [MCP connection diagram](https://docs.victoriametrics.com/anomaly-detection/ui/#mcp-tools-server).
 
-In a compatible [mcp-vmanomaly](https://github.com/VictoriaMetrics/mcp-vmanomaly#connecting-to-vmanomaly-over-https) process, configure the **MCP → vmanomaly** connection:
+In [mcp-vmanomaly](https://github.com/VictoriaMetrics/mcp-vmanomaly#connecting-to-vmanomaly-over-https) v0.7.0 or later, configure the **MCP → vmanomaly** connection as shown below. For v0.6.x, replace `VMANOMALY_TLS_CA_CERT_FILE` with `VMANOMALY_TLS_CA_FILE`. The older name remains a deprecated alias in v0.7.0.
 
 ```bash
 export VMANOMALY_ENDPOINT=https://vmanomaly.example.com:8490
@@ -129,7 +129,7 @@ export VMANOMALY_TLS_CERT_FILE=/certs/mcp-client.crt
 export VMANOMALY_TLS_KEY_FILE=/certs/mcp-client.key
 ```
 
-Publicly trusted server certificates use system trust roots. A custom CA is added to those roots. `VMANOMALY_TLS_CA_CERT` accepts PEM content instead of a mounted CA file. Do not set both. MCP v0.7.0 uses `VMANOMALY_TLS_CA_CERT_FILE`. The older `VMANOMALY_TLS_CA_FILE` remains a deprecated alias. For MCP v0.6.x, use the older name. From [MCP v0.7.0](https://github.com/VictoriaMetrics/mcp-vmanomaly/releases/tag/v0.7.0), mounted CA, certificate and key files are re-read at most once per second while requests are made. Invalid rotations retain the previous working files. Earlier MCP releases require a restart. Inline CA content is read only at startup. Keep certificate verification enabled.
+Publicly trusted server certificates use system trust roots. A custom CA is added to those roots. `VMANOMALY_TLS_CA_CERT` accepts PEM content instead of a mounted CA file. Do not set both. From [MCP v0.7.0](https://github.com/VictoriaMetrics/mcp-vmanomaly/releases/tag/v0.7.0), mounted CA, certificate and key files are re-read at most once per second while requests are made. Invalid rotations retain the previous working files. Earlier MCP releases require a restart. Inline CA content is read only at startup. Keep certificate verification enabled.
 
 > [!NOTE]
 > These variables do not enable HTTPS on the MCP listener or configure the **Copilot → MCP** connection. Keep the MCP listener on a trusted private network or protect it with an authenticated TLS reverse proxy. See the MCP server's [deployment guidance](https://github.com/VictoriaMetrics/mcp-vmanomaly#security).

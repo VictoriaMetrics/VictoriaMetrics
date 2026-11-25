@@ -329,7 +329,7 @@ the resulting **replicated sharded distribution** is:
 - **Node 2 (index 1):** `[1, 2, 4, 5, 7, 8]`
 - **Node 3 (index 2):** `[2, 3, 5, 6, 8, 9]`
 
-Now, each [sub-config](#sub-configuration) (1 - 9) is **present on exactly 2 nodes**, ensuring redundancy:
+Now, each [sub-config](#sub-configuration) (1 through 9) is **present on exactly 2 nodes**, ensuring redundancy:
 
 - **Sub-config 5** appears on **nodes 2 & 3**
 - **Sub-config 7** appears on **nodes 1 & 2**

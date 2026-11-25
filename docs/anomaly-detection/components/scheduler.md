@@ -29,6 +29,8 @@ models:
   baseline:
     class: zscore_online
     schedulers: [production]
+
+# other config sections ...
 ```
 
 The scheduler alias connects these two sections. See [model scheduler assignment](https://docs.victoriametrics.com/anomaly-detection/components/models/#schedulers) for using multiple schedulers.
@@ -231,6 +233,8 @@ schedulers:
     fit_end_iso: "2022-04-10T00:00:00Z"
     infer_start_iso: "2022-04-11T00:00:00Z"
     infer_end_iso: "2022-04-14T00:00:00Z"
+
+# other config sections ...
 ```
 
 Attach this scheduler to a model with `schedulers: [oneoff_scheduler_alias]`. The example fits on April 1 - 10 and scores April 11 - 14, 2022. Replace both ranges with times covered by your datasource.

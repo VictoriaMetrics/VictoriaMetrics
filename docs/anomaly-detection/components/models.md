@@ -319,7 +319,7 @@ flowchart TD
     b["Same query: service=worker<br/>instances X, Y, Z, ..."] --> mb["Worker peer-group model<br/>One score per instance"]
 ```
 
-Each peer group must have enough valid members for `min_peer_count`. Different queries form separate populations even when their `service` labels match.
+For Peer Outlier, each peer group must have enough valid members for `min_peer_count`. Different queries form separate populations even when their `service` labels match.
 
 For example, to perform multivariate anomaly detection at the machine level while avoiding interference between different entities, you can set `groupby: [host]` or `groupby: [instance]`. This ensures that a **separate multivariate** model is trained for each individual entity (e.g., per host). Below is a simplified example illustrating how to track multivariate anomalies using CPU, RAM, and network data for each host.
 

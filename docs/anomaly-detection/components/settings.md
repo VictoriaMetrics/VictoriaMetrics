@@ -364,6 +364,8 @@ The section is **backward-compatible and disabled by default**, meaning that mod
 - The service is restarted with `restore_state` set to `false`, which triggers a cleanup of all stored artifacts.
 - The models are marked as outdated once scheduled re-fitting is due, leading to retraining and replacement of previous artifacts.
 
+The `retention` section accepts these parameters:
+
 - `ttl`: inactivity period before an instance becomes eligible for removal, such as `7d` or `30d`. Inference or refitting refreshes its last-use time.
 - `check_interval`: how often eligible instances are removed, such as `1h` or `24h`. Expiry does not trigger immediate deletion.
 

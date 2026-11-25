@@ -244,7 +244,7 @@ schedulers:
     inference_only: True  # to treat from-to as inference period, with automated fit intervals construction
     # copy these from your PeriodicScheduler args
     fit_window: 'P14D'
-    fit_every: 'PT1D'
+    fit_every: 'P1D'
     exact: True  # to imitate exact fit/infer calls as in PeriodicScheduler for online models
     infer_every: 'PT1H'  # used only for exact=True, to imitate PeriodicScheduler behavior
     # number of parallel jobs to run. Default is 1, each job is a separate OneOffScheduler fit/inference run.
@@ -276,7 +276,7 @@ writer:
 # https://docs.victoriametrics.com/anomaly-detection/components/monitoring/
 ```
 
-Configuration above will produce N intervals of full length (`fit_window`=14d + `fit_every`=1h) until `to_iso` timestamp is reached to run N consecutive `fit` calls to train models. Then these models will be used to produce `M = [fit_every / sampling_period]` infer datapoints for `fit_every` range at the end of each such interval, imitating M consecutive calls of `infer_every` in `PeriodicScheduler` [config](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler). These datapoints then will be written back to VictoriaMetrics TSDB, defined in `writer` [section](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) for further visualization (i.e. in VMUI or Grafana)
+This configuration divides the requested inference period into daily segments (`fit_every: 1d`). Each segment is preceded by 14 days of training data (`fit_window: 14d`). With `exact: True`, inference runs in hourly batches (`infer_every: 1h`), producing scores at the reader’s one-minute sampling period. Results are written to the VictoriaMetrics datasource configured in the [writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) for visualization in VMUI or Grafana.
 
 ## Forecasting
 
