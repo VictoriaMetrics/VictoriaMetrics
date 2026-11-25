@@ -1945,6 +1945,111 @@ func testIndexDBSearchLabelNames(t *testing.T, disablePerDayIndex bool) {
 	assertLabelNames(tfsComposite, tr, allLabelNames)
 }
 
+func TestIndexDBSearchLabelNames_metricsWithoutLabels(t *testing.T) {
+	defer testRemoveAll(t)
+	for _, disablePerDayIndex := range []bool{false, true} {
+		name := fmt.Sprintf("disablePerDayIndex=%t", disablePerDayIndex)
+		t.Run(name, func(t *testing.T) {
+			testIndexDBSearchLabelNames_metricsWithoutLabels(t, disablePerDayIndex)
+		})
+	}
+}
+
+func testIndexDBSearchLabelNames_metricsWithoutLabels(t *testing.T, disablePerDayIndex bool) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
+
+	const numMetrics = 100
+	tr := TimeRange{
+		MinTimestamp: time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2026, 11, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+
+	s := MustOpenStorage(t.Name(), OpenOptions{
+		DisablePerDayIndex: disablePerDayIndex,
+	})
+	defer s.MustClose()
+	ptw := s.tb.MustGetPartition(tr.MinTimestamp)
+	defer s.tb.PutPartition(ptw)
+	db := ptw.pt.idb
+
+	is := db.getIndexSearch(accountID, projectID)
+	for i := range numMetrics {
+		name := fmt.Sprintf("metric_%d", i)
+		mn := MetricName{
+			AccountID:   accountID,
+			ProjectID:   projectID,
+			MetricGroup: []byte(name),
+		}
+		metricNameBuf := mn.Marshal(nil)
+		date := uint64(tr.MinTimestamp+rand.Int63n(tr.MaxTimestamp-tr.MinTimestamp)) / msecPerDay
+
+		var tsid TSID
+		if !is.getTSIDByMetricName(&tsid, metricNameBuf, date) {
+			generateTSID(&tsid, &mn)
+			createAllIndexesForMetricName(db, &mn, &tsid, date)
+		}
+	}
+	db.putIndexSearch(is)
+	db.tb.DebugFlush()
+
+	assertLabelNames := func(tfs *TagFilters, want []string) {
+		t.Helper()
+		var tfss []*TagFilters
+		if tfs != nil {
+			tfss = append(tfss, tfs)
+		}
+		lns, err := db.SearchLabelNames(noDeadlineContext, nil, accountID, projectID, tfss, tr, numMetrics, numMetrics)
+		if err != nil {
+			t.Fatalf("SearchLabelNames(%v, %v) failed unexpectedly: %s", tfs, &tr, err)
+		}
+		got := sortedSlice(lns)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected label values (-want, +got):\n%s", diff)
+		}
+	}
+
+	var tfs *TagFilters
+
+	// Search by empty tag filters (find everything).
+	assertLabelNames(tfs, []string{"__name__"})
+
+	// Simple search by single metric name (metric_0):
+	tfs = NewTagFilters(accountID, projectID)
+	if err := tfs.Add(nil, []byte("metric_0"), false, false); err != nil {
+		t.Fatalf("cannot add filter: %s", err)
+	}
+	// TODO(@rtm0): The correct behavior is that the search result contains
+	// __name__. Currently it does not and it is a bug. But it is very unlikely
+	// to happen because it is very unlikely that a metric does not have labels.
+	// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11975.
+	assertLabelNames(tfs, []string{})
+
+	// Simple search by single metric name that does not exist.
+	tfs = NewTagFilters(accountID, projectID)
+	if err := tfs.Add(nil, []byte("does_not_exist"), false, false); err != nil {
+		t.Fatalf("cannot add filter: %s", err)
+	}
+	assertLabelNames(tfs, []string{})
+
+	// Search by metric name regex.
+	tfs = NewTagFilters(accountID, projectID)
+	if err := tfs.Add(nil, []byte("metric_.*"), false, true); err != nil {
+		t.Fatalf("cannot add filter: %s", err)
+	}
+	assertLabelNames(tfs, []string{"__name__"})
+
+	// Search by metric name regex that matches no metrics.
+	tfs = NewTagFilters(accountID, projectID)
+	if err := tfs.Add(nil, []byte("does_not_exist.*"), false, true); err != nil {
+		t.Fatalf("cannot add filter: %s", err)
+	}
+	assertLabelNames(tfs, []string{})
+
+}
+
 func TestIndexDBSearchLabelValues(t *testing.T) {
 	defer testRemoveAll(t)
 
