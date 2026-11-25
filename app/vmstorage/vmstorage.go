@@ -273,7 +273,7 @@ func (vms *VMStorage) GetSearch(ctx context.Context, qt *querytracer.Tracer, sq 
 	}
 
 	sr := getSearch()
-	maxSeriesCount := sr.Init(ctx, qt, vms.s, tfss, tr, sq.MaxMetrics)
+	maxSeriesCount := sr.Init(ctx, qt, vms.s, tfss, tr, maxMetrics)
 	return sr, maxSeriesCount, nil
 }
 
