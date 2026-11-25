@@ -53,7 +53,7 @@ The Grafana Dashboard for `vmanomaly` is organized into various panels that offe
 
 ![vmanomaly-dashboard-2-instance-overview](vmanomaly-dashboard-2-instance-overview.webp)
 
-This panel provides general information about the state at individual `instance` level, including metrics such as uptime, restarts, errors, license expiration, and overall status. It serves as a critical starting point for assessing the health of the anomaly detection service. If any issues are identified with a particular instance — such as a low success rate, a high number of skipped or erroneous runs, or increased resource consumption — you can drill down further by using the dashboard filter `instance={{instance}}` for more detailed analysis.
+This panel provides general information about the state at individual `instance` level, including metrics such as uptime, restarts, errors, license expiration (before v1.33.0 only), and overall status. It serves as a critical starting point for assessing the health of the anomaly detection service. If any issues are identified with a particular instance — such as a low success rate, a high number of skipped or erroneous runs, or increased resource consumption — you can drill down further by using the dashboard filter `instance={{instance}}` for more detailed analysis.
 
 **Healthy scenario**:
 - **I/O: Reads, Writes, Total**: These should all be close to 100%, indicating successful data handling.

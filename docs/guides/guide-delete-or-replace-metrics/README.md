@@ -191,7 +191,7 @@ curl -s -X POST -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
 ### Delete data
 
 > [!NOTE] Warning
-> The `delete_series` handler accepts any HTTP method, so sending a GET request to `/api/v1/admin/tsdb/delete_series` will result in the deletion of the time series.
+> The `delete_series` handler accepts only the HTTP POST method.
 > It's highly recommended to set the `-deleteAuthKey` to [protect the endpoint](https://docs.victoriametrics.com/victoriametrics/#security) from CSRF attacks.
 
 Once you have confirmed the time series selector, send a POST request to the `delete_series` endpoint and supply the selector with the format [`match[]=<time-series-selector>`](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). This operation cannot be undone, so consider [exporting your metrics](#export-metrics) for backup purposes.

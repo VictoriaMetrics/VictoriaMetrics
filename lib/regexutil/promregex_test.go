@@ -83,8 +83,16 @@ func TestPromRegex(t *testing.T) {
 	f(".+foo.+", "afoobar", true)
 	f(".+foo.+", "afoo", false)
 	f(".+foo.+", "abc", false)
+	// The literal appears first at the start of the string, but a later
+	// occurrence still matches `.+foo.+`. The fast path must not stop at the
+	// first occurrence.
+	f(".+foo.+", "foofoox", true)
+	f(".+foo.+", "xfoofoo", true)
+	f(".+foo.+", "foofoo", false)
 	f("foo.+bar.+", "foobar", false)
 	f("foo.+bar.+", "foo_bar_", true)
+	f("foo.+bar.+", "foobarbarx", true)
+	f("foo.+bar.+", "foobarbar", false)
 	f("foo.+bar.+", "foobaz", false)
 	f(".+foo.*", "foo", false)
 	f(".+foo.*", "afoo", true)
@@ -138,4 +146,14 @@ func TestPromRegex(t *testing.T) {
 	f(".*foo(bar|baz)", "fooxfoobaz", true)
 	f(".*foo(bar|baz)", "fooxfooban", false)
 	f(".*foo(bar|baz)", "fooxfooban foobar", true)
+
+	// \b, \B and ^ depend on the char before them, so they must be matched together with the preceding prefix.
+	f("foo\\b", "foo", true)
+	f("foo\\b.*", "foo bar", true)
+	f("foo\\b.*", "foobar", false)
+	f("foo\\Bbar", "foobar", true)
+	f("foo\\B.*", "foobar", true)
+	f("foo\\B.*", "foo bar", false)
+	f("fo\\Bo[x]*bar?", "foobar", true)
+	f("a(^foo|bar$)z", "afooz", false)
 }

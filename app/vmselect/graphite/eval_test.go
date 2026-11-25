@@ -16,7 +16,7 @@ func TestExecExprSuccess(t *testing.T) {
 		startTime:   120e3,
 		endTime:     210e3,
 		storageStep: 30e3,
-		currentTime: time.Unix(150e3, 0),
+		currentTime: time.Unix(150e3, 0).UTC(),
 	}
 	f := func(query string, expectedSeries []*series) {
 		t.Helper()

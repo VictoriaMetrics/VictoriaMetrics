@@ -90,9 +90,17 @@ func TestRegexMatchString(t *testing.T) {
 	f(".+foo.+", "afoobar", true)
 	f(".+foo.+", "afoo", false)
 	f(".+foo.+", "abc", false)
+	// The literal appears first at the start of the string, but a later
+	// occurrence still matches `.+foo.+`. The fast path must not stop at the
+	// first occurrence.
+	f(".+foo.+", "foofoox", true)
+	f(".+foo.+", "xfoofoo", true)
+	f(".+foo.+", "foofoo", false)
 	f("foo.+bar.+", "foobar", false)
 	f("foo.+bar.+", "foo_bar_", true)
 	f("foo.+bar.+", "a foo_bar_", true)
+	f("foo.+bar.+", "foobarbarx", true)
+	f("foo.+bar.+", "foobarbar", false)
 	f("foo.+bar.+", "foobaz", false)
 	f("foo.+bar.+", "abc", false)
 	f(".+foo.*", "foo", false)
@@ -157,6 +165,14 @@ func TestRegexMatchString(t *testing.T) {
 	// substring fast path.
 	f("(a|b).+c.+", "axcx", true)
 	f("(a|b).+c.+", "xcx", false)
+
+	// \b, \B and ^ depend on the char before them, so they must be matched together with the preceding prefix.
+	f("error\\b", "error found", true)
+	f("error\\b", "errors found", false)
+	f("error\\b", "errors and error", true)
+	f("foo\\Bbar", "a foobar", true)
+	f("foo\\B", "foo bar", false)
+	f("a(^foo|bar$)z", "afooz", false)
 }
 
 func TestGetLiterals(t *testing.T) {

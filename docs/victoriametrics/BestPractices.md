@@ -69,7 +69,7 @@ VictoriaMetrics can also run on macOS for testing and development purposes.
 * **OpenBSD**: i386, amd64, arm
 * **Solaris/SmartOS**: i386, amd64
 * **macOS**: amd64, arm64 (for testing and development purposes)
-* **Windows**: amd64
+* **Windows**: amd64, arm64
 
 ## Kubernetes
 

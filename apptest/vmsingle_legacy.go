@@ -11,10 +11,16 @@ import (
 // StartVmsingle_v1_132_0 starts vmsingle-v1.132.0 (the last version that uses
 // legacy index).
 //
+// This binary is used in apptests that check the compatility of v1.132.0 with
+// later versions.
+//
 // The path to the binary must be provided via VMSINGLE_V1_132_0_PATH
 // environment variable.
 func StartVmsingle_v1_132_0(instance string, flags []string, cli *Client, output io.Writer) (*Vmsingle, error) {
 	binary := os.Getenv("VMSINGLE_V1_132_0_PATH")
+	if binary == "" {
+		return nil, fmt.Errorf("vmsingle-v1.132.0 binary path must be provided via VMSINGLE_V1_132_0_PATH environment variable")
+	}
 	app, stderrExtracts, err := startApp(instance, binary, flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-storageDataPath":    fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),

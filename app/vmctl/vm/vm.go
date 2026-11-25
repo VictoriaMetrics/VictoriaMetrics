@@ -13,13 +13,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 // Config contains list of params to configure
@@ -30,7 +30,7 @@ type Config struct {
 	//   --httpListenAddr value of vmselect  component for cluster version
 	Addr string
 
-	AuthCfg *auth.Config
+	AuthCfg *promauth.Config
 	// Transport allows specifying custom http.Transport
 	Transport *http.Transport
 	// Concurrency defines number of worker
@@ -65,7 +65,7 @@ type Config struct {
 // see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data
 type Importer struct {
 	addr       string
-	authCfg    *auth.Config
+	authCfg    *promauth.Config
 	client     *http.Client
 	importPath string
 	compress   bool
@@ -303,7 +303,9 @@ func (im *Importer) Ping() error {
 		return fmt.Errorf("cannot create request to %q: %w", im.addr, err)
 	}
 	if im.authCfg != nil {
-		im.authCfg.SetHeaders(req, true)
+		if err := im.authCfg.SetHeaders(req, true); err != nil {
+			return fmt.Errorf("failed to set headers for %q: %w", im.addr, err)
+		}
 	}
 	resp, err := im.client.Do(req)
 	if err != nil {
@@ -333,7 +335,10 @@ func (im *Importer) Import(tsBatch []*TimeSeries) error {
 		return fmt.Errorf("cannot create request to %q: %w", im.addr, err)
 	}
 	if im.authCfg != nil {
-		im.authCfg.SetHeaders(req, true)
+		if err := im.authCfg.SetHeaders(req, true); err != nil {
+			im.importRequestsErrorsTotal.Inc()
+			return fmt.Errorf("failed to set headers for %q: %w", im.addr, err)
+		}
 	}
 	if im.compress {
 		req.Header.Set("Content-Encoding", "gzip")

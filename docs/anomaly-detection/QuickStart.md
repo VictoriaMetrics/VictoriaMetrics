@@ -21,7 +21,7 @@ For a broader overview please visit the [navigation page](https://docs.victoriam
 
 ## How to install and run vmanomaly
 
-> To run `vmanomaly`, you need to have VictoriaMetrics Enterprise license. You can get a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/).
+> `vmanomaly` is part of [VictoriaMetrics Enterprise](https://victoriametrics.com/products/enterprise/). See [licensing](#licensing) for startup requirements and [contact us](https://victoriametrics.com/contact-us/) for evaluation and support.
 
 The following options are available:
 
@@ -37,38 +37,59 @@ The `vmanomaly` service supports a set of command-line arguments to configure it
 
 > `vmanomaly` supports {{% available_from "v1.18.5" anomaly %}} running on config **directories**, see the `config` positional arg description in help message below.
 
-> Single-dashed command-line argument {{% available_from "v1.23.3" anomaly %}} format can be used, e.g. `-license.forceOffline` in addition to `--license.forceOffline`. This aligns better with other VictoriaMetrics ecosystem components. Mixing the two styles is also supported, e.g. `-license.forceOffline --loggerLevel INFO`.
+> Single-dashed command-line argument {{% available_from "v1.23.3" anomaly %}} format can be used, e.g. `-loggerLevel` in addition to `--loggerLevel`. This aligns better with other VictoriaMetrics ecosystem components. Mixing the two styles is also supported, e.g. `-watch --loggerLevel INFO`.
 
 ```shellhelp
-usage: vmanomaly.py [-h] [--license STRING | --licenseFile PATH] [--license.forceOffline] [--loggerLevel {DEBUG,INFO,WARNING,ERROR,FATAL}] [--watch] [-configCheckInterval DURATION] [--dryRun] [--outputSpec PATH] config [config ...]
+usage: vmanomaly.py [-h] [--eula] [--license STRING] [--licenseFile PATH]
+                    [--license.forceOffline]
+                    [--loggerLevel {WARNING,ERROR,DEBUG,INFO,FATAL}] [--watch]
+                    [-configCheckInterval DURATION] [--dryRun]
+                    [--outputSpec PATH]
+                    config [config ...]
 
 VictoriaMetrics Anomaly Detection Service
 
 positional arguments:
-  config                YAML config file(s) or directories containing YAML files. Multiple files will recursively merge each other
-                        values so multiple configs can be combined. If a directory is provided, all `.yaml` files inside will be
-                        merged, without recursion. Default: vmanomaly.yaml is expected in the current directory.
+  config                YAML config file(s) or directories containing YAML
+                        files. Multiple files will recursively merge each
+                        other values so multiple configs can be combined. If a
+                        directory is provided, all `.yaml` files inside will
+                        be merged, without recursion. Default: vmanomaly.yaml
+                        is expected in the current directory.
 
 options:
   -h                    Show this help message and exit
-  --license STRING      License key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/trial/ to
-                        obtain a trial license.
-  --licenseFile PATH    Path to file with license key for VictoriaMetrics Enterprise. See
-                        https://victoriametrics.com/products/enterprise/trial/ to obtain a trial license.
+  --eula                Accept the ESA https://victoriametrics.com/legal/esa/
+                        to run vmanomaly. No license verification is
+                        performed.
+  --license STRING      Deprecated. A non-empty value implies ESA acceptance.
+                        Use -eula instead; the key is not verified.
+  --licenseFile PATH    Deprecated. A non-empty path implies ESA acceptance.
+                        Use -eula instead; the file is not read.
   --license.forceOffline
-                        Whether to force offline verification for VictoriaMetrics Enterprise license key, which has been passed either
-                        via -license or via -licenseFile command-line flag. The issued license key must support offline verification
-                        feature. Contact info@victoriametrics.com if you need offline license verification.
-  --loggerLevel {DEBUG,INFO,WARNING,ERROR,FATAL}
-                        Minimum level to log. Possible values: {'DEBUG', 'INFO', 'WARNING', 'ERROR', 'FATAL'}.
-  --watch               Watch config files for changes and trigger hot reloads. Watches the specified config file or directory for
-                        modifications, deletions, or additions. Upon detecting changes, triggers config reload. If new config
-                        validation fails, continues with previous valid config and state.
+                        Deprecated compatibility flag; has no effect. License
+                        verification is no longer performed.
+  --loggerLevel {WARNING,ERROR,DEBUG,INFO,FATAL}
+                        Minimum level to log. Possible values: {'WARNING',
+                        'ERROR', 'DEBUG', 'INFO', 'FATAL'}.
+  --watch               Watch config files for changes and trigger hot
+                        reloads. Watches the specified config file or
+                        directory for modifications, deletions, or additions.
+                        Upon detecting changes, triggers config reload. If new
+                        config validation fails, continues with previous valid
+                        config and state.
   -configCheckInterval DURATION
-                        Interval for checking watched config files for content changes. Default: 30s.
-  --dryRun              Validate only: parse + merge all YAML(s) and run schema checks, then exit. Does not require a license to run.
-                        Does not expose metrics, or launch vmanomaly service(s).
+                        Interval for checking watched config files for content
+                        changes. Default: 30s.
+  --dryRun              Validate only: parse + merge all YAML(s) and run
+                        schema checks, then exit. Does not require a license
+                        or ESA acceptance to run. Does not expose metrics, or
+                        launch vmanomaly service(s).
   --outputSpec PATH     Target location of .yaml output spec.
+
+Health-check mode: --healthcheck [--config PATH] [--url URL] [--timeout
+SECONDS]. Put --healthcheck (or -healthcheck) first; use --healthcheck --help
+for probe options.
 ```
 
 {{% available_from "v1.29.5" anomaly %}} When `--watch` is enabled, config changes are detected by fixed-interval content polling instead of filesystem event delivery. The polling frequency is controlled by `-configCheckInterval` (default: `30s`). The same option can also be passed as `--configCheckInterval`, `--config.check.interval`, `--config-check-interval`, `--config_check_interval`, or in key-value form such as `configCheckInterval=30s`.
@@ -113,59 +134,16 @@ environment:
 
 ### Licensing
 
-The license key can be specified with the help of the following [command-line](#command-line-arguments) arguments: `--license`, `--licenseFile`, `--license.forceOffline`
+`vmanomaly` is a [VictoriaMetrics Enterprise](https://victoriametrics.com/products/enterprise/) component. See the [permitted Enterprise use cases](https://docs.victoriametrics.com/victoriametrics/enterprise/#valid-cases-for-victoriametrics-enterprise): evaluation in non-production environments, or production use with a valid Enterprise contract or permission from VictoriaMetrics. [Contact us](https://victoriametrics.com/contact-us/) for licensing and support.
 
-In order to make it easier to monitor the license expiration date, the following metrics are exposed (see
-[Monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/) section for details on how to scrape them):
-
-```promtextmetric
-# HELP vm_license_expires_at When the license expires as a Unix timestamp in seconds
-# TYPE vm_license_expires_at gauge
-vm_license_expires_at 1.6963776e+09
-# HELP vm_license_expires_in_seconds Amount of seconds until the license expires
-# TYPE vm_license_expires_in_seconds gauge
-vm_license_expires_in_seconds 4.886608e+06
-```
-
-Example alerts for [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/):
-
-```yaml
-groups:
-  - name: vm-license
-    # note the `job` label and update accordingly to your setup
-    rules:
-      - alert: LicenseExpiresInLessThan30Days
-        expr: vm_license_expires_in_seconds < 30 * 24 * 3600
-        labels:
-          severity: warning
-        annotations:
-          summary: "{{ $labels.job }} instance {{ $labels.instance }} license expires in less than 30 days"
-          description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}.
-            Please make sure to update the license before it expires."
-
-      - alert: LicenseExpiresInLessThan7Days
-        expr: vm_license_expires_in_seconds < 7 * 24 * 3600
-        labels:
-          severity: critical
-        annotations:
-          summary: "{{ $labels.job }} instance {{ $labels.instance }} license expires in less than 7 days"
-          description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}.
-            Please make sure to update the license before it expires."
-```
+{{% available_from "v1.33.0" anomaly %}} Pass `-eula`, `--eula` or `--eula=true` to accept the [Enterprise Software Agreement (ESA)](https://victoriametrics.com/legal/esa/) at startup. Existing non-empty `-license`, `-licenseFile` and `VM_LICENSE_FILE` settings remain compatible and imply acceptance. `--dryRun` does not require acceptance. Versions before [v1.33.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1330) still require a valid license key; see [migration guidance](https://docs.victoriametrics.com/anomaly-detection/migration/) when upgrading.
 
 ### Docker
 
-> To run `vmanomaly`, you need to have VictoriaMetrics Enterprise license. You can get a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/). <br><br>
-> Due to the upcoming [DockerHub pull limits](https://docs.docker.com/docker-hub/usage/pulls), an additional image registry, **Quay.io**, has been introduced for VictoriaMetrics images, including [`vmanomaly`](https://quay.io/repository/victoriametrics/vmanomaly). If you encounter pull rate limits, switch from:
-> ```
-> docker pull victoriametrics/vmanomaly:vX.Y.Z
-> ```
-> to:
-> ```
-> docker pull quay.io/victoriametrics/vmanomaly:vX.Y.Z
-> ```
+> [!NOTE]
+> If you encounter [Docker Hub pull limits](https://docs.docker.com/docker-hub/usage/pulls/), use the [Quay.io mirror](https://quay.io/repository/victoriametrics/vmanomaly): `docker pull quay.io/victoriametrics/vmanomaly:v1.33.0`.
 
-> [!NOTE] ARM64 startup on affected Apple Silicon virtualization
+> [!WARNING] ARM64 startup on affected Apple Silicon virtualization
 > On some `linux/arm64` environments running through virtualization on Apple M4/M5 hosts, `vmanomaly` may exit with `SIGILL` (exit code `132`) before startup. This is caused by the virtualized host advertising an SVE2 capability that traps when used by OpenSSL 4.x; it does not affect all ARM64 systems.
 >
 > On affected hosts, add `-e OPENSSL_armcap=0` to `docker run`, or add `- OPENSSL_armcap=0` under the service's Docker Compose `environment`, matching the list syntax used below. This disables ARM cryptographic acceleration, so apply it only as a temporary workaround on affected hosts.
@@ -176,16 +154,16 @@ groups:
 {{% available_from "v1.30.6" anomaly %}} An experimental [Docker Hardened Images](https://www.docker.com/products/hardened-images/)-based variant is available on Docker Hub and Quay for `linux/amd64` and `linux/arm64`:
 
 ```text
-victoriametrics/vmanomaly:v1.32.0-dhi
-victoriametrics/vmanomaly:v1.32.0-enterprise-dhi
-quay.io/victoriametrics/vmanomaly:v1.32.0-dhi
-quay.io/victoriametrics/vmanomaly:v1.32.0-enterprise-dhi
+victoriametrics/vmanomaly:v1.33.0-dhi
+victoriametrics/vmanomaly:v1.33.0-enterprise-dhi
+quay.io/victoriametrics/vmanomaly:v1.33.0-dhi
+quay.io/victoriametrics/vmanomaly:v1.33.0-enterprise-dhi
 ```
 
-These are aliases of the same application image and have the same license requirements. The `-enterprise-dhi` ordering supports Helm's `image.variant: dhi` when enterprise mode is enabled, `image.tag` is empty, and the chart appVersion matches the desired release. With an older chart, set `image.tag: v1.32.0-enterprise-dhi` explicitly. Standard `v1.32.0`, `v1.32.0-enterprise` and `latest` tags retain their existing base image.
+These are aliases of the same application image and have the same license requirements. The `-enterprise-dhi` ordering supports Helm's `image.variant: dhi` when enterprise mode is enabled, `image.tag` is empty, and the chart appVersion matches the desired release. With an older chart, set `image.tag: v1.33.0-enterprise-dhi` explicitly. Standard `v1.33.0`, `v1.33.0-enterprise` and `latest` tags retain their existing base image.
 
 > [!WARNING]
-> The hardened image runs as a non-root user and contains no runtime shell or package manager. Ensure mounted configuration and license files are readable and state directories are writable by the container user; shell-based entrypoint overrides and `docker exec ... sh` are unavailable.
+> The hardened image runs as a non-root user and contains no runtime shell or package manager. Ensure mounted configuration files are readable and state directories are writable by the container user; shell-based entrypoint overrides and `docker exec ... sh` are unavailable.
 
 The hardened image defaults process-local time to UTC. Configure `schedulers.<alias>.tz` for scheduling and reader/query `tz` for model calendar features; both default to UTC.
 
@@ -196,29 +174,20 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.32.0
+docker pull victoriametrics/vmanomaly:v1.33.0
 ```
 
-2. Create the license file with your license key.
+2. Create and modify your `config.yaml` file. See the [example](#example).
 
-```sh
-export LICENSE_KEY=YOUR_LICENSE_KEY
-echo $LICENSE_KEY > license
-```
-
-3. Create and modify your `config.yaml` file to your liking. An example can be found [here](https://docs.victoriametrics.com/anomaly-detection/quickstart/#example)
-
-4. Start the `vmanomaly` Docker container with a *license file*, use the command below.
-**Make sure to replace `YOUR_LICENSE_FILE_PATH`, and `YOUR_CONFIG_FILE_PATH` with your specific details**:
+3. Start the container with your configuration and `-eula` to accept the [ESA](#licensing):
 
 ```sh
 docker run -it \
-    -v ./license:/license \
     -v ./config.yaml:/config.yaml \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.32.0 \
+    victoriametrics/vmanomaly:v1.33.0 \
     /config.yaml \
-    --licenseFile=/license \
+    -eula \
     --loggerLevel=INFO \
     --watch
 ```
@@ -227,15 +196,14 @@ Use the below configuration if settings.restore_state is True (vmanomaly runs in
 
 ```sh
 docker run -it \
-    -v ./license:/license \
     -v ./config.yaml:/config.yaml \
     -v vmanomaly_data:/tmp/vmanomaly \
     -e VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data \
     -e VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.32.0 \
+    victoriametrics/vmanomaly:v1.33.0 \
     /config.yaml \
-    --licenseFile=/license \
+    -eula \
     --loggerLevel=INFO \
     --watch
 ```
@@ -246,12 +214,11 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.32.0
+    image: victoriametrics/vmanomaly:v1.33.0
     # ...
     restart: always
     volumes:
       - ./config.yaml:/config.yaml
-      - ./license:/license
       # Enable if settings.restore_state is True
       # - vmanomaly_data:/tmp/vmanomaly
     environment:
@@ -263,7 +230,7 @@ services:
       - "8490:8490"
     command:
       - "/config.yaml"
-      - "--licenseFile=/license"
+      - "-eula"
       - "--loggerLevel=INFO"
       - "--watch"
 
@@ -278,20 +245,23 @@ For a complete docker-compose example please refer to [our alerting guide](https
 
 See also:
 
-- Verify the license online OR offline. See the details [here](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing).
+- [Licensing and compatibility with existing startup flags](#licensing).
 - [How to configure `vmanomaly`](#how-to-configure-vmanomaly)
 
 ### Kubernetes with Helm charts
 
-> To run `vmanomaly`, you need to have VictoriaMetrics Enterprise license. You can get a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/).
+> `vmanomaly` is part of [VictoriaMetrics Enterprise](https://victoriametrics.com/products/enterprise/). See [licensing](#licensing) for startup requirements and [contact us](https://victoriametrics.com/contact-us/) for evaluation and support.
 
-> With the forthcoming [DockerHub pull limits](https://docs.docker.com/docker-hub/usage/pulls) additional image registry was introduced (quay.io) for VictoriaMetric images, [vmanomaly images in particular](https://quay.io/repository/victoriametrics/vmanomaly).
-If hitting pull limits, try switching your `docker pull victoriametrics/vmanomaly:vX.Y.Z` to `docker pull quay.io/victoriametrics/vmanomaly:vX.Y.Z`
+> [!NOTE]
+> If you encounter [Docker Hub pull limits](https://docs.docker.com/docker-hub/usage/pulls/), set the image repository to `quay.io/victoriametrics/vmanomaly`.
 
 You can run `vmanomaly` in Kubernetes environment
 with [these Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md).
 
 ### VM Operator
+
+When upgrading to v1.33.0 with an Operator version that still requires `spec.license`, retain the existing `spec.license.key` or `keyRef` and add `spec.extraArgs.eula: "true"`. A referenced Secret must still exist for Kubernetes to mount it. EULA-only validation and typed Prophet holiday configuration are tracked in [Operator #2836](https://github.com/VictoriaMetrics/operator/pull/2836).
+
 
 If you are using [VM Operator](https://docs.victoriametrics.com/operator/) to manage your Kubernetes cluster, `vmanomaly` can be deployed using the following [custom resource guide](https://docs.victoriametrics.com/operator/resources/vmanomaly/).
 
