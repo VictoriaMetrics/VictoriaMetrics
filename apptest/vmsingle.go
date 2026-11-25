@@ -19,6 +19,10 @@ func StartVmsingle(instance string, flags []string, cli *Client, output io.Write
 	if binary == "" {
 		binary = "../../bin/victoria-metrics-race"
 	}
+	return startVmsingle(instance, binary, flags, cli, output)
+}
+
+func startVmsingle(instance, binary string, flags []string, cli *Client, output io.Writer) (*Vmsingle, error) {
 	app, stderrExtracts, err := startApp(instance, binary, flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-storageDataPath":    fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
