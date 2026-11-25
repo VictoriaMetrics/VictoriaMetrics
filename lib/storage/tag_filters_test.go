@@ -967,6 +967,19 @@ func TestTagFilterMatchSuffix(t *testing.T) {
 		match("barx")
 		match("pbarx")
 	})
+	t.Run("regexp-prefix-word-boundary-suffix", func(_ *testing.T) {
+		value := "http\\b.*"
+		isNegative := false
+		isRegexp := true
+		expectedPrefix := tvNoTrailingTagSeparator("")
+		init(value, isNegative, isRegexp, expectedPrefix)
+
+		// \b depends on the char before it, so it must be matched together with the http prefix
+		match("http")
+		match("http.requests")
+		mismatch("https")
+		mismatch("httpx.requests")
+	})
 	t.Run("regexp-or-suffixes", func(t *testing.T) {
 		value := "http(foo|bar)"
 		isNegative := false
@@ -1179,7 +1192,7 @@ func TestSimplifyRegexp(t *testing.T) {
 	f("foo[x]*", "foo", "x*")
 	f("foo[^x]*", "foo", "[^x]*")
 	f("foo[x]*bar", "foo", "x*bar")
-	f("fo\\Bo[x]*bar?", "fo", "\\Box*bar?")
+	f("fo\\Bo[x]*bar?", "", "fo\\Box*bar?")
 	f("foo[^s]+bar", "foo", "[^s]+bar")
 	f("a(b|c[dz]*)[eqw]+", "a", "(?:b|c[dz]*)[eqw]+")
 	f("ab|ad", "a", "[bd]")
