@@ -263,11 +263,12 @@ and why they prefer VictoriaMetrics over competing solutions.
 
 [Dig Security](https://www.dig.security) is a cloud data security startup with 50+ employees that provides real-time visibility, control, and protection of data assets.
 
-Dig Security replaced Prometheus server on EKS with VictoriaMetrics to reduce costs and improve reliability. VictoriaMetrics proved itself fast, easy to install and maintain, horoizontally scalable.
+Dig Security replaced a Prometheus server on EKS with VictoriaMetrics to reduce costs and improve reliability. VictoriaMetrics proved itself fast, easy to install and maintain, and horizontally scalable.
 
 By the numbers:
-- Ingestion: ~150K samples/s
-- Active time series: 105Mil
+
+- Ingestion rate: ~150K samples/s
+- Active time series: ~105Mil
 
 See [detailed case study](https://victoriametrics.com/case-studies/dig-security/).
 
@@ -313,29 +314,31 @@ We started with a Prometheus server on EKS. That worked until it didn't. We then
 ## DreamHost
 
 DreamHost chose VictoriaMetrics for their monitoring stack to replace their existing Prometheus stack.
-As result of the migration, DreamHost achieved 80% reduction in memory usage and clear scaling path for the future growth.
+As a result of the migration, DreamHost achieved an 80% reduction in memory usage and a clear scaling path for future growth.
 
 By the numbers:
-- Ingestion: ~450K samples/s
+
+- Ingestion rate: ~450K samples/s
 - Active time series: ~76Mil
 
 See [detailed case study](https://victoriametrics.com/blog/dreamhost-case-study/).
 
 ## DSV
 
-With scaling Kubernetes environments, DSV faced challenges in managing the federated Prometheus stack:
+As its Kubernetes environments grew, DSV faced challenges managing its federated Prometheus stack:
+
 - Individual Prometheus servers were hitting resource limits
 - Critical alerting pipelines were affected by performance issues
-- Maintaining many Prometheis created heavy operational load on the team
+- Maintaining many Prometheus instances created heavy operational load on the team
 
 DSV migrated to VictoriaMetrics to reduce operational complexity and improve overall performance.
 
 By the numbers:
-- Ingestion: ~800K samples/s
-- Active time series: 72Mil
+
+- Ingestion rate: ~800K samples/s
+- Active time series: ~72Mil
 
 See [detailed case study](https://victoriametrics.com/case-studies/dsv/).
-
 
 ## Fly.io
 
@@ -365,44 +368,42 @@ See [the full post](https://fly.io/blog/measuring-fly/).
 
 Joachim Folz, Researcher, German Research Center for Artificial Intelligence (DFKI)
 
-Numbers:
+By the numbers:
 
 - Single-node mode
 - Active time series: 130K
-- Ingestion rate: 24K new samples per second
-- Total number of datapoints: 160 billions
+- Ingestion rate: 24K samples/s
+- Total number of datapoints: 160Bil
 - Churn rate: 20K new time series per day
-- Data size on disk: 82 GB
-- Index size on disk: 300 MB
+- Data size on disk: 82GB
+- Index size on disk: 300MB
 - Query rate:
-  - `/api/v1/query_range`: 2 queries per second
-  - `/api/v1/query`: 1.2 queries per second
-- Query duration:
-  - 99th percentile: 6.5 milliseconds
-  - 90th percentile: 4 milliseconds
-  - median: 1 millisecond
+  - `/api/v1/query_range`: 2 req/s
+  - `/api/v1/query`: 1.2 req/s
+- Query duration: p50: 1ms; p90: 4ms; p99: 6.5ms
 - CPU usage: 0.1 CPU cores
-- RAM usage: 2.8 GB
+- RAM usage: 2.8GB
 
 See [detailed case study](https://victoriametrics.com/case-studies/dfki/).
 
 ## Grammarly
 
-[Grammarly](https://www.grammarly.com/) provides digital writing assistant that helps 30 million people and 30 thousand teams write more clearly and effectively every day. In building a product that scales across multiple platforms and devices, Grammarly works to empower users whenever and wherever they communicate.
+[Grammarly](https://www.grammarly.com/) provides a digital writing assistant that helps 30 million people and 30 thousand teams write more clearly and effectively every day. In building a product that scales across multiple platforms and devices, Grammarly works to empower users whenever and wherever they communicate.
 
-Grammarly migrated from Graphite, the previous monitoring solution. VictoriaMetrics supported Graphite ingestion protocol and query language that helped to keep existing instrumentation and dashboards working. Migration resulted in 10x cost savings and reduced maintenance burden.
+Grammarly migrated from Graphite, its previous monitoring solution. VictoriaMetrics supports the Graphite ingestion protocol and query language, which helped keep existing instrumentation and dashboards working. Migration resulted in 10x cost savings and reduced maintenance burden.
 
 By the numbers:
-- Ingestion: ~3.16Mil samples/s
-- Active time series: ~120Mil
-- Median memory usage during the last 24h: 618 GiB
-- The average number of cpu cores used during the last 24h: ~66 CPU cores
-- The average range query rate over the last 24h: ~1.4 req/s
-- The average instant query rate over the last 24h: ~47 req/s
-- Average range query duration over the last 24h: p50 < 0.006s; p90 < 0.3s; p99 < 2.21s
-- Average instant query duration over the last 24h: p50 < 0.007s; p90 < 0.2s; p99 < 2.6s
 
-See [this blogpost on how Grammarly reduces costs and maintenance burden for their observability solution by 10x after switching to VictoriaMetrics](https://www.grammarly.com/blog/engineering/monitoring-with-victoriametrics/) and more [detailed case study](https://victoriametrics.com/case-studies/grammarly/).
+- Ingestion rate: ~3.16Mil samples/s
+- Active time series: ~120Mil
+- Median memory usage over the last 24h: 618GiB
+- Average CPU usage over the last 24h: ~66 CPU cores
+- Average range query rate over the last 24h: ~1.4 req/s
+- Average instant query rate over the last 24h: ~47 req/s
+- Average range query duration over the last 24h: p50: 0.006s; p90: 0.3s; p99: 2.21s
+- Average instant query duration over the last 24h: p50: 0.007s; p90: 0.2s; p99: 2.6s
+
+See [this blogpost on how Grammarly reduces costs and maintenance burden for their observability solution by 10x after switching to VictoriaMetrics](https://www.grammarly.com/blog/engineering/monitoring-with-victoriametrics/) and the [detailed case study](https://victoriametrics.com/case-studies/grammarly/).
 
 ## Groove X
 
@@ -415,16 +416,14 @@ See [this blogpost on how Grammarly reduces costs and maintenance burden for the
 Junya Hayashi, Senior Software Engineer, Groove X
 
 By the numbers:
+
 - Active time series: 14Mil
 - Ingestion rate: 235K samples/s
 - Total number of datapoints: 3.2Tri
 - Churn rate: 420K new time series per day
 - Data size on disk: 2TB
 - Index size on disk: 52GB
-- Query duration:
-  - 99th percentile: 2.6 seconds
-  - 90th percentile: 0.4 seconds
-  - median: 0.006 seconds
+- Query duration: p50: 0.006s; p90: 0.4s; p99: 2.6s
 
 See [detailed case study](https://victoriametrics.com/case-studies/groove-x/).
 
@@ -459,24 +458,25 @@ Numbers with current, limited roll out:
 - Data size on disk: 800 GiB
 - Retention period: 3 years
 
+## MongoDB
+
+MongoDB, the data platform trusted by more than 67,000 customers, runs its global observability on [VictoriaMetrics Enterprise](https://victoriametrics.com/products/enterprise/), on its own infrastructure, across AWS, Google Cloud and Azure.
+
+VictoriaMetrics replaced Thanos, its previous monitoring solution. The existing Grafana dashboards, alerting and recording rules, and exporters remained unchanged thanks to compatibility with PromQL and the Prometheus ecosystem. VictoriaMetrics provides a single global view across all regions and cloud providers.
+
+By the numbers:
+
+- Ingestion rate: hundreds of millions of samples per minute
+- Query duration: p50 < 10ms; p90 < 100ms
+
+See [detailed case study](https://victoriametrics.com/case-studies/mongodb/).
+
 ## Naver
 
 [Naver](https://www.navercorp.com/) is a global tech platform that enables wide access to advanced technologies for SMEs, creators and partners,
 fueling their greater growth around the world.
 
 See [this video](https://www.youtube.com/watch?v=OUyXPgVcdw4) and [these slides](https://deview.kr/data/deview/session/attach/%5B2B4%5DVictoriaMetrics_%E1%84%89%E1%85%B5%E1%84%80%E1%85%A8%E1%84%8B%E1%85%A7%E1%86%AF_%E1%84%83%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%90%E1%85%A5_%E1%84%83%E1%85%A2%E1%84%92%E1%85%A9%E1%86%AB%E1%84%83%E1%85%A9%E1%86%AB%E1%84%8B%E1%85%B4_%E1%84%86%E1%85%A5%E1%86%AF%E1%84%90%E1%85%B5%E1%84%87%E1%85%A5%E1%84%89%E1%85%B3_Kor+Eng.pdf) on why and how Naver uses VictoriaMetrics.
-
-## MongoDB
-
-MongoDB, the data platform trusted by more than 67.000 customers, runs its global observability on [VictoriaMetrics Enterprise](https://victoriametrics.com/products/enterprise/), on its own infrastructure, across AWS, Google Cloud and Azure.
-
-VictoriaMetrics replaced Thanos, the previous monitoring solution. The existing Grafana dashboards, alerting and recording rules, exporters remained unchanged thanks to the compatibility with PromQL and Prometheus ecosystem. VictoriaMetrics provides a single global view across all regions and cloud providers.
-
-By the numbers:
-- Ingestion: ~100Mil samples per-minute, approx ~2Mil samples/s.
-- Query latency: p50 < 10ms, p90 < 100ms.
-
-See [detailed case study here](https://victoriametrics.com/case-studies/mongodb).
 
 ## NetEase Cloud Music
 
@@ -596,13 +596,14 @@ See more details [in this article](https://www.datanami.com/2023/05/30/why-roblo
 [Aecio dos Santos Pires](http://aeciopires.com), Cloud Architect, Sensedia.
 
 By the numbers:
+
 - Active time series: 700K
 - Ingestion rate: 70K samples/s
-- Datapoints: 112Bil
-- Data size on disk: 82 GB
-- Index size on disk: 30 GB
-- Churn rate: 3 million of new time series per day
-- Query response time (99th percentile): 500ms
+- Total number of datapoints: 112Bil
+- Data size on disk: 82GB
+- Index size on disk: 30GB
+- Churn rate: 3Mil new time series per day
+- Query duration: p99: 500ms
 
 See [detailed case study](https://victoriametrics.com/case-studies/sensedia/).
 
@@ -639,15 +640,17 @@ This system had performance and scalability issues, so they started searching fo
 Five different solutions matching these requirements were evaluated, and VictoriaMetrics was selected
 as a clear winner after running a proof of concept for a production-like workload on these solutions.
 
-The migration from Heroic to VictoriaMetrics was very smooth across internal teams at Spotify who relied on the observability provided by Heroic. 
+The migration from Heroic to VictoriaMetrics was very smooth across internal teams at Spotify who relied on the observability provided by Heroic.
+
 Migration results:
+
 - 10x faster queries
 - Significant cost savings
 - Improved dashboards, more accurate metrics and alerts
 
 VictoriaMetrics handled 78Mil samples/s for ingestion, surpassing their target ingestion of 50Mil samples/s.
 
-See detailed [case study here](https://victoriametrics.com/case-studies/spotify) and [talk from the observability team at Spotify](https://www.youtube.com/watch?v=87koDlpKDR4).
+See [detailed case study](https://victoriametrics.com/case-studies/spotify/) and [the talk from the observability team at Spotify](https://www.youtube.com/watch?v=87koDlpKDR4).
 
 ## Synthesio
 
