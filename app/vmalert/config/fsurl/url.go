@@ -15,8 +15,14 @@ type FS struct {
 
 // Init verifies that configured Path is correct
 func (fs *FS) Init() error {
-	_, err := url.Parse(fs.Path)
-	return err
+	u, err := url.Parse(fs.Path)
+	if err != nil {
+		return err
+	}
+	if u.Host == "" {
+		return fmt.Errorf("url %q must contain a host", fs.Path)
+	}
+	return nil
 }
 
 // String implements Stringer interface

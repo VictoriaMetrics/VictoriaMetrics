@@ -57,14 +57,14 @@ func readHTTPBody(path string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot read %q: %w", path, err)
 	}
-	if len(data) > maxHTTPBodySize {
-		return nil, fmt.Errorf("too big response from %q: exceeds %d bytes", path, maxHTTPBodySize)
-	}
 	if resp.StatusCode != http.StatusOK {
 		if len(data) > 4*1024 {
 			data = data[:4*1024]
 		}
 		return nil, fmt.Errorf("unexpected status code when fetching %q: %d, expecting %d; response: %q", path, resp.StatusCode, http.StatusOK, data)
+	}
+	if len(data) > maxHTTPBodySize {
+		return nil, fmt.Errorf("too big response from %q: exceeds %d bytes", path, maxHTTPBodySize)
 	}
 	return data, nil
 }
