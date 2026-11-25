@@ -105,7 +105,7 @@ func (r *Restore) Run(ctx context.Context) error {
 	}
 
 	logger.Infof("obtaining list of parts at %s", src)
-	srcParts, err := listParts(src, concurrency)
+	srcParts, err := src.ListParts()
 	if err != nil {
 		return fmt.Errorf("cannot list src parts: %w", err)
 	}
@@ -131,6 +131,11 @@ func (r *Restore) Run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+	}
+	// Hash only the selected partitions.
+	srcParts, err = fillHashes(src, srcParts, concurrency)
+	if err != nil {
+		return fmt.Errorf("cannot list src parts: %w", err)
 	}
 	logger.Infof("obtaining list of parts at %s", dst)
 	dstParts, err := listParts(dst, concurrency)

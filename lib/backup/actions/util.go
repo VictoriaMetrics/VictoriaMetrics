@@ -120,13 +120,18 @@ func listParts(fs common.OriginFS, concurrency int) ([]common.Part, error) {
 	if err != nil {
 		return nil, err
 	}
+	return fillHashes(fs, parts, concurrency)
+}
+
+// fillHashes sets Hash for mutable files among parts at fs.
+func fillHashes(fs common.OriginFS, parts []common.Part, concurrency int) ([]common.Part, error) {
 	var toHash []*common.Part
 	for i := range parts {
 		if common.NeedsHash(&parts[i]) {
 			toHash = append(toHash, &parts[i])
 		}
 	}
-	err = runParallelInternal(concurrency, toHash, func(p *common.Part) error {
+	err := runParallelInternal(concurrency, toHash, func(p *common.Part) error {
 		return common.FillHash(p, fs.DownloadPart)
 	})
 	if err != nil {
