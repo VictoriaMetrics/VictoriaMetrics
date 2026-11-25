@@ -762,17 +762,16 @@ func (db *indexDB) searchLabelNamesByDateAndFilters(ctx context.Context, qt *que
 
 func (is *indexSearch) getLabelNamesForMetricIDs(ctx context.Context, qt *querytracer.Tracer, metricIDs *uint64set.Set, maxLabelNames int) (map[string]struct{}, error) {
 	lns := make(map[string]struct{})
-	if metricIDs.Len() > 0 {
-		lns["__name__"] = struct{}{}
-	}
-
 	dmis := is.db.getDeletedMetricIDs()
 
-	var mn MetricName
-	foundLabelNames := 0
-	var buf []byte
-	loopsPaceLimiter := 0
-	var err error
+	var (
+		mn               MetricName
+		buf              []byte
+		err              error
+		foundLabelNames  int
+		loopsPaceLimiter int
+		metricNameFound  bool
+	)
 	metricIDs.ForEach(func(ids []uint64) bool {
 		for _, metricID := range ids {
 			if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
@@ -792,6 +791,12 @@ func (is *indexSearch) getLabelNamesForMetricIDs(ctx context.Context, qt *queryt
 				// Skip this metricID for now.
 				continue
 			}
+
+			// Indicates that at least one metricName has been found by
+			// metricID and therefore the __name__ label name must be added to
+			// the search result.
+			metricNameFound = true
+
 			if err := mn.Unmarshal(buf); err != nil {
 				logger.Panicf("FATAL: cannot unmarshal metricName %q: %s", buf, err)
 			}
@@ -799,7 +804,10 @@ func (is *indexSearch) getLabelNamesForMetricIDs(ctx context.Context, qt *queryt
 				if _, ok := lns[string(tag.Key)]; !ok {
 					foundLabelNames++
 					lns[string(tag.Key)] = struct{}{}
-					if len(lns) >= maxLabelNames {
+
+					// Compare with maxLabelNames-1 instead of maxLabelNames in
+					// order to have room for __name__ label name (see below).
+					if len(lns) >= maxLabelNames-1 {
 						qt.Printf("hit the limit on the number of unique label names: %d", maxLabelNames)
 						return false
 					}
@@ -810,6 +818,11 @@ func (is *indexSearch) getLabelNamesForMetricIDs(ctx context.Context, qt *queryt
 	})
 	if err != nil {
 		return nil, err
+	}
+	if metricNameFound {
+		// Not using len(lns) > 0 condition because it is unreliable:
+		// len(lns) can be zero if all metrics don't have labels.
+		lns["__name__"] = struct{}{}
 	}
 	qt.Printf("get %d distinct label names from %d metricIDs", foundLabelNames, metricIDs.Len())
 	return lns, nil
