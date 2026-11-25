@@ -320,6 +320,9 @@ func (vms *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 		// Verify whether the connection is closed by client or shutdown process.
 		// In this case it is better to drop the created snapshot.
 		if err != nil || r.Context().Err() != nil {
+			if snapshotName == "" {
+				return true
+			}
 			logger.Infof("deleting snapshot %q because the request was canceled", snapshotName)
 			if err := vms.deleteSnapshot(snapshotName); err != nil {
 				logger.Infof("cannot delete snapshot %q: %s", snapshotName, err)

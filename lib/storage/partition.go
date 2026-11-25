@@ -1823,6 +1823,9 @@ func (pt *partition) createSnapshotAt(ctx context.Context, smallPath, bigPath, i
 	startTime := time.Now()
 
 	// Flush inmemory data to disk.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	pt.flushInmemoryRowsToFiles()
 
 	pt.partsLock.Lock()
