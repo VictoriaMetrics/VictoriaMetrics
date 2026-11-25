@@ -3,10 +3,12 @@ package notifier
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -289,4 +291,39 @@ func TestAlertManager_Send(t *testing.T) {
 	}
 	assertCalls(t, 6)
 
+}
+
+func TestAlertManagerSendCountsOnlySuccessfulDelivery(t *testing.T) {
+	var status atomic.Int32
+	status.Store(http.StatusInternalServerError)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(int(status.Load())) }))
+	defer srv.Close()
+	am, err := NewAlertManager(srv.URL, func(Alert) string { return "" }, promauth.HTTPClientConfig{}, nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer am.Close()
+	alerts := []Alert{{Labels: map[string]string{"alertname": "test"}}}
+	labels := [][]prompb.Label{{{Name: "alertname", Value: "test"}}}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := am.Send(ctx, alerts, labels, nil); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected cancellation error, got %v", err)
+	}
+	if got := am.metrics.alertsSent.Get(); got != 0 {
+		t.Fatalf("cancellation counted as %d sent alerts", got)
+	}
+	if err := am.Send(context.Background(), alerts, labels, nil); err == nil {
+		t.Fatal("expected HTTP failure")
+	}
+	if got := am.metrics.alertsSent.Get(); got != 0 {
+		t.Fatalf("failure counted as %d sent alerts", got)
+	}
+	status.Store(http.StatusNoContent)
+	if err := am.Send(context.Background(), alerts, labels, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := am.metrics.alertsSent.Get(); got != 1 {
+		t.Fatalf("got %d sent alerts; want 1", got)
+	}
 }
