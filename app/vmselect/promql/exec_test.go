@@ -10775,6 +10775,11 @@ func TestExecError(t *testing.T) {
 
 	// check ValidateMaxPointsPerSeries after start/end aligment at alignStartEnd.
 	f(`count_over_time(time()[398984ms:7ms])`)
+
+	// Subquery window, step or offset must not move evaluation timestamps out of int64 range.
+	f(`sum_over_time(time()[700000000y:])`)
+	f(`sum_over_time(time()[5m:700000000y])`)
+	f(`sum_over_time(time()[5m:1s] offset 700000000y)`)
 }
 
 func testResultsEqual(t *testing.T, result, resultExpected []netstorage.Result) {

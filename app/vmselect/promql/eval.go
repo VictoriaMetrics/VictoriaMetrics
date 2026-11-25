@@ -1047,8 +1047,13 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 		return nil, fmt.Errorf("cannot parse lookbehind window in square brackets at %s: %w", expr.AppendString(nil), err)
 	}
 
+	msi := maxSilenceInterval()
+	if window > math.MaxInt64-step-msi || ec.Start < math.MinInt64+window+step+msi || ec.End > math.MaxInt64-step {
+		return nil, fmt.Errorf("window=%dms and step=%dms in square brackets at %s move evaluation timestamps out of int64 range", window, step, expr.AppendString(nil))
+	}
+
 	ecSQ := copyEvalConfig(ec)
-	ecSQ.Start -= window + step + maxSilenceInterval()
+	ecSQ.Start -= window + step + msi
 	ecSQ.End += step
 	ecSQ.Step = step
 	ecSQ.MaxPointsPerSeries = *maxPointsSubqueryPerTimeseries
