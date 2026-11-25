@@ -16,18 +16,38 @@ import (
 // All the appended filepaths will have dir prefix.
 // The returned paths have local OS-specific directory separators.
 func AppendFiles(dst []string, dir string) ([]string, error) {
+	root, err := filepath.Abs(dir)
+	if err != nil {
+		return nil, fmt.Errorf("cannot resolve %q: %w", dir, err)
+	}
+	if resolved, err := filepath.EvalSymlinks(root); err == nil {
+		root = resolved
+	}
+	return appendFilesFromPath(dst, root, dir)
+}
+
+func appendFilesFromPath(dst []string, root, dir string) ([]string, error) {
 	d, err := os.Open(dir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open directory: %w", err)
 	}
-	dst, err = appendFilesInternal(dst, d)
-	if err1 := d.Close(); err1 != nil {
+	dst, err = appendFilesInternal(dst, root, d)
+	if err1 := d.Close(); err1 != nil && err == nil {
 		err = err1
 	}
 	return dst, err
 }
 
-func appendFilesInternal(dst []string, d *os.File) ([]string, error) {
+func pathInside(root, target string) bool {
+	root = filepath.Clean(root)
+	target = filepath.Clean(target)
+	if target == root {
+		return true
+	}
+	return strings.HasPrefix(target, root+string(filepath.Separator))
+}
+
+func appendFilesInternal(dst []string, root string, d *os.File) ([]string, error) {
 	dir := d.Name()
 	dfi, err := d.Stat()
 	if err != nil {
@@ -52,7 +72,7 @@ func appendFilesInternal(dst []string, d *os.File) ([]string, error) {
 		path := filepath.Join(dir, name)
 		if fi.IsDir() {
 			// Process directory
-			dst, err = AppendFiles(dst, path)
+			dst, err = appendFilesFromPath(dst, root, path)
 			if err != nil {
 				return nil, fmt.Errorf("cannot append files %q: %w", path, err)
 			}
@@ -74,13 +94,18 @@ func appendFilesInternal(dst []string, d *os.File) ([]string, error) {
 			}
 			return nil, fmt.Errorf("cannot resolve symlink %q: %w", pathOrig, err)
 		}
+		if !pathInside(root, pathReal) {
+			// A symlink planted under the snapshot must not pull in files from outside it.
+			logger.Warnf("skipping symlink %q: target %q is outside %q", pathOrig, pathReal, root)
+			continue
+		}
 		sfi, err := os.Stat(pathReal)
 		if err != nil {
 			return nil, fmt.Errorf("cannot stat %q from symlink %q: %w", pathReal, path, err)
 		}
 		if sfi.IsDir() {
 			// Symlink points to directory
-			dstNew, err := AppendFiles(dst, pathReal)
+			dstNew, err := appendFilesFromPath(dst, root, pathReal)
 			if err != nil {
 				return nil, fmt.Errorf("cannot list files at %q from symlink %q: %w", pathReal, path, err)
 			}
