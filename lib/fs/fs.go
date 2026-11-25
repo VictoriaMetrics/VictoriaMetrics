@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
@@ -154,6 +155,19 @@ func MustFileSize(path string) uint64 {
 		logger.Panicf("FATAL: %q must be a file, not a directory", path)
 	}
 	return uint64(fi.Size())
+}
+
+// IsSinglePathSegment reports whether name is one directory entry.
+// Names that contain a separator, or "." / "..", are rejected so they cannot
+// escape the directory they are joined onto.
+func IsSinglePathSegment(name string) bool {
+	if name == "" || name == "." || name == ".." {
+		return false
+	}
+	if strings.ContainsRune(name, '/') || strings.ContainsRune(name, '\\') {
+		return false
+	}
+	return filepath.Base(name) == name
 }
 
 // IsPathExist returns whether the given path exists.

@@ -1779,6 +1779,9 @@ func mustOpenParts(partsFile, path string, partNames []string) []*partWrapper {
 		// If it is missing, then manual action from the user is needed,
 		// since this is unexpected state, which cannot occur under normal operation,
 		// including unclean shutdown.
+		if !fs.IsSinglePathSegment(partName) {
+			logger.Panicf("FATAL: invalid part name %q in %q; part names must be a single path segment", partName, partsFile)
+		}
 		partPath := filepath.Join(path, partName)
 		if !fs.IsPathExist(partPath) {
 			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; "+
@@ -1910,6 +1913,14 @@ func getPartNames(pws []*partWrapper) []string {
 	return partNames
 }
 
+func mustValidatePartNames(partsFile string, partNames []string) {
+	for _, partName := range partNames {
+		if !fs.IsSinglePathSegment(partName) {
+			logger.Panicf("FATAL: invalid part name %q in %q; part names must be a single path segment", partName, partsFile)
+		}
+	}
+}
+
 func mustReadPartNames(partsFile, smallPartsPath, bigPartsPath string) ([]string, []string) {
 	if fs.IsPathExist(partsFile) {
 		data, err := os.ReadFile(partsFile)
@@ -1920,6 +1931,8 @@ func mustReadPartNames(partsFile, smallPartsPath, bigPartsPath string) ([]string
 		if err := json.Unmarshal(data, &partNames); err != nil {
 			logger.Panicf("FATAL: cannot parse %q: %s", partsFile, err)
 		}
+		mustValidatePartNames(partsFile, partNames.Small)
+		mustValidatePartNames(partsFile, partNames.Big)
 		return partNames.Small, partNames.Big
 	}
 	// The partsFile is missing. This is the upgrade from versions previous to v1.90.0.

@@ -1501,6 +1501,9 @@ func mustOpenParts(path string) []*partWrapper {
 		// If it is missing, then manual action from the user is needed,
 		// since this is unexpected state, which cannot occur under normal operation,
 		// including unclean shutdown.
+		if !fs.IsSinglePathSegment(partName) {
+			logger.Panicf("FATAL: invalid part name %q in %q; part names must be a single path segment", partName, partsFile)
+		}
 		partPath := filepath.Join(path, partName)
 		if !fs.IsPathExist(partPath) {
 			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; "+
@@ -1621,6 +1624,11 @@ func mustReadPartNames(partsFile, srcDir string) []string {
 		var partNames []string
 		if err := json.Unmarshal(data, &partNames); err != nil {
 			logger.Panicf("FATAL: cannot parse %q: %s", partsFile, err)
+		}
+		for _, partName := range partNames {
+			if !fs.IsSinglePathSegment(partName) {
+				logger.Panicf("FATAL: invalid part name %q in %q; part names must be a single path segment", partName, partsFile)
+			}
 		}
 		return partNames
 	}
