@@ -310,8 +310,7 @@ func (vms *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 		}
 		seconds, err := parseLogNewSeriesSeconds(r.FormValue("seconds"))
 		if err != nil {
-			logger.Errorf("cannot parse `seconds` arg: %s", err)
-			jsonResponseError(w, err)
+			httpserver.Errorf(w, r, "%s", httpserver.InvalidParamError(err))
 			return true
 		}
 		logger.Infof("enabling logging of new series for the next %s. This may increase resource usage during this period.", time.Duration(seconds)*time.Second)
