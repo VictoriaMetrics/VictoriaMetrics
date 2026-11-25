@@ -115,6 +115,33 @@ var (
 		"If set to 0 or a negative value, defaults to 1% of allowed memory.")
 )
 
+const (
+	// defaultLogNewSeriesSeconds is used when /internal/log_new_series is called without `seconds`.
+	defaultLogNewSeriesSeconds = 60
+	// maxLogNewSeriesSeconds keeps a bad value from enabling per-series logging until process restart.
+	maxLogNewSeriesSeconds = 24 * 60 * 60
+)
+
+// parseLogNewSeriesSeconds returns how long new-series logging should stay enabled.
+// Empty raw means the default. Zero, negative, and values above the cap are rejected
+// so a negative duration cannot wrap when stored as uint64.
+func parseLogNewSeriesSeconds(raw string) (int, error) {
+	if len(raw) == 0 {
+		return defaultLogNewSeriesSeconds, nil
+	}
+	seconds, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, fmt.Errorf("cannot parse `seconds` arg %q: %w", raw, err)
+	}
+	if seconds <= 0 {
+		return 0, fmt.Errorf("`seconds` must be positive; got %d", seconds)
+	}
+	if seconds > maxLogNewSeriesSeconds {
+		return 0, fmt.Errorf("`seconds` must be at most %d; got %d", maxLogNewSeriesSeconds, seconds)
+	}
+	return seconds, nil
+}
+
 func DataPath() string {
 	return *storageDataPath
 }
@@ -281,18 +308,14 @@ func (vms *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 		if !httpserver.CheckAuthFlag(w, r, logNewSeriesAuthKey) {
 			return true
 		}
-		dealine := 60
-		if deadlineStr := r.FormValue("seconds"); len(deadlineStr) > 0 {
-			var err error
-			dealine, err = strconv.Atoi(deadlineStr)
-			if err != nil {
-				logger.Errorf("cannot parse `seconds` arg %q: %s", deadlineStr, err)
-				jsonResponseError(w, fmt.Errorf("cannot parse `seconds` arg %q: %w", deadlineStr, err))
-				return true
-			}
+		seconds, err := parseLogNewSeriesSeconds(r.FormValue("seconds"))
+		if err != nil {
+			logger.Errorf("cannot parse `seconds` arg: %s", err)
+			jsonResponseError(w, err)
+			return true
 		}
-		logger.Infof("enabling logging of new series for the next %s. This may increase resource usage during this period.", time.Duration(dealine)*time.Second)
-		endTime := fasttime.UnixTimestamp() + uint64(dealine)
+		logger.Infof("enabling logging of new series for the next %s. This may increase resource usage during this period.", time.Duration(seconds)*time.Second)
+		endTime := fasttime.UnixTimestamp() + uint64(seconds)
 		vms.s.SetLogNewSeriesUntil(endTime)
 		fmt.Fprintf(w, `{"status":"success","data":{"logEndTime":%q}}`, time.Unix(int64(endTime), 0))
 		return true
