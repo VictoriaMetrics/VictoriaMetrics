@@ -167,6 +167,11 @@ func IsSinglePathSegment(name string) bool {
 	if strings.ContainsRune(name, '/') || strings.ContainsRune(name, '\\') {
 		return false
 	}
+	// Win32 removes trailing dots and spaces when resolving a path.
+	// Reject names consisting only of these characters, including dot-segment aliases.
+	if strings.TrimRight(name, " .") == "" {
+		return false
+	}
 	return filepath.Base(name) == name
 }
 
