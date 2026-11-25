@@ -17,6 +17,10 @@ VictoriaMetrics Anomaly Detection (`vmanomaly`) reads Prometheus-compatible metr
 
 Future updates will introduce additional readers, expanding the range of data sources `vmanomaly` can work with.
 
+## Query timestamp alignment
+
+**Upcoming release:** both readers select epoch-aligned `step` timestamps within the offset-adjusted window, in memory and on disk. Offsets move the window, not the grid; empty grid windows make no request. VictoriaLogs timestamps mark completed bucket ends. VM evaluation timestamps may change, so refit models trained on unaligned data. Alignment does not guarantee source-data arrival.
+
 ## Playgrounds
 
 Use the following playgrounds to develop and test input queries:
@@ -429,7 +433,7 @@ If True, then query will be performed from the last seen timestamp for a given s
 `None`
             </td>
             <td>
-Optional hard cap {{% available_from "v1.30.0" anomaly %}} for how far `query_from_last_seen_timestamp` may move a query start into the past to recover skipped inference intervals. When configured below the query step, the effective cap is raised to one step. Examples: `5m`, `1h`.
+Optional last-seen recovery cap {{% available_from "v1.30.0" anomaly %}}; `None` means uncapped. **Upcoming release:** measured backward from the offset-adjusted query end, without shortening the requested window or lag history. The previous one-step minimum is removed. For `[12:00, 12:10]`, `5m` preserves the start; `15m` allows recovery to `11:55`. Independent of [scheduler recovery](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#bounded-inference-recovery). Earlier versions may truncate the window.
             </td>
         </tr>
         <tr>
@@ -1047,7 +1051,7 @@ Optional argument {{% available_from "v1.29.7" anomaly %}}, allows specifying th
 `None`
             </td>
             <td>
-Optional hard cap {{% available_from "v1.30.0" anomaly %}} for how far last-seen recovery may move a query start into the past. Examples: `5m`, `1h`.
+Optional last-seen recovery cap {{% available_from "v1.30.0" anomaly %}}; `None` means uncapped. **Upcoming release:** measured backward from the offset-adjusted query end, without shortening the requested window or lag history. The previous one-step minimum is removed. For `[12:00, 12:10]`, `5m` preserves the start; `15m` allows recovery to `11:55`. Independent of [scheduler recovery](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#bounded-inference-recovery). Earlier versions may truncate the window.
             </td>
         </tr>
     </tbody>
