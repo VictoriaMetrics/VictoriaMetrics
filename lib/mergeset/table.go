@@ -1,6 +1,7 @@
 package mergeset
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1544,20 +1545,24 @@ func mustOpenParts(path string) []*partWrapper {
 	return pws
 }
 
-// MustCreateSnapshotAt creates tb snapshot in the given dstDir.
-//
-// Snapshot is created using linux hard links, so it is usually created very quickly.
-//
-// The method panics in case of any error. The input it accepts is provided by
-// the storage (not by a user) and the error indicates either a bug in storage
-// or a problem with the underlying file system (such as insufficient
-// permissions).
+// MustCreateSnapshotAt creates a table snapshot in the given dstDir.
 func (tb *Table) MustCreateSnapshotAt(dstDir string) {
-	var err error
-	srcDir := tb.path
-	srcDir, err = filepath.Abs(srcDir)
+	if err := tb.CreateSnapshotAt(context.Background(), dstDir); err != nil {
+		logger.Panicf("BUG: cannot create snapshot: %s", err)
+	}
+}
+
+// CreateSnapshotAt creates tb snapshot in the given dstDir.
+//
+// Snapshot is created using hard links, so it is usually created very quickly.
+//
+// The method returns ctx.Err() if cancellation is detected.
+// It panics on other errors. The storage provides the input, so these errors indicate either a bug
+// in storage or a problem with the underlying file system (such as insufficient permissions).
+func (tb *Table) CreateSnapshotAt(ctx context.Context, dstDir string) error {
+	srcDir, err := filepath.Abs(tb.path)
 	if err != nil {
-		logger.Panicf("FATAL: cannot obtain absolute dir for %q: %s", srcDir, err)
+		logger.Panicf("FATAL: cannot obtain absolute dir for %q: %s", tb.path, err)
 	}
 	dstDir, err = filepath.Abs(dstDir)
 	if err != nil {
@@ -1570,7 +1575,6 @@ func (tb *Table) MustCreateSnapshotAt(dstDir string) {
 
 	// Flush inmemory items to disk.
 	tb.flushInmemoryItemsToFiles()
-
 	fs.MustMkdirFailIfExist(dstDir)
 
 	pws := tb.getParts(nil)
@@ -1585,12 +1589,16 @@ func (tb *Table) MustCreateSnapshotAt(dstDir string) {
 			// Skip in-memory parts
 			continue
 		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		srcPartPath := pw.p.path
 		dstPartPath := filepath.Join(dstDir, filepath.Base(srcPartPath))
 		fs.MustHardLinkFiles(srcPartPath, dstPartPath)
 	}
 
 	fs.MustSyncPathAndParentDir(dstDir)
+	return nil
 }
 
 func mustWritePartNames(pws []*partWrapper, dstDir string) {

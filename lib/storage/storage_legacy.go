@@ -230,25 +230,30 @@ func legacyNextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64)
 	return deadline
 }
 
-func (s *Storage) legacyCreateSnapshot(snapshotName, srcDir, dstDir string) {
+func (s *Storage) legacyCreateSnapshot(ctx context.Context, snapshotName, dstDir string) error {
 	legacyIDBs := s.getLegacyIndexDBs()
 	defer s.putLegacyIndexDBs(legacyIDBs)
 
 	if legacyIDBs == nil {
-		return
+		return nil
 	}
 
-	idbSnapshot := filepath.Join(srcDir, indexdbDirname, snapshotsDirname, snapshotName)
+	idbSnapshot := filepath.Join(s.path, indexdbDirname, snapshotsDirname, snapshotName)
 	if idbPrev := legacyIDBs.getIDBPrev(); idbPrev != nil {
 		prevSnapshot := filepath.Join(idbSnapshot, idbPrev.name)
-		idbPrev.tb.LegacyMustCreateSnapshotAt(prevSnapshot)
+		if err := idbPrev.tb.LegacyCreateSnapshotAt(ctx, prevSnapshot); err != nil {
+			return err
+		}
 	}
 	if idbCurr := legacyIDBs.getIDBCurr(); idbCurr != nil {
 		currSnapshot := filepath.Join(idbSnapshot, idbCurr.name)
-		idbCurr.tb.LegacyMustCreateSnapshotAt(currSnapshot)
+		if err := idbCurr.tb.LegacyCreateSnapshotAt(ctx, currSnapshot); err != nil {
+			return err
+		}
 	}
 	dstIdbDir := filepath.Join(dstDir, indexdbDirname)
 	fs.MustSymlinkRelative(idbSnapshot, dstIdbDir)
+	return nil
 }
 
 func (s *Storage) legacyMustRotateIndexDB(currentTime time.Time) {

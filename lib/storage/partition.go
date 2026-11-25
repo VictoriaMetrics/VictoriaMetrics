@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1816,14 +1817,15 @@ func mustOpenParts(partsFile, path string, partNames []string) []*partWrapper {
 	return pws
 }
 
-// MustCreateSnapshotAt creates pt snapshot at the given smallPath and bigPath dirs.
-//
-// Snapshot is created using linux hard links, so it is usually created very quickly.
-func (pt *partition) MustCreateSnapshotAt(smallPath, bigPath, indexDBPath string) {
+// createSnapshotAt creates a partition snapshot in the given directories.
+func (pt *partition) createSnapshotAt(ctx context.Context, smallPath, bigPath, indexDBPath string) error {
 	logger.Infof("creating partition snapshot of %q, %q, and %q...", pt.smallPartsPath, pt.bigPartsPath, pt.indexDBPartsPath)
 	startTime := time.Now()
 
 	// Flush inmemory data to disk.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	pt.flushInmemoryRowsToFiles()
 
 	pt.partsLock.Lock()
@@ -1844,22 +1846,32 @@ func (pt *partition) MustCreateSnapshotAt(smallPath, bigPath, indexDBPath string
 	// Create a file with part names at smallPath
 	mustWritePartNames(pwsSmall, pwsBig, smallPath)
 
-	pt.mustCreateSnapshot(pt.smallPartsPath, smallPath, pwsSmall)
-	pt.mustCreateSnapshot(pt.bigPartsPath, bigPath, pwsBig)
+	if err := pt.createSnapshot(ctx, pt.smallPartsPath, smallPath, pwsSmall); err != nil {
+		return err
+	}
+	if err := pt.createSnapshot(ctx, pt.bigPartsPath, bigPath, pwsBig); err != nil {
+		return err
+	}
 
 	fs.MustSyncPathAndParentDir(smallPath)
 	fs.MustSyncPathAndParentDir(bigPath)
 
-	pt.idb.tb.MustCreateSnapshotAt(indexDBPath)
+	if err := pt.idb.tb.CreateSnapshotAt(ctx, indexDBPath); err != nil {
+		return err
+	}
 
 	logger.Infof("created partition snapshot of %q, %q, and %q at %q, %q, and %q in %.3f seconds",
 		pt.smallPartsPath, pt.bigPartsPath, pt.indexDBPartsPath, smallPath, bigPath, indexDBPath, time.Since(startTime).Seconds())
+	return nil
 }
 
-// mustCreateSnapshot creates a snapshot from srcDir to dstDir.
-func (pt *partition) mustCreateSnapshot(srcDir, dstDir string, pws []*partWrapper) {
+// createSnapshot creates a snapshot from srcDir to dstDir.
+func (pt *partition) createSnapshot(ctx context.Context, srcDir, dstDir string, pws []*partWrapper) error {
 	// Make hardlinks for pws at dstDir
 	for _, pw := range pws {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		srcPartPath := pw.p.path
 		dstPartPath := filepath.Join(dstDir, filepath.Base(srcPartPath))
 		fs.MustHardLinkFiles(srcPartPath, dstPartPath)
@@ -1874,6 +1886,7 @@ func (pt *partition) mustCreateSnapshot(srcDir, dstDir string, pws []*partWrappe
 		dstPath := filepath.Join(dstDir, filepath.Base(srcPath))
 		fs.MustCopyFile(srcPath, dstPath)
 	}
+	return nil
 }
 
 type partNamesJSON struct {

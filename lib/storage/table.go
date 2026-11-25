@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -133,9 +134,9 @@ func mustOpenTable(path string, s *Storage) *table {
 	return tb
 }
 
-// MustCreateSnapshot creates tb snapshot and returns paths to small parts, big
+// createSnapshot creates a table snapshot and returns paths to small parts, big
 // parts, and indexdb.
-func (tb *table) MustCreateSnapshot(snapshotName string) (string, string, string) {
+func (tb *table) createSnapshot(ctx context.Context, snapshotName string) (string, string, string, error) {
 	logger.Infof("creating table snapshot of %q...", tb.path)
 	startTime := time.Now()
 
@@ -155,7 +156,9 @@ func (tb *table) MustCreateSnapshot(snapshotName string) (string, string, string
 		smallPath := filepath.Join(dstSmallDir, ptw.pt.name)
 		bigPath := filepath.Join(dstBigDir, ptw.pt.name)
 		indexDBPath := filepath.Join(dstIndexDBDir, ptw.pt.name)
-		ptw.pt.MustCreateSnapshotAt(smallPath, bigPath, indexDBPath)
+		if err := ptw.pt.createSnapshotAt(ctx, smallPath, bigPath, indexDBPath); err != nil {
+			return "", "", "", err
+		}
 	}
 
 	fs.MustSyncPathAndParentDir(dstSmallDir)
@@ -163,7 +166,7 @@ func (tb *table) MustCreateSnapshot(snapshotName string) (string, string, string
 	fs.MustSyncPathAndParentDir(dstIndexDBDir)
 
 	logger.Infof("created table snapshot for %q at (%q, %q, %q) in %.3f seconds", tb.path, dstSmallDir, dstBigDir, dstIndexDBDir, time.Since(startTime).Seconds())
-	return dstSmallDir, dstBigDir, dstIndexDBDir
+	return dstSmallDir, dstBigDir, dstIndexDBDir, nil
 }
 
 // MustDeleteSnapshot deletes snapshot with the given snapshotName.
