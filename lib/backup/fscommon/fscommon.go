@@ -39,12 +39,8 @@ func appendFilesFromPath(dst []string, root, dir string) ([]string, error) {
 }
 
 func pathInside(root, target string) bool {
-	root = filepath.Clean(root)
-	target = filepath.Clean(target)
-	if target == root {
-		return true
-	}
-	return strings.HasPrefix(target, root+string(filepath.Separator))
+	rel, err := filepath.Rel(root, target)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func appendFilesInternal(dst []string, root string, d *os.File) ([]string, error) {
@@ -94,6 +90,10 @@ func appendFilesInternal(dst []string, root string, d *os.File) ([]string, error
 			}
 			return nil, fmt.Errorf("cannot resolve symlink %q: %w", pathOrig, err)
 		}
+		pathReal, err = filepath.Abs(pathReal)
+		if err != nil {
+			return nil, fmt.Errorf("cannot resolve absolute path for symlink %q: %w", pathOrig, err)
+		}
 		if !pathInside(root, pathReal) {
 			// A symlink planted under the snapshot must not pull in files from outside it.
 			logger.Warnf("skipping symlink %q: target %q is outside %q", pathOrig, pathReal, root)
@@ -104,20 +104,7 @@ func appendFilesInternal(dst []string, root string, d *os.File) ([]string, error
 			return nil, fmt.Errorf("cannot stat %q from symlink %q: %w", pathReal, path, err)
 		}
 		if sfi.IsDir() {
-			// Symlink points to directory
-			dstNew, err := appendFilesFromPath(dst, root, pathReal)
-			if err != nil {
-				return nil, fmt.Errorf("cannot list files at %q from symlink %q: %w", pathReal, path, err)
-			}
-			pathReal += string(filepath.Separator)
-			for i := len(dst); i < len(dstNew); i++ {
-				x := dstNew[i]
-				if !strings.HasPrefix(x, pathReal) {
-					return nil, fmt.Errorf("unexpected prefix for path %q; want %q", x, pathReal)
-				}
-				dstNew[i] = filepath.Join(path, x[len(pathReal):])
-			}
-			dst = dstNew
+			// Do not follow directory aliases or links back to an ancestor.
 			continue
 		}
 		if sfi.Mode()&os.ModeSymlink != os.ModeSymlink {
