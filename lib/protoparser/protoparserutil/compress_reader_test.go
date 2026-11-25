@@ -111,42 +111,88 @@ func newTestDataLenFlag(n int) *flagutil.Bytes {
 }
 
 func TestSizeLimitedReader(t *testing.T) {
-	src := strings.Repeat("a", 32)
-	lr := &sizeLimitedReader{
-		r:     strings.NewReader(src),
-		left:  8 + 1,
-		limit: 8,
-		name:  "maxDecompressedRequestSize",
-	}
-	buf := make([]byte, 4)
-	var got []byte
-	var err error
-	for {
-		var n int
-		n, err = lr.Read(buf)
-		got = append(got, buf[:n]...)
-		if err != nil {
-			break
+	for _, size := range []int{0, 7, 8, 9, 32} {
+		for _, bufSize := range []int{1, 4, 16} {
+			t.Run(fmt.Sprintf("size=%d/buffer=%d", size, bufSize), func(t *testing.T) {
+				src := strings.NewReader(strings.Repeat("a", size))
+				lr := &sizeLimitedReader{r: src, left: 8, limit: 8, name: "maxDecompressedRequestSize"}
+				buf := make([]byte, bufSize)
+				var got []byte
+				var err error
+				for err == nil {
+					var n int
+					n, err = lr.Read(buf)
+					got = append(got, buf[:n]...)
+				}
+				if len(got) != min(size, 8) {
+					t.Fatalf("read %d bytes; want %d", len(got), min(size, 8))
+				}
+				if size <= 8 {
+					if err != io.EOF {
+						t.Fatalf("expected EOF, got %v", err)
+					}
+					return
+				}
+				if !strings.Contains(err.Error(), "too big decompressed data size") {
+					t.Fatalf("expected size error, got %v", err)
+				}
+				if consumed := size - src.Len(); consumed != 9 {
+					t.Fatalf("consumed %d bytes; want exactly 9 including the probe", consumed)
+				}
+				if n, nextErr := lr.Read(buf); n != 0 || nextErr != err {
+					t.Fatalf("expected sticky size error without data, got %d, %v", n, nextErr)
+				}
+			})
 		}
 	}
-	if err == nil || !strings.Contains(err.Error(), "too big decompressed data size") {
-		t.Fatalf("expected size error, got %v", err)
-	}
-	if len(got) > 9 {
-		t.Fatalf("read %d bytes, want at most 9", len(got))
-	}
+}
 
-	ok := &sizeLimitedReader{
-		r:     bytes.NewReader([]byte("hello")),
-		left:  5 + 1,
-		limit: 5,
-		name:  "maxDecompressedRequestSize",
-	}
-	data, err := io.ReadAll(ok)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(data) != "hello" {
-		t.Fatalf("got %q", data)
+func TestOpenStreamReader(t *testing.T) {
+	oldLimit := maxDecompressedRequestSize.N
+	maxDecompressedRequestSize.N = 8
+	defer func() { maxDecompressedRequestSize.N = oldLimit }()
+	for _, encoding := range []string{"", "none", "identity", "gzip", "zstd", "deflate", "snappy"} {
+		for _, size := range []int{8, 9} {
+			t.Run(fmt.Sprintf("encoding=%q/size=%d", encoding, size), func(t *testing.T) {
+				// An overflow newline must never complete a row in the parser.
+				data := []byte(strings.Repeat("a", size-1) + "\n")
+				encoded := data
+				switch encoding {
+				case "gzip", "deflate":
+					var bb bytes.Buffer
+					var w io.WriteCloser
+					if encoding == "gzip" {
+						w = gzip.NewWriter(&bb)
+					} else {
+						w = zlib.NewWriter(&bb)
+					}
+					if _, err := w.Write(data); err != nil {
+						t.Fatal(err)
+					}
+					if err := w.Close(); err != nil {
+						t.Fatal(err)
+					}
+					encoded = bb.Bytes()
+				case "zstd":
+					encoded = zstd.CompressLevel(nil, data, 1)
+				case "snappy":
+					encoded = snappy.Encode(nil, data)
+				}
+				r, put, err := OpenStreamReader(bytes.NewReader(encoded), encoding)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer put()
+				got, err := io.ReadAll(r)
+				plain := encoding == "" || encoding == "none" || encoding == "identity"
+				if size <= 8 || plain {
+					if err != nil || !bytes.Equal(got, data) {
+						t.Fatalf("got %q, %v; want %q without an error", got, err, data)
+					}
+				} else if err == nil || !strings.Contains(err.Error(), "too big decompressed data size") || !bytes.Equal(got, data[:8]) {
+					t.Fatalf("got %q, %v; want exactly the first 8 bytes and a size error", got, err)
+				}
+			})
+		}
 	}
 }

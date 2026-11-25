@@ -30,7 +30,7 @@ const maxSnappyBlockSize = 56_000_000
 // Batch parsers already pass their own limit into ReadUncompressedData.
 // Streaming parsers read line by line, so without this cap a small gzip/zstd
 // body can expand for as long as the client keeps the connection open.
-var maxDecompressedRequestSize = flagutil.NewBytes("maxDecompressedRequestSize", 64*1024*1024, "The maximum size in bytes of decompressed data accepted by a single streaming insert request. "+
+var maxDecompressedRequestSize = flagutil.NewBytes("maxDecompressedRequestSize", 64*1024*1024, "The maximum size in bytes of decompressed data accepted by a single compressed streaming insert request. Uncompressed streams are not limited. "+
 	"Applies to native, CSV, Graphite, Influx stream, Prometheus text, vmimport and Zabbix Connector parsers.")
 
 // ReadUncompressedData reads uncompressed data from r using the given contentType and then passes it to the callback.
@@ -171,24 +171,30 @@ func GetUncompressedReader(r io.Reader, contentType string) (io.Reader, error) {
 // OpenStreamReader returns a decompressed reader for a streaming insert.
 //
 // The reader stops with an error once more than -maxDecompressedRequestSize bytes
-// have been produced. Call put when the reader is no longer needed.
+// have been produced. Uncompressed streams are not limited.
+// Call put when the reader is no longer needed.
 // put is nil when err is non-nil.
 func OpenStreamReader(r io.Reader, contentEncoding string) (io.Reader, func(), error) {
 	reader, err := GetUncompressedReader(r, contentEncoding)
 	if err != nil {
 		return nil, nil, err
 	}
+	put := func() { PutUncompressedReader(reader) }
+	if contentEncoding == "" || contentEncoding == "none" || contentEncoding == "identity" {
+		return reader, put, nil
+	}
 	limited := &sizeLimitedReader{
 		r:     reader,
-		left:  maxDecompressedRequestSize.N + 1,
+		left:  maxDecompressedRequestSize.N,
 		limit: maxDecompressedRequestSize.N,
 		name:  maxDecompressedRequestSize.Name,
 	}
-	return limited, func() { PutUncompressedReader(reader) }, nil
+	return limited, put, nil
 }
 
-// sizeLimitedReader fails the read that crosses limit, instead of truncating
-// the stream. left starts at limit+1 so a body of exactly `limit` bytes is accepted.
+// sizeLimitedReader probes for an extra byte after limit without returning it.
+// This distinguishes an exact-size body from an oversized body without exposing
+// an over-limit byte to parsers that process data before checking the read error.
 type sizeLimitedReader struct {
 	r     io.Reader
 	left  int64
@@ -198,24 +204,26 @@ type sizeLimitedReader struct {
 }
 
 func (lr *sizeLimitedReader) Read(p []byte) (int, error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
 	if lr.err != nil {
 		return 0, lr.err
 	}
 	if lr.left <= 0 {
-		lr.err = fmt.Errorf("too big decompressed data size exceeding -%s=%d bytes", lr.name, lr.limit)
-		return 0, lr.err
+		var probe [1]byte
+		n, err := lr.r.Read(probe[:])
+		if n > 0 {
+			lr.err = fmt.Errorf("too big decompressed data size exceeding -%s=%d bytes", lr.name, lr.limit)
+			return 0, lr.err
+		}
+		return 0, err
 	}
 	if int64(len(p)) > lr.left {
 		p = p[:lr.left]
 	}
 	n, err := lr.r.Read(p)
-	if n > 0 {
-		lr.left -= int64(n)
-		if lr.left <= 0 {
-			lr.err = fmt.Errorf("too big decompressed data size exceeding -%s=%d bytes", lr.name, lr.limit)
-			return n, lr.err
-		}
-	}
+	lr.left -= int64(n)
 	return n, err
 }
 
