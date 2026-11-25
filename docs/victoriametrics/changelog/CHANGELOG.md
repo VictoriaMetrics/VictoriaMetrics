@@ -27,6 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent queries from missing recently registered series because of a stale entry in the `indexdb/tagFiltersToMetricIDs` cache. Previously, a search running concurrently with the flush of new series to the index could store the series found before the flush into the cache after the flush had reset it. Subsequent queries with the same filters could then miss the new series until the next cache reset. See [#11916](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11916).
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): cancel outstanding searches on `vmstorage` nodes once `vmselect` with `-search.skipSlowReplicas` has collected enough responses for a complete result. Previously, skipped replicas could continue scanning and sending samples while `vmselect` processed the query result. Please see [#11995](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11995) for details.
 
 ## [v1.157.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.157.0)
 

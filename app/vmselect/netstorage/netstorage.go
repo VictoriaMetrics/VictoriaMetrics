@@ -1996,8 +1996,9 @@ func processBlocksInternal(ctx context.Context, qt *querytracer.Tracer, sns []*s
 		return false, err
 	}
 	// Send the query to all the storage nodes in parallel.
+	queryCtx, cancelOutstandingSubQueries := context.WithCancelCause(ctx)
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) any {
-		if err := execSearchQueryRequest(ctx, qt, sq, workerID, sn, f); err != nil {
+		if err := execSearchQueryRequest(queryCtx, qt, sq, workerID, sn, f); err != nil {
 			return err
 		}
 		return nil
@@ -2010,6 +2011,12 @@ func processBlocksInternal(ctx context.Context, qt *querytracer.Tracer, sns []*s
 		}
 		return nil
 	})
+	// Stop outstanding requests before waiting for in-flight block processing.
+	if err != nil || (*skipSlowReplicas && !isPartial) {
+		cancelOutstandingSubQueries(errStorageSearchAborted)
+	} else {
+		cancelOutstandingSubQueries(nil)
+	}
 	// Make sure that processBlock is no longer called after the exit from processBlocks() function.
 	for i := range wgs {
 		muwg := &wgs[i]
@@ -2221,7 +2228,7 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 		}
 	}
 	if failedGroups < *globalReplicationFactor {
-		// Assume that the result is full if the the number of failed groups is smaller than the globalReplicationFactor.
+		// Assume that the result is full if the number of failed groups is smaller than the globalReplicationFactor.
 		return false, nil
 	}
 
@@ -3435,6 +3442,8 @@ func (pnc *perNodeCounter) GetTotal() uint64 {
 // See https://github.com/golang/go/blob/704401ffa06c60e059c9e6e4048045b4ff42530a/src/runtime/malloc.go#L11
 const maxFastAllocBlockSize = 32 * 1024
 
+var errStorageSearchAborted = errors.New("storage search aborted")
+
 // execSearchQueryRequest executes processSearchQuery for each searchQuery tenant.
 func execSearchQueryRequest(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, workerID uint, sn *storageNode, f func(rawBlock []byte, workerID uint) error) error {
 	var requestData []byte
@@ -3448,7 +3457,9 @@ func execSearchQueryRequest(ctx context.Context, qt *querytracer.Tracer, sq *sto
 		}
 		sn.searchRequests.Inc()
 		if err := sn.processSearchQuery(ctx, qtL, requestData, f, workerID); err != nil {
-			sn.searchErrors.Inc()
+			if !errors.Is(err, context.Canceled) || !errors.Is(context.Cause(ctx), errStorageSearchAborted) {
+				sn.searchErrors.Inc()
+			}
 			if sq.IsMultiTenant {
 				qtL.Done()
 			}
