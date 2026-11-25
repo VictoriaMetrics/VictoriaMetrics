@@ -1048,7 +1048,8 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	}
 
 	msi := maxSilenceInterval()
-	if window > math.MaxInt64-step-msi || ec.Start < math.MinInt64+window+step+msi || ec.End > math.MaxInt64-step {
+	// alignStartEnd below may additionally increase ecSQ.End by up to step-1, hence the 2*step margin.
+	if window > math.MaxInt64-step-msi || ec.Start < math.MinInt64+window+step+msi || ec.End > math.MaxInt64-2*step {
 		return nil, fmt.Errorf("window=%dms and step=%dms in square brackets at %s move evaluation timestamps out of int64 range", window, step, expr.AppendString(nil))
 	}
 

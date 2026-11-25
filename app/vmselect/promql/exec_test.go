@@ -10780,6 +10780,7 @@ func TestExecError(t *testing.T) {
 	f(`sum_over_time(time()[700000000y:])`)
 	f(`sum_over_time(time()[5m:700000000y])`)
 	f(`sum_over_time(time()[5m:1s] offset 700000000y)`)
+	f(`sum_over_time(time()[1h:1000000s] @ 9223372035354776)`)
 }
 
 func testResultsEqual(t *testing.T, result, resultExpected []netstorage.Result) {
