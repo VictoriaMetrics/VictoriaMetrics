@@ -114,17 +114,17 @@ func runParallelPerPathInternal(ctx context.Context, concurrency int, perPath ma
 	return err
 }
 
-func runParallelInternal(concurrency int, parts []common.Part, f func(p common.Part) error) error {
+func runParallelInternal[T any](concurrency int, items []T, f func(t T) error) error {
 	if concurrency <= 0 {
 		concurrency = 1
 	}
-	if len(parts) == 0 {
+	if len(items) == 0 {
 		return nil
 	}
 
-	// len(parts) capacity guarantees non-blocking behavior below.
-	resultCh := make(chan error, len(parts))
-	workCh := make(chan common.Part, len(parts))
+	// len(items) capacity guarantees non-blocking behavior below.
+	resultCh := make(chan error, len(items))
+	workCh := make(chan T, len(items))
 	stopCh := make(chan struct{})
 
 	// Start workers
@@ -143,14 +143,14 @@ func runParallelInternal(concurrency int, parts []common.Part, f func(p common.P
 	}
 
 	// Feed workers with work.
-	for _, p := range parts {
+	for _, p := range items {
 		workCh <- p
 	}
 	close(workCh)
 
 	// Read results.
 	var err error
-	for range parts {
+	for range items {
 		err = <-resultCh
 		if err != nil {
 			// Stop the work.
