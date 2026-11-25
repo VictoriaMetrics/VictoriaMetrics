@@ -806,11 +806,16 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 		return errors.Join(errs...)
 	}
 
+	notifyFailed := false
 	notifierErr := notifier.Send(ctx, alerts, e.notifierHeaders)
 	for err := range notifierErr {
 		if err != nil {
+			notifyFailed = true
 			errs = append(errs, fmt.Errorf("rule %q: notifier failure: %w", r, err))
 		}
+	}
+	if !notifyFailed {
+		ar.markAlertsSent(alerts)
 	}
 
 	return errors.Join(errs...)

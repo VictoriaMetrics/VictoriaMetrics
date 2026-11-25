@@ -870,8 +870,13 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 
 // alertsToSend walks through the current alerts of AlertingRule
 // and returns only those which should be sent to notifier.
-// Isn't concurrent safe.
+//
+// LastSent is left unchanged. The caller marks alerts as sent after the
+// notifier accepts them, so a failed send is retried on the next evaluation.
 func (ar *AlertingRule) alertsToSend(resolveDuration, resendDelay time.Duration) []notifier.Alert {
+	ar.alertsMu.Lock()
+	defer ar.alertsMu.Unlock()
+
 	currentTime := time.Now()
 	needsSending := func(a *notifier.Alert) bool {
 		if a.State == notifier.StatePending {
@@ -895,8 +900,21 @@ func (ar *AlertingRule) alertsToSend(resolveDuration, resendDelay time.Duration)
 		if a.State == notifier.StateInactive {
 			a.End = a.ResolvedAt
 		}
-		a.LastSent = currentTime
 		alerts = append(alerts, *a)
 	}
 	return alerts
+}
+
+// markAlertsSent records a successful notification for the given alerts.
+func (ar *AlertingRule) markAlertsSent(alerts []notifier.Alert) {
+	ar.alertsMu.Lock()
+	defer ar.alertsMu.Unlock()
+	now := time.Now()
+	for i := range alerts {
+		a := ar.alerts[alerts[i].ID]
+		if a == nil {
+			continue
+		}
+		a.LastSent = now
+	}
 }

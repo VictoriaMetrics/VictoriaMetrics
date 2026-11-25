@@ -3,7 +3,6 @@ package notifier
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -82,22 +81,17 @@ func (am *AlertManager) Send(ctx context.Context, alerts []Alert, alertLabels []
 	if len(alerts) != len(alertLabels) {
 		return fmt.Errorf("mismatched number of alerts and label sets after global alert relabeling")
 	}
-	am.metrics.alertsSent.Add(len(alerts))
 	startTime := time.Now()
 	err := am.send(ctx, alerts, alertLabels, headers)
 	am.metrics.alertsSendDuration.UpdateDuration(startTime)
 	if err != nil {
-		// the context can be cancelled on graceful shutdown
-		// or on group update. So no need to handle the error as usual.
-		if errors.Is(err, context.Canceled) {
-			return nil
-		}
 		am.metrics.alertsSendErrors.Add(len(alerts))
 		am.lastError = err.Error()
-	} else {
-		am.lastError = ""
+		return err
 	}
-	return err
+	am.metrics.alertsSent.Add(len(alerts))
+	am.lastError = ""
+	return nil
 }
 
 func (am *AlertManager) send(ctx context.Context, alerts []Alert, alertLabels [][]prompb.Label, headers map[string]string) error {
