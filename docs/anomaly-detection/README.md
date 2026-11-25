@@ -57,6 +57,7 @@ VictoriaMetrics Anomaly Detection **continuously re-fit and apply machine learni
 Get started with VictoriaMetrics Anomaly Detection by following our guides and installation options:
 
 - **Quickstart**: Learn how to quickly set up `vmanomaly` by following the [Quickstart Guide](https://docs.victoriametrics.com/anomaly-detection/quickstart/).
+- **Model selection**: [Choose a model for your metrics](https://docs.victoriametrics.com/anomaly-detection/guides/model-selection/) with practical examples and copyable recipes.
 - **UI**: Explore anomaly detection configurations through the [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/).
 - **AI-assisted setup (optional)**: Use the [UI Copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance), [vmanomaly MCP server](https://docs.victoriametrics.com/ai-tools/#vmanomaly-mcp-server), or [agent skills](https://docs.victoriametrics.com/ai-tools/#agent-skills) to inspect time-series characteristics, select and autotune models, and generate validated configurations.
 - **Integration**: Integrate anomaly detection into your existing observability stack. Find detailed steps [here](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/).

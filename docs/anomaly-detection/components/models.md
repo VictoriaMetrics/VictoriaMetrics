@@ -142,7 +142,9 @@ models:
     provide_series: ['anomaly_score']  # only `anomaly_score` metric will be available for writing back to the database
 ```
 
-> If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). The output can't be less than `['anomaly_score']`. Even if `timestamp` column is omitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
+> If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). `anomaly_score` is not mandatory: a supported model can emit only `is_holiday` with `provide_series: [is_holiday]`. Even if `timestamp` column is omitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
+
+{{% available_from "v1.33.0" anomaly %}} Prophet and Temporal Envelope v1/v2 (univariate and multivariate) support optional `is_holiday` output. Request it explicitly with `provide_series: [anomaly_score, is_holiday]`; it is off by default to avoid extra computation and stored series. Unsupported models reject this selection. An empty calendar logs a validation warning and produces zeros. See [holiday output](#holiday-output).
 
 {{% /collapse %}}
 
@@ -483,7 +485,7 @@ models:
 
 ### Decay
 
-> The `decay` argument works only in combination with [online models](#online-models) like [`ZScoreOnlineModel`](#online-z-score) or [`OnlineQuantileModel`](#online-seasonal-quantile).
+> The `decay` argument works only in combination with [online models](#online-models) like [`OnlineMADModel`](#online-mad), [`ZScoreOnlineModel`](#online-z-score) or [`OnlineQuantileModel`](#online-seasonal-quantile).
 
 The `decay` {{% available_from "v1.23.0" anomaly %}} argument is used to control the (exponential) **decay factor** for online models, which determines how quickly the model adapts to new data. It is a positive float value from `(0.0, 1.0]` interval, where:
 - Value `1.0` means no decay (the model treats all data points equally, without giving more weight to recent ones). This is the default value for backward compatibility.
@@ -533,6 +535,8 @@ By update strategy:
 
 ### Univariate Models
 
+For a visual introduction, see [a metric compared with its own history](https://docs.victoriametrics.com/anomaly-detection/guides/model-selection/#follow-each-metric-over-time).
+
 For a univariate model, **one separate model instance** is fitted and used for each time series returned by its selected [queries](#queries).
 
 For example, a univariate model attached to three [MetricsQL queries](https://docs.victoriametrics.com/victoriametrics/metricsql/), each returning five time series, creates 15 model instances. Each instance produces its own [output](#vmanomaly-output).
@@ -547,6 +551,8 @@ If during an inference, you got a series having **new labelset** (not present in
 
 
 ### Multivariate Models
+
+For a visual introduction, see [connected signals with an unusual combination](https://docs.victoriametrics.com/anomaly-detection/guides/model-selection/#watch-related-signals-together).
 
 For a multivariate model, **one shared model instance** is fitted and used across all aligned time series returned by its selected [queries](#queries).
 
@@ -581,6 +587,8 @@ models:
 
 
 ### Peer-group Models
+
+For a visual introduction, see [an entity compared with its peers](https://docs.victoriametrics.com/anomaly-detection/guides/model-selection/#find-the-odd-one-out).
 
 For a peer-group model {{% available_from "v1.31.0" anomaly %}}, **one shared model instance per query and group** compares comparable entities at each timestamp and produces a **separate anomaly score for each peer**. Unlike multivariate models, the population is not a fixed set of channels. Unlike univariate models, each member does not need its own fitted model.
 
@@ -644,6 +652,10 @@ Every other model that isn't [online](#online-models). Offline models are comple
 ## Built-in Models 
 
 ### Overview
+
+> [!TIP]
+> For a practical path from metric behavior to a model configuration, see [Choose a model for your metrics](https://docs.victoriametrics.com/anomaly-detection/guides/model-selection/). It includes reproducible playground examples and tuning hints.
+
 Built-in models support 2 groups of arguments:
 
 - **Model-specific arguments** - please refer to the collapsed *Model-specific arguments* section for each model below.
@@ -898,6 +910,9 @@ The requested anomaly percentage is treated as an alert-volume constraint rather
 
 {{% available_from "v1.30.0" anomaly %}} Temporal Envelope is the preferred online model for complex operational and business metrics. It learns an evolving expected range from robust trend, calendar and holiday patterns, persistent level shifts, uncertainty, and optional future forecasts. The model adapts during inference while limiting the lasting influence of short-lived spikes.
 
+> [!TIP]
+> To evaluate improvements in trend and seasonal stability, consider the [experimental implementations](#experimental-temporal-envelope-implementations) below. Compare them with the default on representative data before adopting one.
+
 {{% available_from "v1.30.1" anomaly %}} When the fit window ends in a recently established level, the model initializes its adaptive state from that recent regime while preserving supported calendar structure. This improves the first periodic predictions after a level shift and reduces false seasonal oscillation without requiring additional configuration.
 
 > `TemporalEnvelopeModel` is [univariate](#univariate-models) and [online](#online-models). `TemporalEnvelopeMultivariateModel` also learns normal cross-series relationships as a [multivariate](#multivariate-models) model.
@@ -915,6 +930,7 @@ For simple profiles without strong trend or seasonality, prefer [Online MAD](#on
 {{% collapse name="Model-specific arguments" %}}
 
 - `class` (string) - `temporal_envelope` or the full class name `model.online.TemporalEnvelopeModel`.
+- `model_version` (`v1` or `v2`, default `v1`) {{% available_from "v1.32.0" anomaly %}} - selects the implementation for either Temporal Envelope class. See [experimental implementations](#experimental-temporal-envelope-implementations) before switching.
 - `quantiles` (list[float], default `[0.25, 0.75]`) - two ordered probabilities used as the base lower and upper residual boundaries. Values must be within `[0, 1]`.
 - `iqr_threshold` (float, default `2.0`) - primary data-derived interval-width control. Higher values widen the ordinary residual envelope and produce fewer detections. Values from `1` to `4` are a practical experimentation range.
 - `alpha` (float, default `0.005`) - **Trend Reactivity**. Higher values follow persistent level and trend changes faster; lower values produce steadier expectations. Values from `0.0025` to `0.02` are a practical experimentation range.
@@ -930,6 +946,8 @@ For simple profiles without strong trend or seasonality, prefer [Online MAD](#on
 - `forecast_at` (list[string], default `[]`) - positive future offsets such as `['1h', '1d']`. Each offset adds point and, when requested through `provide_series`, lower and upper forecast series.
 
 Preset suffixes describe expected profile shape: `smooth` represents gradual recurring curves, `spiky` represents narrow phase peaks, and `plateau` represents sustained calendar levels. Choose only profiles supported by the data. Calendar and holiday features use civil time from the configured query timezone, so hour/day profiles remain aligned across daylight-saving-time transitions.
+
+{{% available_from "v1.33.0" anomaly %}} Both Envelope versions and topologies can emit `is_holiday` through `provide_series`. It marks exact country-holiday or special-event dates, including events unseen in training; learned before/after response shoulders do not extend the flag. See [holiday output](#holiday-output).
 
 Temporal Envelope also supports the [common model arguments](#common-args), including `queries`, `schedulers`, `provide_series`, `scale`, and `clip_predictions`. Configure `data_range`, `detection_direction`, `min_dev_from_expected`, `min_rel_dev_from_expected`, and query timezone under the corresponding [reader query](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters). The multivariate variant applies these business policies independently to each input channel {{% available_from "v1.30.2" anomaly %}}, so one model can represent combinations such as temperature above expected, power above expected, and clock below expected.
 
@@ -965,7 +983,7 @@ models:
       special_events: ['12-24']
       group: true
     forecast_at: [1h, 1d]
-    provide_series: [anomaly_score, yhat, yhat_lower, yhat_upper]
+    provide_series: [anomaly_score, yhat, yhat_lower, yhat_upper, is_holiday]
 ```
 
 Multivariate monitoring with one dependency model per cluster:
@@ -988,6 +1006,31 @@ For independent per-series detection, use `temporal_envelope`. Use `temporal_env
 
 </div>
 
+#### Experimental Temporal Envelope implementations
+
+> [!NOTE]
+> These opt-in research candidates let you evaluate improvements before they become the default. Behavior and state formats may evolve. V1 remains the default; compare detection quality and resource use on representative history before adopting another implementation. Switching implementations requires a fresh fit.
+
+##### V2
+
+{{% available_from "v1.32.0" anomaly %}} V2 targets more stable trend and calendar-seasonal learning, particularly around trend changes and seasonal transitions.
+
+Select `model_version: v2` with either `temporal_envelope` or `temporal_envelope_multivariate`:
+
+```yaml
+models:
+  seasonal:
+    class: temporal_envelope
+    model_version: v2
+    seasonalities: [hod_smooth, dow_smooth]
+# ...
+```
+
+V2 learns and forecasts seasonal patterns in civil time, using the query timezone, including daylight-saving transitions. It retains the public Temporal Envelope configuration and query-policy interface. Check `GET /api/v1/model/schema?model_class=temporal_envelope` in the [interactive API reference](https://docs.victoriametrics.com/anomaly-detection/components/server/#interactive-api-reference) for supported settings, and tune the selected implementation rather than transferring parameters on the assumption of identical behavior.
+
+> [!WARNING]
+> Switching between v1 and v2 requires a fresh fit; their learned state is not interchangeable. Snapshots are compressed losslessly in v1.32.0, while older raw snapshots remain readable. Rolling back to v1.31.1 or earlier requires resetting persisted state, refitting models, and removing every `model_version: v2` setting. See [state compatibility](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix).
+
 ### Online MAD
 
 > `OnlineMADModel` is a [univariate](#univariate-models), [online](#online-models) model.
@@ -1002,6 +1045,7 @@ The MAD model is a robust method for anomaly detection that is *less sensitive* 
 - `threshold` (float, optional) - The threshold multiplier for the MAD to determine anomalies. Defaults to `2.5`. Higher values will identify fewer points as anomalies.
 - `min_n_samples_seen` (int, optional) - the minimum number of samples to be seen (`n_samples_seen_` property) before computing the anomaly score. Otherwise, the **anomaly score will be 0**, as there is not enough data to trust the model's predictions. Defaults to 16.
 - `history_strength` (float, optional) - {{% available_from "v1.30.0" anomaly %}} strength of the initial history learned by `fit`. Values above `1` preserve fitted quantiles initially but reduce the leverage of subsequent updates. Defaults to `1`.
+- `decay` (float, optional) - exponential forgetting factor in `(0, 1]`. Defaults to `1.0` (no forgetting). Values below `1` reduce the weight of older observations so the online baseline can adapt without periodic refitting; faster forgetting can also absorb sustained anomalies. See [decay](#decay) for background.
 - `compression` (int, optional) - the compression parameter for  underlying [t-digest](https://www.sciencedirect.com/science/article/pii/S2665963820300403). Higher values mean higher accuracy but higher memory usage. By default 100.
 
 {{% /collapse %}}
@@ -1016,6 +1060,7 @@ models:
     threshold: 2.5
     min_n_samples_seen: 128  # i.e. calculate it as full seasonality / data freq
     history_strength: 2  # retain fitted history as a stronger prior
+    decay: 1.0  # no forgetting; use a value below 1 for an adapting baseline
     compression: 100  # higher values mean higher accuracy but higher memory usage
     provide_series: ['anomaly_score', 'yhat']  # common arg example
     # Common arguments for built-in model, if not set, default to
@@ -1228,6 +1273,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 - `class` (string) - model class name `"model.prophet.ProphetModel"` (or `prophet` with class alias support{{% available_from "v1.13.0" anomaly %}})
 - `seasonalities` (list[dict], optional): Additional seasonal components to include in Prophet. See Prophet’s [`add_seasonality()`](https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors#modeling-holidays-and-special-events:~:text=modeling%20the%20cycle-,Specifying,-Custom%20Seasonalities) documentation for details.
 - `scale`{{% available_from "v1.18.0" anomaly %}} (float): Is used to adjust the margins between `yhat` and [`yhat_lower`, `yhat_upper`]. New margin = `|yhat_* - yhat_lower| * scale`. Defaults to 1 (no scaling is applied). See `scale`[common arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#scale) section for detailed instructions and 2-sided option.
+- `holidays`{{% available_from "v1.33.0" anomaly %}} (object, default `{}`): Structured calendar with `countries`, `special_events` and `group`, as in Temporal Envelope. Existing `args.country_holidays` and custom Prophet `args.holidays` remain supported. Nonempty structured and legacy calendar sources cannot be combined.
 - `tz_aware`{{% available_from "v1.18.0" anomaly %}} (bool): Enables handling of timezone-aware timestamps. Default is `False`. Should be used with `tz_seasonalities` and `tz_use_cyclical_encoding` parameters.
 - `tz_seasonalities`{{% available_from "v1.18.0" anomaly %}} (list[dict]): Specifies timezone-aware seasonal components. Requires `tz_aware=True`. Supported options include `minute`, `hod` (hour of day), `dow` (day of week), and `month` (month of year). {{% available_from "v1.18.2" anomaly %}} users can configure additional parameters for each seasonality, such as `fourier_order`, `prior_scale`, and `mode`. For more details, please refer to the **Timezone-unaware** configuration example below.
   > {{% available_from "v1.18.2" anomaly %}} the format for `tz_seasonalities` has been updated to enhance flexibility. Previously, it accepted a list of strings (e.g., `['hod', 'minute']`). Now, it follows the same structure as custom seasonalities defined in the `seasonalities` argument (e.g., `{"name": "hod", "fourier_order": 5, "mode": "additive"}`). This change is backward-compatible, so older configurations will be automatically converted to the new format using default values.
@@ -1329,6 +1375,24 @@ models:
 
 > Apart from standard [`vmanomaly` output](#vmanomaly-output), Prophet model can provide additional metrics.
 
+{{% available_from "v1.33.0" anomaly %}} To emit the calendar flag alongside the anomaly score:
+
+```yaml
+# Other components (reader, writer, schedulers, etc.) are omitted.
+models:
+  holiday_prophet:
+    class: prophet
+    provide_series: [anomaly_score, yhat, is_holiday]
+    holidays:
+      countries: [US, CA]
+      special_events: ['12-24', '2026-11-19']
+      group: true
+```
+
+Set the reader/query timezone to your operation's civil calendar. With the structured calendar, Prophet's holiday regressors and `is_holiday` use the same local dates even though Prophet internally predicts with timezone-naive UTC timestamps. The flag uses the restored output timezone; `tz_aware` controls seasonal regressors and is not required for the calendar flag. Legacy Prophet calendar fitting retains its existing behavior. For custom legacy holidays, the flag marks declared `ds` dates only: `lower_window=-1` and `upper_window=1` let Prophet learn effects on the preceding and following day, but do not mark those days as holidays.
+
+The flag is independent of the learned contribution: a zero effect or an unseen holiday can still produce `is_holiday=1`. It has no `forecast_at` variants. See [holiday output](#holiday-output).
+
 **Additional output metrics produced by FB Prophet**
 Depending on chosen `seasonality` parameter FB Prophet can return additional metrics such as:
 - `trend`, `trend_lower`, `trend_upper`
@@ -1343,12 +1407,11 @@ Resulting metrics of the model are described [here](#vmanomaly-output)
 
 ### [Isolation forest](https://en.wikipedia.org/wiki/Isolation_forest) (Multivariate)
 
+{{% deprecated_from "v1.33.0" anomaly %}} This model is scheduled for removal in v1.34.0. Existing configurations, including AutoTuned targets, still run with a warning. Migrate to the corresponding [Temporal Envelope](#temporal-envelope) model. For Isolation Forest, this applies to both `isolation_forest_univariate` and `isolation_forest_multivariate`.
+
 > `IsolationForestModel` is a [univariate](#univariate-models), [offline](#offline-models) model.
 
 > `IsolationForestMultivariateModel` is a [multivariate](#multivariate-models), [offline](#offline-models) model.
-
-> [!NOTE]
-> Both univariate `isolation_forest` and multivariate `isolation_forest_multivariate` are planned for deprecation in a future release. For new deployments, use the corresponding univariate or multivariate online [Temporal Envelope](#temporal-envelope) model.
 
 Detects anomalies using binary trees. The algorithm has a linear time complexity and a low memory requirement, which works well with high-volume data. It can be used on both univariate and multivariate data, but it is more effective in multivariate case.
 
@@ -1413,10 +1476,9 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### [Holt-Winters](https://en.wikipedia.org/wiki/Exponential_smoothing)
 
-> `HoltWinters` is a [univariate](#univariate-models), [offline](#offline-models) model.
+{{% deprecated_from "v1.33.0" anomaly %}} `holtwinters` is scheduled for removal in v1.34.0. Existing configurations, including AutoTuned targets, still run with a warning. Migrate to [Temporal Envelope](#temporal-envelope).
 
-> [!NOTE]
-> Holt-Winters is planned for deprecation in a future release. For new deployments, prefer the online [Temporal Envelope](#temporal-envelope) model.
+> `HoltWinters` is a [univariate](#univariate-models), [offline](#offline-models) model.
 
 Here we use Holt-Winters Exponential Smoothing implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing). All parameters from this library can be passed to the model.
 
@@ -1553,6 +1615,18 @@ The default metrics produced by `vmanomaly` include:
 
 > If an `infer` call receives `NaN` or infinite input values, the corresponding `anomaly_score` is `NaN`.
 
+
+### Holiday output
+
+{{% available_from "v1.33.0" anomaly %}} `is_holiday` is an opt-in numeric output: `1` on a configured holiday or special-event date and `0` otherwise. [Prophet](#prophet) and [Temporal Envelope](#temporal-envelope) v1/v2 support it. It is aligned to the output timestamp and model identity labels. For univariate models it follows the labels of `y`, `yhat` and `anomaly_score`; for multivariate Envelope it is one shared flag with the aggregate anomaly-score labels, not one flag per channel.
+
+{{% collapse name="How it works" %}}
+
+Country calendars use the [`holidays` package](https://pypi.org/project/holidays/), including its observed dates. Membership is the union of all configured countries and special dates: with `countries: [US, CA]`, either country's holiday is sufficient for `1`. Dates use the output's local timezone, including local-midnight and daylight-saving transitions. Recurring `02-29` applies only in leap years. Subdivisions and forecast-horizon flags are not supported in this version.
+
+Only exact event dates count; learned Envelope shoulders and Prophet holiday windows do not extend membership. The flag does not depend on training coverage or learned effects. Requesting it with an empty calendar logs a validation warning and emits zeros. Omitting it from `provide_series` skips flag generation; a missing series must not be treated as an explicit zero.
+
+{{% /collapse %}}
 
 ## vmanomaly monitoring metrics
 
@@ -1737,19 +1811,18 @@ See the [component configuration reference](https://docs.victoriametrics.com/ano
 Pull the `vmanomaly` image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.31.1
+docker pull victoriametrics/vmanomaly:v1.33.0
 ```
 
 Mount the module at `/vmanomaly/src/model/custom.py`, which matches the configured import path `model.custom.CustomModel`. Validate the complete configuration with `--dryRun` before starting the long-running service.
 
 ```sh
 docker run --rm \
-  -v "$PWD/license:/license:ro" \
   -v "$PWD/custom_model.py:/vmanomaly/src/model/custom.py:ro" \
   -v "$PWD/config.yaml:/config.yaml:ro" \
-  victoriametrics/vmanomaly:v1.31.1 \
+  victoriametrics/vmanomaly:v1.33.0 \
   /config.yaml \
-  --licenseFile=/license \
+  -eula \
   --dryRun
 ```
 

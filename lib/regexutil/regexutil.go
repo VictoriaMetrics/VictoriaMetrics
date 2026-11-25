@@ -222,6 +222,12 @@ func simplifyRegex(expr string, keepAnchors bool) (string, string) {
 	var prefix string
 	if sre.Op == syntax.OpConcat {
 		prefix, ok = getLiteral(sre.Sub[0])
+		if ok && hasPrevCharAssertion(sre.Sub[1:]) {
+			// The rest of the regexp contains ^, \b or \B, which depend on the char before them.
+			// Such a regexp cannot be matched against the string without the prefix.
+			prefix = ""
+			ok = false
+		}
 		if ok {
 			sre.Sub = sre.Sub[1:]
 			if len(sre.Sub) == 0 {
@@ -242,6 +248,20 @@ func simplifyRegex(expr string, keepAnchors bool) (string, string) {
 	s = strings.ReplaceAll(s, "(?s:.)", ".")
 	s = strings.ReplaceAll(s, "(?m:$)", "$")
 	return prefix, s
+}
+
+// hasPrevCharAssertion returns true if subs contain assertions, which depend on the char before the current position.
+func hasPrevCharAssertion(subs []*syntax.Regexp) bool {
+	for _, sub := range subs {
+		switch sub.Op {
+		case syntax.OpBeginLine, syntax.OpBeginText, syntax.OpWordBoundary, syntax.OpNoWordBoundary:
+			return true
+		}
+		if hasPrevCharAssertion(sub.Sub) {
+			return true
+		}
+	}
+	return false
 }
 
 func simplifyRegexp(sre *syntax.Regexp, keepBeginOp, keepEndOp bool) (*syntax.Regexp, bool) {

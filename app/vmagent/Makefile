@@ -45,6 +45,9 @@ vmagent-openbsd-amd64-prod:
 vmagent-windows-amd64-prod:
 	APP_NAME=vmagent $(MAKE) app-via-docker-windows-amd64
 
+vmagent-windows-arm64-prod:
+	APP_NAME=vmagent $(MAKE) app-via-docker-windows-arm64
+
 package-vmagent:
 	APP_NAME=vmagent $(MAKE) package-via-docker
 
@@ -109,8 +112,17 @@ vmagent-freebsd-amd64:
 vmagent-openbsd-amd64:
 	APP_NAME=vmagent CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
+vmagent-netbsd-amd64:
+	APP_NAME=vmagent CGO_ENABLED=0 GOOS=netbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmagent-solaris-amd64:
+	APP_NAME=vmagent CGO_ENABLED=0 GOOS=solaris GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
 vmagent-windows-amd64:
 	GOARCH=amd64 APP_NAME=vmagent $(MAKE) app-local-windows-goarch
+
+vmagent-windows-arm64:
+	GOARCH=arm64 APP_NAME=vmagent $(MAKE) app-local-windows-goarch
 
 vmagent-pure:
 	APP_NAME=vmagent $(MAKE) app-local-pure

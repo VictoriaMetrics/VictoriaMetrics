@@ -61,8 +61,12 @@ jobs:
             arch: amd64
           - os: netbsd
             arch: amd64
+          - os: solaris
+            arch: amd64
           - os: windows
             arch: amd64
+          - os: windows
+            arch: arm64
     steps:
       - name: Code checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1

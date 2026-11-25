@@ -731,19 +731,30 @@ func (rwa *responseWriterWithAbort) abort() {
 	rwa.aborted = true
 }
 
-// Errorf writes formatted error message to w and to logger.
+// Errorf writes a formatted error message to w and to logger.
 func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...any) {
 	errStr := fmt.Sprintf(format, args...)
-	logHTTPError(r, errStr)
+	LogHTTPError(r, errStr)
 
-	// Extract statusCode from args
-	statusCode := http.StatusBadRequest
+	err := errors.New(errStr)
 	var esc *ErrorWithStatusCode
 	for _, arg := range args {
-		if err, ok := arg.(error); ok && errors.As(err, &esc) {
-			statusCode = esc.StatusCode
+		if argErr, ok := arg.(error); ok && errors.As(argErr, &esc) {
+			err = &ErrorWithStatusCode{Err: err, StatusCode: esc.StatusCode}
 			break
 		}
+	}
+	SendError(w, err)
+}
+
+// SendError sends err to w without logging it.
+// It defaults to HTTP status code 400 unless err contains an ErrorWithStatusCode.
+func SendError(w http.ResponseWriter, err error) {
+	errStr := err.Error()
+	statusCode := http.StatusBadRequest
+	var esc *ErrorWithStatusCode
+	if errors.As(err, &esc) {
+		statusCode = esc.StatusCode
 	}
 
 	if rwa, ok := w.(*responseWriterWithAbort); ok && rwa.sentHeaders {
@@ -760,8 +771,8 @@ func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...any) 
 	http.Error(w, errStr, statusCode)
 }
 
-// logHTTPError logs the errStr with the client remote address and the request URI obtained from r.
-func logHTTPError(r *http.Request, errStr string) {
+// LogHTTPError logs the errStr with the client remote address and the request URI obtained from r.
+func LogHTTPError(r *http.Request, errStr string) {
 	remoteAddr := GetQuotedRemoteAddr(r)
 	requestURI := GetRequestURI(r)
 	errStr = fmt.Sprintf("remoteAddr: %s; requestURI: %s; %s", remoteAddr, requestURI, errStr)

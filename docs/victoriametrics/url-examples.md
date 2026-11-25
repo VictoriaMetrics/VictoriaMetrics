@@ -873,6 +873,33 @@ curl 'http://<vm>:<http-port>/health'
 
 Where `<vm>` is any of VictoriaMetrics services. And `<http-port>` is `-httpListenAddr` value.
 
+The same binary with `-healthcheck`{{% available_from "v1.155.0" %}} command-line flag checks that the running process accepts connections at `-httpListenAddr`.
+It exits with non-zero code if the check fails, so it can be used in Docker Compose `healthcheck` without `curl`:
+
+```yaml
+healthcheck:
+  test: ["CMD", "/victoria-metrics-prod", "-healthcheck"]
+```
+
+Pass the same `-httpListenAddr` as the checked process has.
+If the process is configured via [environment variables](https://docs.victoriametrics.com/victoriametrics/#environment-variables), then add `-envflag.enable` to the healthcheck command,
+so it reads the same environment variables. For example:
+
+```yaml
+healthcheck:
+  test: ["CMD", "/victoria-metrics-prod", "-healthcheck", "-envflag.enable"]
+```
+
+The `-healthcheck` flag doesn't request the `/health` page. It only checks that the process accepts connections.
+This is why it works with any `-tls` and `-mtls` settings.
+
+The check passes in the following cases, while the `/health` page doesn't return `OK`:
+
+- The process accepts connections, but doesn't respond.
+- The process is shutting down, but still serves requests during `-http.shutdownDelay`.
+
+Request the `/health` page over HTTP if you need to catch these cases.
+
 ### /-/healthy
 
 **Returns `VictoriaMetrics is Healthy.` if the HTTP server is healthy.**
@@ -989,10 +1016,18 @@ Cluster version of VictoriaMetrics:
 curl 'http://<vmselect>:8481/admin/tenants'
 ```
 
-The optional `start` and `end` query args can be used to return only tenants with ingested data in the given time range:
+By default, only tenants with data ingested during the current day (UTC) are returned.
+Use the `start` and `end` query args to return tenants with ingested data on the given time range.
+Both args should be set together:
 
 ```sh
 curl 'http://<vmselect>:8481/admin/tenants?start=-1d&end=now'
+```
+
+To get all the tenants, set a time range that covers the whole `-retentionPeriod`. For example, for `-retentionPeriod=1y`:
+
+```sh
+curl 'http://<vmselect>:8481/admin/tenants?start=-1y&end=now'
 ```
 
 Additional information:

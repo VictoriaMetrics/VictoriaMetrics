@@ -1,3 +1,5 @@
+import { TimeParams } from "../types";
+import { getCardinalityTenantPeriod } from "../pages/CardinalityPanel/helpers";
 
 const router = {
   home: "/",
@@ -19,6 +21,10 @@ const router = {
   notifiers: "/notifiers",
 };
 
+export interface TenantPeriodContext {
+  searchParams: URLSearchParams;
+}
+
 export interface RouterOptionsHeader {
   tenant?: boolean;
   stepControl?: boolean;
@@ -30,6 +36,7 @@ export interface RouterOptionsHeader {
 export interface RouterOptions {
   title?: string;
   header: RouterOptionsHeader;
+  getTenantPeriod?: (context: TenantPeriodContext) => TimeParams;
 }
 
 const routerOptionsDefault = {
@@ -67,11 +74,13 @@ export const routerOptions: { [key: string]: RouterOptions } = {
       tenant: true,
       cardinalityDatePicker: true,
     },
+    getTenantPeriod: getCardinalityTenantPeriod,
   },
   [router.topQueries]: {
     title: "Top queries",
     header: {
       tenant: true,
+      timeSelector: true,
     },
   },
   [router.trace]: {

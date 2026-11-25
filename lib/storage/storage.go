@@ -562,6 +562,7 @@ type Metrics struct {
 	TimestampsBlocksMerged uint64
 	TimestampsBytesSaved   uint64
 
+	TSIDCacheMode         uint64
 	TSIDCacheSize         uint64
 	TSIDCacheSizeBytes    uint64
 	TSIDCacheSizeMaxBytes uint64
@@ -569,6 +570,7 @@ type Metrics struct {
 	TSIDCacheMisses       uint64
 	TSIDCacheCollisions   uint64
 
+	MetricIDCacheMode         uint64
 	MetricIDCacheSize         uint64
 	MetricIDCacheSizeBytes    uint64
 	MetricIDCacheSizeMaxBytes uint64
@@ -576,6 +578,7 @@ type Metrics struct {
 	MetricIDCacheMisses       uint64
 	MetricIDCacheCollisions   uint64
 
+	MetricNameCacheMode         uint64
 	MetricNameCacheSize         uint64
 	MetricNameCacheSizeBytes    uint64
 	MetricNameCacheSizeMaxBytes uint64
@@ -643,6 +646,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	var cs fastcache.Stats
 	s.tsidCache.UpdateStats(&cs)
+	m.TSIDCacheMode = s.tsidCache.Mode()
 	m.TSIDCacheSize += cs.EntriesCount
 	m.TSIDCacheSizeBytes += cs.BytesSize
 	m.TSIDCacheSizeMaxBytes += cs.MaxBytesSize
@@ -652,6 +656,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	cs.Reset()
 	s.metricIDCache.UpdateStats(&cs)
+	m.MetricIDCacheMode = s.metricIDCache.Mode()
 	m.MetricIDCacheSize += cs.EntriesCount
 	m.MetricIDCacheSizeBytes += cs.BytesSize
 	m.MetricIDCacheSizeMaxBytes += cs.MaxBytesSize
@@ -661,6 +666,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	cs.Reset()
 	s.metricNameCache.UpdateStats(&cs)
+	m.MetricNameCacheMode = s.metricNameCache.Mode()
 	m.MetricNameCacheSize += cs.EntriesCount
 	m.MetricNameCacheSizeBytes += cs.BytesSize
 	m.MetricNameCacheSizeMaxBytes += cs.MaxBytesSize
@@ -1367,7 +1373,7 @@ func (s *Storage) DeleteSeries(ctx context.Context, qt *querytracer.Tracer, tfss
 	if err != nil {
 		return 0, err
 	}
-	all.UnionMayOwn(legacyDMIs)
+	all.Union(legacyDMIs)
 
 	ptws := s.tb.GetAllPartitions(nil)
 	defer s.tb.PutPartitions(ptws)
@@ -1383,7 +1389,7 @@ func (s *Storage) DeleteSeries(ctx context.Context, qt *querytracer.Tracer, tfss
 			return 0, err
 		}
 		n := dmis.Len()
-		all.UnionMayOwn(dmis)
+		all.Union(dmis)
 		qt.Printf("deleted %d metricIDs from %s partition indexDB", n, idb.name)
 	}
 
@@ -1924,7 +1930,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		}
 
 		// Search for TSID for the given mr.MetricNameRaw and store it at r.TSID.
-		if string(mr.MetricNameRaw) == string(prevMetricNameRaw) {
+		if string(mr.MetricNameRaw) == string(prevMetricNameRaw) && !deletedMetricIDs.Has(prevTSID.MetricID) {
 			// Fast path - the current mr contains the same metric name as the previous mr, so it contains the same TSID.
 			// This path should trigger on bulk imports when many rows contain the same MetricNameRaw.
 

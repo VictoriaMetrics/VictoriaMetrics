@@ -170,6 +170,24 @@ vmutils-openbsd-amd64: \
 	vmrestore-openbsd-amd64 \
 	vmctl-openbsd-amd64
 
+vmutils-netbsd-amd64: \
+	vmagent-netbsd-amd64 \
+	vmalert-netbsd-amd64 \
+	vmalert-tool-netbsd-amd64 \
+	vmauth-netbsd-amd64 \
+	vmbackup-netbsd-amd64 \
+	vmrestore-netbsd-amd64 \
+	vmctl-netbsd-amd64
+
+vmutils-solaris-amd64: \
+	vmagent-solaris-amd64 \
+	vmalert-solaris-amd64 \
+	vmalert-tool-solaris-amd64 \
+	vmauth-solaris-amd64 \
+	vmbackup-solaris-amd64 \
+	vmrestore-solaris-amd64 \
+	vmctl-solaris-amd64
+
 vmutils-windows-amd64: \
 	vmagent-windows-amd64 \
 	vmalert-windows-amd64 \
@@ -178,6 +196,15 @@ vmutils-windows-amd64: \
 	vmbackup-windows-amd64 \
 	vmrestore-windows-amd64 \
 	vmctl-windows-amd64
+
+vmutils-windows-arm64: \
+	vmagent-windows-arm64 \
+	vmalert-windows-arm64 \
+	vmalert-tool-windows-arm64 \
+	vmauth-windows-arm64 \
+	vmbackup-windows-arm64 \
+	vmrestore-windows-arm64 \
+	vmctl-windows-arm64
 
 # When adding a new crossbuild target, please also add it to the .github/workflows/build.yml
 crossbuild:
@@ -194,7 +221,8 @@ victoria-metrics-crossbuild: \
 	victoria-metrics-darwin-arm64 \
 	victoria-metrics-freebsd-amd64 \
 	victoria-metrics-openbsd-amd64 \
-	victoria-metrics-windows-amd64
+	victoria-metrics-windows-amd64 \
+	victoria-metrics-windows-arm64
 
 # When adding a new crossbuild target, please also add it to the .github/workflows/build.yml
 vmutils-crossbuild: \
@@ -207,7 +235,8 @@ vmutils-crossbuild: \
 	vmutils-darwin-arm64 \
 	vmutils-freebsd-amd64 \
 	vmutils-openbsd-amd64 \
-	vmutils-windows-amd64
+	vmutils-windows-amd64 \
+	vmutils-windows-arm64
 
 publish-final-images:
 	PKG_TAG=$(TAG) APP_NAME=victoria-metrics $(MAKE) publish-via-docker-from-rc && \
@@ -271,7 +300,8 @@ release-victoria-metrics: \
 	release-victoria-metrics-darwin-arm64 \
 	release-victoria-metrics-freebsd-amd64 \
 	release-victoria-metrics-openbsd-amd64 \
-	release-victoria-metrics-windows-amd64
+	release-victoria-metrics-windows-amd64 \
+	release-victoria-metrics-windows-arm64
 
 release-victoria-metrics-linux-386:
 	GOOS=linux GOARCH=386 $(MAKE) release-victoria-metrics-goos-goarch
@@ -303,6 +333,9 @@ release-victoria-metrics-openbsd-amd64:
 release-victoria-metrics-windows-amd64:
 	GOARCH=amd64 $(MAKE) release-victoria-metrics-windows-goarch
 
+release-victoria-metrics-windows-arm64:
+	GOARCH=arm64 $(MAKE) release-victoria-metrics-windows-goarch
+
 release-victoria-metrics-goos-goarch: victoria-metrics-$(GOOS)-$(GOARCH)-prod
 	cd bin && \
 		tar $(TAR_OWNERSHIP) --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
@@ -332,7 +365,8 @@ release-vmutils: \
 	release-vmutils-darwin-arm64 \
 	release-vmutils-freebsd-amd64 \
 	release-vmutils-openbsd-amd64 \
-	release-vmutils-windows-amd64
+	release-vmutils-windows-amd64 \
+	release-vmutils-windows-arm64
 
 release-vmutils-linux-386:
 	GOOS=linux GOARCH=386 $(MAKE) release-vmutils-goos-goarch
@@ -363,6 +397,9 @@ release-vmutils-openbsd-amd64:
 
 release-vmutils-windows-amd64:
 	GOARCH=amd64 $(MAKE) release-vmutils-windows-goarch
+
+release-vmutils-windows-arm64:
+	GOARCH=arm64 $(MAKE) release-vmutils-windows-goarch
 
 release-vmutils-goos-goarch: \
 	vmagent-$(GOOS)-$(GOARCH)-prod \

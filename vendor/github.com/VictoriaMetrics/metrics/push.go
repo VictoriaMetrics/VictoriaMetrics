@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -420,7 +419,7 @@ func (pc *pushContext) pushMetrics(ctx context.Context, writeMetrics func(w io.W
 		return fmt.Errorf("cannot push metrics to %q: %s", pc.pushURLRedacted, err)
 	}
 	if resp.StatusCode/100 != 2 {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		pc.pushErrors.Inc()
 		return fmt.Errorf("unexpected status code in response from %q: %d; expecting 2xx; response body: %q", pc.pushURLRedacted, resp.StatusCode, body)

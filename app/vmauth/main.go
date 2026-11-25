@@ -118,6 +118,7 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8427"}
 	}
+	httpserver.CheckHealth(listenAddrs)
 	logger.Infof("starting vmauth at %q...", listenAddrs)
 	startTime := time.Now()
 	initAuthConfig()
@@ -981,9 +982,15 @@ func debugInfo(u *url.URL, r *http.Request) string {
 // slowdownUnauthorizedResponse adds a random delay in the [2..3] seconds range before returning an unauthorized response.
 // This reduces the effectiveness of brute-force.
 //
+// The delay is skipped if there are no users with static credentials (auth_token, bearer_token or username/password),
+// since there is nothing to brute-force in this case.
+//
 // Recommended by OWASP Top10:
 // https://owasp.org/Top10/2025/A07_2025-Authentication_Failures
 func slowdownUnauthorizedResponse(r *http.Request) {
+	if au := authUsers.Load(); au == nil || len(*au) == 0 {
+		return
+	}
 
 	d := 2*time.Second + time.Duration(rand.IntN(1000))*time.Millisecond
 	t := timerpool.Get(d)

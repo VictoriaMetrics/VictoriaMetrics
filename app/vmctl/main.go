@@ -402,7 +402,7 @@ func main() {
 			{
 				Name:   "vm-native",
 				Usage:  "Migrate time series between VictoriaMetrics installations",
-				Flags:  mergeFlags(globalFlags, vmNativeFlags),
+				Flags:  mergeFlags(globalFlags, stateFlags, vmNativeFlags),
 				Before: beforeFn,
 				Action: func(c *cli.Context) error {
 					fmt.Println("VictoriaMetrics Native import mode")
@@ -516,6 +516,9 @@ func main() {
 						cc:                       cc,
 						disablePerMetricRequests: c.Bool(vmNativeDisablePerMetricMigration),
 						isNative:                 !c.Bool(vmNativeDisableBinaryProtocol),
+						stateDir:                 c.String(stateDir),
+						srcHeaders:               c.String(vmNativeSrcHeaders),
+						dstHeaders:               c.String(vmNativeDstHeaders),
 					}
 					return p.run(ctx)
 				},

@@ -1052,11 +1052,12 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	ecSQ.End += step
 	ecSQ.Step = step
 	ecSQ.MaxPointsPerSeries = *maxPointsSubqueryPerTimeseries
+	// unconditionally align start and end args to step for subquery as Prometheus does.
+	ecSQ.Start, ecSQ.End = alignStartEnd(ecSQ.Start, ecSQ.End, ecSQ.Step)
+
 	if err := ValidateMaxPointsPerSeries(ecSQ.Start, ecSQ.End, ecSQ.Step, ecSQ.MaxPointsPerSeries); err != nil {
 		return nil, fmt.Errorf("%w; (see -search.maxPointsSubqueryPerTimeseries command-line flag)", err)
 	}
-	// unconditionally align start and end args to step for subquery as Prometheus does.
-	ecSQ.Start, ecSQ.End = alignStartEnd(ecSQ.Start, ecSQ.End, ecSQ.Step)
 	tssSQ, err := evalExpr(qt, ecSQ, re.Expr)
 	if err != nil {
 		return nil, err
@@ -1198,13 +1199,13 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		return offset >= maxOffset
 	}
 	deleteCachedSeries := func(qt *querytracer.Tracer) {
-		rollupResultCacheV.DeleteInstantValues(qt, expr, window, ec.Step, ec.EnforcedTagFilterss)
+		rollupResultCacheV.DeleteInstantValues(qt, ec, expr, window)
 	}
 	getCachedSeries := func(qt *querytracer.Tracer) ([]*timeseries, int64, error) {
 		rollupResultCacheV.rollupResultCacheRequests.Inc()
 	again:
 		offset := int64(0)
-		tssCached := rollupResultCacheV.GetInstantValues(qt, expr, window, ec.Step, ec.EnforcedTagFilterss)
+		tssCached := rollupResultCacheV.GetInstantValues(qt, ec, expr, window)
 		if len(tssCached) == 0 {
 			rollupResultCacheV.rollupResultCacheMisses.Inc()
 			// Cache miss. Re-populate the missing data.
@@ -1230,7 +1231,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 				tss, err := evalAt(qt, timestamp, window)
 				return tss, 0, err
 			}
-			rollupResultCacheV.PutInstantValues(qt, expr, window, ec.Step, ec.EnforcedTagFilterss, tss)
+			rollupResultCacheV.PutInstantValues(qt, ec, expr, window, tss)
 			return tss, offset, nil
 		}
 		// Cache hit. Verify whether it is OK to use the cached data.

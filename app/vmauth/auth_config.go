@@ -286,8 +286,14 @@ type URLMap struct {
 	// SrcQueryArgs is an optional list of query args, which must match request URL query args.
 	SrcQueryArgs []*QueryArg `yaml:"src_query_args,omitempty"`
 
+	// SrcQueryArgsMatchAll instructs matching all the SrcQueryArgs entries instead of any of them.
+	SrcQueryArgsMatchAll bool `yaml:"src_query_args_match_all,omitempty"`
+
 	// SrcHeaders is an optional list of headers, which must match request headers.
 	SrcHeaders []*Header `yaml:"src_headers,omitempty"`
+
+	// SrcHeadersMatchAll instructs matching all the SrcHeaders entries instead of any of them.
+	SrcHeadersMatchAll bool `yaml:"src_headers_match_all,omitempty"`
 
 	// UrlPrefix contains backend url prefixes for the proxied request url.
 	URLPrefix *URLPrefix `yaml:"url_prefix,omitempty"`
@@ -1213,6 +1219,12 @@ func (ui *UserInfo) initURLs() error {
 				return fmt.Errorf("`deny_paths` cannot be used without at least one of `src_paths`, `src_hosts`, `src_query_args` or `src_headers` in `url_map`")
 			}
 			return fmt.Errorf("missing `src_paths`, `src_hosts`, `src_query_args` and `src_headers` in `url_map`")
+		}
+		if e.SrcQueryArgsMatchAll && len(e.SrcQueryArgs) == 0 {
+			return fmt.Errorf("`src_query_args_match_all` cannot be used without `src_query_args` in `url_map`")
+		}
+		if e.SrcHeadersMatchAll && len(e.SrcHeaders) == 0 {
+			return fmt.Errorf("`src_headers_match_all` cannot be used without `src_headers` in `url_map`")
 		}
 		if e.URLPrefix == nil {
 			return fmt.Errorf("missing `url_prefix` in `url_map`")

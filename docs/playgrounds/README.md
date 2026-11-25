@@ -86,7 +86,7 @@ To view the trace in Grafana, follow these steps:
 
 ![Screenshot of Grafana](vt-grafana.webp)
 
-The similar experience is available via [vmui](https://docs.victoriametrics.com/victoriatraces/querying/#vmui) or 
+The similar experience is available via [vmui](https://docs.victoriametrics.com/victoriatraces/querying/#web-ui) or 
 via Tempo datasource in Grafana.
 
 ## Grafana Playground

@@ -49,6 +49,9 @@ vmbackup-openbsd-amd64-prod:
 vmbackup-windows-amd64-prod:
 	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) $(MAKE) app-via-docker-windows-amd64
 
+vmbackup-windows-arm64-prod:
+	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) $(MAKE) app-via-docker-windows-arm64
+
 package-vmbackup:
 	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) $(MAKE) package-via-docker
 
@@ -106,8 +109,17 @@ vmbackup-freebsd-amd64:
 vmbackup-openbsd-amd64:
 	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
+vmbackup-netbsd-amd64:
+	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) CGO_ENABLED=0 GOOS=netbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmbackup-solaris-amd64:
+	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) CGO_ENABLED=0 GOOS=solaris GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
 vmbackup-windows-amd64:
 	GOARCH=amd64 APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) $(MAKE) app-local-windows-goarch
+
+vmbackup-windows-arm64:
+	GOARCH=arm64 APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) $(MAKE) app-local-windows-goarch
 
 vmbackup-pure:
 	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) $(MAKE) app-local-pure
