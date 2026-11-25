@@ -52,7 +52,7 @@ Please see example graph illustrating this logic below:
 > [!NOTE]
 > `vmanomaly` operates on timeseries (metrics) data, and supports both **VictoriaMetrics** and **VictoriaLogs/VictoriaTraces** as data sources to get metrics-compatible data. Choose the source depending on the use case. Single-node / Cluster and OpenSource / Enterprise datasources are supported as well, `vmanomaly` is compatible with both, and follows the [vmanomaly licensing requirements](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing).
 
-**VictoriaMetrics (metrics):** use full [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) for selection, sampling, and processing; [global filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements) are also supported. See the [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) for the details.
+**VictoriaMetrics (metrics):** use full [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) for selection, sampling, and processing. [Global filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements) are also supported. See the [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) for the details.
 
 **VictoriaLogs (logs → metrics):** {{% available_from "v1.26.0" anomaly %}} use [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) via the [`VLogsReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#victorialogs-reader) to create log-derived or traces-derived metrics for anomaly detection (e.g., error rates, request latencies, error spans count). 
 
@@ -127,6 +127,8 @@ reader:
       expr: 'avg(rate(vm_cpu_usage[5m]))'
       offset: '-30s'  # this will override the global offset for this query only
 ```
+
+For a visual example of how an offset shifts a recovered periodic window, see the [periodic scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler).
 
 ## Handling timezones
 
@@ -227,7 +229,7 @@ Yes. The available tools serve different workflows:
 ## How to backtest particular configuration on historical data?
 
 > [!TIP]
-> {{% available_from "v1.26.0" anomaly %}} You can use the [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) to backtest particular configuration on historical data with easy-to-use [preset](https://docs.victoriametrics.com/anomaly-detection/presets/#ui).
+> {{< available_from "v1.26.0" anomaly >}} You can use the [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) to backtest particular configuration on historical data with easy-to-use [preset](https://docs.victoriametrics.com/anomaly-detection/presets/#ui).
 ![vmanomaly-ui-overview](vmanomaly-ui-overview.webp)
 
 Anomaly scores for historical ([backtesting](https://wikipedia.org/wiki/Backtesting)) data can be produced using [`backtesting` scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) in `vmanomaly` config. This scheduler allows you to define a historical period for which the models will be trained and then used to produce anomaly scores, imitating the behavior of the [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) for that period. Especially useful for testing new models or configurations on historical data before deploying them in production, around labelled incidents.
@@ -274,7 +276,7 @@ writer:
 # https://docs.victoriametrics.com/anomaly-detection/components/monitoring/
 ```
 
-Configuration above will produce N intervals of full length (`fit_window`=14d + `fit_every`=1h) until `to_iso` timestamp is reached to run N consecutive `fit` calls to train models; Then these models will be used to produce `M = [fit_every / sampling_period]` infer datapoints for `fit_every` range at the end of each such interval, imitating M consecutive calls of `infer_every` in `PeriodicScheduler` [config](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler). These datapoints then will be written back to VictoriaMetrics TSDB, defined in `writer` [section](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) for further visualization (i.e. in VMUI or Grafana)
+Configuration above will produce N intervals of full length (`fit_window`=14d + `fit_every`=1h) until `to_iso` timestamp is reached to run N consecutive `fit` calls to train models. Then these models will be used to produce `M = [fit_every / sampling_period]` infer datapoints for `fit_every` range at the end of each such interval, imitating M consecutive calls of `infer_every` in `PeriodicScheduler` [config](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler). These datapoints then will be written back to VictoriaMetrics TSDB, defined in `writer` [section](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) for further visualization (i.e. in VMUI or Grafana)
 
 ## Forecasting
 
@@ -364,7 +366,7 @@ writer:
     for: $QUERY_KEY
 ```
 
-Then, respective alerts can be configured in [`vmalert`](https://docs.victoriametrics.com/victoriametrics/vmalert/) to notify disk exhaustion risks. Here, `for="disk_usage_perc_1d"` selects the query key written by [metrics formatting](https://docs.victoriametrics.com/anomaly-detection/components/writer/#metrics-formatting); `for: 24h` is the alert's pending duration:
+Then, respective alerts can be configured in [`vmalert`](https://docs.victoriametrics.com/victoriametrics/vmalert/) to notify disk exhaustion risks. Here, `for="disk_usage_perc_1d"` selects the query key written by [metrics formatting](https://docs.victoriametrics.com/anomaly-detection/components/writer/#metrics-formatting). `for: 24h` is the alert's pending duration:
 
 ```yaml
 groups:
@@ -399,7 +401,7 @@ Once anomaly scores are written back to VictoriaMetrics, use [MetricsQL](https:/
 
 {{% available_from "v1.30.7" anomaly %}} Add an `investigation_url` annotation to [open a firing alert in VMUI](https://docs.victoriametrics.com/anomaly-detection/ui/#investigate-a-firing-alert), with its persisted outputs, configured model and absolute time window. The UI guide includes a screenshot walkthrough and authentication requirements. Opening this link does not rerun detection.
 
-Investigation links require a shared VictoriaMetrics reader/writer URL and tenant, with default [writer metrics formatting](https://docs.victoriametrics.com/anomaly-detection/components/writer/#metrics-formatting): `__name__: "$VAR"` and `for: "$QUERY_KEY"`. The output label `for` holds the query key without a prefix; the rule's `for: 5m` is the pending duration.
+Investigation links require a shared VictoriaMetrics reader/writer URL and tenant, with default [writer metrics formatting](https://docs.victoriametrics.com/anomaly-detection/components/writer/#metrics-formatting): `__name__: "$VAR"` and `for: "$QUERY_KEY"`. The output label `for` holds the query key without a prefix. The rule's `for: 5m` is the pending duration.
 
 ```yaml
 groups:
@@ -420,12 +422,12 @@ groups:
 ```
 
 > [!NOTE]
-> Replace `https://vmanomaly.example.com` with the externally reachable address of the vmanomaly instance or shard that owns the model, including any reverse-proxy path prefix. Keep the original `model_alias`, `scheduler_alias`, `preset` and `for` labels; aggregation or fixed replacements can point to the wrong configuration. Adjust `before`, `after` and `step` to your incident window and sampling interval; `after` should cover the rule's `for` period. The investigation annotation can coexist with your existing Source link.
+> Replace `https://vmanomaly.example.com` with the externally reachable address of the vmanomaly instance or shard that owns the model, including any reverse-proxy path prefix. Keep the original `model_alias`, `scheduler_alias`, `preset` and `for` labels. Aggregation or fixed replacements can point to the wrong configuration. Adjust `before`, `after` and `step` to your incident window and sampling interval. `after` should cover the rule's `for` period. The investigation annotation can coexist with your existing Source link.
 
 > [!TIP]
-> {{% available_from "v1.27.0" anomaly %}} You can also use the [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) to generate alerting rules automatically based on your model configurations and selected thresholds.
+> {{< available_from "v1.27.0" anomaly >}} You can also use the [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) to generate alerting rules automatically based on your model configurations and selected thresholds.
 >
-> {{% available_from "v1.28.3" anomaly %}} Check out our [MCP Server](https://github.com/VictoriaMetrics/mcp-vmanomaly) to get AI-assisted recommendations on setting up alerting rules based on produced anomaly scores. See [installation guide](https://github.com/VictoriaMetrics/mcp-vmanomaly#installation) for more details.
+> {{< available_from "v1.28.3" anomaly >}} Check out our [MCP Server](https://github.com/VictoriaMetrics/mcp-vmanomaly) to get AI-assisted recommendations on setting up alerting rules based on produced anomaly scores. See [installation guide](https://github.com/VictoriaMetrics/mcp-vmanomaly#installation) for more details.
 
 ## Preventing alert fatigue
 Produced anomaly scores are designed in such a way that values from 0.0 to 1.0 indicate non-anomalous data, while a value greater than 1.0 is generally classified as an anomaly. However, there are no perfect models for anomaly detection, that's why reasonable defaults expressions like `anomaly_score > 1` may not work 100% of the time. However, anomaly scores, produced by `vmanomaly` are written back as metrics to VictoriaMetrics, where tools like [`vmalert`](https://docs.victoriametrics.com/victoriametrics/vmalert/) can use [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expressions to fine-tune alerting thresholds and conditions, balancing between avoiding [false negatives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-negative) and reducing [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive).
@@ -459,10 +461,10 @@ For information on migrating between different versions of `vmanomaly`, please r
 {{% available_from "v1.13.0" anomaly %}} There is an option to save anomaly detection models to the host filesystem after the `fit` stage (instead of keeping them in memory by default). This is particularly useful for **resource-intensive setups** (e.g., many models, many metrics, or larger [`fit_window` argument](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler-config-example)) and for 3rd-party models that store fit data (such as [ProphetModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) or [HoltWinters](https://docs.victoriametrics.com/anomaly-detection/components/models/#holt-winters)). This reduces RAM consumption significantly, though at the cost of slightly slower `infer` stages. To enable this, set the environment variable `VMANOMALY_MODEL_DUMPS_DIR` to the desired location. If using [Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md), starting from chart version `1.3.0` `.persistentVolume.enabled` should be set to `true` in [values.yaml](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/values.yaml). Similar optimization is available for data read from VictoriaMetrics TSDB {{% available_from "v1.16.0" anomaly %}}. To use this, set the environment variable `VMANOMALY_DATA_DUMPS_DIR` to the desired location.
 
 > [!TIP]
-> {{% available_from "v1.24.0" anomaly %}} This feature is best used in conjunction with [stateful mode](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) to ensure that the model state is preserved across service restarts.
+> {{< available_from "v1.24.0" anomaly >}} This feature is best used in conjunction with [stateful mode](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) to ensure that the model state is preserved across service restarts.
 
 > [!NOTE]
-> {{% available_from "v1.30.2" anomaly %}} Scheduler-managed fit data is **temporary**. It is removed after every dependent univariate or multivariate model completes fitting and commits its state, rather than being retained until the next `fit_every` cycle. Model dumps and state metadata remain available for restoration.
+> {{< available_from "v1.30.2" anomaly >}} Scheduler-managed fit data is **temporary**. It is removed after every dependent univariate or multivariate model completes fitting and commits its state, rather than being retained until the next `fit_every` cycle. Model dumps and state metadata remain available for restoration.
 
 Here's an example of how to set it up in docker-compose using volumes:
 ```yaml
@@ -470,7 +472,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.33.0
+    image: victoriametrics/vmanomaly:v1.33.1
     # ...
     restart: always
     volumes:
@@ -510,7 +512,7 @@ With the introduction of [online models](https://docs.victoriametrics.com/anomal
 {{% available_from "v1.30.0" anomaly %}} Online models expose a **common** `min_n_samples_seen` warmup: they continue learning, but emit `anomaly_score: 0` until enough observations have been seen. Online MAD, Z-score, and Seasonal Quantile also support `history_strength`, which retains fitted history as a stronger prior while inference continues to adapt the state.
 
 > [!TIP]
-> {{% available_from "v1.24.0" anomaly %}} Online models are best used in conjunction with [stateful mode](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) to preserve the model state across service restarts. This allows the model to continue adapting to new data without losing previously learned patterns, thus avoiding the need for a full `fit` stage to start working again. {{% available_from "v1.28.1" anomaly %}} Additionally, setting [retention policies](https://docs.victoriametrics.com/anomaly-detection/components/settings/#retention) helps manage disk space or RAM used by periodical cleanup of old model instances.
+> {{< available_from "v1.24.0" anomaly >}} Online models are best used in conjunction with [stateful mode](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) to preserve the model state across service restarts. This allows the model to continue adapting to new data without losing previously learned patterns, thus avoiding the need for a full `fit` stage to start working again. {{< available_from "v1.28.1" anomaly >}} Additionally, setting [retention policies](https://docs.victoriametrics.com/anomaly-detection/components/settings/#retention) helps manage disk space or RAM used by periodical cleanup of old model instances.
 
 Here's an example of how we can switch from (offline) [Z-score model](https://docs.victoriametrics.com/anomaly-detection/components/models/#z-score) to [Online Z-score model](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score):
 
@@ -644,7 +646,7 @@ Please note that this approach may not fully resolve the issue if subqueries are
 ## Scaling vmanomaly
 
 > [!NOTE]
-> {{% available_from "v1.21.0" anomaly %}} `vmanomaly` supports [horizontal scalability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability) via sub-config sharding and [high availability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#high-availability) through sub-config replication. Please find the instructions on [dedicated page](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/). Prior to [v1.21.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1210) it should be addressed *manually* e.g. with the help of `config_splitting` util, follow the intuition [below](#splitting-the-config).
+> {{< available_from "v1.21.0" anomaly >}} `vmanomaly` supports [horizontal scalability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability) via sub-config sharding and [high availability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#high-availability) through sub-config replication. Please find the instructions on [dedicated page](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/). Prior to [v1.21.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1210) it should be addressed *manually* e.g. with the help of `config_splitting` util, follow the intuition [below](#splitting-the-config).
 
 `vmanomaly` supports **vertical** scalability, benefiting from additional CPU cores (resulting in faster processing times) and increased RAM (allowing more models to be trained and larger volumes of timeseries data to be processed efficiently).
 
@@ -691,7 +693,7 @@ For a side-by-side comparison of all split modes and their resulting sub-configu
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.33.0 && docker image tag victoriametrics/vmanomaly:v1.33.0 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.33.1 && docker image tag victoriametrics/vmanomaly:v1.33.1 vmanomaly
 ```
 
 ```sh

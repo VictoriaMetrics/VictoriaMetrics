@@ -89,11 +89,11 @@ monitoring:
   # other monitoring settings
 ```
 
-The examples on this page use `fit_every: 1000d` as an effectively bootstrap-only schedule. This is appropriate when an online model has a suitable forgetting or reactivity mechanism, such as `zscore_online` with `decay < 1`. If outdated history must be discarded explicitly, choose a finite fit cadence instead; each fit resets the online model state from the configured `fit_window`.
+The examples on this page use `fit_every: 1000d` as an effectively bootstrap-only schedule. This is appropriate when an online model has a suitable forgetting or reactivity mechanism, such as `zscore_online` with `decay < 1`. If outdated history must be discarded explicitly, choose a finite fit cadence instead. Each fit resets the online model state from the configured `fit_window`.
 
 ## Parallelization
 
-The `n_workers` argument allows you to explicitly specify the number of process workers for internal parallelization of the service. This can help improve performance on multicore systems by allowing the service to process multiple tasks in parallel. For backward compatibility, it is set to `1` by default. It should be an integer greater than or equal to `-1`; values `-1` and `0` use the number of CPU cores available to the service, including container CPU limits.
+The `n_workers` argument allows you to explicitly specify the number of process workers for internal parallelization of the service. This can help improve performance on multicore systems by allowing the service to process multiple tasks in parallel. For backward compatibility, it is set to `1` by default. It should be an integer greater than or equal to `-1`. Values `-1` and `0` use the number of CPU cores available to the service, including container CPU limits.
 
 The `native_threads_per_worker` argument {{% available_from "v1.30.2" anomaly %}} limits [native numerical-library threads](https://scikit-learn.org/stable/computing/parallelism.html#oversubscription-spawning-too-many-threads), such as OpenBLAS threads, inside each model worker. Its default `0` divides the CPU capacity available to the service across effective workers automatically. A positive integer requests an explicit per-worker limit, capped by the CPU share available to that worker. This avoids oversubscription and CPU throttling when every process would otherwise start its own multi-threaded numerical workload. Both `n_workers` and `native_threads_per_worker` are startup settings and require a service restart to change.
 
@@ -156,7 +156,7 @@ monitoring:
 
 ## State Restoration
 
-> This feature is best used with config [hot-reloading](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) {{% available_from "v1.25.0" anomaly %}} for increased deployment flexibility.
+> This feature is best used with config [hot-reloading](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) {{< available_from "v1.25.0" anomaly >}} for increased deployment flexibility.
 
 The `restore_state` argument {{% available_from "v1.24.0" anomaly %}} makes `vmanomaly` service **stateful** by persisting and restoring service metadata and fitted model state between runs, allowing seamless continuation after service restarts.
 
@@ -176,10 +176,28 @@ This feature improves the experience of using the anomaly detection service in s
 
 **Storage**: The service dumps its state into a database file located at `$VMANOMALY_MODEL_DUMPS_DIR/vmanomaly.db`. This database contains metadata about model configurations and schedulers, together with references to trained model artifacts. Scheduler-managed Parquet data is temporary fit input rather than durable model state.
 
-**State restoration**: When the service starts with `restore_state` set to `true`, it will:
-1. Check for the existence of the database file in the specified directory.
-2. If the file does not exist, it will create a new database file and initialize the state with the current configuration, training models as needed. If the file exists, then it compares the loaded state with the current configuration to determine what can be reused and what needs to be retrained (for example, a changed model class, hyperparameter, scheduler, or reader query invalidates the affected state). Compatible model configurations and trained model instances are restored.
-3. Subsequently, it checks model "staleness" and retrains models if necessary, based on the current configuration and the last training time stored in the database versus the next scheduled training time. If the model is **actual**, it continues to use the previously trained model instance. If the model is **stale** (for example, `fit_every` has passed since the last training), it reads the latest `fit_window` from VictoriaMetrics and retrains the model.
+**State restoration**: With `restore_state: true`, startup reuses compatible saved models and schedules training where state is missing, incompatible, or due for a refit.
+
+```mermaid
+---
+config:
+  flowchart:
+    nodeSpacing: 16
+    rankSpacing: 20
+    padding: 8
+---
+flowchart TD
+    saved{"Saved state exists?"} -- No --> fresh["Create database and initialize<br/>from current configuration"]
+    saved -- Yes --> compatible{"Model state<br/>compatible?"}
+    compatible -- No --> fit["Schedule training<br/>from historical data"]
+    fresh --> fit
+    compatible -- Yes --> restore["Restore model and scheduler state"]
+    restore --> due{"Refit due?"}
+    due -- Yes --> fit
+    due -- No --> reuse["Continue with restored model"]
+```
+
+Compatibility is checked against the current configuration: changes to a model class, hyperparameter, scheduler, or reader query invalidate the affected state. Refit timing uses the saved last-training time and the configured schedule. A due refit reads the latest `fit_window` from the datasource.
 
 **State update**: The service periodically saves the updated state after each "atomic" operations, such as (model_alias, query_alias)-based training or inference. This ensures that the state is always up-to-date and can be restored in case of a service restart. [Online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) are also updated after each inference, while [offline models](https://docs.victoriametrics.com/anomaly-detection/components/models/#offline-models) are only saved after each training operation as they do not change the state during consecutive fit calls.
 
@@ -346,11 +364,27 @@ The section is **backward-compatible and disabled by default**, meaning that mod
 - The service is restarted with `restore_state` set to `false`, which triggers a cleanup of all stored artifacts.
 - The models are marked as outdated once scheduled re-fitting is due, leading to retraining and replacement of previous artifacts.
 
-`ttl` defines the time-to-live period for model instances. It should be a valid period string (e.g., `7d` for 7 days or `30d` for 30 days). If a model instance has not been used for inference or refitting within this period, it is considered stale and eligible for cleanup.
+- `ttl`: inactivity period before an instance becomes eligible for removal, such as `7d` or `30d`. Inference or refitting refreshes its last-use time.
+- `check_interval`: how often eligible instances are removed, such as `1h` or `24h`. Expiry does not trigger immediate deletion.
 
-> If `ttl` is greater than a scheduler's `fit_every`, the model is refitted before it becomes stale and the TTL has no effect.
+For an instance that receives no further inference or refitting:
 
-`check_interval` defines how often the service should check for stale artifacts. It should be a valid period string (e.g., `1h` for 1 hour or `24h` for 24 hours). During each check, the service evaluates stored model instances against the defined `ttl` and removes those that are stale.
+```mermaid
+---
+config:
+  flowchart:
+    nodeSpacing: 16
+    rankSpacing: 20
+    padding: 8
+---
+flowchart LR
+    used["Last use"] -->|ttl| eligible["TTL expired"]
+    eligible -->|Cleanup check| removed["Removed"]
+```
+
+The instance remains stored between TTL expiry and the next cleanup check. If it is used again before that check, its inactivity period restarts.
+
+> If `ttl` is greater than a scheduler's `fit_every`, regular refitting refreshes the instance before it becomes eligible for cleanup.
 
 > Check interval should be set to a value smaller than `ttl` and smaller than the smallest `fit_every` period among all schedulers used in the config to ensure timely cleanup of stale artifacts, otherwise stale artifacts may persist longer than intended.
 

@@ -26,12 +26,12 @@ Server component of VictoriaMetrics Anomaly Detection (`vmanomaly`) is responsib
 - `port`: Port of the query server to listen on. Default is `8490`.
 - `path_prefix`: Optional URL path prefix for all HTTP routes. If set to `my-app` or `/my-app`, routes will be served under `<vmanomaly-host>:<port>/my-app/...`.
 - `ui_default_state`: Optional [UI](https://docs.victoriametrics.com/anomaly-detection/ui/) state fragment to open on `/vmui/`. Must be URL-encoded and start with `#/?` (e.g. `#/?param=value`). See [Default State](https://docs.victoriametrics.com/anomaly-detection/ui/#default-state) section for details on constructing the value from UI state.
-- {{% available_from "v1.30.7" anomaly %}} `ui_allowed_models`: Optional list of model aliases shown in UI selectors, including Auto tuning targets. Omit it to show all models; an empty list hides all choices. This controls presentation only: configured models, Copilot, shared links and API execution remain unrestricted.
+- {{% available_from "v1.30.7" anomaly %}} `ui_allowed_models`: Optional list of model aliases shown in UI selectors, including Auto tuning targets. Omit it to show all models. An empty list hides all choices. This controls presentation only: configured models, Copilot, shared links and API execution remain unrestricted.
 - `max_concurrent_tasks`: Maximum number of concurrent anomaly detection tasks processed by the backend. Positive integer. All tasks above the limit will be cancelled if the limit is exceeded. Defaults to `2`.
 - `uvicorn_config`: Uvicorn configuration dictionary. Default is `{"log_level": "warning"}`. See [Uvicorn server settings](https://www.uvicorn.org/settings/) for details.
 - {{% available_from "v1.29.2" anomaly %}} `use_reader_connection_settings`: If set to `true`, UI will use connection settings (e.g. credentials, TLS, etc.) from the [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) configuration when connecting to data sources. This allows UI to connect to data sources with the same settings without requiring having `vmauth` in front of both UI and data sources.
 
-- {{% available_from "v1.32.0" anomaly %}} `tls_cert_file` and `tls_key_file`: PEM server certificate and private-key paths; set both to enable HTTPS for the UI and API.
+- {{% available_from "v1.32.0" anomaly %}} `tls_cert_file` and `tls_key_file`: PEM server certificate and private-key paths. Set both to enable HTTPS for the UI and API.
 - {{% available_from "v1.32.0" anomaly %}} `mtls_ca_file`: PEM CA bundle used to verify required client certificates. Requires the server certificate and key. See [TLS and mutual TLS](#tls-and-mutual-tls).
 
 ### Example Configuration
@@ -83,32 +83,64 @@ server:
   mtls_ca_file: /certs/client-ca.crt
 ```
 
-Mount the PEM files into the vmanomaly process/container. The server certificate may include intermediate certificates and must match the hostname clients use. Omit `mtls_ca_file` for server-only TLS. With mTLS enabled, browsers, API clients, scrapers and MCP must present a certificate trusted by this CA. Configure the browser's client certificate and trust store before opening `https://<host>:8490/vmui/`; include any `path_prefix`.
+Mount the PEM files into the vmanomaly process/container. The server certificate may include intermediate certificates and must match the hostname clients use. Omit `mtls_ca_file` for server-only TLS. With mTLS enabled, browsers, API clients, scrapers and MCP must present a certificate trusted by this CA. Configure the browser's client certificate and trust store before opening `https://<host>:8490/vmui/`. Include any `path_prefix`.
 
-Set the certificate and key together. Invalid or unreadable files prevent startup. Do not configure the same TLS options through `uvicorn_config.ssl_*` alongside these fields. Restart after replacing certificate files. The built-in [health check](https://docs.victoriametrics.com/anomaly-detection/quickstart/#container-health-checks) follows the server TLS configuration when supplied with `--config` or `VMANOMALY_HEALTHCHECK_CONFIG`; see the probe guidance for mTLS certificate requirements. TLS protects this listener; datasource and writer TLS remain configured on their respective components.
+> [!WARNING]
+> Set the certificate and key together. Invalid or unreadable files prevent startup. Do not configure the same TLS options through `uvicorn_config.ssl_*` alongside these fields.
+
+> [!NOTE]
+> {{< available_from "v1.33.1" anomaly >}} Certificate, key and client-CA files are checked every five seconds, including without `--watch`. New connections use successfully reloaded files. Existing connections and requests continue. Invalid or partially replaced files keep the previous TLS context, log an error, and are retried. Earlier versions require restarting after file replacement.
+
+After successful startup, server TLS rotation follows this flow:
+
+```mermaid
+---
+config:
+  flowchart:
+    nodeSpacing: 16
+    rankSpacing: 24
+    padding: 8
+---
+flowchart LR
+    change["TLS files change"] --> load{"Reload succeeds?"}
+    load -- Yes --> use["Use new TLS<br/>for new connections"]
+    load -- No --> keep["Keep previous TLS<br/>and log failure"]
+    keep -->|Retry next check| load
+```
+
+Existing connections and requests continue during rotation, whether the reload succeeds or fails.
+
+> [!TIP]
+> Mount rotating Kubernetes Secrets as directories rather than `subPath` files so updates reach the process.
+
+The built-in [health check](https://docs.victoriametrics.com/anomaly-detection/quickstart/#container-health-checks) follows the server TLS configuration when supplied with `--config` or `VMANOMALY_HEALTHCHECK_CONFIG`. See the probe guidance for mTLS certificate requirements. TLS protects this listener. Datasource and writer TLS remain configured on their respective components.
 
 #### MCP connecting to an HTTPS vmanomaly server
+
+For the connection directions and endpoint variables, see the [MCP connection diagram](https://docs.victoriametrics.com/anomaly-detection/ui/#mcp-tools-server).
 
 In a compatible [mcp-vmanomaly](https://github.com/VictoriaMetrics/mcp-vmanomaly#connecting-to-vmanomaly-over-https) process, configure the **MCP → vmanomaly** connection:
 
 ```bash
 export VMANOMALY_ENDPOINT=https://vmanomaly.example.com:8490
-export VMANOMALY_TLS_CA_FILE=/certs/server-ca.crt
+export VMANOMALY_TLS_CA_CERT_FILE=/certs/server-ca.crt
 # Required only when vmanomaly requires client certificates:
 export VMANOMALY_TLS_CERT_FILE=/certs/mcp-client.crt
 export VMANOMALY_TLS_KEY_FILE=/certs/mcp-client.key
 ```
 
-Publicly trusted server certificates use system trust roots; a custom CA is added to those roots. `VMANOMALY_TLS_CA_CERT` accepts PEM content instead of a mounted CA file; do not set both. Mount client certificate/key files in the MCP container and restart MCP after rotating them. Keep certificate verification enabled.
+Publicly trusted server certificates use system trust roots. A custom CA is added to those roots. `VMANOMALY_TLS_CA_CERT` accepts PEM content instead of a mounted CA file. Do not set both. MCP v0.7.0 uses `VMANOMALY_TLS_CA_CERT_FILE`. The older `VMANOMALY_TLS_CA_FILE` remains a deprecated alias. For MCP v0.6.x, use the older name. From [MCP v0.7.0](https://github.com/VictoriaMetrics/mcp-vmanomaly/releases/tag/v0.7.0), mounted CA, certificate and key files are re-read at most once per second while requests are made. Invalid rotations retain the previous working files. Earlier MCP releases require a restart. Inline CA content is read only at startup. Keep certificate verification enabled.
 
 > [!NOTE]
-> These variables do not enable HTTPS on the MCP listener or configure the **Copilot → MCP** connection. Keep the MCP listener on a trusted private network or protect it with an authenticated TLS reverse proxy; see the MCP server's [deployment guidance](https://github.com/VictoriaMetrics/mcp-vmanomaly#security).
+> These variables do not enable HTTPS on the MCP listener or configure the **Copilot → MCP** connection. Keep the MCP listener on a trusted private network or protect it with an authenticated TLS reverse proxy. See the MCP server's [deployment guidance](https://github.com/VictoriaMetrics/mcp-vmanomaly#security).
+
+The TLS-enabled server exposes `vmanomaly_server_tls_last_reload_successful`, `vmanomaly_server_tls_last_reload_success_timestamp_seconds`, and `vmanomaly_server_tls_cert_expiry_timestamp_seconds`. See [monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#server-tls-metrics).
 
 ### Interactive API reference
 
 Open `/docs` on your running vmanomaly server to inspect generated request and response schemas and try API calls. For a local instance without a path prefix, use [http://localhost:8490/docs](http://localhost:8490/docs). With the example configuration above, use `http://localhost:8490/vmanomaly/docs`. Replace the host, port and optional prefix to match your deployment. ReDoc is available at `/redoc`, and the OpenAPI schema at `/openapi.json`, under the same prefix.
 
-The reference describes the API exposed in that runtime’s OpenAPI schema; separately mounted applications may expose their own routes. **Try it out** sends real requests and can start or cancel tasks. Restrict access to these documentation routes together with the API through your deployment’s authentication proxy or network controls. Hiding the documentation alone does not secure the API.
+The reference describes the API exposed in that runtime’s OpenAPI schema. Separately mounted applications may expose their own routes. **Try it out** sends real requests and can start or cancel tasks. Restrict access to these documentation routes together with the API through your deployment’s authentication proxy or network controls. Hiding the documentation alone does not secure the API.
 
 ### Deployment sizing
 
@@ -119,13 +151,15 @@ Estimate deployment resources {{% available_from "v1.31.0" anomaly %}} before ru
 
 Use the [interactive API reference](#interactive-api-reference) for request schemas. For a forward estimate, provide the model, series or group count, data frequency, inference cadence and storage mode. Fit history (also called training history) is the amount of past data used to train a model, expressed by `fit.window_seconds`. The separate optional `fit.fit_every_seconds` sets how often to repeat training. Online models default to one initial fit when this interval is omitted. Initial fit duration is advisory for online models, but peak memory and disk requirements still matter.
 
-Estimates combine shipped calibration profiles with bounded live calibration when supported. Results describe assumptions, margins, feasibility and extrapolation. They are not performance guarantees: validate with your data, hardware, datasource and writer. Treat reverse-sizing alternatives as separate scenarios, not additive capacity. Protect these endpoints with the same access controls as other server APIs.
+Estimates combine shipped calibration profiles with bounded live calibration when supported. Results describe assumptions, margins, feasibility and extrapolation. Validate these estimates with your data, hardware, datasource and writer. Evaluate each reverse-sizing alternative separately. Their capacities cannot be added together. Protect these endpoints with the same access controls as other server APIs.
 
 {{% available_from "v1.32.0" anomaly %}} CPU, RAM and disk estimates have improved accuracy. Estimates remain experimental and should be checked against a representative workload.
 
-{{% available_from "v1.33.0" anomaly %}} Sizing uses refreshed Temporal Envelope v1/v2 fit/inference profiles and reader-preparation costs, retaining conservative memory and snapshot allowances. In deployment-sizing API request bodies, `reader.fit_response_format` defaults to `compact_json`. Disk-fit estimates assume this compact JSON layout and credit parallel conversion of large responses, bounded by the worker count and an 8 MiB minimum partition size. Use `unsplittable` for gzip or noncompact response files, or `unknown` for conservative whole-response CPU estimates while reserving possible concurrent converter memory. This is a sizing assumption, not a reader setting. Older target versions retain prior estimates. Remote query/download time is excluded; adding cores also increases worker memory.
+{{% available_from "v1.33.0" anomaly %}} Sizing uses refreshed Temporal Envelope v1/v2 fit/inference profiles and reader-preparation costs, retaining conservative memory and snapshot allowances. In deployment-sizing API request bodies, `reader.fit_response_format` defaults to `compact_json`. Disk-fit estimates assume this compact JSON layout and credit parallel conversion of large responses, bounded by the worker count and an 8 MiB minimum partition size. Use `unsplittable` for gzip or noncompact response files, or `unknown` for conservative whole-response CPU estimates while reserving possible concurrent converter memory. This field controls sizing assumptions only. Configure the reader separately. Older target versions retain prior estimates. Remote query/download time is excluded. Adding cores also increases worker memory.
 
-For experimental `peer_outlier` sizing, use `topology: wide`: `entity_count` counts pools and `channels_per_entity` counts peers per pool. Supported estimates cover equal-size fixed pools of 3–10,000 peers, meeting `min_peer_count` (default 5), with complete observations and unchanged membership. Omit the workload's `retention` field: peer sizing does not estimate resources retained for inactive groups after membership changes. This is a sizing limitation, not a restriction on the model's support for changing populations. Use one query per workload and separate workloads for different queries or pool widths; omit `model_params.groupby` because the declared pools are already grouped. Preserve the requested width, including populations above 64 peers. Reverse sizing returns pool-model capacity and input-series counts separately. Peer estimates are less calibrated than regular profiles: allow extra headroom and validate with your workload. Size a concrete tuned model, not the `auto` search itself; tuning costs are not included.
+{{% available_from "v1.33.1" anomaly %}} Memory-mode estimates for v1.31.0 - v1.33.0 targets count all query fit data decoded concurrently and warn about fetch-timeout pressure. Targets from v1.33.1 use the reader-wide fit-fetch limit for in-memory staging and on-disk raw responses. All target versions include repeated labels in chunked raw-response disk estimates. These corrections do not change requested fit windows or model concurrency.
+
+For experimental `peer_outlier` sizing, use `topology: wide`: `entity_count` counts pools and `channels_per_entity` counts peers per pool. Supported estimates cover equal-size fixed pools of 3 - 10,000 peers, meeting `min_peer_count` (default 5), with complete observations and unchanged membership. Omit the workload's `retention` field: peer sizing does not estimate resources retained for inactive groups after membership changes. The model itself supports changing populations. These estimates cover fixed pools only. Use one query per workload and separate workloads for different queries or pool widths. Omit `model_params.groupby` because the declared pools are already grouped. Preserve the requested width, including populations above 64 peers. Reverse sizing returns pool-model capacity and input-series counts separately. Peer estimates are less calibrated than regular profiles: allow extra headroom and validate with your workload. Size the concrete model returned by tuning. Estimates exclude the cost of the `auto` search.
 
 ### Time-series analysis and autotune API
 
@@ -138,11 +172,11 @@ For experimental `peer_outlier` sizing, use `topology: wide`: `entity_count` cou
 
 {{% available_from "v1.30.1" anomaly %}} Seasonality analysis preserves the original timestamp grid when samples are offset from whole step boundaries. This avoids missing daily or weekly patterns solely because timestamps are shifted within the configured sampling interval.
 
-{{% available_from "v1.30.5" anomaly %}} Shared autotune accepts exactly one of a legacy `query` expression or a `queries` object keyed by alias. Each named entry contains `expr` and optional `data_range`, `detection_direction`, `min_dev_from_expected`, and `min_rel_dev_from_expected`. Named input supports 1–50 queries; `limit` caps sampled series separately for each expression. Queries share the same resolved time window.
+{{% available_from "v1.30.5" anomaly %}} Shared autotune accepts exactly one of a legacy `query` expression or a `queries` object keyed by alias. Each named entry contains `expr` and optional `data_range`, `detection_direction`, `min_dev_from_expected`, and `min_rel_dev_from_expected`. Named input supports 1 - 50 queries. `limit` caps sampled series separately for each expression. Queries share the same resolved time window.
 
-For multivariate tuning, request the multivariate class directly and supply grouping labels in `frozen_params.groupby`. The server aligns channels before evaluating each candidate across groups in one study; the result is one shared `modelConfig`, not a different hyperparameter configuration per group. Per-query policies remain attached to their channels. An assembled group missing a requested alias fails rather than silently tuning a partial input set. Inspect `inputQueryCount` and `tunedInputCount` in result data for input-query and assembled-input counts.
+For multivariate tuning, request the multivariate class directly and supply grouping labels in `frozen_params.groupby`. The server aligns channels before evaluating each candidate across groups in one study. The resulting `modelConfig` applies to every group. Per-query policies remain attached to their channels. An assembled group missing a requested alias fails rather than silently tuning a partial input set. Inspect `inputQueryCount` and `tunedInputCount` in result data for input-query and assembled-input counts.
 
-{{% available_from "v1.31.0" anomaly %}} Shared tuning also supports `peer_outlier`. Supply population grouping through `frozen_params.groupby`, retaining peer identity labels in the query results. Queries form independent populations; each validation split keeps all peers at a timestamp together. Supervised labels are evaluated per peer, not as a joint group decision. Non-optimized model settings are preserved, and explicit per-query policies remain authoritative through evaluation and application.
+{{% available_from "v1.31.0" anomaly %}} Shared tuning also supports `peer_outlier`. Supply population grouping through `frozen_params.groupby`, retaining peer identity labels in the query results. Queries form independent populations. Each validation split keeps all peers at a timestamp together. Supervised labels are evaluated separately for each peer. Non-optimized model settings are preserved, and explicit per-query policies remain authoritative through evaluation and application.
 
 > [!TIP]
 > For a complete request and recommended workflow, see [Shared asynchronous autotune workflow](https://docs.victoriametrics.com/anomaly-detection/components/models/#shared-asynchronous-autotune-workflow). See the [interactive API reference](#interactive-api-reference) for schemas from your running version.

@@ -32,13 +32,13 @@ export VMANOMALY_STATE_VERSION_OVERRIDE=1.25.2
 
 ## EULA-based licensing
 
-From [v1.33.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1330), `-eula` accepts the [ESA](https://victoriametrics.com/legal/esa/); existing non-empty license settings remain compatible. See [licensing](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing). Remove alerts that depend on the removed license-expiration metrics. On rollback, remove `-eula` and restore a valid license configuration.
+From [v1.33.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1330), `-eula` accepts the [ESA](https://victoriametrics.com/legal/esa/). Existing non-empty license settings remain compatible. See [licensing](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing). Remove alerts that depend on the removed license-expiration metrics. On rollback, remove `-eula` and restore a valid license configuration.
 
 ## Compatibility Matrix
 
 This section outlines the compatibility of different `vmanomaly` versions with various components, including data, models, and configuration formats, for both [stateful](#stateful-mode) and [stateless](#stateless-mode) modes.
 
-> Refer to the **global** [changelog](https://docs.victoriametrics.com/anomaly-detection/changelog/) for detailed information on changes in each version. Use `--dryRun` {{% available_from "v1.27.0" anomaly %}} mode to check for compatibility issues before performing the actual migration. See [Dry Run](#dry-run) section for more details.
+> Refer to the **global** [changelog](https://docs.victoriametrics.com/anomaly-detection/changelog/) for detailed information on changes in each version. Use `--dryRun` {{< available_from "v1.27.0" anomaly >}} mode to check for compatibility issues before performing the actual migration. See [Dry Run](#dry-run) section for more details.
 
 ### Stateful Mode
 
@@ -59,7 +59,7 @@ In the tables below, **source** means the version that wrote the persisted state
 > [!NOTE]
 > Compatibility checks are directional and use the rules bundled with the running vmanomaly version. When planning a rollback, run `--dryRun` or `/api/v1/compatibility` from the current, newer binary because an older target binary cannot discover rules added after it was released.
 
-Read each row as **source persisted state → target runtime**. The upgrade and downgrade tables are separate because compatibility is directional. Apply all relevant boundary rules when crossing several releases. A newer compatibility matrix can describe compatible formats even when an older executable does not recognize the newer provenance version; do not rewrite provenance to bypass that check.
+Read each row as **source persisted state → target runtime**. The upgrade and downgrade tables are separate because compatibility is directional. Apply all relevant boundary rules when crossing several releases. A newer compatibility matrix can describe compatible formats even when an older executable does not recognize the newer provenance version. Do not rewrite provenance to bypass that check.
 
 <div class="collapse-group mb-3">
 
@@ -67,24 +67,25 @@ Read each row as **source persisted state → target runtime**. The upgrade and 
 
 | Source state | Target runtime | Action and compatibility boundary |
 | --- | --- | --- |
-| v1.32.0 | v1.33.0 | Reuse compatible built-in model state and data dumps; no upgrade-only refit is required. Temporal Envelope warm-up fixes apply as inference continues. Review [licensing](#eula-based-licensing) and [configuration changes](#stateless-mode). |
+| v1.33.0 | v1.33.1 | Persisted formats remain readable. Refit models trained on unaligned or mixed-phase timestamps. See [reader alignment](#breaking-and-configuration-changes). |
+| v1.32.0 | v1.33.0 | Reuse compatible built-in model state and data dumps. No upgrade-only refit is required. Temporal Envelope warm-up fixes apply as inference continues. Review [licensing](#eula-based-licensing) and [configuration changes](#stateless-mode). |
 | v1.31.1 | v1.32.0 | Existing compatible state remains readable, including raw Temporal Envelope snapshots. Switching Envelope `model_version` requires a fresh fit. Refit models with previously affected trends and multivariate `auto` models that learned review/score metadata columns. |
 | v1.31.0 | v1.31.1 | Existing saved built-in model state remains compatible. No manual state migration or upgrade-only refit is required. |
-| v1.30.7 | v1.31.0 | Reuse compatible existing built-in state; no upgrade-only refit is required. New peer models have no state from older releases. |
+| v1.30.7 | v1.31.0 | Reuse compatible existing built-in state. No upgrade-only refit is required. New peer models have no state from older releases. |
 | v1.30.6 | v1.30.7 | Reuse compatible built-in state. |
-| v1.30.5 | v1.30.6–v1.30.7 | Reuse compatible built-in state. |
-| v1.30.4 | v1.30.5–v1.30.7 | Reuse compatible built-in state. Its UI and named-query changes require no state-format migration. |
-| v1.30.0–v1.30.3 | v1.30.4–v1.30.7 | Reuse compatible built-in state. v1.30.4 restores legacy multivariate Temporal Envelope checkpoints correctly and advances state provenance after compatible upgrades. |
-| v1.30.0–v1.30.2 | v1.30.3 | Multivariate Temporal Envelope checkpoints can fail during inference. Prefer upgrading directly to v1.30.7; otherwise discard and refit affected model state. |
-| v1.29.1–v1.29.7 | v1.30.0–v1.30.7 | Existing built-in state remains compatible. Temporal Envelope was introduced in v1.30.0 and has no state from earlier releases. Review custom-model topology changes separately. |
+| v1.30.5 | v1.30.6 - v1.30.7 | Reuse compatible built-in state. |
+| v1.30.4 | v1.30.5 - v1.30.7 | Reuse compatible built-in state. Its UI and named-query changes require no state-format migration. |
+| v1.30.0 - v1.30.3 | v1.30.4 - v1.30.7 | Reuse compatible built-in state. v1.30.4 restores legacy multivariate Temporal Envelope checkpoints correctly and advances state provenance after compatible upgrades. |
+| v1.30.0 - v1.30.2 | v1.30.3 | Multivariate Temporal Envelope checkpoints can fail during inference. Prefer upgrading directly to v1.30.7. Otherwise discard and refit affected model state. |
+| v1.29.1 - v1.29.7 | v1.30.0 - v1.30.7 | Existing built-in state remains compatible. Temporal Envelope was introduced in v1.30.0 and has no state from earlier releases. Review custom-model topology changes separately. |
 | v1.28.x | v1.29.0 | Refit Prophet and Seasonal Quantile model dumps affected by the removed `pytz` dependency. Prefer v1.29.1 or newer, which restores this upgrade path. |
-| v1.28.x | v1.29.1–v1.30.7 | The v1.29.0-only Prophet/Seasonal Quantile incompatibility does not propagate to these versions. Older component-specific restrictions still apply. |
-| v1.24.0–v1.27.x | v1.28.0 or newer | Refit legacy `rolling_quantile` and `std` dumps if present: their class migration is a component boundary in the compatibility matrix. Earlier rolling implementations did not persist these artifacts by default. Reuse remaining state only if the global compatibility boundaries below permit it. |
-| v1.25.3–v1.27.x | Later releases in the same global chain | Global state remains compatible; apply the model-specific boundaries above when crossing v1.28.0 or v1.29.0. |
+| v1.28.x | v1.29.1 - v1.30.7 | The v1.29.0-only Prophet/Seasonal Quantile incompatibility does not propagate to these versions. Older component-specific restrictions still apply. |
+| v1.24.0 - v1.27.x | v1.28.0 or newer | Refit legacy `rolling_quantile` and `std` dumps if present: their class migration is a component boundary in the compatibility matrix. Earlier rolling implementations did not persist these artifacts by default. Reuse remaining state only if the global compatibility boundaries below permit it. |
+| v1.25.3 - v1.27.x | Later releases in the same global chain | Global state remains compatible. Apply the model-specific boundaries above when crossing v1.28.0 or v1.29.0. |
 | v1.25.1 | v1.25.2 | Reuse state within this database-format group. |
-| v1.25.1–v1.25.2 | v1.25.3 or newer | Reinitialize state: v1.25.3 starts a new compatibility group and adds the model `forecast_at` layout. |
-| v1.24.0–v1.25.0 | v1.25.1–v1.25.2 | Reinitialize state because v1.25.1 changes the metadata database format. |
-| v1.24.0–v1.24.1 | v1.25.0 | Data layout and `quantile_online` / `isolation_forest_multivariate` dump formats change. Drop incompatible artifacts; for these older releases, a clean state is the recommended migration path. |
+| v1.25.1 - v1.25.2 | v1.25.3 or newer | Reinitialize state: v1.25.3 starts a new compatibility group and adds the model `forecast_at` layout. |
+| v1.24.0 - v1.25.0 | v1.25.1 - v1.25.2 | Reinitialize state because v1.25.1 changes the metadata database format. |
+| v1.24.0 - v1.24.1 | v1.25.0 | Data layout and `quantile_online` / `isolation_forest_multivariate` dump formats change. Drop incompatible artifacts. For these older releases, a clean state is the recommended migration path. |
 | v1.24.0 | v1.24.1 | Reuse compatible state. |
 | v1.23.3 or earlier | v1.24.0 or newer | No restorable state was persisted by the earlier releases. Initialize state and review configuration changes below. |
 
@@ -94,6 +95,7 @@ Read each row as **source persisted state → target runtime**. The upgrade and 
 
 | Source state | Target runtime | Action and compatibility boundary |
 | --- | --- | --- |
+| v1.33.1 | v1.33.0 | The older executable may reject newer state provenance even though formats are unchanged. Plan refitting or restore a pre-upgrade snapshot. Do not rewrite provenance. Reader window/grid semantics revert. |
 | v1.33.0 | v1.32.0 | Reinitialize/refit on rollback: the older runtime does not recognize v1.33.0 state provenance. Restore [valid licensing](#eula-based-licensing) and remove or adapt [unsupported holiday configuration](#stateless-mode). |
 | v1.32.0 | v1.31.1 or earlier | Reinitialize/refit on rollback: older runtimes do not recognize the newer provenance, compressed Temporal Envelope snapshots or the v2 implementation. Remove unsupported configuration options. |
 | v1.31.1 | v1.31.0 or earlier | The older shipped runtime does not recognize v1.31.1 provenance. Reinitialize/refit on rollback. |
@@ -104,20 +106,20 @@ Read each row as **source persisted state → target runtime**. The upgrade and 
 | v1.30.4 | v1.30.3 or earlier | The older shipped runtime does not recognize v1.30.4 provenance and drops persisted state. Reinitialize/refit on rollback. |
 | v1.30.3 | v1.30.2 or earlier | Univariate and multivariate Temporal Envelope layouts changed in v1.30.3: discard and refit those models. This component restriction is in addition to the older runtime's provenance/global checks. |
 | v1.30.0 or newer | Before v1.30.0 | Temporal Envelope is unavailable: replace unsupported model configuration and discard its model dumps. Check provenance and other component boundaries for the remaining state. |
-| v1.29.1 or newer | v1.29.0 | The `pytz` restriction documented for v1.29.0 is upgrade-only, not a blanket downgrade restriction. The older runtime must still accept the actual saved version and model format. |
-| v1.28.0 or newer | Before v1.28.0 | Online `rolling_quantile` / `std` dumps cannot be used by the older class implementations; discard them and configure a supported model. Check global provenance separately. |
-| v1.25.3 or newer | v1.25.1–v1.25.2 | Crosses a global compatibility-group boundary: reinitialize state. |
-| v1.25.2 | v1.25.1 | The metadata layout is shared; confirm the shipped target can recognize the recorded source version before attempting reuse. |
-| v1.25.1–v1.25.2 | v1.24.0–v1.25.0 | The older metadata database layout is incompatible. Reinitialize state. |
-| v1.25.0 | v1.24.0–v1.24.1 | Data and selected model dump layouts differ; a clean state is recommended. |
-| v1.24.1 | v1.24.0 | Managed layouts are compatible; check recorded provenance against the shipped target. |
-| Any stateful release | Before v1.24.0 | State restoration is unavailable; run with fresh state and configuration supported by the target. |
+| v1.29.1 or newer | v1.29.0 | The `pytz` restriction documented for v1.29.0 applies only to upgrades. The older runtime must still accept the actual saved version and model format. |
+| v1.28.0 or newer | Before v1.28.0 | Online `rolling_quantile` / `std` dumps cannot be used by the older class implementations. Discard them and configure a supported model. Check global provenance separately. |
+| v1.25.3 or newer | v1.25.1 - v1.25.2 | Crosses a global compatibility-group boundary: reinitialize state. |
+| v1.25.2 | v1.25.1 | The metadata layout is shared. Confirm the shipped target can recognize the recorded source version before attempting reuse. |
+| v1.25.1 - v1.25.2 | v1.24.0 - v1.25.0 | The older metadata database layout is incompatible. Reinitialize state. |
+| v1.25.0 | v1.24.0 - v1.24.1 | Data and selected model dump layouts differ. A clean state is recommended. |
+| v1.24.1 | v1.24.0 | Managed layouts are compatible. Check recorded provenance against the shipped target. |
+| Any stateful release | Before v1.24.0 | State restoration is unavailable. Run with fresh state and configuration supported by the target. |
 
 {{% /collapse %}}
 
 </div>
 
-Model availability is a separate check from state compatibility. ARIMA was removed in v1.12.0, before persisted-state restoration existed; remove or replace its configuration when upgrading across that boundary. The `mad` and `zscore` aliases redirect to online counterparts from v1.28.4. Deprecation is not removal; see the model-specific notices for [Holt-Winters](https://docs.victoriametrics.com/anomaly-detection/components/models/#holt-winters) and [Isolation Forest](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate). Always verify the target model catalog and the [configuration changes](#stateless-mode) below.
+Model availability is a separate check from state compatibility. ARIMA was removed in v1.12.0, before persisted-state restoration existed. Remove or replace its configuration when upgrading across that boundary. The `mad` and `zscore` aliases redirect to online counterparts from v1.28.4. Deprecated models remain available until removal. See the model-specific notices for [Holt-Winters](https://docs.victoriametrics.com/anomaly-detection/components/models/#holt-winters) and [Isolation Forest](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate). Always verify the target model catalog and the [configuration changes](#stateless-mode) below.
 
 ### Clearing State
 
@@ -134,13 +136,22 @@ However, for releases [v1.24.0](https://docs.victoriametrics.com/anomaly-detecti
 
 In stateless mode, the migration process is almost straightforward as there are no persistent states to manage. One may simply upgrade the `vmanomaly` service to the latest version and restart it, up to a slight change in the config .YAML files for backward-incompatible changes, see the list below.
 
+<span id="breaking-and-configuration-changes"></span>
+
 **Breaking and configuration changes**
 
-- [v1.33.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1330): on rollback, remove [`is_holiday`](https://docs.victoriametrics.com/anomaly-detection/components/models/#holiday-output) from `provide_series` and adapt [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) top-level `holidays` to the target version's supported calendar configuration. Update alert rules that use the flag; a missing series is not an explicit zero. Review [licensing](#eula-based-licensing) in either direction.
+These changes apply to both stateful and stateless deployments. Review them in addition to state-format compatibility.
 
-- [v1.12.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1120) **ARIMA** model is removed from [built-in models](https://docs.victoriametrics.com/anomaly-detection/components/models/#built-in-models). Action: for vmanomaly v1.30.0 and newer, replace ARIMA with [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) {{% available_from "v1.30.0" anomaly %}}; for older releases, use another supported seasonal model in the `models` section of the configuration.
+> [!WARNING]
+> {{< available_from "v1.33.1" anomaly >}} VictoriaMetrics requests use the epoch query-step grid, and VictoriaLogs stats buckets use their end timestamp. Refit models trained on unaligned or mixed-phase data even when their saved formats load successfully. Keep a pre-upgrade snapshot if rollback is required. See the [VM reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) and [VictoriaLogs reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#victorialogs-reader).
 
-- [v1.9.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v190) The `sampling_period` parameter is now mandatory in `VmReader`. This change aims to clarify and standardize the frequency of input/output in `vmanomaly`, thereby reducing uncertainty and aligning with user expectations; Action: Add the `sampling_period` parameter to your `VmReader` configuration, e.g.:
+- [v1.33.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1331): `query_last_seen_max_lookback` caps reader recovery extensions only. It does not truncate requested windows or round sub-step limits up. [Separate periodic inference](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) has independent bounded recovery, without guaranteed retries after model/write failures. Combined fit/infer behavior is unchanged.
+
+- [v1.33.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1330): on rollback, remove [`is_holiday`](https://docs.victoriametrics.com/anomaly-detection/components/models/#holiday-output) from `provide_series` and adapt [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) top-level `holidays` to the target version's supported calendar configuration. Update alert rules that use the flag. Treat a missing series as unavailable data. Review [licensing](#eula-based-licensing) in either direction.
+
+- [v1.12.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1120) **ARIMA** model is removed from [built-in models](https://docs.victoriametrics.com/anomaly-detection/components/models/#built-in-models). Action: for vmanomaly v1.30.0 and newer, replace ARIMA with [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) {{% available_from "v1.30.0" anomaly %}}. For older releases, use another supported seasonal model in the `models` section of the configuration.
+
+- [v1.9.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v190) The `sampling_period` parameter is now mandatory in `VmReader`. This change aims to clarify and standardize the frequency of input/output in `vmanomaly`, thereby reducing uncertainty and aligning with user expectations. Action: Add the `sampling_period` parameter to your `VmReader` configuration, e.g.:
 
   ```yaml
   reader:

@@ -18,12 +18,13 @@ aliases:
 This section covers the `Models` component of VictoriaMetrics Anomaly Detection (commonly referred to as [`vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/)) and provides a guide on how to configure the service.
 
 - `vmanomaly` includes various **[built-in models](#built-in-models)**.
-- You can also integrate a **custom model**—see the [custom model guide](#custom-model-guide) for more details.
-- Models have **different types and properties**—refer to the [model types section](#model-types) for more information.
+- You can also integrate a **custom model** - see the [custom model guide](#custom-model-guide) for more details.
+- Models have **different types and properties** - refer to the [model types section](#model-types) for more information.
 
-> Models can be dumped to disk {{% available_from "v1.13.0" anomaly %}} instead of being stored in RAM. This option **slightly reduces inference speed but significantly decreases RAM usage**, particularly useful for larger setups. For more details, see the [relevant FAQ section](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode).
+> Models can be dumped to disk {{< available_from "v1.13.0" anomaly >}} instead of being stored in RAM. This option **slightly reduces inference speed but significantly decreases RAM usage**, particularly useful for larger setups. For more details, see the [relevant FAQ section](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode).
 
-> The `models` configuration section supports multiple models through aliases{{% available_from "v1.10.0" anomaly %}}. The old, flat `model` section is deprecated and will be removed in a future version. If a configuration contains both sections, `vmanomaly` uses only `models`:
+> [!WARNING]
+> The `models` configuration section supports multiple models through aliases{{< available_from "v1.10.0" anomaly >}}. The old, flat `model` section is deprecated and will be removed in a future version. If a configuration contains both sections, `vmanomaly` uses only `models`:
 
 ```yaml
 models:
@@ -67,7 +68,7 @@ models:
 Common arguments supported by every model were introduced in [v1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100).
 
 > [!WARNING]
-> Configuring `data_range`, `detection_direction`, `min_dev_from_expected`, or `min_rel_dev_from_expected` at model level is deprecated {{% deprecated_from "v1.30.2" anomaly %}}. These stable KPI policies belong under [`reader.queries.<alias>`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters), where they remain consistent across every [univariate](#univariate-models) or [multivariate](#multivariate-models) model that uses the query. Existing model-level values remain compatible as model-local fallbacks when an attached query does not define the corresponding field; an explicit query value is authoritative.
+> Configuring `data_range`, `detection_direction`, `min_dev_from_expected`, or `min_rel_dev_from_expected` at model level is deprecated {{< deprecated_from "v1.30.2" anomaly >}}. These stable KPI policies belong under [`reader.queries.<alias>`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters), where they remain consistent across every [univariate](#univariate-models) or [multivariate](#multivariate-models) model that uses the query. Existing model-level values remain compatible as model-local fallbacks when an attached query does not define the corresponding field. An explicit query value is authoritative.
 
 <div class="collapse-group">
 
@@ -144,14 +145,14 @@ models:
 
 > If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). `anomaly_score` is not mandatory: a supported model can emit only `is_holiday` with `provide_series: [is_holiday]`. Even if `timestamp` column is omitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
 
-{{% available_from "v1.33.0" anomaly %}} Prophet and Temporal Envelope v1/v2 (univariate and multivariate) support optional `is_holiday` output. Request it explicitly with `provide_series: [anomaly_score, is_holiday]`; it is off by default to avoid extra computation and stored series. Unsupported models reject this selection. An empty calendar logs a validation warning and produces zeros. See [holiday output](#holiday-output).
+{{% available_from "v1.33.0" anomaly %}} Prophet and Temporal Envelope v1/v2 (univariate and multivariate) support optional `is_holiday` output. Request it explicitly with `provide_series: [anomaly_score, is_holiday]`. It is off by default to avoid extra computation and stored series. Unsupported models reject this selection. An empty calendar logs a validation warning and produces zeros. See [holiday output](#holiday-output).
 
 {{% /collapse %}}
 
 {{% collapse name="Detection direction" %}}
 
 ### Detection direction
-The `detection_direction` argument{{% available_from "v1.13.0" anomaly %}} can reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) when domain knowledge indicates that only values above or below the expected value are anomalous. Available values are `both`, `above_expected`, and `below_expected`. Configure it on the input query; model-level placement is {{% deprecated_from "v1.30.2" anomaly %}}.
+The `detection_direction` argument{{% available_from "v1.13.0" anomaly %}} can reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) when domain knowledge indicates that only values above or below the expected value are anomalous. Available values are `both`, `above_expected`, and `below_expected`. Configure it on the input query. Model-level placement is {{% deprecated_from "v1.30.2" anomaly %}}.
 
 Here's how the three options differ:
 
@@ -200,7 +201,7 @@ models:
 
 ### Minimal deviation from expected
 
-`min_dev_from_expected`{{% available_from "v1.13.0" anomaly %}} argument is designed to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** in scenarios where deviations between the actual value (`y`) and the expected value (`yhat`) are **relatively** high. Such deviations can cause models to generate high [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). However, these deviations may not be significant enough in **absolute values** from a business perspective to be considered anomalies. This parameter ensures that anomaly scores for data points where `|y - yhat| < min_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it is set to `0` to maintain backward compatibility. Configure it on the input query; model-level placement is {{% deprecated_from "v1.30.2" anomaly %}}.
+`min_dev_from_expected`{{% available_from "v1.13.0" anomaly %}} argument is designed to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** in scenarios where deviations between the actual value (`y`) and the expected value (`yhat`) are **relatively** high. Such deviations can cause models to generate high [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). However, these deviations may not be significant enough in **absolute values** from a business perspective to be considered anomalies. This parameter ensures that anomaly scores for data points where `|y - yhat| < min_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it is set to `0` to maintain backward compatibility. Configure it on the input query. Model-level placement is {{% deprecated_from "v1.30.2" anomaly %}}.
 
 > [!NOTE]
 {{% available_from "v1.23.0" anomaly %}} The `min_dev_from_expected` argument can be a list of two float values, allowing separate thresholds for upper and lower deviations. This is useful when the acceptable deviation varies in different directions (e.g., `min_dev_from_expected: [0.01, 0.02]` means that the lower bound is `0.01` when `y` is less than `yhat` and the upper bound is `0.02` when `y` is greater than `yhat`). If only one value is provided, it is broadcasted to both directions, meaning that the same threshold is applied for both upper and lower deviations (e.g., `min_dev_from_expected: 0.01` means that the lower bound is `0.01` when `y` is less than `yhat` and the upper bound is also `0.01` when `y` is greater than `yhat`).
@@ -209,7 +210,7 @@ models:
 
 *Example*: Consider a scenario where CPU utilization in specific mode is low and oscillates around 0.3% (0.003). A sudden spike to 1.3% (0.013) represents a +333% increase in **relative** terms, but only a +1 percentage point (0.01) increase in **absolute** terms, which may be negligible and not warrant an alert. Setting the `min_dev_from_expected` argument to `0.01` (1%) will ensure that all anomaly scores for deviations <= `0.01` are set to 0.
 
-The visualization below demonstrates this concept. The narrow blue model prediction boundary is nested inside the wider green business protection boundary. Actual values outside the prediction boundary but still within `[yhat - min_dev_from_expected, yhat + min_dev_from_expected]` receive `anomaly_score = 0`; only values outside the green boundary remain anomalous.
+The visualization below demonstrates this concept. The narrow blue model prediction boundary is nested inside the wider green business protection boundary. Actual values outside the prediction boundary but still within `[yhat - min_dev_from_expected, yhat + min_dev_from_expected]` receive `anomaly_score = 0`. Only values outside the green boundary remain anomalous.
 
 ![min_dev_from_expected](schema_min_dev_from_expected.webp)
 
@@ -240,7 +241,7 @@ models:
 
 ### Minimal relative deviation from expected
 
-{{% available_from "v1.29.1" anomaly %}} `min_rel_dev_from_expected` argument serves a similar purpose to `min_dev_from_expected` (see [section above](#minimal-deviation-from-expected)), but focuses on **relative deviations** rather than absolute ones. It is designed to reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) in scenarios where the relative deviation between the actual value (`y`) and the expected value (`yhat`) is high, but the absolute deviation is not significant enough to be considered an anomaly from a business perspective. This parameter ensures that anomaly scores for data points where `|y - yhat| / |yhat| < min_rel_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it is set to `0` to maintain backward compatibility. Configure it on the input query; model-level placement is {{% deprecated_from "v1.30.2" anomaly %}}.
+{{% available_from "v1.29.1" anomaly %}} `min_rel_dev_from_expected` argument serves a similar purpose to `min_dev_from_expected` (see [section above](#minimal-deviation-from-expected)), but focuses on **relative deviations** rather than absolute ones. It is designed to reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) in scenarios where the relative deviation between the actual value (`y`) and the expected value (`yhat`) is high, but the absolute deviation is not significant enough to be considered an anomaly from a business perspective. This parameter ensures that anomaly scores for data points where `|y - yhat| / |yhat| < min_rel_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it is set to `0` to maintain backward compatibility. Configure it on the input query. Model-level placement is {{% deprecated_from "v1.30.2" anomaly %}}.
 
 Parameter can be a list of two float values, *allowing separate thresholds for upper and lower relative deviations*. If only one value is provided, it is broadcasted to both directions.
 
@@ -282,9 +283,43 @@ models:
 
 ### Group by
 
-> The `groupby` argument applies to [multivariate models](#multivariate-models) and [peer-group models](#peer-group-models). For peer groups {{% available_from "v1.31.0" anomaly %}}, it defines independent populations within each query; keep peer identity labels out of `groupby`.
+> The `groupby` argument applies to [multivariate models](#multivariate-models) and [peer-group models](#peer-group-models). For peer groups {{< available_from "v1.31.0" anomaly >}}, it defines independent populations within each query. Keep peer identity labels out of `groupby`.
 
 The `groupby` argument{{% available_from "v1.13.0" anomaly %}} (`list[string]`) enables logical grouping within [multivariate models](#multivariate-models). When specified, **a separate multivariate model is trained for each unique combination of label values present in the `groupby` columns**.
+
+The same grouping parameter creates different model inputs:
+
+**Multivariate — `groupby: [host]`:** combine CPU, RAM and network channels for each host into one model. Host A and host B remain independent.
+
+```mermaid
+---
+config:
+  flowchart:
+    nodeSpacing: 16
+    rankSpacing: 20
+    padding: 8
+---
+flowchart TD
+    a["CPU, RAM, network<br/>host=A"] --> ma["Multivariate model A<br/>Joint anomaly score"]
+    b["CPU, RAM, network<br/>host=B"] --> mb["Multivariate model B<br/>Joint anomaly score"]
+```
+
+**Peer-group — `groupby: [service]`:** within one query, compare instances of the same service. Keep `instance` in the query result labels, but out of `groupby`.
+
+```mermaid
+---
+config:
+  flowchart:
+    nodeSpacing: 16
+    rankSpacing: 20
+    padding: 8
+---
+flowchart TD
+    a["One query: service=api<br/>instances A, B, C, ..."] --> ma["API peer-group model<br/>One score per instance"]
+    b["Same query: service=worker<br/>instances X, Y, Z, ..."] --> mb["Worker peer-group model<br/>One score per instance"]
+```
+
+Each peer group must have enough valid members for `min_peer_count`. Different queries form separate populations even when their `service` labels match.
 
 For example, to perform multivariate anomaly detection at the machine level while avoiding interference between different entities, you can set `groupby: [host]` or `groupby: [instance]`. This ensures that a **separate multivariate** model is trained for each individual entity (e.g., per host). Below is a simplified example illustrating how to track multivariate anomalies using CPU, RAM, and network data for each host.
 
@@ -332,7 +367,7 @@ models:
 ```
 
 > [!TIP]
-> {{% available_from "v1.30.2" anomaly %}} Multivariate Temporal Envelope applies each query's [`data_range`, `detection_direction`, and minimum relative deviation](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters) to every channel returned by that query before aggregating the joint anomaly score. The example detects CPU deviations in either direction, RAM increases of at least 15%, and network drops of at least 20% within each host model.
+> {{< available_from "v1.30.2" anomaly >}} Multivariate Temporal Envelope applies each query's [`data_range`, `detection_direction`, and minimum relative deviation](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters) to every channel returned by that query before aggregating the joint anomaly score. The example detects CPU deviations in either direction, RAM increases of at least 15%, and network drops of at least 20% within each host model.
 
 {{% /collapse %}}
 
@@ -558,9 +593,9 @@ For a multivariate model, **one shared model instance** is fitted and used acros
 
 For example, if you have some **multivariate** model to use 3 [MetricQL queries](https://docs.victoriametrics.com/victoriametrics/metricsql/), each returning 5 time series, there will be one shared model created in total. Once fit, this model will expect **exactly 15 time series with exact same labelsets as an input**. This model will produce **one shared [output](#vmanomaly-output)**.
 
-> {{% available_from "v1.30.2" anomaly %}} Multivariate Temporal Envelope and Isolation Forest accept matching input channels in any order. The channel set must still match the fitted model exactly: missing, extra, and duplicate channels are rejected, while a matching set is restored to learned fit order before inference or online updates.
+> {{< available_from "v1.30.2" anomaly >}} Multivariate Temporal Envelope and Isolation Forest accept matching input channels in any order. The channel set must still match the fitted model exactly: missing, extra, and duplicate channels are rejected, while a matching set is restored to learned fit order before inference or online updates.
 
-> {{% available_from "v1.16.0" anomaly %}} N models — one for each N unique combinations of label values specified in the `groupby` [common argument](#group-by) — can be trained. This allows for context separation (e.g., one model per host, region, or other relevant grouping label), leading to improved accuracy and faster training. See an example [here](#group-by).
+> {{< available_from "v1.16.0" anomaly >}} N models — one for each N unique combinations of label values specified in the `groupby` [common argument](#group-by) — can be trained. This allows for context separation (e.g., one model per host, region, or other relevant grouping label), leading to improved accuracy and faster training. See an example [here](#group-by).
 
 If during an inference, you got a **different amount of series** or some series having a **new labelset** (not present in any of fitted models), the inference will be skipped until you get a model, trained particularly for such labelset during forthcoming re-fit step. 
 
@@ -590,15 +625,15 @@ models:
 
 For a visual introduction, see [an entity compared with its peers](https://docs.victoriametrics.com/anomaly-detection/guides/model-selection/#find-the-odd-one-out).
 
-For a peer-group model {{% available_from "v1.31.0" anomaly %}}, **one shared model instance per query and group** compares comparable entities at each timestamp and produces a **separate anomaly score for each peer**. Unlike multivariate models, the population is not a fixed set of channels. Unlike univariate models, each member does not need its own fitted model.
+For a peer-group model {{% available_from "v1.31.0" anomaly %}}, **one shared model instance per query and group** compares comparable entities at each timestamp and produces a **separate anomaly score for each peer**. Members can join or leave the population, sharing the group's fitted state.
 
-Each query defines an independent population; queries are never pooled together. Use `groupby` to divide it by labels such as `service` or `region`. Retain identity labels such as `instance` in the query results, but leave them out of `groupby`. For example, two queries each returning three services create six group models, regardless of how many instances belong to each service.
+Each query defines an independent population. Queries are never pooled together. Use `groupby` to divide it by labels such as `service` or `region`. Retain identity labels such as `instance` in the query results, but leave them out of `groupby`. For example, two queries each returning three services create six group models, regardless of how many instances belong to each service.
 
 **Membership and cold starts:**
 
 - A new peer joining an existing, warmed-up group can be scored using the group's learned state without a separate per-peer fit.
 - Missing or departed peers do not invalidate the remaining population. Scoring still requires enough valid, aligned peers at that timestamp (`min_peer_count` for [Peer Outlier](#peer-outlier)).
-- A new query/group identity needs its own fitted model and warmup; it cannot reuse another group's state. Membership changes within an existing group do not reset that group's warmup.
+- A new query/group identity needs its own fitted model and warmup. It cannot reuse another group's state. Membership changes within an existing group do not reset that group's warmup.
 
 **Implications:** Use peer groups for comparable replicas, load balancers or hosts with similar roles. They detect unusual members relative to their population, rather than replacing temporal detection for changes shared by the whole population.
 
@@ -608,7 +643,7 @@ Each query defines an independent population; queries are never pooled together.
 
 ### Online Models
 
-> Online models are best used **in combination with [stateful service](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) {{% available_from "v1.24.0" anomaly %}} to ensure that the model state is preserved if the service restarts and any aggregated model updates are not lost**. E.g. if the model was already trained on many weeks of data and is being updated on new datapoints every minute, there is no need to re-train it from scratch on the same data after each restart, as it can continue to update restored state on new datapoints. Also it is worth setting [retention policy](https://docs.victoriametrics.com/anomaly-detection/components/settings/#retention) {{% available_from "v1.28.1" anomaly %}} for such models to periodically clean up outdated artifacts, e.g. due to high churn rate of unique labelsets in input data.
+> Online models are best used **in combination with [stateful service](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) {{< available_from "v1.24.0" anomaly >}} to ensure that the model state is preserved if the service restarts and any aggregated model updates are not lost**. E.g. if the model was already trained on many weeks of data and is being updated on new datapoints every minute, there is no need to re-train it from scratch on the same data after each restart, as it can continue to update restored state on new datapoints. Also it is worth setting [retention policy](https://docs.victoriametrics.com/anomaly-detection/components/settings/#retention) {{< available_from "v1.28.1" anomaly >}} for such models to periodically clean up outdated artifacts, e.g. due to high churn rate of unique labelsets in input data.
 
 Online (incremental) models {{% available_from "v1.15.0" anomaly %}} allow defining a smaller frame `fit_window` and less frequent `fit` calls to reduce the data burden from VictoriaMetrics. They make incremental updates to model parameters during each `infer_every` call, even on a single datapoint.
 If the model doesn't support online mode, it's called **offline** (its parameters are only updated during `fit` calls).
@@ -702,25 +737,25 @@ reader:
 # other components like writer, schedulers, monitoring ...
 ```
 
-The model learns historical cross-sectional spread and residual distributions. Its accepted peer range can be asymmetric; it is not a statistical confidence interval. It relies on a strict-majority normal population, so it is not intended to detect a coordinated change affecting every peer. Use a [temporal model](#temporal-envelope) alongside it when shared shifts matter.
+The model learns historical cross-sectional spread and residual distributions. Its accepted peer range can be asymmetric and has no statistical confidence-level guarantee. It relies on a strict-majority normal population, so it is not intended to detect a coordinated change affecting every peer. Use a [temporal model](#temporal-envelope) alongside it when shared shifts matter.
 
 | Parameter | Default | Meaning |
 | --- | --- | --- |
 | `groupby` | omitted | Labels defining independent populations within each query. |
-| `min_peer_count` | `5` | Minimum aligned peers; must be at least `3`. |
+| `min_peer_count` | `5` | Minimum aligned peers. Must be at least `3`. |
 | `epsilon_quantile` | `0.75` | Historical spread quantile, strictly between `0` and `1`. Higher values tolerate wider populations. |
-| `tolerance` | `4.0` | Positive multiplier for the learned neighborhood and accepted range; not a number of standard deviations. |
+| `tolerance` | `4.0` | Positive multiplier applied to the learned neighborhood and accepted range. The scale is specific to this model. |
 | `decay` | `1.0` | Weight decay per valid snapshot, in `(0, 1]`. Values below `1` prioritize recent populations. |
 | `min_n_samples_seen` | derived | Minimum effective valid snapshots before scoring. When omitted, the upper tail must have at least eight observations: `ceil(8 / (1 - epsilon_quantile))`, or `32` with defaults. Scores remain zero during warmup. |
 
-The effective warmup must be reachable with the selected decay. Shared [domain-knowledge parameters](#common-args), including query-level policies, still apply. Set `data_range` and `clip_predictions: true` to keep predictions within known physical bounds; absence of negative training observations alone does not impose a zero lower bound. Configure model parameters at the top level; nonempty `args` is rejected.
+The effective warmup must be reachable with the selected decay. Shared [domain-knowledge parameters](#common-args), including query-level policies, still apply. Set `data_range` and `clip_predictions: true` to keep predictions within known physical bounds. Absence of negative training observations alone does not impose a zero lower bound. Configure model parameters at the top level. Nonempty `args` is rejected.
 
 Use the [peer-group investigation view](https://docs.victoriametrics.com/anomaly-detection/ui/#peer-group-investigation) to inspect the accepted range, rank anomalous peers and compare group activity.
 
 ### AutoTuned
 Selecting model [hyperparameters](https://en.wikipedia.org/wiki/Hyperparameter_(machine_learning)) can require detailed knowledge of both the model and the data. The `AutoTunedModel` wrapper searches supported parameters during each fit. At minimum, configure `tuned_class_name` and the expected upper bound for anomalous observations through `optimization_params.anomaly_percentage`.
 
-The wrapper follows the selected model's grouping: one model per series for univariate detection, one per aligned group for multivariate detection, and one per query-isolated population for peer-group detection. {{% available_from "v1.31.0" anomaly %}} To tune `peer_outlier`, set `tuned_class_name: peer_outlier` and put any grouping labels in `optimization_params.frozen_params.groupby`. Validation keeps population snapshots intact. Keep `optimized_business_params: []` and define stable business policies on the queries. Use [shared tuning](#shared-asynchronous-autotune-workflow) to obtain a concrete configuration without retuning on every fit; capacity estimates for that configuration exclude the tuning search.
+The wrapper follows the selected model's grouping: one model per series for univariate detection, one per aligned group for multivariate detection, and one per query-isolated population for peer-group detection. {{% available_from "v1.31.0" anomaly %}} To tune `peer_outlier`, set `tuned_class_name: peer_outlier` and put any grouping labels in `optimization_params.frozen_params.groupby`. Validation keeps population snapshots intact. Keep `optimized_business_params: []` and define stable business policies on the queries. Use [shared tuning](#shared-asynchronous-autotune-workflow) to obtain a concrete configuration without retuning on every fit. Capacity estimates for that configuration exclude the tuning search.
 
 > For a univariate `tuned_class_name`, a [query](#queries) returning multiple series produces one independently tuned model per unique labelset. Using the concrete class directly instead gives those models the same configured hyperparameters. For example:
 > ```yaml
@@ -747,6 +782,8 @@ The wrapper follows the selected model's grouping: one model per series for univ
 
 <div class="model-details">
 
+<div class="collapse-group mb-3">
+
 {{% collapse name="Model-specific arguments" %}}
 
 - `class` (string) - model class name `"model.auto.AutoTunedModel"` (or `auto` with class alias support{{% available_from "v1.13.0" anomaly %}})
@@ -762,9 +799,13 @@ The wrapper follows the selected model's grouping: one model per series for univ
   - `timeout` (float) - How many seconds in total can be spent on each model to tune hyperparameters. The higher, the longer it takes, allowing to test more trials out of defined `n_trials`, but the better the results can be.
   - `exact` (boolean) - {{% available_from "v1.30.0" anomaly %}} evaluate online models causally during validation: predict from the current state, then update it with newly observed data. Set this to `true` when production uses exact online inference. Defaults to `false` for backward compatibility.
   - `optimize_complexity` (boolean) - {{% available_from "v1.30.0" anomaly %}} prefer a smaller fitted model state when validation quality is effectively tied. Defaults to `true`.
-  - `frozen_params` (dict) - {{% available_from "v1.30.0" anomaly %}} model-specific parameters that **must remain fixed** while the remaining search space is tuned. Nested dictionaries are merged recursively. Use this for non-optimizable context such as configured holidays or multivariate `groupby`; `class` cannot be frozen.
+  - `frozen_params` (dict) - {{% available_from "v1.30.0" anomaly %}} model-specific parameters that **must remain fixed** while the remaining search space is tuned. Nested dictionaries are merged recursively. Use this for non-optimizable context such as configured holidays or multivariate `groupby`. `class` cannot be frozen.
 
 {{% /collapse %}}
+
+</div>
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="Configuration example" %}}
 
@@ -796,6 +837,8 @@ models:
 
 </div>
 
+</div>
+
 ![AutoTunedModel tuning and inference lifecycle](autotune.svg)
 
 #### Shared asynchronous autotune workflow
@@ -804,7 +847,7 @@ models:
 
 1. Inspect the query with `GET /api/v1/timeseries/characteristics` to identify trend, calendar seasonality, changepoints, gaps, and intermittent behavior.
 2. Start a task with `POST /api/v1/autotune/tasks`. Provide the actual query (or named queries), the candidate model class, the same query `step` used in production, and a bounded `limit`.
-3. Poll `GET /api/v1/autotune/tasks/{task_id}` until `status` is `done`; cancel unnecessary work with `DELETE` on the same path.
+3. Poll `GET /api/v1/autotune/tasks/{task_id}` until `status` is `done`. Cancel unnecessary work with `DELETE` on the same path.
 4. Validate and deploy `result_data.data.modelConfig`, which is a concrete configuration for the selected model class.
 
 > [!TIP]
@@ -849,7 +892,7 @@ The examples below are JSON bodies for `POST /api/v1/autotune/tasks`. Replace th
 
 {{% collapse name="Multivariate named-query example with grouping" %}}
 
-{{% available_from "v1.30.5" anomaly %}} Tune request rate and error rate jointly, with one multivariate input group per `service`. Both expressions must return data for every service included in the study; an absent error series is not automatically treated as zero.
+{{% available_from "v1.30.5" anomaly %}} Tune request rate and error rate jointly, with one multivariate input group per `service`. Both expressions must return data for every service included in the study. An absent error series is not automatically treated as zero.
 
 ```json
 {
@@ -893,7 +936,7 @@ The examples below are JSON bodies for `POST /api/v1/autotune/tasks`. Replace th
 }
 ```
 
-For each candidate configuration, the server fits and evaluates separate models for the aligned service groups and aggregates their validation scores in one study. The result is one shared model configuration for all groups. `frozen_params.groupby` keeps grouping fixed, while the named queries retain their individual business policies. `limit` applies separately to each expression; ensure it is large enough to retain all required channels for the intended groups.
+For each candidate configuration, the server fits and evaluates separate models for the aligned service groups and aggregates their validation scores in one study. The result is one shared model configuration for all groups. `frozen_params.groupby` keeps grouping fixed, while the named queries retain their individual business policies. `limit` applies separately to each expression. Ensure it is large enough to retain all required channels for the intended groups.
 
 {{% /collapse %}}
 
@@ -919,13 +962,15 @@ The requested anomaly percentage is treated as an alert-volume constraint rather
 
 Use it for:
 
-- infrastructure, application, or business metrics with trends and daily, weekly, monthly, or holiday behavior;
-- deployments, traffic migrations, and capacity changes that create persistent shifts, including short-horizon forecasts through `forecast_at`;
+- infrastructure, application, or business metrics with trends and daily, weekly, monthly, or holiday behavior.
+- deployments, traffic migrations, and capacity changes that create persistent shifts, including short-horizon forecasts through `forecast_at`.
 - aligned related metrics where each channel keeps its own temporal pattern while their joint behavior contributes to one anomaly score.
 
 For simple profiles without strong trend or seasonality, prefer [Online MAD](#online-mad) or [Online Z-score](#online-z-score). Existing [Prophet](#prophet) and [Isolation Forest](#isolation-forest-multivariate) configurations can be migrated to the corresponding univariate or multivariate Temporal Envelope form.
 
 <div class="model-details">
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="Model-specific arguments" %}}
 
@@ -933,36 +978,43 @@ For simple profiles without strong trend or seasonality, prefer [Online MAD](#on
 - `model_version` (`v1` or `v2`, default `v1`) {{% available_from "v1.32.0" anomaly %}} - selects the implementation for either Temporal Envelope class. See [experimental implementations](#experimental-temporal-envelope-implementations) before switching.
 - `quantiles` (list[float], default `[0.25, 0.75]`) - two ordered probabilities used as the base lower and upper residual boundaries. Values must be within `[0, 1]`.
 - `iqr_threshold` (float, default `2.0`) - primary data-derived interval-width control. Higher values widen the ordinary residual envelope and produce fewer detections. Values from `1` to `4` are a practical experimentation range.
-- `alpha` (float, default `0.005`) - **Trend Reactivity**. Higher values follow persistent level and trend changes faster; lower values produce steadier expectations. Values from `0.0025` to `0.02` are a practical experimentation range.
-- `loss_reactivity` (float, default `5.0`) - controls how readily new deviations influence the model. Higher values adapt more readily; lower values reduce the influence of spikes. Values from `1` to `5` are a good starting range.
+- `alpha` (float, default `0.005`) - **Trend Reactivity**. Higher values follow persistent level and trend changes faster. Lower values produce steadier expectations. Values from `0.0025` to `0.02` are a practical experimentation range.
+- `loss_reactivity` (float, default `5.0`) - controls how readily new deviations influence the model. Higher values adapt more readily. Lower values reduce the influence of spikes. Values from `1` to `5` are a good starting range.
 - `min_n_samples_seen` (integer, default `16`) - observations each model or group must see before anomaly scores are trusted. State and forecasts continue learning during warmup, while anomaly scores remain zero. Approximate warmup duration is this value multiplied by the query step.
-- `changepoint_window` (integer, default `16`) - consecutive same-direction residuals required before treating a deviation as a persistent level shift. Use a value longer than ordinary anomaly bursts; approximate confirmation time is this value multiplied by the query step.
+- `changepoint_window` (integer, default `16`) - consecutive same-direction residuals required before treating a deviation as a persistent level shift. Use a value longer than ordinary anomaly bursts. Approximate confirmation time is this value multiplied by the query step.
 - `seasonalities` (list[string], default `['hod_smooth', 'dow_smooth']`) - recurring calendar patterns to model. Use an empty list when calendar patterns are known to be irrelevant. Supported presets are:
-  - hour of day: `hod_smooth`, `hod_spiky`, `hod_plateau`;
-  - day of week: `dow_smooth`, `dow_spiky`, `dow_plateau`;
-  - weekday versus weekend: `weekpart_plateau`;
+  - hour of day: `hod_smooth`, `hod_spiky`, `hod_plateau`.
+  - day of week: `dow_smooth`, `dow_spiky`, `dow_plateau`.
+  - weekday versus weekend: `weekpart_plateau`.
   - month of year: `month_smooth`, `month_plateau`.
 - `holidays` (object, default `{}`) - known country holidays and special events. Supported keys are `countries` (country codes or names), `special_events` (recurring `MM-DD` or one-off `YYYY-MM-DD` dates), and `group` (whether configured events share one learned response). Holiday response shape is learned from data rather than configured publicly.
 - `forecast_at` (list[string], default `[]`) - positive future offsets such as `['1h', '1d']`. Each offset adds point and, when requested through `provide_series`, lower and upper forecast series.
 
 Preset suffixes describe expected profile shape: `smooth` represents gradual recurring curves, `spiky` represents narrow phase peaks, and `plateau` represents sustained calendar levels. Choose only profiles supported by the data. Calendar and holiday features use civil time from the configured query timezone, so hour/day profiles remain aligned across daylight-saving-time transitions.
 
-{{% available_from "v1.33.0" anomaly %}} Both Envelope versions and topologies can emit `is_holiday` through `provide_series`. It marks exact country-holiday or special-event dates, including events unseen in training; learned before/after response shoulders do not extend the flag. See [holiday output](#holiday-output).
+{{% available_from "v1.33.0" anomaly %}} Both Envelope versions and topologies can emit `is_holiday` through `provide_series`. It marks exact country-holiday or special-event dates, including events unseen in training. Learned before/after response shoulders do not extend the flag. See [holiday output](#holiday-output).
 
 Temporal Envelope also supports the [common model arguments](#common-args), including `queries`, `schedulers`, `provide_series`, `scale`, and `clip_predictions`. Configure `data_range`, `detection_direction`, `min_dev_from_expected`, `min_rel_dev_from_expected`, and query timezone under the corresponding [reader query](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters). The multivariate variant applies these business policies independently to each input channel {{% available_from "v1.30.2" anomaly %}}, so one model can represent combinations such as temperature above expected, power above expected, and clock below expected.
 
 The multivariate variant uses `class: temporal_envelope_multivariate` or `model.online.TemporalEnvelopeMultivariateModel` and adds:
 
 - `dependency_rank` (integer, default `8`) - compact rank used to represent cross-channel dependencies. Set it to `0` to disable dependency features.
-- `score_aggregation` (`max`, `mean`, or `l2`; default `l2`) - combines per-channel boundary deviations into one anomaly score. `l2` uses their root-mean-square magnitude.
+- `score_aggregation` (`max`, `mean`, or `l2`, default `l2`) - combines per-channel boundary deviations into one anomaly score. `l2` uses their root-mean-square magnitude.
 - `groupby` (list[string], optional) - metric label names used to fit a separate multivariate model for each unique label-value combination.
 - `max_channels` (integer, default `1000`) - hard safety limit for input time series in one model instance.
-- `recommended_max_channels` (integer, default `100`) - advisory limit; larger inputs up to `max_channels` are accepted with a warning because high-dimensional estimates may be less stable and more expensive.
+- `recommended_max_channels` (integer, default `100`) - advisory limit. Larger inputs up to `max_channels` are accepted with a warning because high-dimensional estimates may be less stable and more expensive.
 - `random_state` (integer, default `42`) - seed used for reproducible dependency features.
+
+> [!NOTE]
+> {{< available_from "v1.33.1" anomaly >}} Multivariate Temporal Envelope v1/v2 falls back to per-channel deviations when fewer than two channels are active, including a flat channel or `dependency_rank: 1`. Earlier versions could return all-zero [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) in these cases.
 
 The multivariate model emits only the joint `anomaly_score` by default to keep output cardinality bounded. Explicitly request channel-level `y`, `yhat`, `yhat_lower`, and `yhat_upper` families through `provide_series` only when those diagnostics are needed and the downstream cardinality is acceptable.
 
 {{% /collapse %}}
+
+</div>
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="Configuration examples" %}}
 
@@ -1000,16 +1052,18 @@ models:
     provide_series: [anomaly_score]
 ```
 
-For independent per-series detection, use `temporal_envelope`. Use `temporal_envelope_multivariate` only when the relationship between aligned series is itself meaningful; each channel still learns its own trend and calendar patterns.
+For independent per-series detection, use `temporal_envelope`. Use `temporal_envelope_multivariate` only when the relationship between aligned series is itself meaningful. Each channel still learns its own trend and calendar patterns.
 
 {{% /collapse %}}
+
+</div>
 
 </div>
 
 #### Experimental Temporal Envelope implementations
 
 > [!NOTE]
-> These opt-in research candidates let you evaluate improvements before they become the default. Behavior and state formats may evolve. V1 remains the default; compare detection quality and resource use on representative history before adopting another implementation. Switching implementations requires a fresh fit.
+> These opt-in research candidates let you evaluate improvements before they become the default. Behavior and state formats may evolve. V1 remains the default. Compare detection quality and resource use on representative history before adopting another implementation. Switching implementations requires a fresh fit.
 
 ##### V2
 
@@ -1029,7 +1083,7 @@ models:
 V2 learns and forecasts seasonal patterns in civil time, using the query timezone, including daylight-saving transitions. It retains the public Temporal Envelope configuration and query-policy interface. Check `GET /api/v1/model/schema?model_class=temporal_envelope` in the [interactive API reference](https://docs.victoriametrics.com/anomaly-detection/components/server/#interactive-api-reference) for supported settings, and tune the selected implementation rather than transferring parameters on the assumption of identical behavior.
 
 > [!WARNING]
-> Switching between v1 and v2 requires a fresh fit; their learned state is not interchangeable. Snapshots are compressed losslessly in v1.32.0, while older raw snapshots remain readable. Rolling back to v1.31.1 or earlier requires resetting persisted state, refitting models, and removing every `model_version: v2` setting. See [state compatibility](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix).
+> Switching between v1 and v2 requires a fresh fit. Their learned state is not interchangeable. Snapshots are compressed losslessly in v1.32.0, while older raw snapshots remain readable. Rolling back to v1.31.1 or earlier requires resetting persisted state, refitting models, and removing every `model_version: v2` setting. See [state compatibility](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix).
 
 ### Online MAD
 
@@ -1039,16 +1093,22 @@ The MAD model is a robust method for anomaly detection that is *less sensitive* 
 
 <div class="model-details">
 
+<div class="collapse-group mb-3">
+
 {{% collapse name="Model-specific arguments" %}}
 
 - `class` (string) - model class name `"model.online.OnlineMADModel"` (or `mad_online` with class alias support{{% available_from "v1.13.0" anomaly %}})
 - `threshold` (float, optional) - The threshold multiplier for the MAD to determine anomalies. Defaults to `2.5`. Higher values will identify fewer points as anomalies.
 - `min_n_samples_seen` (int, optional) - the minimum number of samples to be seen (`n_samples_seen_` property) before computing the anomaly score. Otherwise, the **anomaly score will be 0**, as there is not enough data to trust the model's predictions. Defaults to 16.
 - `history_strength` (float, optional) - {{% available_from "v1.30.0" anomaly %}} strength of the initial history learned by `fit`. Values above `1` preserve fitted quantiles initially but reduce the leverage of subsequent updates. Defaults to `1`.
-- `decay` (float, optional) - exponential forgetting factor in `(0, 1]`. Defaults to `1.0` (no forgetting). Values below `1` reduce the weight of older observations so the online baseline can adapt without periodic refitting; faster forgetting can also absorb sustained anomalies. See [decay](#decay) for background.
+- `decay` (float, optional) - exponential forgetting factor in `(0, 1]`. Defaults to `1.0` (no forgetting). Values below `1` reduce the weight of older observations so the online baseline can adapt without periodic refitting. Faster forgetting can also absorb sustained anomalies. See [decay](#decay) for background.
 - `compression` (int, optional) - the compression parameter for  underlying [t-digest](https://www.sciencedirect.com/science/article/pii/S2665963820300403). Higher values mean higher accuracy but higher memory usage. By default 100.
 
 {{% /collapse %}}
+
+</div>
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="Configuration example" %}}
 
@@ -1083,6 +1143,8 @@ models:
 
 </div>
 
+</div>
+
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
 
@@ -1097,6 +1159,8 @@ Best used on **[de-trended](https://victoriametrics.com/blog/victoriametrics-ano
 It uses the `quantiles` triplet to calculate `yhat_lower`, `yhat`, and `yhat_upper` [output](#vmanomaly-output), respectively, for each of the `min_subseason` sub-intervals contained in `seasonal_interval`. For example, with '4d' + '2h' seasonality patterns (multiple), it will hold and update 24*4 / 2 = 48 consecutive estimates (each 2 hours long).
 
 <div class="model-details">
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="Model-specific arguments" %}}
 
@@ -1114,6 +1178,10 @@ It uses the `quantiles` triplet to calculate `yhat_lower`, `yhat`, and `yhat_upp
 - `compression` (int, optional) - the compression parameter for the underlying [t-digests](https://www.sciencedirect.com/science/article/pii/S2665963820300403). Higher values mean higher accuracy but higher memory usage. By default 100.
 
 {{% /collapse %}}
+
+</div>
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="Configuration example" %}}
 
@@ -1153,6 +1221,8 @@ models:
 
 </div>
 
+</div>
+
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
 
@@ -1164,6 +1234,8 @@ Online version of existing [Z-score](#z-score) implementation with the same exac
 
 <div class="model-details">
 
+<div class="collapse-group mb-3">
+
 {{% collapse name="Model-specific arguments" %}}
 
 - `class` (string) - model class name `"model.online.OnlineZscoreModel"` (or `zscore_online`with class alias support{{% available_from "v1.13.0" anomaly %}})
@@ -1172,6 +1244,10 @@ Online version of existing [Z-score](#z-score) implementation with the same exac
 - `history_strength` (float, optional) - {{% available_from "v1.30.0" anomaly %}} strength of the initial history learned by `fit`. Values above `1` keep fitted mean and variance unchanged initially but reduce the leverage of subsequent updates. Defaults to `1`.
 
 {{% /collapse %}}
+
+</div>
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="Configuration example" %}}
 
@@ -1203,16 +1279,20 @@ models:
 
 </div>
 
+</div>
+
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
 
 ### [Rolling Quantile](https://en.wikipedia.org/wiki/Quantile)
 
-> `RollingQuantileModel` **is** {{% available_from "v1.28.0" anomaly %}} a [univariate](#univariate-models), [online](#online-models) model. It **was** {{% deprecated_from "v1.28.0" anomaly %}} a [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
+> `RollingQuantileModel` **is** {{< available_from "v1.28.0" anomaly >}} a [univariate](#univariate-models), [online](#online-models) model. It **was** {{< deprecated_from "v1.28.0" anomaly >}} a [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
 
 This model is best used on **data with short evolving patterns** (i.e. 10-100 datapoints of particular frequency), as it adapts to changes over a rolling window.
 
 <div class="model-details">
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="Model-specific arguments" %}}
 
@@ -1222,6 +1302,10 @@ This model is best used on **data with short evolving patterns** (i.e. 10-100 da
 - `iqr_threshold` (float, optional) - {{% available_from "v1.25.0" anomaly %}} The [interquartile range (IQR)](https://en.wikipedia.org/wiki/Interquartile_range) multiplier to increase the width of the prediction intervals. Defaults to 0 (no adjustment) for backward compatibility. If set > 0, the model will add half IQR * `iqr_threshold` to `yhat_lower` and  `yhat_upper`. This is useful for data with high variance or outliers, as it helps to avoid false positives in anomaly detection.
 
 {{% /collapse %}}
+
+</div>
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="Configuration example" %}}
 
@@ -1252,6 +1336,8 @@ models:
 
 </div>
 
+</div>
+
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
 
@@ -1264,9 +1350,11 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 > [!NOTE]
 > Prophet is planned for deprecation in a future release. For new forecasting and anomaly-detection deployments, prefer the online [Temporal Envelope](#temporal-envelope) model unless Prophet-specific decomposition output is required.
 
-> {{% available_from "v1.25.3" anomaly %}} Producing forecasts for future timestamps is now supported. To enable this, set the `forecast_at` argument to a list of relative future offsets (e.g., `['1h', '1d']`). The model will then generate forecasts for these future timestamps, which can be useful for planning and resource allocation. Output series are affected by [provide_series](#provide-series) argument, which need to include at least `yhat` for point-wise forecasts (and `yhat_lower` or/and `yhat_upper` for respective confidence intervals). See the example below for more details.
+> {{< available_from "v1.25.3" anomaly >}} Producing forecasts for future timestamps is now supported. To enable this, set the `forecast_at` argument to a list of relative future offsets (e.g., `['1h', '1d']`). The model will then generate forecasts for these future timestamps, which can be useful for planning and resource allocation. Output series are affected by [provide_series](#provide-series) argument, which need to include at least `yhat` for point-wise forecasts (and `yhat_lower` or/and `yhat_upper` for respective confidence intervals). See the example below for more details.
 
 <div class="model-details">
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="Model-specific arguments" %}}
 
@@ -1289,6 +1377,10 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
   - `adjust_boundaries` (bool, optional, default=true): Whether to adjust confidence interval boundaries after downsampling. If true, `yhat_lower` and `yhat_upper` will be adjusted based on the aggregated vs original data variability.
 
 {{% /collapse %}}
+
+</div>
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="Configuration examples" %}}
 
@@ -1373,6 +1465,8 @@ models:
 
 </div>
 
+</div>
+
 > Apart from standard [`vmanomaly` output](#vmanomaly-output), Prophet model can provide additional metrics.
 
 {{% available_from "v1.33.0" anomaly %}} To emit the calendar flag alongside the anomaly score:
@@ -1389,7 +1483,7 @@ models:
       group: true
 ```
 
-Set the reader/query timezone to your operation's civil calendar. With the structured calendar, Prophet's holiday regressors and `is_holiday` use the same local dates even though Prophet internally predicts with timezone-naive UTC timestamps. The flag uses the restored output timezone; `tz_aware` controls seasonal regressors and is not required for the calendar flag. Legacy Prophet calendar fitting retains its existing behavior. For custom legacy holidays, the flag marks declared `ds` dates only: `lower_window=-1` and `upper_window=1` let Prophet learn effects on the preceding and following day, but do not mark those days as holidays.
+Set the reader/query timezone to your operation's civil calendar. With the structured calendar, Prophet's holiday regressors and `is_holiday` use the same local dates even though Prophet internally predicts with timezone-naive UTC timestamps. The flag uses the restored output timezone. `tz_aware` controls seasonal regressors and is not required for the calendar flag. Legacy Prophet calendar fitting retains its existing behavior. For custom legacy holidays, the flag marks declared `ds` dates only: `lower_window=-1` and `upper_window=1` let Prophet learn effects on the preceding and following day, but do not mark those days as holidays.
 
 The flag is independent of the learned contribution: a zero effect or an unseen holiday can still produce `is_holiday=1`. It has no `forecast_at` variants. See [holiday output](#holiday-output).
 
@@ -1407,7 +1501,8 @@ Resulting metrics of the model are described [here](#vmanomaly-output)
 
 ### [Isolation forest](https://en.wikipedia.org/wiki/Isolation_forest) (Multivariate)
 
-{{% deprecated_from "v1.33.0" anomaly %}} This model is scheduled for removal in v1.34.0. Existing configurations, including AutoTuned targets, still run with a warning. Migrate to the corresponding [Temporal Envelope](#temporal-envelope) model. For Isolation Forest, this applies to both `isolation_forest_univariate` and `isolation_forest_multivariate`.
+> [!WARNING]
+> {{< deprecated_from "v1.33.0" anomaly >}} This model is scheduled for removal in v1.34.0. Existing configurations, including AutoTuned targets, still run with a warning. Migrate to the corresponding [Temporal Envelope](#temporal-envelope) model. For Isolation Forest, this applies to both `isolation_forest_univariate` and `isolation_forest_multivariate`.
 
 > `IsolationForestModel` is a [univariate](#univariate-models), [offline](#offline-models) model.
 
@@ -1420,6 +1515,8 @@ Detects anomalies using binary trees. The algorithm has a linear time complexity
 Here we use Isolation Forest implementation from `scikit-learn` [library](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest). All parameters from this library can be passed to the model.
 
 <div class="model-details">
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="Model-specific arguments" %}}
 
@@ -1439,6 +1536,10 @@ Here we use Isolation Forest implementation from `scikit-learn` [library](https:
 - `args` (dict, optional) - Inner model args (key-value pairs). See accepted params in [model documentation](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest). Defaults to empty (not provided). Example:  {"random_state": 42, "n_estimators": 100}
 
 {{% /collapse %}}
+
+</div>
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="Configuration example" %}}
 
@@ -1472,11 +1573,14 @@ models:
 
 </div>
 
+</div>
+
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### [Holt-Winters](https://en.wikipedia.org/wiki/Exponential_smoothing)
 
-{{% deprecated_from "v1.33.0" anomaly %}} `holtwinters` is scheduled for removal in v1.34.0. Existing configurations, including AutoTuned targets, still run with a warning. Migrate to [Temporal Envelope](#temporal-envelope).
+> [!WARNING]
+> {{< deprecated_from "v1.33.0" anomaly >}} `holtwinters` is scheduled for removal in v1.34.0. Existing configurations, including AutoTuned targets, still run with a warning. Migrate to [Temporal Envelope](#temporal-envelope).
 
 > `HoltWinters` is a [univariate](#univariate-models), [offline](#offline-models) model.
 
@@ -1484,11 +1588,13 @@ Here we use Holt-Winters Exponential Smoothing implementation from `statsmodels`
 
 <div class="model-details">
 
+<div class="collapse-group mb-3">
+
 {{% collapse name="Model-specific arguments" %}}
 
 - `class` (string) - model class name `"model.holtwinters.HoltWinters"` (or `holtwinters` with class alias support{{% available_from "v1.13.0" anomaly %}})
 
-- `frequency` (string) - Must be set equal to sampling_period. Model needs to know expected data-points frequency (e.g. '10m'). If omitted, frequency is guessed during fitting as **the median of intervals between fitting data timestamps**. During inference, if incoming data doesn't have the same frequency, then it will be interpolated.  E.g. data comes at 15 seconds resolution, and our resample_freq is '1m'. Then fitting data will be downsampled to '1m' and internal model is trained at '1m' intervals. So, during inference, prediction data would be produced at '1m' intervals, but interpolated to "15s" to match with expected output, as output data must have the same timestamps. As accepted by pandas.Timedelta (e.g. '5m').
+- `frequency` (string, optional {{% available_from "v1.33.1" anomaly %}}) - Set to the reader sampling period when specifying it explicitly. Model needs to know expected data-points frequency (e.g. '10m'). If omitted, frequency is guessed during fitting as **the median of intervals between fitting data timestamps**. During inference, if incoming data doesn't have the same frequency, then it will be interpolated.  E.g. data comes at 15 seconds resolution, and our resample_freq is '1m'. Then fitting data will be downsampled to '1m' and internal model is trained at '1m' intervals. So, during inference, prediction data would be produced at '1m' intervals, but interpolated to "15s" to match with expected output, as output data must have the same timestamps. As accepted by pandas.Timedelta (e.g. '5m').
 
 - `seasonality` (string, optional) - As accepted by pandas.Timedelta.
 
@@ -1507,6 +1613,10 @@ Used to compute "seasonal_periods" param for the model (e.g. '1D' or '1W').
 - `args` (dict, optional) - Inner model args (key-value pairs). See accepted params in [model documentation](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing#statsmodels.tsa.holtwinters.ExponentialSmoothing-parameters). Defaults to empty (not provided). Example:  {"seasonal": "add", "initialization_method": "estimated"}
 
 {{% /collapse %}}
+
+</div>
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="Configuration example" %}}
 
@@ -1540,15 +1650,19 @@ models:
 
 </div>
 
+</div>
+
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### [Seasonal Trend Decomposition](https://en.wikipedia.org/wiki/Seasonal_adjustment)
 
-> `StdModel` **is** {{% available_from "v1.28.0" anomaly %}} a [univariate](#univariate-models), [online](#online-models) model. It **was** {{% deprecated_from "v1.28.0" anomaly %}} a [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
+> `StdModel` **is** {{< available_from "v1.28.0" anomaly >}} a [univariate](#univariate-models), [online](#online-models) model. It **was** {{< deprecated_from "v1.28.0" anomaly >}} a [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
 
 Here we use Seasonal Decompose implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.seasonal.seasonal_decompose). Parameters from this library can be passed to the model. Some parameters are specifically predefined in `vmanomaly` and can't be changed by user (`model`='additive', `two_sided`=False).
 
 <div class="model-details">
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="Model-specific arguments" %}}
 
@@ -1557,6 +1671,10 @@ Here we use Seasonal Decompose implementation from `statsmodels` [library](https
 - `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculating boundaries to define anomaly score. Defaults to `2.5`.
 
 {{% /collapse %}}
+
+</div>
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="Configuration example" %}}
 
@@ -1583,6 +1701,8 @@ models:
 ```
 
 {{% /collapse %}}
+
+</div>
 
 </div>
 
@@ -1618,15 +1738,19 @@ The default metrics produced by `vmanomaly` include:
 
 ### Holiday output
 
-{{% available_from "v1.33.0" anomaly %}} `is_holiday` is an opt-in numeric output: `1` on a configured holiday or special-event date and `0` otherwise. [Prophet](#prophet) and [Temporal Envelope](#temporal-envelope) v1/v2 support it. It is aligned to the output timestamp and model identity labels. For univariate models it follows the labels of `y`, `yhat` and `anomaly_score`; for multivariate Envelope it is one shared flag with the aggregate anomaly-score labels, not one flag per channel.
+{{% available_from "v1.33.0" anomaly %}} `is_holiday` is an opt-in numeric output: `1` on a configured holiday or special-event date and `0` otherwise. [Prophet](#prophet) and [Temporal Envelope](#temporal-envelope) v1/v2 support it. It is aligned to the output timestamp and model identity labels. For univariate models it follows the labels of `y`, `yhat` and `anomaly_score`. For multivariate Envelope all channels share one flag with the aggregate anomaly-score labels.
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="How it works" %}}
 
 Country calendars use the [`holidays` package](https://pypi.org/project/holidays/), including its observed dates. Membership is the union of all configured countries and special dates: with `countries: [US, CA]`, either country's holiday is sufficient for `1`. Dates use the output's local timezone, including local-midnight and daylight-saving transitions. Recurring `02-29` applies only in leap years. Subdivisions and forecast-horizon flags are not supported in this version.
 
-Only exact event dates count; learned Envelope shoulders and Prophet holiday windows do not extend membership. The flag does not depend on training coverage or learned effects. Requesting it with an empty calendar logs a validation warning and emits zeros. Omitting it from `provide_series` skips flag generation; a missing series must not be treated as an explicit zero.
+Only exact event dates count. Learned Envelope shoulders and Prophet holiday windows do not extend membership. The flag does not depend on training coverage or learned effects. Requesting it with an empty calendar logs a validation warning and emits zeros. Omitting it from `provide_series` skips flag generation. A missing series must not be treated as an explicit zero.
 
 {{% /collapse %}}
+
+</div>
 
 ## vmanomaly monitoring metrics
 
@@ -1639,8 +1763,8 @@ In addition to the [built-in models](#built-in-models), `vmanomaly` can load a c
 
 This guide shows how to:
 
-- implement the `Model` interface;
-- configure the custom model;
+- implement the `Model` interface.
+- configure the custom model.
 - mount the module into the `vmanomaly` container and run it.
 
 > The file containing the model must be written in [Python](https://www.python.org/) 3.14 or later. A custom model runs inside the `vmanomaly` Python environment, so keep its dependencies compatible with the target image and keep the module available when restoring serialized model state after a restart.
@@ -1653,10 +1777,10 @@ This guide shows how to:
 
 Create `custom_model.py` with a `CustomModel` class derived from `Model`. A concrete model must implement:
 
-- `__init__`, which must call `super().__init__(**kwargs)` so common model arguments are initialized;
-- `fit`, which conditions the model on a DataFrame containing at least `timestamp` and `y`;
-- `infer`, which returns a DataFrame whose first column is `timestamp` and which contains at least `anomaly_score`;
-- `serialize`, which returns `bytes` suitable for on-disk storage;
+- `__init__`, which must call `super().__init__(**kwargs)` so common model arguments are initialized.
+- `fit`, which conditions the model on a DataFrame containing at least `timestamp` and `y`.
+- `infer`, which returns a DataFrame whose first column is `timestamp` and which contains at least `anomaly_score`.
+- `serialize`, which returns `bytes` suitable for on-disk storage.
 - `deserialize`, which restores the same model from bytes or a file path.
 
 Model-specific configuration is passed through the `args` mapping. The example below learns a stationary normal interval. It emits the standard forecast columns and uses the base-class anomaly-score calculation, so query policies such as `detection_direction`, `data_range`, and minimum deviations, together with model settings such as `scale`, continue to work.
@@ -1731,12 +1855,12 @@ class CustomModel(Model):
         return deserialize_basic(model)
 ```
 
-`Model` is offline and uses the one-input-to-one-output service topology by default. A custom online model should derive from `OnlineModel` and implement causal update semantics; setting `is_online = True` alone is not sufficient.
+`Model` is offline and uses the one-input-to-one-output service topology by default. A custom online model should derive from `OnlineModel` and implement causal update semantics. Setting `is_online = True` alone is not sufficient.
 
-{{% available_from "v1.30.3" anomaly %}} Custom models must use `ModelTopology` to declare how service-level input identities map to output identities. The topology controls orchestration, persistence, grouping, and output-label restoration; it does **not** describe the number of columns returned by `infer`.
+{{% available_from "v1.30.3" anomaly %}} Custom models must use `ModelTopology` to declare how service-level input identities map to output identities. The topology controls orchestration, persistence, grouping, and output-label restoration. It does **not** describe the number of columns returned by `infer`.
 
 - `ModelTopology.ONE_TO_ONE` is the default: the service maintains one model for each input series.
-- `ModelTopology.MANY_TO_ONE` merges aligned input series into one model identity and one joint `anomaly_score`. The model may also return per-channel `y`, `yhat`, `yhat_lower`, `yhat_upper`, or `forecast_at` prediction columns; those diagnostics do not change its many-to-one topology.
+- `ModelTopology.MANY_TO_ONE` merges aligned input series into one model identity and one joint `anomaly_score`. The model may also return per-channel `y`, `yhat`, `yhat_lower`, `yhat_upper`, or `forecast_at` prediction columns. Those diagnostics do not change its many-to-one topology.
 - `ModelTopology.MANY_TO_MANY` is the `WideModel` extension contract for an online model that tracks a changing pool of peer series and restores an output identity for each entity.
 
 For a custom many-to-one model, derive from `MultivariateModel` and declare the contract explicitly:
@@ -1755,7 +1879,7 @@ class CustomMultivariateModel(MultivariateModel):
 
 The legacy `is_multivariate = True` class flag may still describe an algorithm internally, but it no longer selects service routing. A class that sets only that flag is orchestrated as one-to-one. Existing compatible built-in multivariate dumps continue to restore through their built-in class definitions.
 
-For a changing peer pool, derive from `WideModel`. Its `fit` and `infer` methods consume a long DataFrame with `timestamp`, `entity_id`, and `y`; returned entity-level rows must retain `entity_id` so the service can restore the original labels. `WideModel` is a semantic extension contract, not a marker used only to store `topology`.
+For a changing peer pool, derive from `WideModel`. Its `fit` and `infer` methods consume a long DataFrame with `timestamp`, `entity_id`, and `y`. Returned entity-level rows must retain `entity_id` so the service can restore the original labels. Implement the `WideModel` input and output contract when extending it. Declaring `topology` alone is insufficient.
 
 ### 2. Configuration file
 
@@ -1811,7 +1935,7 @@ See the [component configuration reference](https://docs.victoriametrics.com/ano
 Pull the `vmanomaly` image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.33.0
+docker pull victoriametrics/vmanomaly:v1.33.1
 ```
 
 Mount the module at `/vmanomaly/src/model/custom.py`, which matches the configured import path `model.custom.CustomModel`. Validate the complete configuration with `--dryRun` before starting the long-running service.
@@ -1820,7 +1944,7 @@ Mount the module at `/vmanomaly/src/model/custom.py`, which matches the configur
 docker run --rm \
   -v "$PWD/custom_model.py:/vmanomaly/src/model/custom.py:ro" \
   -v "$PWD/config.yaml:/config.yaml:ro" \
-  victoriametrics/vmanomaly:v1.33.0 \
+  victoriametrics/vmanomaly:v1.33.1 \
   /config.yaml \
   -eula \
   --dryRun
@@ -1844,6 +1968,8 @@ The writer emits one `custom_anomaly_score` series for each input series. It ret
 
 ## Deprecations
 
+<div class="collapse-group mb-3">
+
 {{% collapse name="Deprecated model types and models" %}}
 
 Here is a list of all deprecated model types and specific models with respective version info and suggestions for migration.
@@ -1854,9 +1980,9 @@ Here is a list of all deprecated model types and specific models with respective
 
 #### Rolling Models
 
-> Rolling models as a class were deprecated {{% deprecated_from "v1.28.0" anomaly %}} in favor of [online models](#online-models), which provide similar benefits with additional advantages. Respective rolling models are refactored into online models (e.g., [RollingQuantile](#rolling-quantile)). Existing configurations that use rolling models' aliases will continue to function, with less limitations (e.g. no constraint on `fit_every` == `infer_every`). **Description below is kept for older deployments and hyperlinks consistency**.
+> Rolling models as a class were deprecated {{< deprecated_from "v1.28.0" anomaly >}} in favor of [online models](#online-models), which provide similar benefits with additional advantages. Respective rolling models are refactored into online models (e.g., [RollingQuantile](#rolling-quantile)). Existing configurations that use rolling models' aliases will continue to function, with less limitations (e.g. no constraint on `fit_every` == `infer_every`). **Description below is kept for older deployments and hyperlinks consistency**.
 
-A rolling model is a model that, once trained, **cannot be (naturally) used to make inference on data, not seen during its fit phase**.
+A rolling model is a model that, once trained, **requires refitting before scoring observations outside its training data**.
 
 An instance of rolling model is **simultaneously fit and used for inference** during its `infer` method call.
 
@@ -1872,11 +1998,11 @@ Such models put **more pressure** on your reader's source, i.e. if your model sh
 
 #### Non-Rolling Models
 
-> The section is moved to deprecations as **Every model class is now {{% available_from "v1.28.0" anomaly %}} non-rolling**. Configurations that used rolling models' aliases will continue to function, with less limitations (e.g. no constraint on `fit_every` == `infer_every`). **Description below is kept for older deployments and hyperlinks consistency**.
+> The section is moved to deprecations as **Every model class is now {{< available_from "v1.28.0" anomaly >}} non-rolling**. Configurations that used rolling models' aliases will continue to function, with less limitations (e.g. no constraint on `fit_every` == `infer_every`). **Description below is kept for older deployments and hyperlinks consistency**.
 
 Everything that is not classified as [rolling](#rolling-models). 
 
-Produced models can be explicitly used to **infer on data, not seen during its fit phase**, thus, it **doesn't require re-fit procedure**.
+Produced models can be explicitly used to **score observations beyond its training data** without refitting for each new observation.
 
 Such models put **less pressure** on your reader's source, i.e. if you fit on large amount of data (say, 14 days with 1-minute resolution) but do it occasionally (say, once per day), at the same time you have **frequent inference**(say, once per minute) on new chunks of data
 
@@ -1892,7 +2018,8 @@ Produced model instances are **stored in-memory** between consecutive re-fit cal
 
 #### [Z-score](https://en.wikipedia.org/wiki/Standard_score)
 
-> `ZScoreModel` is a [univariate](#univariate-models), [offline](#offline-models) model. {{% deprecated_from "v1.28.4" anomaly %}} Was removed in favor of its online version to improve data efficiency and reduce user confusion. **Configs that used this model (where model's class is `zscore` or `model.zscore.ZscoreModel`) will continue to work, with a warning raised while actually changed to the online version under the hood. Suggestion is to replace it with `zscore_online` or `model.online.OnlineZscoreModel` class explicitly to get [online model benefits](https://docs.victoriametrics.com/anomaly-detection/faq/#online-models) for data querying by reducing `fit_every` frequency**.
+> [!WARNING]
+> `ZScoreModel` is a [univariate](#univariate-models), [offline](#offline-models) model. {{< deprecated_from "v1.28.4" anomaly >}} Was removed in favor of its online version to improve data efficiency and reduce user confusion. **Configs that used this model (where model's class is `zscore` or `model.zscore.ZscoreModel`) will continue to work, with a warning raised while actually changed to the online version under the hood. Suggestion is to replace it with `zscore_online` or `model.online.OnlineZscoreModel` class explicitly to get [online model benefits](https://docs.victoriametrics.com/anomaly-detection/faq/#online-models) for data querying by reducing `fit_every` frequency**.
 
 Model is useful for initial testing and for simpler data ([de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data without strict [seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and with anomalies of similar magnitude as your "normal" data).
 
@@ -1936,7 +2063,8 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 #### [MAD (Median Absolute Deviation)](https://en.wikipedia.org/wiki/Median_absolute_deviation)
 
-> `MADModel` is a [univariate](#univariate-models), [offline](#offline-models) model. {{% deprecated_from "v1.28.4" anomaly %}} Was removed in favor of its online version to improve data efficiency and reduce user confusion. **Configs that used this model (where model's class is `mad` or `model.mad.MADModel`) will continue to work, with a warning raised while actually changed to the online version under the hood. Suggestion is to replace it with `mad_online` or `model.online.OnlineMADModel` class explicitly to get [online model benefits](https://docs.victoriametrics.com/anomaly-detection/faq/#online-models) for data querying by reducing `fit_every` frequency**.
+> [!WARNING]
+> `MADModel` is a [univariate](#univariate-models), [offline](#offline-models) model. {{< deprecated_from "v1.28.4" anomaly >}} Was removed in favor of its online version to improve data efficiency and reduce user confusion. **Configs that used this model (where model's class is `mad` or `model.mad.MADModel`) will continue to work, with a warning raised while actually changed to the online version under the hood. Suggestion is to replace it with `mad_online` or `model.online.OnlineMADModel` class explicitly to get [online model benefits](https://docs.victoriametrics.com/anomaly-detection/faq/#online-models) for data querying by reducing `fit_every` frequency**.
 
 The MAD model is a robust method for anomaly detection that is *less sensitive* to outliers in data compared to standard deviation-based models. It considers a point as an anomaly if the absolute deviation from the median is significantly large.
 
@@ -1980,3 +2108,5 @@ models:
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
 {{% /collapse %}}
+
+</div>
