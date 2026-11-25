@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): render annotation values that are `http://` or `https://` URLs as clickable links on the alert page of the vmalert web UI. See [#10397](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10397).
+
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent queries from missing recently registered series because of a stale entry in the `indexdb/tagFiltersToMetricIDs` cache. Previously, a search running concurrently with the flush of new series to the index could store the series found before the flush into the cache after the flush had reset it. Subsequent queries with the same filters could then miss the new series until the next cache reset. See [#11916](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11916).
 * BUGFIX: all VictoriaMetrics components: correctly match regular expressions with `\b`, `\B` or `^` after a literal prefix in [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) rules and series label filters. Previously, the part after the prefix was matched without the char before it, so `foo\b.*` did not match `foo bar` but matched `foobar`. See [#11987](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11987). Thanks to @Indian-boult for contribution.
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -715,4 +716,15 @@ func errResponse(err error, sc int) *httpserver.ErrorWithStatusCode {
 func errJson(w http.ResponseWriter, r *http.Request, err *httpserver.ErrorWithStatusCode) {
 	w.Header().Set("Content-Type", "application/json")
 	httpserver.Errorf(w, r, `{"error":%q,"errorType":%d}`, err, err.StatusCode)
+}
+
+func isHTTPURL(s string) bool {
+	if strings.ContainsAny(s, " \t\r\n") {
+		return false
+	}
+	u, err := url.Parse(s)
+	if err != nil {
+		return false
+	}
+	return (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
 }

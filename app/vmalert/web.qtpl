@@ -462,7 +462,11 @@
         <div class="col">
            {% for _, k := range annotationKeys %}
                 <b>{%s k %}:</b><br>
+                {% if isHTTPURL(alert.Annotations[k]) %}
+                <p class="annotations"><a href="{%s alert.Annotations[k] %}" target="_blank" rel="noopener noreferrer">{%s alert.Annotations[k] %}</a></p>
+                {% else %}
                 <p class="annotations">{%s alert.Annotations[k] %}</p>
+                {% endif %}
           {% endfor %}
         </div>
       </div>
