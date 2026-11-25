@@ -128,32 +128,20 @@ func (fs *FS) newClient() (*service.Client, error) {
 		"https://docs.victoriametrics.com/victoriametrics/vmbackup/#providing-credentials-via-env-variables is set")
 }
 
-// azClientOptions returns a more patient retry policy than the SDK default (3 retries, 60s
-// max delay), since Azure Blob Storage can return 503 ServerBusy for extended periods under
-// sustained load. Backoff is exponential (RetryDelay * (2^try - 1), jittered), so 8 retries
-// from a 5s base delay can reach the 1200s cap by the last retry.
+// The SDK default (3 retries, 60s max delay) gives up too early on 503 ServerBusy.
 func azClientOptions() *service.ClientOptions {
 	return &service.ClientOptions{
-		ClientOptions: azcore.ClientOptions{
-			Retry: policy.RetryOptions{
-				MaxRetries:    8,
-				RetryDelay:    5 * time.Second,
-				MaxRetryDelay: 1200 * time.Second,
-			},
+		Retry: policy.RetryOptions{
+			MaxRetries:    8,
+			RetryDelay:    5 * time.Second,
+			MaxRetryDelay: 1200 * time.Second,
 		},
 	}
 }
 
-// credentialAcquisitionTimeout bounds a single GetToken call (including retries) made against
-// Azure AD, e.g. by WorkloadIdentityCredential. Without an explicit deadline here, MSAL applies
-// its own hardcoded 30s one around the whole exchange whenever the caller's context has none of
-// its own (our case), which cuts off any retries azcore's retry policy attempts underneath it.
-// Setting a longer deadline here gives that retry policy room to actually run.
+// Without a caller deadline, MSAL applies a hardcoded 30s timeout that cuts off azcore retries.
 const credentialAcquisitionTimeout = 10 * time.Minute
 
-// credentialClientOptions returns a retry policy for Azure AD token acquisition. Total time
-// is capped by credentialAcquisitionTimeout. Set TryTimeout to avoid getting stuck in a single
-// connection attempt.
 func credentialClientOptions() azcore.ClientOptions {
 	return azcore.ClientOptions{
 		Retry: policy.RetryOptions{
@@ -165,8 +153,6 @@ func credentialClientOptions() azcore.ClientOptions {
 	}
 }
 
-// credentialWithTimeout wraps a TokenCredential so every GetToken call gets
-// credentialAcquisitionTimeout as its deadline; see that constant's doc comment for why.
 type credentialWithTimeout struct {
 	azcore.TokenCredential
 }
