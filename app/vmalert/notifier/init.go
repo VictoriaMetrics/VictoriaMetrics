@@ -304,9 +304,16 @@ func Send(ctx context.Context, alerts []Alert, notifierHeaders map[string]string
 	}
 
 	wg := sync.WaitGroup{}
-	activeNotifiers := getActiveNotifiers()
-	errCh := make(chan error, len(activeNotifiers))
+	var activeNotifiers []Notifier
+	if getActiveNotifiers != nil {
+		activeNotifiers = getActiveNotifiers()
+	}
+	errCh := make(chan error, max(1, len(activeNotifiers)))
 	defer close(errCh)
+	if len(activeNotifiers) == 0 && len(alertsToSend) > 0 {
+		errCh <- fmt.Errorf("no active notifiers available to send alerts")
+		return errCh
+	}
 	for i := range activeNotifiers {
 		nt := activeNotifiers[i]
 		wg.Go(func() {

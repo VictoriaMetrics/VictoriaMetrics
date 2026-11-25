@@ -211,3 +211,28 @@ alert_relabel_configs:
 		}
 	}
 }
+
+func TestSendAlertsWithoutActiveNotifiers(t *testing.T) {
+	oldGetActiveNotifiers, oldCW := getActiveNotifiers, cw
+	defer func() { getActiveNotifiers, cw = oldGetActiveNotifiers, oldCW }()
+	cw = nil
+	for _, initialized := range []bool{false, true} {
+		t.Run(fmt.Sprintf("initialized=%t", initialized), func(t *testing.T) {
+			getActiveNotifiers = nil
+			if initialized {
+				getActiveNotifiers = func() []Notifier { return nil }
+			}
+			alerts := []Alert{{Labels: map[string]string{"alertname": "test"}}}
+			var count int
+			for err := range Send(context.Background(), alerts, nil) {
+				if err == nil {
+					t.Fatal("expected no-active-notifiers error")
+				}
+				count++
+			}
+			if count != 1 {
+				t.Fatalf("got %d errors; want 1", count)
+			}
+		})
+	}
+}
