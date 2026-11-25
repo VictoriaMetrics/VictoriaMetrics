@@ -33,7 +33,7 @@ func TestGetTime_Success(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ParseTime() error: %s", err)
 		}
-		if result.Unix() != resultExpected.Unix() {
+		if result.UnixMilli() != resultExpected.UnixMilli() {
 			t.Fatalf("unexpected result; got %s; want %s", result, resultExpected)
 		}
 	}
@@ -49,6 +49,12 @@ func TestGetTime_Success(t *testing.T) {
 
 	// year, month and day
 	f("2019-02-01Z", time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC))
+
+	// year, month, and day (exclusive 'end')
+	f("<2019-02-01T00:00:00.000Z", time.Date(2019, 1, 31, 23, 59, 59, 999e6, time.UTC))
+
+	// year, month, and day (exclusive 'start')
+	f(">2019-03-31T23:59:59.999Z", time.Date(2019, 4, 1, 0, 0, 0, 0, time.UTC))
 
 	// year, month and not first day
 	f("2019-02-10Z", time.Date(2019, 2, 10, 0, 0, 0, 0, time.UTC))
@@ -78,11 +84,20 @@ func TestGetTime_Success(t *testing.T) {
 	}())
 
 	// float timestamp representation",
-	f("1562529662.324", time.Date(2019, 7, 7, 20, 01, 02, 324e6, time.UTC))
+	f("1562529662.324", time.Date(2019, 7, 7, 20, 1, 2, 324e6, time.UTC))
 
 	// big timestamp
 	f("1223372036855", time.Date(2008, 10, 7, 9, 33, 56, 855e6, time.UTC))
+}
 
-	// duration time
-	f("1h5m", time.Now().Add(-1*time.Hour).Add(-5*time.Minute))
+func TestGetTime_RelativeDuration(t *testing.T) {
+	// ParseTime reads the clock itself and rounds to msecs, so tolerate a +- 1 ms delta.
+	expected := time.Now().Add(-time.Hour - 5*time.Minute)
+	result, err := ParseTime("1h5m")
+	if err != nil {
+		t.Fatalf("ParseTime() error: %s", err)
+	}
+	if delta := result.Sub(expected).Abs(); delta > 1*time.Millisecond {
+		t.Fatalf("unexpected result; got %s; want %s ± 1ms", result, expected)
+	}
 }
