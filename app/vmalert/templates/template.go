@@ -252,9 +252,12 @@ func templateFuncs() textTpl.FuncMap {
 		// the replacement string repl. Inside repl, $ signs are interpreted as in Expand,
 		// so for instance $1 represents the text of the first submatch.
 		// alias for https://golang.org/pkg/regexp/#Regexp.ReplaceAllString
-		"reReplaceAll": func(pattern, repl, text string) string {
-			re := regexp.MustCompile(pattern)
-			return re.ReplaceAllString(text, repl)
+		"reReplaceAll": func(pattern, repl, text string) (string, error) {
+			re, err := regexp.Compile(pattern)
+			if err != nil {
+				return "", fmt.Errorf("cannot compile regexp %q: %w", pattern, err)
+			}
+			return re.ReplaceAllString(text, repl), nil
 		},
 
 		// parseDuration parses a duration string such as "1h" into the number of seconds it represents

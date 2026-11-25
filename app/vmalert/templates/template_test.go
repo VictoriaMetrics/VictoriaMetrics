@@ -60,6 +60,22 @@ func TestTemplateFuncs_Match(t *testing.T) {
 	}
 }
 
+func TestTemplateFuncs_ReReplaceAll(t *testing.T) {
+	funcs := templateFuncs()
+	reReplaceAll := funcs["reReplaceAll"].(func(pattern, repl, text string) (string, error))
+
+	got, err := reReplaceAll("a+", "b", "aaa")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "b" {
+		t.Fatalf("got %q", got)
+	}
+	if _, err := reReplaceAll("(", "b", "aaa"); err == nil {
+		t.Fatal("expected invalid regexp to return an error")
+	}
+}
+
 func TestTemplateFuncs_Formatting(t *testing.T) {
 	f := func(funcName string, p any, resultExpected string) {
 		t.Helper()
