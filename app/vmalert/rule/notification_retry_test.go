@@ -104,4 +104,12 @@ func initRetryNotifierForTest(t *testing.T, addr string) {
 	if err := notifier.Init(nil, ""); err != nil {
 		t.Fatal(err)
 	}
+	targets := notifier.GetTargets()
+	t.Cleanup(func() {
+		for _, group := range targets {
+			for _, target := range group {
+				target.Close()
+			}
+		}
+	})
 }
