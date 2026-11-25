@@ -304,8 +304,12 @@ apptest:
 	$(MAKE) vminsert-race vmselect-race vmstorage-race vmagent-race vmctl-race vmbackup-race vmrestore-race
 	GORACE="halt_on_error=1" go test ./apptest/... -skip="^Test(Single|Mixed|Legacy).*"
 
-# App tests for legacy indexDB
-apptest-legacy: vminsert-race vmselect-race vmstorage-race vmbackup-race vmrestore-race
+# apptest-legacy132 runs apptests that check the compatibility of v1.132.0 with
+# later versions.
+#
+# v1.132.0 is the last version that writes legacy index, i.e. one that is stored
+# in -storageDataPath/indexdb.
+apptest-legacy132: vminsert-race vmselect-race vmstorage-race vmbackup-race vmrestore-race
 	OS=$$(uname | tr '[:upper:]' '[:lower:]'); \
 	ARCH=$$(uname -m | tr '[:upper:]' '[:lower:]' | sed 's/x86_64/amd64/'); \
 	VERSION=v1.132.0; \
@@ -319,9 +323,10 @@ apptest-legacy: vminsert-race vmselect-race vmstorage-race vmbackup-race vmresto
 	); \
 	VMSINGLE_V1_132_0_PATH=$${DIR}/victoria-metrics-prod \
 	VMSTORAGE_V1_132_0_PATH=$${DIR}/vmstorage-prod \
-	GORACE="halt_on_error=1" go test ./apptest/tests -run="^TestLegacyCluster.*"
+	GORACE="halt_on_error=1" go test ./apptest/tests -run="^TestLegacy132Cluster.*"
 
-# App tests for mixed setups where vmsingle and vmcluster coexist.
+# apptest-mixed runs apptests that verify mixed setups where vmsingle and
+# vmcluster coexist.
 apptest-mixed: vmselect-race
 	OS=$$(uname | tr '[:upper:]' '[:lower:]'); \
 	ARCH=$$(uname -m | tr '[:upper:]' '[:lower:]' | sed 's/x86_64/amd64/'); \
