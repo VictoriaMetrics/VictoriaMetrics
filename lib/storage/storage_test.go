@@ -1075,6 +1075,92 @@ func TestStorageSearchTenantsOnDate(t *testing.T) {
 	f(TimeRange{MinTimestamp: baseDate, MaxTimestamp: math.MaxInt64}, []string{"1:0", "1:10", "1:11", "2:20", "2:21", "3:30", "500:100", "1000:5"})
 }
 
+func TestStorageDeleteSeries_AddAgainInOneBatch(t *testing.T) {
+	defer testRemoveAll(t)
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+
+	const (
+		accountID = 12
+		projectID = 34
+	)
+	var mn MetricName
+	mn.MetricGroup = []byte("metric")
+	mn.AccountID = accountID
+	mn.ProjectID = projectID
+
+	metricNameRaw := mn.marshalRaw(nil)
+
+	tfs := NewTagFilters(accountID, projectID)
+	if err := tfs.Add(nil, mn.MetricGroup, false, false); err != nil {
+		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+	}
+
+	start := time.Date(1971, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	// addRows adds one row per month starting from the given month in a single batch.
+	addRows := func(from time.Time, numMonths int) {
+		mrs := make([]MetricRow, numMonths)
+		for i := range mrs {
+			mrs[i] = MetricRow{
+				MetricNameRaw: metricNameRaw,
+				Timestamp:     from.AddDate(0, i, 0).UnixMilli(),
+				Value:         1,
+			}
+		}
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+	}
+
+	assertCountRows := func(want int) {
+		t.Helper()
+
+		var search Search
+		defer search.MustClose()
+
+		search.Init(noDeadlineContext, nil, s, []*TagFilters{tfs}, TimeRange{start.UnixMilli(), math.MaxInt64}, 1e5)
+		n := 0
+		for search.NextMetricBlock(noDeadlineContext) {
+			var b Block
+			search.MetricBlockRef.BlockRef.MustReadBlock(&b)
+			n += b.RowsCount()
+		}
+		if err := search.Error(); err != nil {
+			t.Fatalf("error in Search: %s", err)
+		}
+		if n != want {
+			t.Fatalf("unexpected rows count; got %d; want %d", n, want)
+		}
+	}
+
+	// Add rows for the last 36 of 60 months and delete them.
+	addRows(start.AddDate(0, 24, 0), 36)
+	assertCountRows(36)
+
+	n, err := s.DeleteSeries(noDeadlineContext, nil, []*TagFilters{tfs}, 1e5)
+	if err != nil {
+		t.Fatalf("DeleteSeries() failed unexpectedly: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("unexpected number of deleted series; got %d; want 1", n)
+	}
+	assertCountRows(0)
+
+	// Add rows for all 60 months in a single batch. The batch starts in
+	// partitions without the deleted series, so the rows in partitions with
+	// the deleted series must get a new series instead of the deleted one.
+	addRows(start, 60)
+	assertCountRows(60)
+
+	// Verify the deleted series wasn't reused.
+	var m Metrics
+	s.UpdateMetrics(&m)
+	if got := m.NewTimeseriesCreated; got != 2 {
+		t.Fatalf("unexpected number of created series; got %d; want 2", got)
+	}
+}
+
 func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	defer testRemoveAll(t)
 
