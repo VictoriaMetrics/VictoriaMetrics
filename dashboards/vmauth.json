@@ -2438,7 +2438,7 @@
               "hide": false,
               "interval": "",
               "intervalFactor": 2,
-              "legendFormat": "{{job}} - {{instance}} -waiting",
+              "legendFormat": "{{job}} - {{instance}} - waiting",
               "range": true,
               "refId": "A"
             },
