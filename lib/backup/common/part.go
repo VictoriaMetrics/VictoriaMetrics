@@ -40,7 +40,7 @@ type Part struct {
 	// Such a part must be removed from remote storage.
 	ActualSize uint64
 
-	// Hash is the content hash of mutable files. It isn't stored remotely, so FillHashes computes it on every listing.
+	// Hash is the content hash of mutable files. It isn't stored remotely, so FillHash computes it on every listing.
 	Hash string
 }
 
@@ -57,21 +57,14 @@ func isMutableFile(partPath string) bool {
 	return name == "parts.json" || name == "appliedRetention.txt"
 }
 
-// FillHashes sets Hash for mutable parts by downloading and hashing their content.
-func FillHashes(parts []Part, download func(p Part, w io.Writer) error) ([]Part, error) {
-	for i := range parts {
-		if err := fillHash(&parts[i], download); err != nil {
-			return nil, err
-		}
-	}
-	return parts, nil
+// NeedsHash returns true if p must be compared by its content hash.
+func NeedsHash(p *Part) bool {
+	// Empty parts have nothing to hash; incomplete parts already differ via ActualSize.
+	return isMutableFile(p.Path) && p.Size > 0 && p.ActualSize == p.Size
 }
 
-func fillHash(p *Part, download func(p Part, w io.Writer) error) error {
-	// Empty parts have nothing to hash; incomplete parts already differ via ActualSize.
-	if !isMutableFile(p.Path) || p.Size == 0 || p.ActualSize != p.Size {
-		return nil
-	}
+// FillHash sets p.Hash to the hash of p contents.
+func FillHash(p *Part, download func(p Part, w io.Writer) error) error {
 	h := xxhash.New()
 	if err := download(*p, h); err != nil {
 		return fmt.Errorf("cannot read %s for hashing: %w", p, err)

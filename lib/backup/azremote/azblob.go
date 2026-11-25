@@ -191,7 +191,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 
 	}
 
-	return common.FillHashes(parts, fs.DownloadPart)
+	return parts, nil
 }
 
 // DeletePart deletes part p from fs.

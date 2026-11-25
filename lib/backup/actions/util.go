@@ -114,6 +114,27 @@ func runParallelPerPathInternal(ctx context.Context, concurrency int, perPath ma
 	return err
 }
 
+// listParts returns parts at fs with Hash set for mutable files.
+func listParts(fs common.OriginFS, concurrency int) ([]common.Part, error) {
+	parts, err := fs.ListParts()
+	if err != nil {
+		return nil, err
+	}
+	var toHash []*common.Part
+	for i := range parts {
+		if common.NeedsHash(&parts[i]) {
+			toHash = append(toHash, &parts[i])
+		}
+	}
+	err = runParallelInternal(concurrency, toHash, func(p *common.Part) error {
+		return common.FillHash(p, fs.DownloadPart)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return parts, nil
+}
+
 func runParallelInternal[T any](concurrency int, items []T, f func(t T) error) error {
 	if concurrency <= 0 {
 		concurrency = 1

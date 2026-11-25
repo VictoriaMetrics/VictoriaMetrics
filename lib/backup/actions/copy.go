@@ -64,13 +64,13 @@ func runCopy(src common.OriginFS, dst common.RemoteFS, concurrency int) error {
 
 	logger.Infof("starting remote backup copy from %s to %s", src, dst)
 
-	srcParts, err := src.ListParts()
+	srcParts, err := listParts(src, concurrency)
 	if err != nil {
 		return fmt.Errorf("cannot list src parts: %w", err)
 	}
 	logger.Infof("obtained %d parts from src %s", len(srcParts), src)
 
-	dstParts, err := dst.ListParts()
+	dstParts, err := listParts(dst, concurrency)
 	if err != nil {
 		return fmt.Errorf("cannot list dst parts: %w", err)
 	}

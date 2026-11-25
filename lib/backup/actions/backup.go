@@ -113,19 +113,19 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 
 	logger.Infof("starting backup from %s to %s using origin %s", src, dst, origin)
 
-	srcParts, err := src.ListParts()
+	srcParts, err := listParts(src, concurrency)
 	if err != nil {
 		return fmt.Errorf("cannot list src parts: %w", err)
 	}
 	logger.Infof("obtained %d parts from src %s", len(srcParts), src)
 
-	dstParts, err := dst.ListParts()
+	dstParts, err := listParts(dst, concurrency)
 	if err != nil {
 		return fmt.Errorf("cannot list dst parts: %w", err)
 	}
 	logger.Infof("obtained %d parts from dst %s", len(dstParts), dst)
 
-	originParts, err := origin.ListParts()
+	originParts, err := listParts(origin, concurrency)
 	if err != nil {
 		return fmt.Errorf("cannot list origin parts: %w", err)
 	}

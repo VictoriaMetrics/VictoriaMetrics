@@ -104,7 +104,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 			offset += n
 		}
 	}
-	return common.FillHashes(parts, fs.DownloadPart)
+	return parts, nil
 }
 
 // DownloadPart copies part p from fs to w.

@@ -105,7 +105,7 @@ func (r *Restore) Run(ctx context.Context) error {
 	}
 
 	logger.Infof("obtaining list of parts at %s", src)
-	srcParts, err := src.ListParts()
+	srcParts, err := listParts(src, concurrency)
 	if err != nil {
 		return fmt.Errorf("cannot list src parts: %w", err)
 	}
@@ -133,7 +133,7 @@ func (r *Restore) Run(ctx context.Context) error {
 		}
 	}
 	logger.Infof("obtaining list of parts at %s", dst)
-	dstParts, err := dst.ListParts()
+	dstParts, err := listParts(dst, concurrency)
 	if err != nil {
 		return fmt.Errorf("cannot list dst parts: %w", err)
 	}
@@ -201,7 +201,7 @@ func (r *Restore) Run(ctx context.Context) error {
 	}
 
 	// Re-read dstParts, since additional parts may be removed on the previous step.
-	dstParts, err = dst.ListParts()
+	dstParts, err = listParts(dst, concurrency)
 	if err != nil {
 		return fmt.Errorf("cannot list dst parts after the deletion: %w", err)
 	}

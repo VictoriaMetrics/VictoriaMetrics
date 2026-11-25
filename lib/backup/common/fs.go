@@ -17,6 +17,9 @@ type OriginFS interface {
 
 	// ListParts must return all the parts for the OriginFS.
 	ListParts() ([]Part, error)
+
+	// DownloadPart must download part p from OriginFS to w.
+	DownloadPart(p Part, w io.Writer) error
 }
 
 // RemoteFS is a filesystem where backups are stored.

@@ -120,7 +120,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 	for {
 		attr, err := it.Next()
 		if errors.Is(err, iterator.Done) {
-			return common.FillHashes(parts, fs.DownloadPart)
+			return parts, nil
 		}
 		if err != nil {
 			return nil, fmt.Errorf("error when iterating objects at %q: %w", dir, err)
