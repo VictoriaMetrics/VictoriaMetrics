@@ -273,6 +273,26 @@ users:
     url_prefix: http://foobar
 `)
 
+	// src_query_args_match_all without src_query_args
+	f(`
+users:
+- username: a
+  url_map:
+  - src_paths: ['/foobar']
+    src_query_args_match_all: true
+    url_prefix: http://foobar
+`)
+
+	// src_headers_match_all without src_headers
+	f(`
+users:
+- username: a
+  url_map:
+  - src_paths: ['/foobar']
+    src_headers_match_all: true
+    url_prefix: http://foobar
+`)
+
 	// Invalid headers in url_map (missing ':')
 	f(`
 users:

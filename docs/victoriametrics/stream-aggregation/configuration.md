@@ -202,7 +202,7 @@ support the following approaches for hot reloading stream aggregation configs fr
 
 * By sending HTTP request to `/-/reload` endpoint (e.g. `http://vmagent:8429/-/reload` or `http://victoria-metrics:8428/-/reload`).
 
-Only the changed aggregation configs are restarted on reload. {{% available_from "#" %}} The aggregation config is considered unchanged
+Only the changed aggregation configs are restarted on reload. {{% available_from "v1.157.0" %}} The aggregation config is considered unchanged
 if it stays identical and keeps the same position in the config file. Unchanged aggregation configs keep their aggregation state.
 
 ## Aggregation outputs

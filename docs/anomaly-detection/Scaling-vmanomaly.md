@@ -361,7 +361,7 @@ docker run -i -t --rm \
     -v "$PWD/.secret/license":/.secret/license \
     -p 8080:8080 \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.32.0 \
+    victoriametrics/vmanomaly:v1.33.0 \
     /global_config.yaml \
     --loggerLevel=INFO
 ```
@@ -378,7 +378,7 @@ The following example demonstrates how to deploy `vmanomaly` with **two shards**
 services:
   # other services ...
   vmanomaly-1:
-    image: victoriametrics/vmanomaly:v1.32.0
+    image: victoriametrics/vmanomaly:v1.33.0
     user: "1000:1000"
     restart: always
     volumes:
@@ -393,7 +393,7 @@ services:
       VMANOMALY_SPLIT_BY: "COMPLETE"
 
   vmanomaly-2:
-    image: victoriametrics/vmanomaly:v1.32.0
+    image: victoriametrics/vmanomaly:v1.33.0
     user: "1000:1000"
     restart: always
     volumes:
@@ -408,7 +408,7 @@ services:
       VMANOMALY_SPLIT_BY: "COMPLETE"
 ```
 
-The v1.32.0 image supplies a built-in health check; these services inherit it without requiring `curl` inside the container. For custom ports, path prefixes or TLS, configure the probe target as described in [container health checks](https://docs.victoriametrics.com/anomaly-detection/quickstart/#container-health-checks).
+The v1.33.0 image supplies a built-in health check; these services inherit it without requiring `curl` inside the container. For custom ports, path prefixes or TLS, configure the probe target as described in [container health checks](https://docs.victoriametrics.com/anomaly-detection/quickstart/#container-health-checks).
 
 ### Helm Charts
 
