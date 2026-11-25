@@ -5,6 +5,8 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"fmt"
+	"io"
+	"strings"
 	"testing"
 
 	"github.com/golang/snappy"
@@ -105,5 +107,46 @@ func newTestDataLenFlag(n int) *flagutil.Bytes {
 	return &flagutil.Bytes{
 		N:    int64(n),
 		Name: "fake-flag",
+	}
+}
+
+func TestSizeLimitedReader(t *testing.T) {
+	src := strings.Repeat("a", 32)
+	lr := &sizeLimitedReader{
+		r:     strings.NewReader(src),
+		left:  8 + 1,
+		limit: 8,
+		name:  "maxDecompressedRequestSize",
+	}
+	buf := make([]byte, 4)
+	var got []byte
+	var err error
+	for {
+		var n int
+		n, err = lr.Read(buf)
+		got = append(got, buf[:n]...)
+		if err != nil {
+			break
+		}
+	}
+	if err == nil || !strings.Contains(err.Error(), "too big decompressed data size") {
+		t.Fatalf("expected size error, got %v", err)
+	}
+	if len(got) > 9 {
+		t.Fatalf("read %d bytes, want at most 9", len(got))
+	}
+
+	ok := &sizeLimitedReader{
+		r:     bytes.NewReader([]byte("hello")),
+		left:  5 + 1,
+		limit: 5,
+		name:  "maxDecompressedRequestSize",
+	}
+	data, err := io.ReadAll(ok)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "hello" {
+		t.Fatalf("got %q", data)
 	}
 }

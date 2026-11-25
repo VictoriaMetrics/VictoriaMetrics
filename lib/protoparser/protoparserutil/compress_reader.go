@@ -26,6 +26,13 @@ import (
 // Later we could consider to make this limit configurable
 const maxSnappyBlockSize = 56_000_000
 
+// maxDecompressedRequestSize caps the decompressed size of one streaming insert.
+// Batch parsers already pass their own limit into ReadUncompressedData.
+// Streaming parsers read line by line, so without this cap a small gzip/zstd
+// body can expand for as long as the client keeps the connection open.
+var maxDecompressedRequestSize = flagutil.NewBytes("maxDecompressedRequestSize", 64*1024*1024, "The maximum size in bytes of decompressed data accepted by a single streaming insert request. "+
+	"Applies to native, CSV, Graphite, Influx stream, Prometheus text, vmimport and Zabbix Connector parsers.")
+
 // ReadUncompressedData reads uncompressed data from r using the given contentType and then passes it to the callback.
 //
 // The maxDataSize limits the maximum data size, which can be read from r.
@@ -159,6 +166,57 @@ func GetUncompressedReader(r io.Reader, contentType string) (io.Reader, error) {
 	default:
 		return nil, fmt.Errorf("unsupported contentType: %s", contentType)
 	}
+}
+
+// OpenStreamReader returns a decompressed reader for a streaming insert.
+//
+// The reader stops with an error once more than -maxDecompressedRequestSize bytes
+// have been produced. Call put when the reader is no longer needed.
+// put is nil when err is non-nil.
+func OpenStreamReader(r io.Reader, contentEncoding string) (io.Reader, func(), error) {
+	reader, err := GetUncompressedReader(r, contentEncoding)
+	if err != nil {
+		return nil, nil, err
+	}
+	limited := &sizeLimitedReader{
+		r:     reader,
+		left:  maxDecompressedRequestSize.N + 1,
+		limit: maxDecompressedRequestSize.N,
+		name:  maxDecompressedRequestSize.Name,
+	}
+	return limited, func() { PutUncompressedReader(reader) }, nil
+}
+
+// sizeLimitedReader fails the read that crosses limit, instead of truncating
+// the stream. left starts at limit+1 so a body of exactly `limit` bytes is accepted.
+type sizeLimitedReader struct {
+	r     io.Reader
+	left  int64
+	limit int64
+	name  string
+	err   error
+}
+
+func (lr *sizeLimitedReader) Read(p []byte) (int, error) {
+	if lr.err != nil {
+		return 0, lr.err
+	}
+	if lr.left <= 0 {
+		lr.err = fmt.Errorf("too big decompressed data size exceeding -%s=%d bytes", lr.name, lr.limit)
+		return 0, lr.err
+	}
+	if int64(len(p)) > lr.left {
+		p = p[:lr.left]
+	}
+	n, err := lr.r.Read(p)
+	if n > 0 {
+		lr.left -= int64(n)
+		if lr.left <= 0 {
+			lr.err = fmt.Errorf("too big decompressed data size exceeding -%s=%d bytes", lr.name, lr.limit)
+			return n, lr.err
+		}
+	}
+	return n, err
 }
 
 // PutUncompressedReader puts r to the pool, so it could be reused via GetUncompressedReader()

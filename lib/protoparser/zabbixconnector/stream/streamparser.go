@@ -32,11 +32,11 @@ func Parse(r io.Reader, encoding string, callback func(rows []zabbixconnector.Ro
 	}
 	defer writeconcurrencylimiter.PutReader(wcr)
 
-	reader, err := protoparserutil.GetUncompressedReader(wcr, encoding)
+	reader, putReader, err := protoparserutil.OpenStreamReader(wcr, encoding)
 	if err != nil {
 		return fmt.Errorf("cannot decode zabbixconnector data: %w", err)
 	}
-	defer protoparserutil.PutUncompressedReader(reader)
+	defer putReader()
 
 	ctx := getStreamContext(reader)
 	defer putStreamContext(ctx)

@@ -67,11 +67,11 @@ func parseStreamMode(r io.Reader, encoding string, tsMultiplier int64, db string
 	}
 	defer writeconcurrencylimiter.PutReader(wcr)
 
-	reader, err := protoparserutil.GetUncompressedReader(wcr, encoding)
+	reader, putReader, err := protoparserutil.OpenStreamReader(wcr, encoding)
 	if err != nil {
 		return fmt.Errorf("cannot decode influx line protocol data: %w; see https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/", err)
 	}
-	defer protoparserutil.PutUncompressedReader(reader)
+	defer putReader()
 
 	ctx := getStreamContext(reader)
 	defer putStreamContext(ctx)

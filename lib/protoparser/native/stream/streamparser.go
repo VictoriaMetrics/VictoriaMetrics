@@ -26,11 +26,11 @@ func Parse(r io.Reader, contentEncoding string, callback func(block *Block) erro
 	}
 	defer writeconcurrencylimiter.PutReader(wcr)
 
-	reader, err := protoparserutil.GetUncompressedReader(wcr, contentEncoding)
+	reader, putReader, err := protoparserutil.OpenStreamReader(wcr, contentEncoding)
 	if err != nil {
 		return fmt.Errorf("cannot decode vmimport data: %w", err)
 	}
-	defer protoparserutil.PutUncompressedReader(reader)
+	defer putReader()
 
 	br := getBufferedReader(reader)
 	defer putBufferedReader(br)

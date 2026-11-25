@@ -41,11 +41,11 @@ func Parse(req *http.Request, callback func(rows []csvimport.Row) error) error {
 	defer writeconcurrencylimiter.PutReader(wcr)
 
 	encoding := req.Header.Get("Content-Encoding")
-	reader, err := protoparserutil.GetUncompressedReader(wcr, encoding)
+	reader, putReader, err := protoparserutil.OpenStreamReader(wcr, encoding)
 	if err != nil {
 		return fmt.Errorf("cannot decode csv data: %w", err)
 	}
-	defer protoparserutil.PutUncompressedReader(reader)
+	defer putReader()
 
 	ctx := getStreamContext(reader)
 	defer putStreamContext(ctx)
