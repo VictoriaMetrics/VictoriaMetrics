@@ -51,7 +51,6 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 5,
   "links": [
     {
       "icon": "doc",
@@ -153,8 +152,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               }
             ]
           }
@@ -219,8 +217,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               }
             ]
           }
@@ -283,8 +280,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               }
             ]
           }
@@ -347,8 +343,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               },
               {
                 "color": "red",
@@ -428,8 +423,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               },
               {
                 "color": "red",
@@ -499,9 +493,6 @@
             "cellOptions": {
               "type": "auto"
             },
-            "footer": {
-              "reducers": []
-            },
             "inspect": false,
             "minWidth": 50
           },
@@ -510,8 +501,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               },
               {
                 "color": "red",
@@ -526,7 +516,12 @@
               "id": "byName",
               "options": "Time"
             },
-            "properties": []
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
           },
           {
             "matcher": {
@@ -614,7 +609,6 @@
               "type": "linear"
             },
             "showPoints": "never",
-            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -632,8 +626,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               },
               {
                 "color": "red",
@@ -737,7 +730,6 @@
               "type": "linear"
             },
             "showPoints": "never",
-            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -752,8 +744,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               },
               {
                 "color": "red",
@@ -845,7 +836,6 @@
               "type": "linear"
             },
             "showPoints": "never",
-            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -860,8 +850,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               },
               {
                 "color": "red",
@@ -953,7 +942,6 @@
               "type": "linear"
             },
             "showPoints": "never",
-            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -968,8 +956,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1059,7 +1046,6 @@
               "type": "linear"
             },
             "showPoints": "never",
-            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1074,8 +1060,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1175,7 +1160,6 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
-                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -1192,8 +1176,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1209,7 +1192,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 26
+            "y": 162
           },
           "id": 37,
           "links": [
@@ -1292,7 +1275,6 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
-                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -1309,8 +1291,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1326,7 +1307,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 26
+            "y": 162
           },
           "id": 35,
           "links": [
@@ -1411,7 +1392,6 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
-                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -1428,8 +1408,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1445,7 +1424,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 34
+            "y": 170
           },
           "id": 65,
           "options": {
@@ -1521,7 +1500,6 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
-                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -1538,8 +1516,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1555,7 +1532,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 34
+            "y": 170
           },
           "id": 56,
           "links": [
@@ -1656,7 +1633,6 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
-                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -1673,8 +1649,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1690,7 +1665,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 42
+            "y": 178
           },
           "id": 57,
           "links": [
@@ -1773,7 +1748,6 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
-                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -1791,8 +1765,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   }
                 ]
               },
@@ -1804,7 +1777,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 42
+            "y": 178
           },
           "id": 66,
           "options": {
@@ -1909,7 +1882,6 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
-                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -1927,8 +1899,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   }
                 ]
               },
@@ -1940,7 +1911,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 50
+            "y": 186
           },
           "id": 67,
           "options": {
@@ -2031,7 +2002,6 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
-                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2049,8 +2019,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2066,7 +2035,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 50
+            "y": 186
           },
           "id": 41,
           "options": {
@@ -2141,7 +2110,6 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
-                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2159,8 +2127,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2176,7 +2143,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 58
+            "y": 194
           },
           "id": 39,
           "options": {
@@ -2252,7 +2219,6 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
-                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2270,8 +2236,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2287,7 +2252,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 58
+            "y": 194
           },
           "id": 61,
           "options": {
@@ -2394,7 +2359,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 66
+            "y": 202
           },
           "id": 59,
           "options": {
@@ -2498,7 +2463,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 74
+            "y": 210
           },
           "id": 64,
           "options": {
@@ -2552,216 +2517,6 @@
       },
       "id": 62,
       "panels": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "description": "Shows the number of restarts per job. The chart can be useful to identify periodic process restarts and correlate them with potential issues or anomalies. Normally, processes shouldn't restart unless restart was inited by user. The reason of restarts should be figured out by checking the logs of each specific service. ",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "axisSoftMin": 0,
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "stepAfter",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "decimals": 0,
-              "links": [],
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "none"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 7,
-            "w": 12,
-            "x": 0,
-            "y": 99
-          },
-          "id": 63,
-          "options": {
-            "legend": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true,
-              "sortBy": "Last *",
-              "sortDesc": true
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.2.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) > 0) by(job)",
-              "format": "time_series",
-              "instant": false,
-              "legendFormat": "{{job}}",
-              "refId": "A"
-            }
-          ],
-          "title": "Restarts ($job)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "description": "Group iteration reset can be caused by irregular delays during evaluation or by the system wall clock being moved backward.\nIf it is caused by host clock changes, vmalert could generate duplicate results for the group rules, since some evaluations could be repeated.\nCheck the host clock time synchronization configuration if this happens frequently.\n",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "bars",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 7,
-            "w": 12,
-            "x": 12,
-            "y": 99
-          },
-          "id": 70,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "12.2.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "exemplar": false,
-              "expr": "sum(increase(vmalert_iteration_reset_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, group, file) > 0",
-              "interval": "1m",
-              "legendFormat": "({{job}}) {{group}}({{file}})",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Group Iteration Reset ($instance)",
-          "type": "timeseries"
-        },
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
@@ -2825,12 +2580,11 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 489
+            "y": 345
           },
           "id": 50,
           "options": {
             "cellHeight": "sm",
-            "filterable": true,
             "footer": {
               "countRows": false,
               "fields": "",
@@ -2841,6 +2595,7 @@
             },
             "showHeader": true,
             "showSearch": true,
+            "filterable": true,
             "sortBy": [
               {
                 "desc": true,
@@ -2959,7 +2714,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 489
+            "y": 345
           },
           "id": 58,
           "options": {
@@ -2996,7 +2751,217 @@
           ],
           "title": "Missed evaluations ($instance)",
           "type": "timeseries"
-        }
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Shows the number of restarts per job. The chart can be useful to identify periodic process restarts and correlate them with potential issues or anomalies. Normally, processes shouldn't restart unless restart was inited by user. The reason of restarts should be figured out by checking the logs of each specific service. ",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "axisSoftMin": 0,
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "stepAfter",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "none"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 11
+          },
+          "id": 63,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) > 0) by(job)",
+              "format": "time_series",
+              "instant": false,
+              "legendFormat": "{{job}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Restarts ($job)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Group iteration reset can be caused by irregular delays during evaluation or by the system wall clock being moved backward.\nIf it is caused by host clock changes, vmalert could generate duplicate results for the group rules, since some evaluations could be repeated.\nCheck the host clock time synchronization configuration if this happens frequently.\n",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "bars",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 11
+          },
+          "id": 70,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "sum(increase(vmalert_iteration_reset_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, group, file) > 0",
+              "interval": "1m",
+              "legendFormat": "({{job}}) {{group}}({{file}})",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Group Iteration Reset ($instance)",
+          "type": "timeseries"
+        }        
       ],
       "title": "Troubleshooting",
       "type": "row"
@@ -3073,7 +3038,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 514
+            "y": 370
           },
           "id": 14,
           "options": {
@@ -3175,7 +3140,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 514
+            "y": 370
           },
           "id": 13,
           "options": {
@@ -3277,7 +3242,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 522
+            "y": 378
           },
           "id": 20,
           "options": {
@@ -3380,7 +3345,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 522
+            "y": 378
           },
           "id": 32,
           "options": {
@@ -3479,7 +3444,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 530
+            "y": 386
           },
           "id": 26,
           "options": {
@@ -3593,7 +3558,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 529
+            "y": 385
           },
           "id": 31,
           "options": {
@@ -3695,7 +3660,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 529
+            "y": 385
           },
           "id": 33,
           "options": {
@@ -3796,7 +3761,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 537
+            "y": 393
           },
           "id": 30,
           "options": {
@@ -3913,7 +3878,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 174
+            "y": 30
           },
           "id": 52,
           "options": {
@@ -4015,7 +3980,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 174
+            "y": 30
           },
           "id": 60,
           "options": {
@@ -4120,7 +4085,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 182
+            "y": 38
           },
           "id": 53,
           "options": {
@@ -4239,7 +4204,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 182
+            "y": 38
           },
           "id": 68,
           "options": {
@@ -4351,7 +4316,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 190
+            "y": 46
           },
           "id": 69,
           "options": {
@@ -4453,7 +4418,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 190
+            "y": 46
           },
           "id": 54,
           "options": {
@@ -4499,7 +4464,7 @@
   ],
   "preload": false,
   "refresh": "",
-  "schemaVersion": 42,
+  "schemaVersion": 41,
   "tags": [
     "victoriametrics"
   ],
