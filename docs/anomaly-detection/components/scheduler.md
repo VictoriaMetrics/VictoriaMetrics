@@ -78,6 +78,12 @@ options={`"scheduler.periodic.PeriodicScheduler"`, `"scheduler.oneoff.OneoffSche
 
 > {{% available_from "v1.30.1" anomaly %}} For exact-capable [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models), `infer_every` is also the causal model-update cadence. If a delayed periodic job fetches several observations at once, they are processed on the same chronological grid used by exact backtesting rather than as one behaviorally different batch.
 
+### Bounded inference recovery
+
+**Upcoming release:** separate inference (`fit_every != infer_every`) normally fetches one `infer_every`. A per-query-group cursor preserves the last successful fetch boundary across delays or reported failures, capped at a total window of `2 * infer_every`. This avoids a fixed extra interval on every tick. Reader settings do not control the cap; reader recovery and lag history may independently widen requests. Already-scored timestamps are filtered before inference.
+
+Startup/restart resets the cursor. Longer gaps need reader recovery. Fetch success advances the cursor; hidden per-query failures and later model/write failures are not guaranteed retries. Combined fit/infer, backtesting and explicit UI/API windows are unchanged; combined-mode jitter gaps and duplicates remain outside this policy.
+
 ### Parameters
 
 For periodic scheduler parameters are defined as differences in times, expressed in difference units, e.g. days, hours, minutes, seconds. Time granularity is defined by the last characters of a string. Examples: `"50s"` (seconds), `"4m"` (minutes), `"3h"` (hours), `"2d"` (days), `"1w"` (weeks).
