@@ -2383,7 +2383,7 @@
                   "mode": "line"
                 }
               },
-              "decimals": 0,
+              "decimals": 2,
               "links": [],
               "mappings": [],
               "min": 0,
