@@ -435,6 +435,11 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 // is kept in memory state and consequently repeatedly sent to the AlertManager.
 const resolvedRetention = 15 * time.Minute
 
+// errExecLimitExceeded is returned when a rule produces more alerts than its limit.
+// Firing alerts are kept in the map, marked inactive, so the caller can send resolves
+// before dropping them.
+var errExecLimitExceeded = errors.New("exec exceeded limit")
+
 // exec executes AlertingRule expression via the given Querier.
 // Based on the Querier results AlertingRule maintains notifier.Alerts
 func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int, getRemoteReadQuerier func(enableDebug bool) datasource.Querier) ([]prompb.TimeSeries, error) {
@@ -510,6 +515,16 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int, getRe
 		if a.State == notifier.StateInactive && ts.Sub(a.ResolvedAt) > resolvedRetention {
 			ar.logDebugf(ts, a, "deleted as inactive")
 			delete(ar.alerts, h)
+		}
+	}
+
+	// Remember alerts that Alertmanager already knows about. If this evaluation
+	// exceeds the limit, only those are resolved. Alerts created in this round
+	// were never sent, so they are dropped instead of notified.
+	previouslyFiring := make(map[uint64]struct{})
+	for h, a := range ar.alerts {
+		if a.State == notifier.StateFiring {
+			previouslyFiring[h] = struct{}{}
 		}
 	}
 
@@ -605,9 +620,17 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int, getRe
 		}
 	}
 	if limit > 0 && numActivePending > limit {
-		ar.alerts = map[uint64]*notifier.Alert{}
-		curState.Err = fmt.Errorf("exec exceeded limit of %d with %d alerts", limit, numActivePending)
-		return nil, curState.Err
+		for h, a := range ar.alerts {
+			if _, ok := previouslyFiring[h]; !ok {
+				delete(ar.alerts, h)
+				continue
+			}
+			a.State = notifier.StateInactive
+			a.ResolvedAt = ts
+			tss = append(tss, firingAlertStaleTimeSeries(a.Labels, ts.Unix())...)
+		}
+		curState.Err = fmt.Errorf("exec exceeded limit of %d with %d alerts: %w", limit, numActivePending, errExecLimitExceeded)
+		return tss, curState.Err
 	}
 	return append(tss, ar.toTimeSeries(ts.Unix())...), nil
 }
@@ -899,4 +922,11 @@ func (ar *AlertingRule) alertsToSend(resolveDuration, resendDelay time.Duration)
 		alerts = append(alerts, *a)
 	}
 	return alerts
+}
+
+// purgeAlerts drops every alert held by the rule.
+func (ar *AlertingRule) purgeAlerts() {
+	ar.alertsMu.Lock()
+	defer ar.alertsMu.Unlock()
+	ar.alerts = make(map[uint64]*notifier.Alert)
 }

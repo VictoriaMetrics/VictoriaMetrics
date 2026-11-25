@@ -1114,6 +1114,37 @@ func TestAlertingRuleLimit_Failure(t *testing.T) {
 	f(1, "exec exceeded limit of 1 with 2 alerts")
 }
 
+func TestAlertingRuleLimit_ResolvesPreviouslyFiring(t *testing.T) {
+	fq := &datasource.FakeQuerier{}
+	ar := newTestAlertingRule("test", 0)
+	ar.q = fq
+	ar.For = 0
+
+	labels := map[string]string{alertNameLabel: "test", "job": "bar"}
+	id := hash(labels)
+	ar.alerts[id] = &notifier.Alert{
+		ID:     id,
+		Name:   "test",
+		Labels: labels,
+		State:  notifier.StateFiring,
+	}
+
+	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "bar"))
+	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "baz"))
+
+	_, err := ar.exec(context.TODO(), time.Now(), 1, nil)
+	if err == nil || !errors.Is(err, errExecLimitExceeded) {
+		t.Fatalf("expected limit error, got %v", err)
+	}
+	if len(ar.alerts) != 1 {
+		t.Fatalf("expected the previously firing alert to stay until it is resolved, got %d alerts", len(ar.alerts))
+	}
+	got := ar.alerts[id]
+	if got == nil || got.State != notifier.StateInactive {
+		t.Fatalf("expected previously firing alert to be inactive, got %#v", got)
+	}
+}
+
 func TestAlertingRuleLimit_Success(t *testing.T) {
 	f := func(limit int) {
 		t.Helper()

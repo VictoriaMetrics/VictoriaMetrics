@@ -27,7 +27,7 @@ import (
 var (
 	ruleResultsLimit = flag.Int("rule.resultsLimit", 0, "Limits the number of alerts or recording results a single rule can produce. "+
 		"Can be overridden by the limit option under group if specified. "+
-		"If exceeded, the rule will be marked with an error and all its results will be discarded. "+
+		"If exceeded, the rule is marked with an error. Firing alerts are resolved, then dropped. "+
 		"0 means no limit.")
 	ruleUpdateEntriesLimit = flag.Int("rule.updateEntriesLimit", 20, "Defines the max number of rule's state updates stored in-memory. "+
 		"Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overridden per rule via update_entries_limit param.")
@@ -770,7 +770,8 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 	execTotal.Inc()
 
 	tss, err := r.exec(ctx, ts, limit, getRemoteReadQuerier)
-	if err != nil {
+	limitExceeded := errors.Is(err, errExecLimitExceeded)
+	if err != nil && !limitExceeded {
 		if errors.Is(err, context.Canceled) {
 			// the context can be cancelled on graceful shutdown
 			// or on group update. So no need to handle the error as usual.
@@ -779,8 +780,14 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 		execErrors.Inc()
 		return fmt.Errorf("rule %q: failed to execute: %w", r, err)
 	}
+	if limitExceeded {
+		execErrors.Inc()
+	}
 
 	var errs []error
+	if limitExceeded {
+		errs = append(errs, fmt.Errorf("rule %q: %w", r, err))
+	}
 	if e.Rw != nil {
 		pushToRW := func(tss []prompb.TimeSeries) error {
 			var lastErr error
@@ -802,15 +809,20 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 	}
 
 	alerts := ar.alertsToSend(resolveDuration, *resendDelay)
-	if len(alerts) < 1 {
-		return errors.Join(errs...)
-	}
-
-	notifierErr := notifier.Send(ctx, alerts, e.notifierHeaders)
-	for err := range notifierErr {
-		if err != nil {
-			errs = append(errs, fmt.Errorf("rule %q: notifier failure: %w", r, err))
+	notifyFailed := false
+	if len(alerts) > 0 {
+		notifierErr := notifier.Send(ctx, alerts, e.notifierHeaders)
+		for err := range notifierErr {
+			if err != nil {
+				notifyFailed = true
+				errs = append(errs, fmt.Errorf("rule %q: notifier failure: %w", r, err))
+			}
 		}
+	}
+	if limitExceeded && !notifyFailed {
+		// Drop the rule's alerts only after resolves were handed to the notifier.
+		// A failed send leaves them in place so the next evaluation retries.
+		ar.purgeAlerts()
 	}
 
 	return errors.Join(errs...)
