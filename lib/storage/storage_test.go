@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -1570,7 +1571,10 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 	}
 
 	// Try creating a snapshot from the storage.
-	snapshotName := s.MustCreateSnapshot()
+	snapshotName, err := s.CreateSnapshot(noDeadlineContext)
+	if err != nil {
+		return fmt.Errorf("cannot create snapshot: %w", err)
+	}
 
 	// Verify the snapshot is visible
 	snapshots := s.MustListSnapshots()
@@ -1662,7 +1666,10 @@ func TestStorageSnapshots_CreateListDelete(t *testing.T) {
 	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
 
-	snapshotName := s.MustCreateSnapshot()
+	snapshotName, err := s.CreateSnapshot(noDeadlineContext)
+	if err != nil {
+		t.Fatalf("cannot create snapshot: %v", err)
+	}
 	assertListSnapshots := func(want []string) {
 		got := s.MustListSnapshots()
 		if diff := cmp.Diff(want, got); diff != "" {
@@ -1757,7 +1764,10 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 		s.AddRows(mrs, defaultPrecisionBits)
 	}
 	// Try creating a snapshot from the storage.
-	snapshotName := s.MustCreateSnapshot()
+	snapshotName, err := s.CreateSnapshot(noDeadlineContext)
+	if err != nil {
+		t.Fatalf("cannot create snapshot: %v", err)
+	}
 
 	// Delete snapshots older than 1 month
 	s.MustDeleteStaleSnapshots(30 * 24 * time.Hour)

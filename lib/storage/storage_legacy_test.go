@@ -506,7 +506,10 @@ func TestLegacyStorageSnapshots_CreateListDelete(t *testing.T) {
 		legacyIndexSnapshots = filepath.Join(legacyIndexData, snapshotsDirname)
 	)
 
-	snapshot1Name := s.MustCreateSnapshot()
+	snapshot1Name, err := s.CreateSnapshot(noDeadlineContext)
+	if err != nil {
+		t.Fatalf("cannot create snapshot: %v", err)
+	}
 	assertListSnapshots := func(want []string) {
 		got := s.MustListSnapshots()
 		if diff := cmp.Diff(want, got); diff != "" {
@@ -561,7 +564,10 @@ func TestLegacyStorageSnapshots_CreateListDelete(t *testing.T) {
 	s.legacyMustRotateIndexDB(time.Now().UTC())
 
 	// Create snapshot2
-	snapshot2Name := s.MustCreateSnapshot()
+	snapshot2Name, err := s.CreateSnapshot(noDeadlineContext)
+	if err != nil {
+		t.Fatalf("cannot create snapshot: %v", err)
+	}
 	assertListSnapshots([]string{snapshot1Name, snapshot2Name})
 
 	var (
@@ -592,7 +598,10 @@ func TestLegacyStorageSnapshots_CreateListDelete(t *testing.T) {
 	s.legacyMustRotateIndexDB(time.Now().UTC())
 
 	// Create snapshot3
-	snapshot3Name := s.MustCreateSnapshot()
+	snapshot3Name, err := s.CreateSnapshot(noDeadlineContext)
+	if err != nil {
+		t.Fatalf("cannot create snapshot: %v", err)
+	}
 	assertListSnapshots([]string{snapshot1Name, snapshot2Name, snapshot3Name})
 
 	var (
@@ -998,7 +1007,9 @@ func TestLegacyStorageRotateIndexDB_CreateSnapshot(t *testing.T) {
 	}
 	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
 	op := func(s *Storage) {
-		_ = s.MustCreateSnapshot()
+		if _, err := s.CreateSnapshot(noDeadlineContext); err != nil {
+			panic(fmt.Sprintf("CreateSnapshot() failed unexpectedly: %v", err))
+		}
 	}
 	testLegacyRotateIndexDB(t, mrs, op)
 }

@@ -315,15 +315,14 @@ func (vms *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 	case "/create":
 		snapshotsCreateTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshotName := vms.s.MustCreateSnapshot()
+		snapshotName, err := vms.s.CreateSnapshot(r.Context())
 
-		// Verify whether the client already closed the connection.
-		// In this case it is better to drop the created snapshot, since the client isn't interested in it.
-		if err := r.Context().Err(); err != nil {
-			logger.Infof("deleting already created snapshot at %s because the client canceled the request", snapshotName)
+		// Verify whether the connection is closed by client or shutdown process.
+		// In this case it is better to drop the created snapshot.
+		if err != nil || r.Context().Err() != nil {
+			logger.Infof("deleting snapshot %q because the request was canceled", snapshotName)
 			if err := vms.deleteSnapshot(snapshotName); err != nil {
-				logger.Infof("cannot delete just created snapshot: %s", err)
-				return true
+				logger.Infof("cannot delete snapshot %q: %s", snapshotName, err)
 			}
 			return true
 		}

@@ -129,7 +129,7 @@ type Storage struct {
 	// since this may result in snapshots without recently added data,
 	// which may be in the process of flushing to disk by concurrently running
 	// snapshot process.
-	snapshotLock sync.Mutex
+	snapshotLock chan struct{}
 
 	// The minimum timestamp when composite index search can be used.
 	minTimestampForCompositeIndex int64
@@ -206,6 +206,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		maxBackfillAgeMsecs:         maxBackfillAge.Milliseconds(),
 		denyQueriesOutsideRetention: opts.DenyQueriesOutsideRetention,
 		stopCh:                      make(chan struct{}),
+		snapshotLock:                make(chan struct{}, 1),
 		idbPrefillStartSeconds:      idbPrefillStart.Milliseconds() / 1000,
 	}
 	s.logNewSeries.Store(opts.LogNewSeries)
@@ -412,23 +413,32 @@ func (s *Storage) DebugFlush() {
 	s.updateCurrHourMetricIDs(hour)
 }
 
-// MustCreateSnapshot creates snapshot for s and returns the snapshot name.
+// CreateSnapshot creates a snapshot for s and returns the snapshot name.
 //
-// The method panics in case of any error since it does not accept any user
-// input and therefore the error is not recoverable.
-func (s *Storage) MustCreateSnapshot() string {
+// If ctx is canceled before finishing the creation, it interrupts the ongoing creation and returns the partial snapshot's name.
+// Unrecoverable filesystem errors still cause a panic.
+func (s *Storage) CreateSnapshot(ctx context.Context) (string, error) {
+	select {
+	case s.snapshotLock <- struct{}{}:
+		defer func() { <-s.snapshotLock }()
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+
 	logger.Infof("creating Storage snapshot for %q...", s.path)
 	startTime := time.Now()
-
-	s.snapshotLock.Lock()
-	defer s.snapshotLock.Unlock()
-
 	snapshotName := snapshotutil.NewName()
 	srcDir := s.path
 	dstDir := filepath.Join(srcDir, snapshotsDirname, snapshotName)
 	fs.MustMkdirFailIfExist(dstDir)
 
-	smallDir, bigDir, indexDBDir := s.tb.MustCreateSnapshot(snapshotName)
+	smallDir, bigDir, indexDBDir, err := s.tb.createSnapshot(ctx, snapshotName)
+	if err != nil {
+		return snapshotName, err
+	}
 
 	dstDataDir := filepath.Join(dstDir, dataDirname)
 	fs.MustMkdirFailIfExist(dstDataDir)
@@ -448,12 +458,14 @@ func (s *Storage) MustCreateSnapshot() string {
 	dstMetadataDir := filepath.Join(dstDir, metadataDirname)
 	fs.MustCopyDirectory(srcMetadataDir, dstMetadataDir)
 
-	s.legacyCreateSnapshot(snapshotName, srcDir, dstDir)
+	if err := s.legacyCreateSnapshot(ctx, snapshotName, dstDir); err != nil {
+		return snapshotName, err
+	}
 
 	fs.MustSyncPathAndParentDir(dstDir)
 
 	logger.Infof("created Storage snapshot for %q at %q in %.3f seconds", srcDir, dstDir, time.Since(startTime).Seconds())
-	return snapshotName
+	return snapshotName, nil
 }
 
 func (s *Storage) mustGetSnapshotsCount() int {
