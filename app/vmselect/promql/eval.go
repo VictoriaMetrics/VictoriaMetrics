@@ -1058,6 +1058,9 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	if err := ValidateMaxPointsPerSeries(ecSQ.Start, ecSQ.End, ecSQ.Step, ecSQ.MaxPointsPerSeries); err != nil {
 		return nil, fmt.Errorf("%w; (see -search.maxPointsSubqueryPerTimeseries command-line flag)", err)
 	}
+	if err := checkCtx(ec.Context); err != nil {
+		return nil, err
+	}
 	tssSQ, err := evalExpr(qt, ecSQ, re.Expr)
 	if err != nil {
 		return nil, err
@@ -1066,7 +1069,7 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 		return nil, nil
 	}
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries)
-	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps)
+	preFunc, rcs, err := getRollupConfigs(ec.Context, funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps)
 	if err != nil {
 		return nil, err
 	}
@@ -1076,7 +1079,7 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	tsw := getTimeseriesByWorkerID()
 	defer putTimeseriesByWorkerID(tsw)
 	seriesByWorkerID := tsw.byWorkerID
-	doParallel(tssSQ, func(tsSQ *timeseries, values []float64, timestamps []int64, workerID uint) ([]float64, []int64) {
+	doParallel(ec.Context, tssSQ, func(tsSQ *timeseries, values []float64, timestamps []int64, workerID uint) ([]float64, []int64) {
 		values, timestamps = removeNanValues(values[:0], timestamps[:0], tsSQ.Values, tsSQ.Timestamps)
 		preFunc(values, timestamps)
 		for _, rc := range rcs {
@@ -1093,6 +1096,9 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 		}
 		return values, timestamps
 	})
+	if err := checkCtx(ec.Context); err != nil {
+		return nil, err
+	}
 	tss := make([]*timeseries, 0, len(tssSQ)*len(rcs))
 	for i := range seriesByWorkerID {
 		tss = append(tss, seriesByWorkerID[i].tss...)
@@ -1104,6 +1110,14 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 }
 
 var rowsScannedPerQuery = metrics.NewHistogram(`vm_rows_scanned_per_query`)
+
+// checkCtx returns an error if ctx is canceled or timed out, e.g. by -search.maxQueryDuration.
+func checkCtx(ctx context.Context) error {
+	if ctx == nil || ctx.Err() == nil {
+		return nil
+	}
+	return fmt.Errorf("context error during rollup evaluation: %w", searchutil.AnnotateContextError(ctx))
+}
 
 func getKeepMetricNames(expr metricsql.Expr) bool {
 	if ae, ok := expr.(*metricsql.AggrFuncExpr); ok {
@@ -1121,7 +1135,7 @@ func getKeepMetricNames(expr metricsql.Expr) bool {
 	return false
 }
 
-func doParallel(tss []*timeseries, f func(ts *timeseries, values []float64, timestamps []int64, workerID uint) ([]float64, []int64)) {
+func doParallel(ctx context.Context, tss []*timeseries, f func(ts *timeseries, values []float64, timestamps []int64, workerID uint) ([]float64, []int64)) {
 	workers := min(netstorage.MaxWorkers(), len(tss))
 	seriesPerWorker := (len(tss) + workers - 1) / workers
 	workChs := make([]chan *timeseries, workers)
@@ -1142,6 +1156,9 @@ func doParallel(tss []*timeseries, f func(ts *timeseries, values []float64, time
 			var tmpValues []float64
 			var tmpTimestamps []int64
 			for ts := range workChs[workerID] {
+				if ctx != nil && ctx.Err() != nil {
+					break
+				}
 				tmpValues, tmpTimestamps = f(ts, tmpValues, tmpTimestamps, uint(workerID))
 			}
 		})
@@ -1814,7 +1831,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	}
 	// Obtain rollup configs before fetching data from db, so type errors could be caught earlier.
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries)
-	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps)
+	preFunc, rcs, err := getRollupConfigs(ec.Context, funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps)
 	if err != nil {
 		return nil, err
 	}
@@ -1961,6 +1978,9 @@ func evalRollupWithIncrementalAggregate(ctx context.Context, qt *querytracer.Tra
 	if err != nil {
 		return nil, err
 	}
+	if err := checkCtx(ctx); err != nil {
+		return nil, err
+	}
 	tss := iafc.finalizeTimeseries()
 	rowsScannedPerQuery.Update(float64(samplesScannedTotal.Load()))
 	qt.Printf("series after aggregation with %s(): %d; samplesScanned=%d", iafc.ae.Name, len(tss), samplesScannedTotal.Load())
@@ -1996,6 +2016,9 @@ func evalRollupNoIncrementalAggregate(ctx context.Context, qt *querytracer.Trace
 		return nil
 	})
 	if err != nil {
+		return nil, err
+	}
+	if err := checkCtx(ctx); err != nil {
 		return nil, err
 	}
 	tss := make([]*timeseries, 0, seriesLen*len(rcs))

@@ -1,13 +1,69 @@
 package promql
 
 import (
+	"context"
+	"errors"
 	"reflect"
+	"sync/atomic"
 	"testing"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metricsql"
 )
+
+func TestSubqueryCanceledDuringRollup(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ec := &EvalConfig{
+		Context:            ctx,
+		Start:              0,
+		End:                1_300_000,
+		Step:               10_000,
+		MaxPointsPerSeries: 200,
+	}
+	expr, err := metricsql.Parse(`rand()[1m:10s]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	re, ok := expr.(*metricsql.RollupExpr)
+	if !ok {
+		t.Fatalf("expecting rollup expression; got %T", expr)
+	}
+	calls := 0
+	rf := func(_ *rollupFuncArg) float64 {
+		calls++
+		cancel()
+		return 1
+	}
+	_, err = evalRollupFuncWithSubquery(nil, ec, "test_rollup", rf, expr, re)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expecting context.Canceled error; got %v", err)
+	}
+	if calls == 0 || calls > rollupCtxCheckInterval {
+		t.Fatalf("expecting 1 to %d rollup calls before cancellation; got %d", rollupCtxCheckInterval, calls)
+	}
+}
+
+func TestDoParallelStopsOnCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	workers := netstorage.MaxWorkers()
+	tss := make([]*timeseries, workers*2+1)
+	var calls atomic.Int32
+	doParallel(ctx, tss, func(_ *timeseries, values []float64, timestamps []int64, _ uint) ([]float64, []int64) {
+		calls.Add(1)
+		cancel()
+		return values, timestamps
+	})
+	if ctx.Err() != context.Canceled {
+		t.Fatalf("expecting canceled context; got %v", ctx.Err())
+	}
+	if got := calls.Load(); got > int32(workers) {
+		t.Fatalf("processed %d series after cancellation; at most %d may be in flight", got, workers)
+	}
+}
 
 func TestGetCommonLabelFilters(t *testing.T) {
 	f := func(metrics string, lfsExpected string) {
