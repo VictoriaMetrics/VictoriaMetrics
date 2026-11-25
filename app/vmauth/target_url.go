@@ -72,10 +72,10 @@ func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, host string, h http.Heade
 		if !matchAnyRegex(e.SrcPaths, u.Path) {
 			continue
 		}
-		if !matchAnyQueryArg(e.SrcQueryArgs, u.Query()) {
+		if !matchQueryArgs(e.SrcQueryArgs, e.SrcQueryArgsMatchAll, u.Query()) {
 			continue
 		}
-		if !matchAnyHeader(e.SrcHeaders, h) {
+		if !matchHeaders(e.SrcHeaders, e.SrcHeadersMatchAll, h) {
 			continue
 		}
 		if matchAnyDenyPath(e.DenyPaths, u.Path) {
@@ -114,34 +114,65 @@ func matchAnyDenyPath(rs []*Regex, s string) bool {
 	return false
 }
 
-func matchAnyQueryArg(qas []*QueryArg, args url.Values) bool {
+// matchQueryArgs returns true if args match qas.
+//
+// If matchAll is false, then at least one of qas entries must match.
+// If matchAll is true, then all the qas entries must match.
+func matchQueryArgs(qas []*QueryArg, matchAll bool, args url.Values) bool {
 	if len(qas) == 0 {
 		return true
 	}
-	for _, qa := range qas {
-		vs, ok := args[qa.Name]
-		if !ok {
-			continue
-		}
-		for _, v := range vs {
-			if qa.Value.match(v) {
-				return true
+	if matchAll {
+		for _, qa := range qas {
+			if !matchQueryArg(qa, args) {
+				return false
 			}
+		}
+		return true
+	}
+	for _, qa := range qas {
+		if matchQueryArg(qa, args) {
+			return true
 		}
 	}
 	return false
 }
 
-func matchAnyHeader(headers []*Header, h http.Header) bool {
-	if len(headers) == 0 {
-		return true
-	}
-	for _, header := range headers {
-		if slices.Contains(h.Values(header.Name), header.Value) {
+func matchQueryArg(qa *QueryArg, args url.Values) bool {
+	for _, v := range args[qa.Name] {
+		if qa.Value.match(v) {
 			return true
 		}
 	}
 	return false
+}
+
+// matchHeaders returns true if h matches headers.
+//
+// If matchAll is false, then at least one of headers entries must match.
+// If matchAll is true, then all the headers entries must match.
+func matchHeaders(headers []*Header, matchAll bool, h http.Header) bool {
+	if len(headers) == 0 {
+		return true
+	}
+	if matchAll {
+		for _, header := range headers {
+			if !matchHeader(header, h) {
+				return false
+			}
+		}
+		return true
+	}
+	for _, header := range headers {
+		if matchHeader(header, h) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchHeader(header *Header, h http.Header) bool {
+	return slices.Contains(h.Values(header.Name), header.Value)
 }
 
 func normalizeURL(uOrig *url.URL) *url.URL {

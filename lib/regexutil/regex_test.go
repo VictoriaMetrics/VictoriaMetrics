@@ -165,6 +165,14 @@ func TestRegexMatchString(t *testing.T) {
 	// substring fast path.
 	f("(a|b).+c.+", "axcx", true)
 	f("(a|b).+c.+", "xcx", false)
+
+	// \b, \B and ^ depend on the char before them, so they must be matched together with the preceding prefix.
+	f("error\\b", "error found", true)
+	f("error\\b", "errors found", false)
+	f("error\\b", "errors and error", true)
+	f("foo\\Bbar", "a foobar", true)
+	f("foo\\B", "foo bar", false)
+	f("a(^foo|bar$)z", "afooz", false)
 }
 
 func TestGetLiterals(t *testing.T) {

@@ -124,13 +124,53 @@ The list of MetricsQL features on top of PromQL:
 * `default` binary operator. `q1 default q2` fills gaps in `q1` with the corresponding values from `q2`. See also [drop_empty_series](#drop_empty_series).
 * `if` binary operator. `q1 if q2` removes values from `q1` for missing values from `q2`.
 * `ifnot` binary operator. `q1 ifnot q2` removes values from `q1` for existing values from `q2`.
-* `WITH` templates. This feature simplifies writing and managing complex queries.
-  Go to [WITH templates playground](https://play.victoriametrics.com/select/0/prometheus/graph/#/expand-with-exprs) and try it.
+* `WITH` templates. This feature simplifies writing and managing complex queries. See [these docs](https://docs.victoriametrics.com/victoriametrics/metricsql/#with-templates).
 * String literals may be concatenated. This is useful with `WITH` templates:
   `WITH (commonPrefix="long_metric_prefix_") {__name__=commonPrefix+"suffix1"} / {__name__=commonPrefix+"suffix2"}`.
 * `keep_metric_names` modifier can be applied to all the [rollup functions](#rollup-functions), [transform functions](#transform-functions)
   and [binary operators](https://prometheus.io/docs/prometheus/latest/querying/operators/#binary-operators).
   This modifier prevents from dropping metric names in function results. See [these docs](#keep_metric_names).
+
+## WITH templates
+
+WITH templates (aka Common Table Expressions) allow defining and reusing parts of the MetricsQL query.
+
+A template can be a query expression, a set of label filters, a string or a function with arguments. Templates can be nested.
+
+For example, a query for CPU utilization from [Node Exporter dashboard](https://grafana.com/grafana/dashboards/1860) has the following form:
+```metricsql
+(
+  (
+    count(count(node_cpu_seconds_total{instance=~"$node:$port",job=~"$job"}) by (cpu))
+    -
+    avg(sum by (mode) (rate(node_cpu_seconds_total{mode='idle',instance=~"$node:$port",job=~"$job"}[5m])))
+  ) * 100
+)
+/
+count(count(node_cpu_seconds_total{instance=~"$node:$port",job=~"$job"}) by (cpu))
+```
+
+This query repeats the same metric name and labels filter in each selector and looks verbose, so its meaning might be hard to understand.
+Using WITH templates, we can simplify it to the following form:
+```metricsql
+WITH (
+    cpuSeconds = node_cpu_seconds_total{instance=~"$node:$port",job=~"$job"},
+    cpuCount = count(count(cpuSeconds) by (cpu)),
+    cpuIdle = sum(rate(cpuSeconds{mode='idle'}[5m]))
+)
+((cpuCount - cpuIdle) * 100) / cpuCount
+```
+
+Now, filter `cpuSeconds` is defined once and then reused multiple times. `cpuCount` and `cpuIdle` are defined in a simple form,
+so the math `((cpuCount - cpuIdle) * 100) / cpuCount` becomes more readable. You can use this query form in your dashboards,
+rules, ad-hoc queries and so on. On receiving, VictoriaMetrics will expand such a query into the canonical form.
+
+Try `WITH` templates on the [playground](https://play.victoriametrics.com/select/0/prometheus/graph/#/expand-with-exprs).
+It shows how templates expand into a query and contains a step-by-step tutorial.
+
+A template is available only in the query where it is defined.
+The [VictoriaMetrics datasource for Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/datasource/#how-to-use-with-templates)
+allows defining templates per dashboard, so all the panels of the dashboard can use them.
 
 ## keep_metric_names
 

@@ -146,4 +146,14 @@ func TestPromRegex(t *testing.T) {
 	f(".*foo(bar|baz)", "fooxfoobaz", true)
 	f(".*foo(bar|baz)", "fooxfooban", false)
 	f(".*foo(bar|baz)", "fooxfooban foobar", true)
+
+	// \b, \B and ^ depend on the char before them, so they must be matched together with the preceding prefix.
+	f("foo\\b", "foo", true)
+	f("foo\\b.*", "foo bar", true)
+	f("foo\\b.*", "foobar", false)
+	f("foo\\Bbar", "foobar", true)
+	f("foo\\B.*", "foobar", true)
+	f("foo\\B.*", "foo bar", false)
+	f("fo\\Bo[x]*bar?", "foobar", true)
+	f("a(^foo|bar$)z", "afooz", false)
 }
