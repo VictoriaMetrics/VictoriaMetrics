@@ -276,7 +276,7 @@ writer:
 # https://docs.victoriametrics.com/anomaly-detection/components/monitoring/
 ```
 
-This configuration divides the requested inference period into daily segments (`fit_every: 1d`). Each segment is preceded by 14 days of training data (`fit_window: 14d`). With `exact: True`, inference runs in hourly batches (`infer_every: 1h`), producing scores at the reader’s one-minute sampling period. Results are written to the VictoriaMetrics datasource configured in the [writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) for visualization in VMUI or Grafana.
+This configuration divides the requested inference period into daily segments (`fit_every: 1d`). Each segment is preceded by 14 days of training data (`fit_window: 14d`). For online models, `exact: True` replays hourly inference (`infer_every: 1h`), producing scores at the reader’s one-minute sampling period. Offline models infer over each full daily segment regardless of `exact`. Results are written to the VictoriaMetrics datasource configured in the [writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) for visualization in VMUI or Grafana.
 
 ## Forecasting
 
