@@ -132,9 +132,9 @@ func (fs *FS) newClient() (*service.Client, error) {
 func azClientOptions() *service.ClientOptions {
 	return &service.ClientOptions{
 		Retry: policy.RetryOptions{
-      MaxRetries:    10,
-      RetryDelay:    4 * time.Second,
-      MaxRetryDelay: 2 * time.Minute,
+			MaxRetries:    10,
+			RetryDelay:    4 * time.Second,
+			MaxRetryDelay: 2 * time.Minute,
 		},
 	}
 }
