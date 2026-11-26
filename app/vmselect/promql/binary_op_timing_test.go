@@ -22,80 +22,114 @@ func BenchmarkBinaryOpOr(b *testing.B) {
 		return be
 	}
 	ts := func(name string) *timeseries {
-		mg := []byte(name)
 		if len(name) == 0 {
-			mg = nil
+			// scalar
+			return &timeseries{
+				Timestamps: []int64{1},
+				Values:     []float64{1},
+			}
 		}
 		return &timeseries{
 			MetricName: storage.MetricName{
-				MetricGroup: mg,
+				MetricGroup: []byte(name),
+				Tags: []storage.Tag{
+					{Key: []byte("job"), Value: []byte("node-exporter")},
+					{Key: []byte("instance"), Value: []byte("10.0.0.1:9100")},
+					{Key: []byte("env"), Value: []byte("prod")},
+				},
 			},
 			Timestamps: []int64{1},
 			Values:     []float64{1},
 		}
 	}
+	tsWithPoints := func(name string, points int) *timeseries {
+		t := ts(name)
+		t.Timestamps = make([]int64, points)
+		t.Values = make([]float64, points)
+		for i := range points {
+			t.Timestamps[i] = int64(i)
+			t.Values[i] = 1
+		}
+		return t
+	}
 
 	b.Run("tss:1 or tss:1", func(b *testing.B) {
-		bfa := &binaryOpFuncArg{
-			be:    mustParseMetricsQL("a or b"),
-			left:  []*timeseries{ts("a")},
-			right: []*timeseries{ts("b")},
-		}
-		benchmarkBinaryOpOr(b, bfa)
+		benchmarkBinaryOpOr(b, func() *binaryOpFuncArg {
+			return &binaryOpFuncArg{
+				be:    mustParseMetricsQL("a or b"),
+				left:  []*timeseries{ts("a")},
+				right: []*timeseries{ts("b")},
+			}
+		})
+	})
+	b.Run("tss:1 or tss:1 points:1000", func(b *testing.B) {
+		benchmarkBinaryOpOr(b, func() *binaryOpFuncArg {
+			return &binaryOpFuncArg{
+				be:    mustParseMetricsQL("a or b"),
+				left:  []*timeseries{tsWithPoints("a", 1000)},
+				right: []*timeseries{tsWithPoints("b", 1000)},
+			}
+		})
 	})
 	b.Run("tss:1 or tss:1000", func(b *testing.B) {
-		right := make([]*timeseries, 1000)
-		for i := range right {
-			right[i] = ts(fmt.Sprintf(`b{foo="%d"}`, i))
-		}
-		bfa := &binaryOpFuncArg{
-			be:    mustParseMetricsQL("a or b"),
-			left:  []*timeseries{ts(`a{foo="0"}`)},
-			right: right,
-		}
-		benchmarkBinaryOpOr(b, bfa)
+		benchmarkBinaryOpOr(b, func() *binaryOpFuncArg {
+			right := make([]*timeseries, 1000)
+			for i := range right {
+				right[i] = ts(fmt.Sprintf("b_%d", i))
+			}
+			return &binaryOpFuncArg{
+				be:    mustParseMetricsQL("a or b"),
+				left:  []*timeseries{ts("a_0")},
+				right: right,
+			}
+		})
 	})
 	b.Run("tss:1000 or tss:1", func(b *testing.B) {
-		left := make([]*timeseries, 1000)
-		for i := range left {
-			left[i] = ts(fmt.Sprintf(`b{foo="%d"}`, i))
-		}
-		bfa := &binaryOpFuncArg{
-			be:    mustParseMetricsQL("a or b"),
-			left:  left,
-			right: []*timeseries{ts(`b{foo="0"}`)},
-		}
-		benchmarkBinaryOpOr(b, bfa)
+		benchmarkBinaryOpOr(b, func() *binaryOpFuncArg {
+			left := make([]*timeseries, 1000)
+			for i := range left {
+				left[i] = ts(fmt.Sprintf("b_%d", i))
+			}
+			return &binaryOpFuncArg{
+				be:    mustParseMetricsQL("a or b"),
+				left:  left,
+				right: []*timeseries{ts("b_0")},
+			}
+		})
 	})
 	b.Run("tss:1000 or tss:1000", func(b *testing.B) {
-		left, right := make([]*timeseries, 1000), make([]*timeseries, 1000)
-		for i := range left {
-			left[i] = ts(fmt.Sprintf(`a{foo="%d"}`, i))
-			right[i] = ts(fmt.Sprintf(`b{foo="%d"}`, i))
-		}
-		bfa := &binaryOpFuncArg{
-			be:    mustParseMetricsQL("a or b"),
-			left:  left,
-			right: right,
-		}
-		benchmarkBinaryOpOr(b, bfa)
+		benchmarkBinaryOpOr(b, func() *binaryOpFuncArg {
+			left, right := make([]*timeseries, 1000), make([]*timeseries, 1000)
+			for i := range left {
+				left[i] = ts(fmt.Sprintf("a_%d", i))
+				right[i] = ts(fmt.Sprintf("b_%d", i))
+			}
+			return &binaryOpFuncArg{
+				be:    mustParseMetricsQL("a or b"),
+				left:  left,
+				right: right,
+			}
+		})
 	})
 	b.Run("tss:1000 or on() vector(0)", func(b *testing.B) {
-		left := make([]*timeseries, 1000)
-		for i := range left {
-			left[i] = ts(fmt.Sprintf(`a{foo="%d"}`, i))
-		}
-		bfa := &binaryOpFuncArg{
-			be:    mustParseMetricsQL("a or on() vector(0)"),
-			left:  left,
-			right: []*timeseries{ts(``)},
-		}
-		benchmarkBinaryOpOr(b, bfa)
+		benchmarkBinaryOpOr(b, func() *binaryOpFuncArg {
+			left := make([]*timeseries, 1000)
+			for i := range left {
+				left[i] = ts(fmt.Sprintf("a_%d", i))
+			}
+			return &binaryOpFuncArg{
+				be:    mustParseMetricsQL("a or on() vector(0)"),
+				left:  left,
+				right: []*timeseries{ts(``)},
+			}
+		})
 	})
 }
 
-func benchmarkBinaryOpOr(b *testing.B, bfa *binaryOpFuncArg) {
+func benchmarkBinaryOpOr(b *testing.B, newBfa func() *binaryOpFuncArg) {
 	b.RunParallel(func(pb *testing.PB) {
+		// binaryOpOr modifies series in place, so every goroutine needs its own series.
+		bfa := newBfa()
 		for pb.Next() {
 			_, err := binaryOpOr(bfa)
 			if err != nil {

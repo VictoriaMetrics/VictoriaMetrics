@@ -984,12 +984,12 @@ Additional information:
 
 > Supported by: `vmsingle`, `vmselect`
 
-Note that the handler accepts any HTTP method, so sending a `GET` request to `/api/v1/admin/tsdb/delete_series` will delete the time series.
+Note that the handler accepts only HTTP `POST` method.
 
 Single-node VictoriaMetrics:
 
 ```sh
-curl -x POST 'http://<vmsingle>:8428/api/v1/admin/tsdb/delete_series' -d 'match[]=vm_http_request_errors_total'
+curl -X POST 'http://<vmsingle>:8428/api/v1/admin/tsdb/delete_series' -d 'match[]=vm_http_request_errors_total'
 ```
 
 Cluster version of VictoriaMetrics:
