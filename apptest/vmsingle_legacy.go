@@ -47,3 +47,19 @@ func StartVmsingle_v1_132_0(instance string, flags []string, cli *Client, output
 		openTSDBListenAddr: stderrExtracts[3],
 	}), nil
 }
+
+// StartVmsingle_v1_157_0 starts vmsingle-v1.157.0 (the last version that writes
+// and reads both global and per-day indexes when -disablePerDayIndex is false).
+//
+// This binary is used in apptests that check the compatibility of v1.157.0 with
+// later versions.
+//
+// The path to the binary must be provided via VMSINGLE_V1_157_0_PATH
+// environment variable.
+func StartVmsingle_v1_157_0(instance string, flags []string, cli *Client, output io.Writer) (*Vmsingle, error) {
+	binary := os.Getenv("VMSINGLE_V1_157_0_PATH")
+	if binary == "" {
+		return nil, fmt.Errorf("vmsingle-v1.157.0 binary path must be provided via VMSINGLE_V1_157_0_PATH environment variable")
+	}
+	return startVmsingle(instance, binary, flags, cli, output)
+}

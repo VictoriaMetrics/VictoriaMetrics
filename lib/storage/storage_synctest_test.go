@@ -70,7 +70,7 @@ func testStorageSearchTSIDs_corruptedIndex(t *testing.T, disablePerDayIndex bool
 		tfssAll := []*TagFilters{tfsAll}
 
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idb.searchMetricIDs(noDeadlineContext, tfssAll, tr, 1e9)
+			metricIDs, err := idb.searchMetricIDs(noDeadlineContext, nil, tfssAll, tr, 1e9)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
@@ -183,7 +183,7 @@ func testStorageSearchMetricNames_corruptedIndex(t *testing.T, disablePerDayInde
 		tfssAll := []*TagFilters{tfsAll}
 
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idb.searchMetricIDs(noDeadlineContext, tfssAll, tr, 1e9)
+			metricIDs, err := idb.searchMetricIDs(noDeadlineContext, nil, tfssAll, tr, 1e9)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}

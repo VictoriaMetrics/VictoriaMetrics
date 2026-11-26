@@ -535,6 +535,27 @@ apptest-legacy132: victoria-metrics-race vmbackup-race vmrestore-race
 	VMSTORAGE_V1_132_0_PATH=$${DIR}/vmstorage-prod \
 	GORACE="halt_on_error=1" go test ./apptest/tests -run="^TestLegacy132Single.*"
 
+# apptest-legacy157 runs apptests that check the compatibility of v1.157.0 with
+# later versions.
+#
+# v1.157.0 is the last version that writes and reads both global and per-day
+# indexes when -disablePerDayIndex is false.
+apptest-legacy157: victoria-metrics-race
+	OS=$$(uname | tr '[:upper:]' '[:lower:]'); \
+	ARCH=$$(uname -m | tr '[:upper:]' '[:lower:]' | sed 's/x86_64/amd64/'); \
+	VERSION=v1.157.0; \
+	VMSINGLE=victoria-metrics-$${OS}-$${ARCH}-$${VERSION}.tar.gz; \
+	VMCLUSTER=victoria-metrics-$${OS}-$${ARCH}-$${VERSION}-cluster.tar.gz; \
+	URL=https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/$${VERSION}; \
+	DIR=/tmp/$${VERSION}; \
+	test -d $${DIR} || (mkdir $${DIR} && \
+		curl --output-dir /tmp -LO $${URL}/$${VMSINGLE} && tar xzf /tmp/$${VMSINGLE} -C $${DIR} && \
+		curl --output-dir /tmp -LO $${URL}/$${VMCLUSTER} && tar xzf /tmp/$${VMCLUSTER} -C $${DIR} \
+	); \
+	VMSINGLE_V1_157_0_PATH=$${DIR}/victoria-metrics-prod \
+	VMSTORAGE_V1_157_0_PATH=$${DIR}/vmstorage-prod \
+	GORACE="halt_on_error=1" go test ./apptest/tests -run="^TestLegacy157Single.*"
+
 # apptest-mixed runs apptests that verify mixed setups where vmsingle and
 # vmcluster coexist.
 apptest-mixed: victoria-metrics-race
