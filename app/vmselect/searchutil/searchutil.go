@@ -156,17 +156,18 @@ func (d *deadline) String() string {
 
 // GetExtraTagFilters returns additional label filters from request.
 //
-// Label filters can be present in extra_label and extra_filters[] query args.
-// They are combined. For example, the following query args:
+// Label filters can be present in extra_label, extra_filters and extra_filters[] query args.
+// All of them are merged with "and" logic, so every additional arg can only narrow down
+// the set of time series, which can be selected. For example, the following query args:
 //
-//	extra_label=t1=v1&extra_label=t2=v2&extra_filters[]={env="prod",team="devops"}&extra_filters={env=~"dev|staging",team!="devops"}
+//	extra_label=t1=v1&extra_filters={env="prod" or env="dev"}&extra_filters={team!="devops"}
 //
-// should be translated to the following filters joined with "or":
+// are translated to the following filters joined with "or":
 //
-//	{env="prod",team="devops",t1="v1",t2="v2"}
-//	{env=~"dev|staging",team!="devops",t1="v1",t2="v2"}
+//	{t1="v1",env="prod",team!="devops"}
+//	{t1="v1",env="dev",team!="devops"}
 //
-//	Query args from URL path have precedence over post form args.
+// Query args from URL path have precedence over post form args.
 //
 // Empty values are ignored. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11618
 func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
@@ -200,6 +201,9 @@ func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
 	extraFilters := append([]string{}, getRequestParam("extra_filters")...)
 	extraFilters = append(extraFilters, getRequestParam("extra_filters[]")...)
 	var etfs [][]storage.TagFilter
+	if len(tagFilters) > 0 {
+		etfs = [][]storage.TagFilter{tagFilters}
+	}
 	for _, extraFilter := range extraFilters {
 		if extraFilter == "" {
 			continue
@@ -208,18 +212,60 @@ func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse extra_filters=%s: %w", extraFilter, err)
 		}
-		for i := range tfss {
-			tfss[i] = append(tfss[i], tagFilters...)
-		}
-		etfs = append(etfs, tfss...)
-	}
-	if len(etfs) == 0 {
-		if len(tagFilters) == 0 {
-			return nil, nil
-		}
-		return [][]storage.TagFilter{tagFilters}, nil
+		// Merge the filters with "and" logic, so the extra_filters arg can only narrow down
+		// the already specified filters.
+		etfs = JoinTagFilterss(etfs, tfss)
+		etfs = removeImpossibleTagFilterss(etfs)
 	}
 	return etfs, nil
+}
+
+// removeImpossibleTagFilterss removes filter sets from tfss, which cannot match any time series.
+//
+// If all the filter sets cannot match any time series, then the first one is returned,
+// since an empty result means "no filters", e.g. "match all the time series".
+func removeImpossibleTagFilterss(tfss [][]storage.TagFilter) [][]storage.TagFilter {
+	var dst [][]storage.TagFilter
+	for _, tfs := range tfss {
+		if !isImpossibleTagFilters(tfs) {
+			dst = append(dst, tfs)
+		}
+	}
+	if len(dst) == 0 && len(tfss) > 0 {
+		return tfss[:1]
+	}
+	return dst
+}
+
+// isImpossibleTagFilters returns true if tfs cannot match any time series.
+//
+// Only exact filters are checked:
+//
+//	{k="a",k="b"}
+//	{k="a",k!="a"}
+func isImpossibleTagFilters(tfs []storage.TagFilter) bool {
+	for i := range tfs {
+		a := &tfs[i]
+		if a.IsRegexp || a.IsNegative {
+			continue
+		}
+		for j := range tfs {
+			b := &tfs[j]
+			if i == j || b.IsRegexp || string(a.Key) != string(b.Key) {
+				continue
+			}
+			sameValue := string(a.Value) == string(b.Value)
+			if !b.IsNegative && !sameValue {
+				// {k="a",k="b"}
+				return true
+			}
+			if b.IsNegative && sameValue {
+				// {k="a",k!="a"}
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // JoinTagFilterss adds etfs to every src filter and returns the result.

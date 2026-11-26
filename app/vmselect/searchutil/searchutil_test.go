@@ -47,22 +47,64 @@ func TestGetExtraTagFilters(t *testing.T) {
 		[]string{`{foo="bar"}`},
 		false,
 	)
+	// extra_filters and extra_filters[] are merged with "and"
 	f(t, httpReqWithForm(`extra_filters={foo="bar"}&extra_filters[]={baz!~"aa",x=~"y"}`),
-		[]string{
-			`{foo="bar"}`,
-			`{baz!~"aa",x=~"y"}`,
-		},
+		[]string{`{foo="bar",baz!~"aa",x=~"y"}`},
 		false,
 	)
+	f(t, httpReqWithForm(`extra_filters[]={foo="bar"}&extra_filters[]={baz="aa"}`),
+		[]string{`{foo="bar",baz="aa"}`},
+		false,
+	)
+	f(t, httpReqWithForm(`extra_filters={foo="bar"}&extra_filters={baz="aa"}`),
+		[]string{`{foo="bar",baz="aa"}`},
+		false,
+	)
+	// conflicting filters are merged with "and", so they select nothing instead of the union of the filters
+	f(t, httpReqWithForm(`extra_filters[]={vm_account_id="7"}&extra_filters[]={vm_account_id="42"}`),
+		[]string{`{vm_account_id="7",vm_account_id="42"}`},
+		false,
+	)
+	// extra_label and extra_filters are merged with "and"
 	f(t, httpReqWithForm(`extra_label=job=vmagent&extra_label=dc=gce&extra_filters={foo="bar"}`),
-		[]string{`{foo="bar",job="vmagent",dc="gce"}`},
+		[]string{`{job="vmagent",dc="gce",foo="bar"}`},
 		false,
 	)
 	f(t, httpReqWithForm(`extra_label=job=vmagent&extra_label=dc=gce&extra_filters[]={foo="bar"}&extra_filters[]={x=~"y|z",a="b"}`),
+		[]string{`{job="vmagent",dc="gce",foo="bar",x=~"y|z",a="b"}`},
+		false,
+	)
+	// `or` filters inside a single extra_filters arg
+	f(t, httpReqWithForm(`extra_filters[]={vm_account_id="7",vm_project_id="9" or vm_account_id="42"}`),
 		[]string{
-			`{foo="bar",job="vmagent",dc="gce"}`,
-			`{x=~"y|z",a="b",job="vmagent",dc="gce"}`,
+			`{vm_account_id="7",vm_project_id="9"}`,
+			`{vm_account_id="42"}`,
 		},
+		false,
+	)
+	f(t, httpReqWithForm(`extra_label=job=vmagent&extra_filters[]={env="prod" or env="dev"}&extra_filters={team!="devops"}`),
+		[]string{
+			`{job="vmagent",team!="devops",env="prod"}`,
+			`{job="vmagent",team!="devops",env="dev"}`,
+		},
+		false,
+	)
+	f(t, httpReqWithForm(`extra_filters={a="1" or a="2"}&extra_filters[]={b="1" or b="2"}`),
+		[]string{
+			`{a="1",b="1"}`,
+			`{a="1",b="2"}`,
+			`{a="2",b="1"}`,
+			`{a="2",b="2"}`,
+		},
+		false,
+	)
+	// filter sets, which cannot match any time series, are removed
+	f(t, httpReqWithForm(`extra_filters={env="prod" or env="dev"}&extra_filters={env="prod" or env="test"}`),
+		[]string{`{env="prod",env="prod"}`},
+		false,
+	)
+	f(t, httpReqWithForm(`extra_label=vm_account_id=1&extra_filters={vm_account_id="1" or vm_account_id="2"}`),
+		[]string{`{vm_account_id="1",vm_account_id="1"}`},
 		false,
 	)
 	f(t, httpReqWithForm("extra_label=bad_filter"),
@@ -97,7 +139,7 @@ func TestGetExtraTagFilters(t *testing.T) {
 		},
 	}
 	f(t, httpReqWithBothFormAndURLParams,
-		[]string{`{tenant="dev",job="vmagent",env="dev"}`},
+		[]string{`{job="vmagent",env="dev",tenant="dev"}`},
 		false)
 
 	// empty values are ignored
@@ -106,7 +148,7 @@ func TestGetExtraTagFilters(t *testing.T) {
 		false,
 	)
 	f(t, httpReqWithForm(`extra_label=&extra_label=job=vmagent&extra_filters=&extra_filters[]={foo="bar"}`),
-		[]string{`{foo="bar",job="vmagent"}`},
+		[]string{`{job="vmagent",foo="bar"}`},
 		false,
 	)
 	f(t, httpReqWithForm("extra_label=job=vmagent&extra_filters=&extra_filters[]="),
@@ -124,6 +166,39 @@ func TestGetExtraTagFilters(t *testing.T) {
 	f(t, httpReqWithEmptyURLParams,
 		nil,
 		false)
+}
+
+func TestRemoveImpossibleTagFilterss(t *testing.T) {
+	f := func(s string, want []string) {
+		t.Helper()
+		tfss, err := ParseMetricSelector(s)
+		if err != nil {
+			t.Fatalf("cannot parse %q: %s", s, err)
+		}
+		got := tagFilterssToStrings(removeImpossibleTagFilterss(tfss))
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("unexpected result for %s\ngot:  %s\nwant: %s", s, got, want)
+		}
+	}
+
+	// possible filters are kept
+	f(`{a="1"}`, []string{`{a="1"}`})
+	f(`{a="1",b="2"}`, []string{`{a="1",b="2"}`})
+	f(`{a="1",a!="2"}`, []string{`{a="1",a!="2"}`})
+	f(`{a!="1",a!="2"}`, []string{`{a!="1",a!="2"}`})
+
+	// regexp filters aren't checked
+	f(`{a="1",a=~"2"}`, []string{`{a="1",a=~"2"}`})
+	f(`{a="1",a!~"1"}`, []string{`{a="1",a!~"1"}`})
+
+	// impossible filter sets are removed
+	f(`{a="1",a="2" or b="1"}`, []string{`{b="1"}`})
+	f(`{a="1",a!="1" or b="1"}`, []string{`{b="1"}`})
+	f(`{a!="1",a="1" or b="1"}`, []string{`{b="1"}`})
+	f(`{a="1",b="1",a="2" or a="1",b="2"}`, []string{`{a="1",b="2"}`})
+
+	// the first set is kept if all the sets are impossible, since an empty result means "match all"
+	f(`{a="1",a="2" or b="1",b!="1"}`, []string{`{a="1",a="2"}`})
 }
 
 func TestParseMetricSelectorSuccess(t *testing.T) {
