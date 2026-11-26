@@ -2,12 +2,14 @@ package promql
 
 import (
 	"math"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/VictoriaMetrics/metricsql"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -46,6 +48,30 @@ func TestEscapeDotsInRegexpLabelFilters(t *testing.T) {
 	f(`foo.bar + 123`, `foo.bar + 123`)
 	f(`foo{bar=~"baz.xx.yyy"}`, `foo{bar=~"baz\\.xx\\.yyy"}`)
 	f(`sum(a.b{c="d.e",x=~"a.b.+[.a]",y!~"aaa.bb|cc.dd"}) + avg_over_time(1,sum({x=~"aa.bb"}))`, `sum(a.b{c="d.e",x=~"a\\.b.+[\\.a]",y!~"aaa\\.bb|cc\\.dd"}) + avg_over_time(1, sum({x=~"aa\\.bb"}))`)
+}
+
+func TestExecUnionArgsEvaluatedInParallel(t *testing.T) {
+	for _, name := range []string{"union", "UNION", "UNIon"} {
+		t.Run(name, func(t *testing.T) {
+			ec := &EvalConfig{
+				Start:              1000e3,
+				End:                1000e3,
+				Step:               200e3,
+				MaxPointsPerSeries: 100,
+				MaxSeries:          100,
+			}
+			qt := querytracer.New(true, "test")
+			q := name + `(label_set(1, "x", "a"), label_set(2, "x", "b"))`
+			_, err := Exec(qt, ec, q, false)
+			qt.Done()
+			if err != nil {
+				t.Fatalf("unexpected error when executing %q: %s", q, err)
+			}
+			if trace := qt.String(); !strings.Contains(trace, "eval function args in parallel") {
+				t.Fatalf("expected parallel evaluation for %q; trace:\n%s", q, trace)
+			}
+		})
+	}
 }
 
 func TestExecSuccess(t *testing.T) {
