@@ -16,11 +16,22 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
+func TestStorageSearchTSIDs_corruptedIndex(t *testing.T) {
+	t.Run("disablePerDayIndex=false", func(t *testing.T) {
+		testStorageSearchTSIDs_corruptedIndex(t, false)
+	})
+	t.Run("disablePerDayIndex=true", func(t *testing.T) {
+		testStorageSearchTSIDs_corruptedIndex(t, true)
+	})
+}
+
+func testStorageSearchTSIDs_corruptedIndex(t *testing.T, disablePerDayIndex bool) {
 	defer testRemoveAll(t)
 
 	synctest.Test(t, func(t *testing.T) {
-		s := MustOpenStorage(t.Name(), OpenOptions{})
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			DisablePerDayIndex: disablePerDayIndex,
+		})
 		defer s.MustClose()
 
 		now := time.Now().UTC()
@@ -118,11 +129,22 @@ func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
 	})
 }
 
-func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
+func TestStorageSearchMetricNames_corruptedIndex(t *testing.T) {
+	t.Run("disablePerDayIndex=false", func(t *testing.T) {
+		testStorageSearchMetricNames_corruptedIndex(t, false)
+	})
+	t.Run("disablePerDayIndex=true", func(t *testing.T) {
+		testStorageSearchMetricNames_corruptedIndex(t, true)
+	})
+}
+
+func testStorageSearchMetricNames_corruptedIndex(t *testing.T, disablePerDayIndex bool) {
 	defer testRemoveAll(t)
 
 	synctest.Test(t, func(t *testing.T) {
-		s := MustOpenStorage(t.Name(), OpenOptions{})
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			DisablePerDayIndex: disablePerDayIndex,
+		})
 		defer s.MustClose()
 
 		now := time.Now().UTC()
@@ -287,7 +309,16 @@ func testCreateIndexItems(date uint64, tsid *TSID, mn *MetricName, opts testInde
 	return &ii
 }
 
-func TestStorageRotateIndexDBPrefill(t *testing.T) {
+func TestStorageAddRows_nextIndexDBPrefill(t *testing.T) {
+	t.Run("disablePerDayIndex=false", func(t *testing.T) {
+		testStorageAddRows_nextIndexDBPrefill(t, false)
+	})
+	t.Run("disablePerDayIndex=true", func(t *testing.T) {
+		testStorageAddRows_nextIndexDBPrefill(t, true)
+	})
+}
+
+func testStorageAddRows_nextIndexDBPrefill(t *testing.T, disablePerDayIndex bool) {
 	defer testRemoveAll(t)
 	f := func(t *testing.T, opts OpenOptions, prefillStart time.Duration) {
 		t.Helper()
@@ -362,28 +393,45 @@ func TestStorageRotateIndexDBPrefill(t *testing.T) {
 		})
 	}
 
+	opts := OpenOptions{
+		DisablePerDayIndex: disablePerDayIndex,
+	}
+
 	// Verify an interval that is shorter than one hour.
+	opts.IDBPrefillStart = 30 * time.Minute
 	t.Run("30m", func(t *testing.T) {
-		f(t, OpenOptions{IDBPrefillStart: 30 * time.Minute}, 30*time.Minute)
+		f(t, opts, 30*time.Minute)
 	})
 	// Verify 1h inteval (which is also the default).
 	// tsidCache will be cleared because it will have two cache rotations (one
 	// every 30 mins). This means that once the new month starts the timeseries
 	// that waren't pre-populated will be re-created instead of being
 	// re-populated.
+	opts.IDBPrefillStart = 0
 	t.Run("default", func(t *testing.T) {
-		f(t, OpenOptions{IDBPrefillStart: 0}, time.Hour)
+		f(t, opts, time.Hour)
 	})
+	opts.IDBPrefillStart = time.Hour
 	t.Run("1h", func(t *testing.T) {
-		f(t, OpenOptions{IDBPrefillStart: time.Hour}, time.Hour)
+		f(t, opts, time.Hour)
 	})
 	// Vefiry 2h interval. Same here, the tsidCache will be cleared.
+	opts.IDBPrefillStart = 2 * time.Hour
 	t.Run("2h", func(t *testing.T) {
-		f(t, OpenOptions{IDBPrefillStart: 2 * time.Hour}, 2*time.Hour)
+		f(t, opts, 2*time.Hour)
 	})
 }
 
-// TestStorageAddRows_nextDayIndexPrefill tests gradual creation of per-day
+func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
+	t.Run("disablePerDayIndex=false", func(t *testing.T) {
+		testStorageAddRows_nextDayIndexPrefill(t, false)
+	})
+	t.Run("disablePerDayIndex=true", func(t *testing.T) {
+		testStorageAddRows_nextDayIndexPrefill(t, true)
+	})
+}
+
+// testStorageAddRows_nextDayIndexPrefill tests gradual creation of per-day
 // index entries of the next day during the last hour of the current day. This
 // is an optimization that mitigates the ingestion slowdown at the beginning of
 // a day.
@@ -404,7 +452,7 @@ func TestStorageRotateIndexDBPrefill(t *testing.T) {
 // registered in the next day index. An active timeseries is one for which at
 // least one sample have been received during the current hour and the timestamp
 // of that sample must also fall within the current hour.
-func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
+func testStorageAddRows_nextDayIndexPrefill(t *testing.T, disablePerDayIndex bool) {
 	defer testRemoveAll(t)
 
 	countMetricIDs := func(t *testing.T, s *Storage, prefix string, tr TimeRange) int {
@@ -432,6 +480,7 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 
 		const numSeries = 1000
 		rng := rand.New(rand.NewSource(1))
+		var wantMetricIDsCount int
 
 		// Verify that prefill hasn't started yet.
 		// The prefill happens during the last hour of a day. At exactly
@@ -443,14 +492,20 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 			MinTimestamp: time.Now().Add(-15 * time.Minute).UnixMilli(),
 			MaxTimestamp: time.Now().Add(+15 * time.Minute).UnixMilli(),
 		})
-		s := MustOpenStorage(t.Name(), OpenOptions{})
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			DisablePerDayIndex: disablePerDayIndex,
+		})
 		defer s.MustClose()
 		s.AddRows(mrs0, defaultPrecisionBits)
 		s.DebugFlush()
 		if got, want := countMetricIDs(t, s, "metric0", today), numSeries; got != want {
 			t.Fatalf("unexpected metric id count for today: got %d, want %d", got, want)
 		}
-		if got, want := countMetricIDs(t, s, "metric0", nextDay), 0; got != want {
+		wantMetricIDsCount = 0
+		if disablePerDayIndex {
+			wantMetricIDsCount = numSeries
+		}
+		if got, want := countMetricIDs(t, s, "metric0", nextDay), wantMetricIDsCount; got != want {
 			t.Fatalf("unexpected metric id count for next day: got %d, want %d", got, want)
 		}
 		// Again, at 23:00:00 the prefill must not start yet even for timestamps
@@ -462,7 +517,11 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 		if got, want := countMetricIDs(t, s, "metric0", today), numSeries; got != want {
 			t.Fatalf("unexpected metric id count for today: got %d, want %d", got, want)
 		}
-		if got, want := countMetricIDs(t, s, "metric0", nextDay), 0; got != want {
+		wantMetricIDsCount = 0
+		if disablePerDayIndex {
+			wantMetricIDsCount = numSeries
+		}
+		if got, want := countMetricIDs(t, s, "metric0", nextDay), wantMetricIDsCount; got != want {
 			t.Fatalf("unexpected metric id count for next day: got %d, want %d", got, want)
 		}
 
@@ -489,15 +548,25 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 		if got, want := countMetricIDs(t, s, "metric1", today), numSeries; got != want {
 			t.Fatalf("unexpected metric id count for today: got %d, want %d", got, want)
 		}
-		if got, want := countMetricIDs(t, s, "metric1", nextDay), 0; got != want {
+		wantMetricIDsCount = 0
+		if disablePerDayIndex {
+			wantMetricIDsCount = numSeries
+		}
+		if got, want := countMetricIDs(t, s, "metric1", nextDay), wantMetricIDsCount; got != want {
 			t.Fatalf("unexpected metric id count for next day: got %d, want %d", got, want)
 		}
 		if got, want := countMetricIDs(t, s, "metric2", today), numSeries; got != want {
 			t.Fatalf("unexpected metric id count for today: got %d, want %d", got, want)
 		}
 		got15min := countMetricIDs(t, s, "metric2", nextDay)
-		if got15min == 0 {
-			t.Fatalf("unexpected metric id count for next day: got 0, want > 0")
+		if disablePerDayIndex {
+			if got15min != numSeries {
+				t.Fatalf("unexpected metric id count for next day: got %d, want %d", got15min, numSeries)
+			}
+		} else {
+			if got15min == 0 {
+				t.Fatalf("unexpected metric id count for next day: got 0, want > 0")
+			}
 		}
 
 		time.Sleep(15 * time.Minute) // 2000-01-01T23:30:00Z
@@ -511,8 +580,14 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 			t.Fatalf("unexpected metric id count for today: got %d, want %d", got, want)
 		}
 		got30min := countMetricIDs(t, s, "metric3", nextDay)
-		if got30min < got15min {
-			t.Fatalf("unexpected metric id count for next day: got %d, want > %d", got30min, got15min)
+		if disablePerDayIndex {
+			if got30min != numSeries {
+				t.Fatalf("unexpected metric id count for next day: got %d, want %d", got30min, numSeries)
+			}
+		} else {
+			if got30min < got15min {
+				t.Fatalf("unexpected metric id count for next day: got %d, want > %d", got30min, got15min)
+			}
 		}
 
 		time.Sleep(15 * time.Minute) // 2000-01-01T23:45:00Z
@@ -523,8 +598,14 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 		s.AddRows(mrs4, defaultPrecisionBits)
 		s.DebugFlush()
 		got45min := countMetricIDs(t, s, "metric4", nextDay)
-		if got45min < got30min {
-			t.Fatalf("unexpected metric id count for next day: got %d, want > %d", got45min, got30min)
+		if disablePerDayIndex {
+			if got45min != numSeries {
+				t.Fatalf("unexpected metric id count for next day: got %d, want %d", got45min, numSeries)
+			}
+		} else {
+			if got45min < got30min {
+				t.Fatalf("unexpected metric id count for next day: got %d, want > %d", got45min, got30min)
+			}
 		}
 
 		// Sleep until the next day
@@ -550,8 +631,12 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 		s.UpdateMetrics(&m)
 		nextDaySlowInserts := m.SlowPerDayIndexInserts
 		slowInserts := nextDaySlowInserts - currDaySlowInserts
-		if slowInserts >= numSeries {
-			t.Fatalf("unexpected amount of slow inserts: got %d, want < %d", slowInserts, numSeries)
+		wantSlowInserts := uint64(numSeries)
+		if disablePerDayIndex {
+			wantSlowInserts = 0
+		}
+		if slowInserts > wantSlowInserts {
+			t.Fatalf("unexpected amount of slow inserts: got %d, want =< %d", slowInserts, wantSlowInserts)
 		}
 
 	})
