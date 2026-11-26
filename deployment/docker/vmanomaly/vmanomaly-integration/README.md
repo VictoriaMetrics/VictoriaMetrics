@@ -2,7 +2,7 @@
 
 Please read the "vmanomaly integration" guide first - [Anomaly Detection and Alerting Setup](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/)
 
-The v1.33.0 example passes `-eula` to accept the [Enterprise Software Agreement](https://victoriametrics.com/legal/esa/). See [licensing](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing) for compatibility with earlier versions.
+The v1.33.1 example passes `-eula` to accept the [Enterprise Software Agreement](https://victoriametrics.com/legal/esa/). See [licensing](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing) for compatibility with earlier versions.
 
 ## How to run 
 
