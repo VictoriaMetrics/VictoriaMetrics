@@ -1934,6 +1934,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			// Fast path - the current mr contains the same metric name as the previous mr, so it contains the same TSID.
 			// This path should trigger on bulk imports when many rows contain the same MetricNameRaw.
 
+			// TODO
 			if !is.hasMetricID(prevTSID.MetricID) {
 				// The found TSID is not present in the current indexDB (one
 				// that corresponds to the timestamp of the current sample).
@@ -2248,6 +2249,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 		prevDate     uint64
 		prevMetricID uint64
 	)
+	var seriesRepopulated uint64
 	var ptw *partitionWrapper
 	var idb *indexDB
 
@@ -2413,8 +2415,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			}
 			mn.sortTags()
 			idb.createPerDayIndexes(date, dmid.tsid, mn)
-			// TODO
-			s.timeseriesRepopulated.Add(1)
+			seriesRepopulated++
 		}
 	}
 	if ptw != nil {
@@ -2424,6 +2425,8 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 		idb = nil
 		s.tb.PutPartition(ptw)
 	}
+
+	s.timeseriesRepopulated.Add(seriesRepopulated)
 
 	PutMetricName(mn)
 	return firstError
