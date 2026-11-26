@@ -52,7 +52,7 @@ func TestClusterRollupResultCache(t *testing.T) {
 		Start:        "2022-05-10T07:59:00.000Z",
 		End:          "2022-05-10T08:05:00.000Z",
 		Step:         "1m",
-		ExtraFilters: []string{`{vm_account_id="5",vm_project_id="15"}`, `{vm_account_id="5",vm_project_id="0"}`},
+		ExtraFilters: []string{`{vm_account_id="5",vm_project_id="15" or vm_account_id="5",vm_project_id="0"}`},
 	})
 	if diff := cmp.Diff(want, got, cmpOpt); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
