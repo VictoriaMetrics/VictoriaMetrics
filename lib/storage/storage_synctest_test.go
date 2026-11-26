@@ -388,7 +388,7 @@ func testStorageAddRows_nextIndexDBPrefill(t *testing.T, disablePerDayIndex bool
 			// metrics will be created.
 			preCreated, repopulated := s.timeseriesPreCreated.Load(), s.timeseriesRepopulated.Load()
 			if preCreated+repopulated+newCreated != numSeries {
-				t.Fatalf("unexpected number of pre-populated, repopulated, and new timeseries: got %d + %d + %d, want %d", preCreated, repopulated, newCreated, numSeries)
+				t.Fatalf("unexpected number of pre-created, repopulated, and new timeseries: got %d + %d + %d, want %d", preCreated, repopulated, newCreated, numSeries)
 			}
 		})
 	}
