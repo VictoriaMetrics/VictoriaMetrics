@@ -687,7 +687,8 @@ scrape_configs:
 
 Each discovered target has an [`__address__`](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) label set
 to `<instance_ip>:<port>`, where `<instance_ip>` is the private IP of the instance, while the `<port>` is set to the `port` value
-obtain from `ec2_sd_configs`.
+obtain from `ec2_sd_configs`. IPv6-only instances without a private IPv4 address use `__meta_ec2_default_ipv6_address` as `<instance_ip>`.
+Pass `-enableTCP6` command-line flag in order to scrape such targets.
 
 The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
@@ -695,6 +696,7 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_ec2_architecture`: the architecture of the instance
 * `__meta_ec2_availability_zone`: the availability zone in which the instance is running
 * `__meta_ec2_availability_zone_id`: the availability zone ID in which the instance is running (requires ec2:DescribeAvailabilityZones)
+* `__meta_ec2_default_ipv6_address`: the first primary IPv6 address of the instance network interfaces if any, otherwise the first IPv6 address, if present
 * `__meta_ec2_instance_id`: the EC2 instance ID
 * `__meta_ec2_instance_lifecycle`: the lifecycle of the EC2 instance, set only for 'spot' or 'scheduled' instances, absent otherwise
 * `__meta_ec2_instance_state`: the state of the EC2 instance
@@ -702,6 +704,7 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_ec2_ipv6_addresses`: comma separated list of IPv6 addresses assigned to the instance's network interfaces, if present
 * `__meta_ec2_owner_id`: the ID of the AWS account that owns the EC2 instance
 * `__meta_ec2_platform`: the Operating System platform, set to 'windows' on Windows servers, absent otherwise
+* `__meta_ec2_primary_ipv6_addresses`: comma separated list of the primary IPv6 addresses of the instance network interfaces ordered by device index, if present. Network interfaces without a primary IPv6 address are represented by empty values
 * `__meta_ec2_primary_subnet_id`: the subnet ID of the primary network interface, if available
 * `__meta_ec2_private_dns_name`: the private DNS name of the instance, if available
 * `__meta_ec2_private_ip`: the private IP address of the instance, if present

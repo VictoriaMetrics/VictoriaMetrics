@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
+
 func TestDescribeAvailabilityZonesResponse(t *testing.T) {
 	data := `<DescribeAvailabilityZonesResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
     <requestId>e23c5a54-a29c-43ee-8b55-0c13c26e9e01</requestId>
@@ -167,11 +168,61 @@ func TestParseInstancesResponse(t *testing.T) {
                                     </association>
                                 </item>
                             </privateIpAddressesSet>
+							<ipv6AddressesSet>
+								<item>
+									<ipv6Address>2001:db8:cfc3:103c:fd0f:b3a5:cdd0:a4b2</ipv6Address>
+									<isPrimaryIpv6>true</isPrimaryIpv6>
+								</item>
+								<item>
+									<ipv6Address>2001:db8:6fd7:fc29:64a3:dbea:2232:abc7</ipv6Address>
+									<isPrimaryIpv6>false</isPrimaryIpv6>
+								</item>
+							</ipv6AddressesSet>
+                        </item>
+                        <item>
+                            <networkInterfaceId>eni-b6d6b8557400796ab</networkInterfaceId>
+                            <subnetId>subnet-57044c3e</subnetId>
+                            <vpcId>vpc-f1eaad99</vpcId>
+                            <description/>
+                            <ownerId>793614593844</ownerId>
+                            <status>in-use</status>
+                            <macAddress>e4:d7:52:da:44:16</macAddress>
+                            <privateIpAddress/>
+                            <groupSet>
+                                <item>
+                                    <groupId>sg-05d74e4e8551bd020</groupId>
+                                    <groupName>launch-wizard-1</groupName>
+                                </item>
+                            </groupSet>
+                            <attachment>
+                                <attachmentId>eni-attach-36975bf35a621e5a0</attachmentId>
+                                <deviceIndex>3</deviceIndex>
+                                <status>attached</status>
+                                <attachTime>2020-04-27T09:19:26.000Z</attachTime>
+                                <deleteOnTermination>false</deleteOnTermination>
+                                <networkCardIndex>0</networkCardIndex>
+                            </attachment>
+							<privateIpAddressesSet/>
+							<ipv6AddressesSet>
+								<item>
+									<ipv6Address>2001:db8:b2eb:7c33:af23:6a89:312a:4694</ipv6Address>
+									<isPrimaryIpv6>true</isPrimaryIpv6>
+								</item>
+								<item>
+									<ipv6Address>2001:db8:3ab:1f77:f609:6ea:ecf0:86c1</ipv6Address>
+									<isPrimaryIpv6>false</isPrimaryIpv6>
+								</item>
+							</ipv6AddressesSet>
+                            <interfaceType>interface</interfaceType>
+                            <operator>
+                               <managed>false</managed>
+                            </operator>
                         </item>
                     </networkInterfaceSet>
                     <ebsOptimized>false</ebsOptimized>
-		    <instanceLifecycle>spot</instanceLifecycle>
-		    <platform>windows</platform>
+                    <instanceLifecycle>spot</instanceLifecycle>
+                    <platform>windows</platform>
+                    <ipv6Address>2001:db8:35e1:5a80:8dcb:7cda:a7e1:cbb7</ipv6Address>
                 </item>
             </instancesSet>
         </item>
@@ -212,6 +263,39 @@ func TestParseInstancesResponse(t *testing.T) {
 									Items: []NetworkInterface{
 										{
 											SubnetID: "subnet-57044c3e",
+											Attachment: &NetworkInterfaceAttachment{
+												DeviceIndex: ptrInt(0),
+											},
+											IPv6AddressesSet: Ipv6AddressesSet{
+												Items: []InstanceIPv6Address{
+													{
+														IPv6Address:   "2001:db8:cfc3:103c:fd0f:b3a5:cdd0:a4b2",
+														IsPrimaryIPv6: true,
+													},
+													{
+														IPv6Address:   "2001:db8:6fd7:fc29:64a3:dbea:2232:abc7",
+														IsPrimaryIPv6: false,
+													},
+												},
+											},
+										},
+										{
+											SubnetID: "subnet-57044c3e",
+											Attachment: &NetworkInterfaceAttachment{
+												DeviceIndex: ptrInt(3),
+											},
+											IPv6AddressesSet: Ipv6AddressesSet{
+												Items: []InstanceIPv6Address{
+													{
+														IPv6Address:   "2001:db8:b2eb:7c33:af23:6a89:312a:4694",
+														IsPrimaryIPv6: true,
+													},
+													{
+														IPv6Address:   "2001:db8:3ab:1f77:f609:6ea:ecf0:86c1",
+														IsPrimaryIPv6: false,
+													},
+												},
+											},
 										},
 									},
 								},
@@ -243,27 +327,190 @@ func TestParseInstancesResponse(t *testing.T) {
 	})
 	expectedLabels := []*promutil.Labels{
 		promutil.NewLabelsFromMap(map[string]string{
-			"__address__":                     "172.31.11.152:423",
-			"__meta_ec2_architecture":         "x86_64",
-			"__meta_ec2_availability_zone":    "eu-west-2c",
-			"__meta_ec2_availability_zone_id": "foobar-zone",
-			"__meta_ec2_ami":                  "ami-0eb89db7593b5d434",
-			"__meta_ec2_instance_id":          "i-0e730b692d9c15460",
-			"__meta_ec2_instance_lifecycle":   "spot",
-			"__meta_ec2_instance_state":       "running",
-			"__meta_ec2_instance_type":        "t2.micro",
-			"__meta_ec2_owner_id":             "793614593844",
-			"__meta_ec2_platform":             "windows",
-			"__meta_ec2_primary_subnet_id":    "subnet-57044c3e",
-			"__meta_ec2_private_dns_name":     "ip-172-31-11-152.eu-west-2.compute.internal",
-			"__meta_ec2_private_ip":           "172.31.11.152",
-			"__meta_ec2_public_dns_name":      "ec2-3-8-232-141.eu-west-2.compute.amazonaws.com",
-			"__meta_ec2_public_ip":            "3.8.232.141",
-			"__meta_ec2_region":               "region-a",
-			"__meta_ec2_subnet_id":            ",subnet-57044c3e,",
-			"__meta_ec2_tag_foo":              "bar",
-			"__meta_ec2_vpc_id":               "vpc-f1eaad99",
+			"__address__":                       "172.31.11.152:423",
+			"__meta_ec2_architecture":           "x86_64",
+			"__meta_ec2_availability_zone":      "eu-west-2c",
+			"__meta_ec2_availability_zone_id":   "foobar-zone",
+			"__meta_ec2_default_ipv6_address":   "2001:db8:cfc3:103c:fd0f:b3a5:cdd0:a4b2",
+			"__meta_ec2_ami":                    "ami-0eb89db7593b5d434",
+			"__meta_ec2_instance_id":            "i-0e730b692d9c15460",
+			"__meta_ec2_instance_lifecycle":     "spot",
+			"__meta_ec2_instance_state":         "running",
+			"__meta_ec2_instance_type":          "t2.micro",
+			"__meta_ec2_ipv6_addresses":         ",2001:db8:cfc3:103c:fd0f:b3a5:cdd0:a4b2,2001:db8:6fd7:fc29:64a3:dbea:2232:abc7,2001:db8:b2eb:7c33:af23:6a89:312a:4694,2001:db8:3ab:1f77:f609:6ea:ecf0:86c1,",
+			"__meta_ec2_owner_id":               "793614593844",
+			"__meta_ec2_platform":               "windows",
+			"__meta_ec2_primary_ipv6_addresses": ",2001:db8:cfc3:103c:fd0f:b3a5:cdd0:a4b2,,,2001:db8:b2eb:7c33:af23:6a89:312a:4694,",
+			"__meta_ec2_primary_subnet_id":      "subnet-57044c3e",
+			"__meta_ec2_private_dns_name":       "ip-172-31-11-152.eu-west-2.compute.internal",
+			"__meta_ec2_private_ip":             "172.31.11.152",
+			"__meta_ec2_public_dns_name":        "ec2-3-8-232-141.eu-west-2.compute.amazonaws.com",
+			"__meta_ec2_public_ip":              "3.8.232.141",
+			"__meta_ec2_region":                 "region-a",
+			"__meta_ec2_subnet_id":              ",subnet-57044c3e,",
+			"__meta_ec2_tag_foo":                "bar",
+			"__meta_ec2_vpc_id":                 "vpc-f1eaad99",
 		}),
 	}
 	discoveryutil.TestEqualLabelss(t, labelss, expectedLabels)
+}
+
+func ptrInt(n int) *int {
+	return &n
+}
+
+func TestParseInstancesResponseIPv6Only(t *testing.T) {
+	data := `<?xml version="1.0" encoding="UTF-8"?>
+<DescribeInstancesResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
+    <reservationSet>
+        <item>
+            <ownerId>793614593844</ownerId>
+            <instancesSet>
+                <item>
+                    <instanceId>i-0e730b692d9c15460</instanceId>
+                    <instanceState>
+                        <code>16</code>
+                        <name>running</name>
+                    </instanceState>
+                    <placement>
+                        <availabilityZone>eu-west-2c</availabilityZone>
+                    </placement>
+                    <subnetId>subnet-57044c3e</subnetId>
+                    <vpcId>vpc-f1eaad99</vpcId>
+                    <ipv6Address>2001:db8:1:2::10</ipv6Address>
+                    <networkInterfaceSet>
+                        <item>
+                            <subnetId>subnet-57044c3e</subnetId>
+                            <attachment>
+                                <deviceIndex>0</deviceIndex>
+                            </attachment>
+                            <ipv6AddressesSet>
+                                <item>
+                                    <ipv6Address>2001:db8:1:2::11</ipv6Address>
+                                    <isPrimaryIpv6>false</isPrimaryIpv6>
+                                </item>
+                                <item>
+                                    <ipv6Address>2001:db8:1:2::10</ipv6Address>
+                                    <isPrimaryIpv6>true</isPrimaryIpv6>
+                                </item>
+                            </ipv6AddressesSet>
+                        </item>
+                    </networkInterfaceSet>
+                </item>
+            </instancesSet>
+        </item>
+    </reservationSet>
+</DescribeInstancesResponse>
+`
+	ir, err := parseInstancesResponse([]byte(data))
+	if err != nil {
+		t.Fatalf("unexpected error when parsing data: %s", err)
+	}
+	rs := ir.ReservationSet.Items[0]
+	labelss := rs.InstanceSet.Items[0].appendTargetLabels(nil, rs.OwnerID, "region-a", 9100, nil)
+	expectedLabels := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
+			"__address__":                       "[2001:db8:1:2::10]:9100",
+			"__meta_ec2_ami":                    "",
+			"__meta_ec2_architecture":           "",
+			"__meta_ec2_availability_zone":      "eu-west-2c",
+			"__meta_ec2_availability_zone_id":   "",
+			"__meta_ec2_default_ipv6_address":   "2001:db8:1:2::10",
+			"__meta_ec2_instance_id":            "i-0e730b692d9c15460",
+			"__meta_ec2_instance_lifecycle":     "",
+			"__meta_ec2_instance_state":         "running",
+			"__meta_ec2_instance_type":          "",
+			"__meta_ec2_ipv6_addresses":         ",2001:db8:1:2::11,2001:db8:1:2::10,",
+			"__meta_ec2_owner_id":               "793614593844",
+			"__meta_ec2_platform":               "",
+			"__meta_ec2_primary_ipv6_addresses": ",2001:db8:1:2::10,",
+			"__meta_ec2_primary_subnet_id":      "subnet-57044c3e",
+			"__meta_ec2_private_dns_name":       "",
+			"__meta_ec2_private_ip":             "",
+			"__meta_ec2_public_dns_name":        "",
+			"__meta_ec2_public_ip":              "",
+			"__meta_ec2_region":                 "region-a",
+			"__meta_ec2_subnet_id":              ",subnet-57044c3e,",
+			"__meta_ec2_vpc_id":                 "vpc-f1eaad99",
+		}),
+	}
+	discoveryutil.TestEqualLabelss(t, labelss, expectedLabels)
+}
+
+func TestInstanceGetIPv6Addresses(t *testing.T) {
+	f := func(nis []NetworkInterface, defaultExpected string, primaryExpected, allExpected []string) {
+		t.Helper()
+
+		inst := Instance{
+			VPCID: "vpc-1",
+			NetworkInterfaceSet: NetworkInterfaceSet{
+				Items: nis,
+			},
+		}
+		defaultIPv6Addr, primaryIPv6Addrs, ipv6Addrs := inst.getIPv6Addresses()
+		if defaultIPv6Addr != defaultExpected {
+			t.Fatalf("unexpected default IPv6 address; got %q; want %q", defaultIPv6Addr, defaultExpected)
+		}
+		if !reflect.DeepEqual(primaryIPv6Addrs, primaryExpected) {
+			t.Fatalf("unexpected primary IPv6 addresses; got %q; want %q", primaryIPv6Addrs, primaryExpected)
+		}
+		if !reflect.DeepEqual(ipv6Addrs, allExpected) {
+			t.Fatalf("unexpected IPv6 addresses; got %q; want %q", ipv6Addrs, allExpected)
+		}
+	}
+	ni := func(subnetID string, deviceIndex *int, addrs ...InstanceIPv6Address) NetworkInterface {
+		var attachment *NetworkInterfaceAttachment
+		if deviceIndex != nil {
+			attachment = &NetworkInterfaceAttachment{
+				DeviceIndex: deviceIndex,
+			}
+		}
+		return NetworkInterface{
+			SubnetID:   subnetID,
+			Attachment: attachment,
+			IPv6AddressesSet: Ipv6AddressesSet{
+				Items: addrs,
+			},
+		}
+	}
+	primary := func(addr string) InstanceIPv6Address {
+		return InstanceIPv6Address{IPv6Address: addr, IsPrimaryIPv6: true}
+	}
+	secondary := func(addr string) InstanceIPv6Address {
+		return InstanceIPv6Address{IPv6Address: addr}
+	}
+
+	// no network interfaces
+	f(nil, "", nil, nil)
+
+	// no IPv6 addresses
+	f([]NetworkInterface{ni("subnet-1", ptrInt(0))}, "", nil, nil)
+
+	// no primary IPv6 address: the first IPv6 address is the default
+	f([]NetworkInterface{
+		ni("subnet-1", ptrInt(0), secondary("2001:db8::1"), secondary("2001:db8::2")),
+	}, "2001:db8::1", nil, []string{"2001:db8::1", "2001:db8::2"})
+
+	// the primary IPv6 address takes precedence over other addresses
+	f([]NetworkInterface{
+		ni("subnet-1", ptrInt(0), secondary("2001:db8::1"), primary("2001:db8::2")),
+	}, "2001:db8::2", []string{"2001:db8::2"}, []string{"2001:db8::1", "2001:db8::2"})
+
+	// primary IPv6 addresses are placed at their device index
+	f([]NetworkInterface{
+		ni("subnet-1", ptrInt(2), primary("2001:db8::2")),
+		ni("subnet-1", ptrInt(1), primary("2001:db8::1")),
+	}, "2001:db8::1", []string{"", "2001:db8::1", "2001:db8::2"}, []string{"2001:db8::2", "2001:db8::1"})
+
+	// primary IPv6 addresses without device index are not primary
+	f([]NetworkInterface{
+		ni("subnet-1", nil, primary("2001:db8::1")),
+		ni("subnet-1", ptrInt(-1), primary("2001:db8::2")),
+	}, "2001:db8::1", nil, []string{"2001:db8::1", "2001:db8::2"})
+
+	// network interfaces without subnet and empty addresses are skipped
+	f([]NetworkInterface{
+		ni("", ptrInt(0), primary("2001:db8::1")),
+		ni("subnet-1", ptrInt(1), primary("")),
+	}, "", nil, nil)
 }
