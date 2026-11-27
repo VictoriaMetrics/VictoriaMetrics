@@ -108,13 +108,25 @@ type NetworkInterfaceSet struct {
 
 // NetworkInterface represents NetworkInterface from https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceNetworkInterface.html
 type NetworkInterface struct {
-	SubnetID         string           `xml:"subnetId"`
-	IPv6AddressesSet Ipv6AddressesSet `xml:"ipv6AddressesSet"`
+	SubnetID         string                      `xml:"subnetId"`
+	Attachment       *NetworkInterfaceAttachment `xml:"attachment"`
+	IPv6AddressesSet Ipv6AddressesSet            `xml:"ipv6AddressesSet"`
+}
+
+// NetworkInterfaceAttachment represents InstanceNetworkInterfaceAttachment from https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceNetworkInterfaceAttachment.html
+type NetworkInterfaceAttachment struct {
+	DeviceIndex *int `xml:"deviceIndex"`
 }
 
 // Ipv6AddressesSet represents ipv6AddressesSet from https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceNetworkInterface.html
 type Ipv6AddressesSet struct {
-	Items []string `xml:"item"`
+	Items []InstanceIPv6Address `xml:"item"`
+}
+
+// InstanceIPv6Address represents InstanceIpv6Address from https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceIpv6Address.html
+type InstanceIPv6Address struct {
+	IPv6Address   string `xml:"ipv6Address"`
+	IsPrimaryIPv6 bool   `xml:"isPrimaryIpv6"`
 }
 
 // TagSet represents TagSet from https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Instance.html
@@ -142,12 +154,16 @@ func (inst *Instance) appendTargetLabels(ms []*promutil.Labels, ownerID, region 
 		return ms
 	}
 	addr := discoveryutil.JoinHostPort(inst.PrivateIPAddress, port)
+	defaultIPv6Addr, primaryIPv6Addrs, ipv6Addrs := inst.getIPv6Addresses()
 	m := promutil.NewLabels(24)
 	m.Add("__address__", addr)
 	m.Add("__meta_ec2_architecture", inst.Architecture)
 	m.Add("__meta_ec2_ami", inst.ImageID)
 	m.Add("__meta_ec2_availability_zone", inst.Placement.AvailabilityZone)
 	m.Add("__meta_ec2_availability_zone_id", azMap[inst.Placement.AvailabilityZone])
+	if len(defaultIPv6Addr) > 0 {
+		m.Add("__meta_ec2_default_ipv6_address", defaultIPv6Addr)
+	}
 	m.Add("__meta_ec2_instance_id", inst.ID)
 	m.Add("__meta_ec2_instance_lifecycle", inst.Lifecycle)
 	m.Add("__meta_ec2_instance_state", inst.State.Name)
@@ -164,7 +180,6 @@ func (inst *Instance) appendTargetLabels(ms []*promutil.Labels, ownerID, region 
 	if len(inst.VPCID) > 0 {
 		subnets := make([]string, 0, len(inst.NetworkInterfaceSet.Items))
 		seenSubnets := make(map[string]bool, len(inst.NetworkInterfaceSet.Items))
-		var ipv6Addrs []string
 		for _, ni := range inst.NetworkInterfaceSet.Items {
 			if len(ni.SubnetID) == 0 {
 				continue
@@ -174,12 +189,13 @@ func (inst *Instance) appendTargetLabels(ms []*promutil.Labels, ownerID, region 
 				seenSubnets[ni.SubnetID] = true
 				subnets = append(subnets, ni.SubnetID)
 			}
-			// Collect ipv6 addresses
-			ipv6Addrs = append(ipv6Addrs, ni.IPv6AddressesSet.Items...)
 		}
 		// We surround the separated list with the separator as well. This way regular expressions
 		// in relabeling rules don't have to consider tag positions.
 		m.Add("__meta_ec2_subnet_id", ","+strings.Join(subnets, ",")+",")
+		if len(primaryIPv6Addrs) > 0 {
+			m.Add("__meta_ec2_primary_ipv6_addresses", ","+strings.Join(primaryIPv6Addrs, ",")+",")
+		}
 		if len(ipv6Addrs) > 0 {
 			m.Add("__meta_ec2_ipv6_addresses", ","+strings.Join(ipv6Addrs, ",")+",")
 		}
@@ -192,4 +208,43 @@ func (inst *Instance) appendTargetLabels(ms []*promutil.Labels, ownerID, region 
 	}
 	ms = append(ms, m)
 	return ms
+}
+
+// getIPv6Addresses returns the IPv6 addresses of the instance network interfaces in the same way as Prometheus does.
+//
+// primaryIPv6Addrs contains the primary IPv6 address of every network interface at its device index,
+// with empty strings for network interfaces without a primary IPv6 address.
+// defaultIPv6Addr is the first primary IPv6 address if any, otherwise the first IPv6 address.
+func (inst *Instance) getIPv6Addresses() (defaultIPv6Addr string, primaryIPv6Addrs, ipv6Addrs []string) {
+	if len(inst.VPCID) == 0 {
+		return "", nil, nil
+	}
+	for _, ni := range inst.NetworkInterfaceSet.Items {
+		if len(ni.SubnetID) == 0 {
+			continue
+		}
+		for _, a := range ni.IPv6AddressesSet.Items {
+			if len(a.IPv6Address) == 0 {
+				continue
+			}
+			ipv6Addrs = append(ipv6Addrs, a.IPv6Address)
+			if !a.IsPrimaryIPv6 || ni.Attachment == nil || ni.Attachment.DeviceIndex == nil || *ni.Attachment.DeviceIndex < 0 {
+				continue
+			}
+			idx := *ni.Attachment.DeviceIndex
+			for len(primaryIPv6Addrs) <= idx {
+				primaryIPv6Addrs = append(primaryIPv6Addrs, "")
+			}
+			primaryIPv6Addrs[idx] = a.IPv6Address
+		}
+	}
+	for _, addr := range primaryIPv6Addrs {
+		if len(addr) > 0 {
+			return addr, primaryIPv6Addrs, ipv6Addrs
+		}
+	}
+	if len(ipv6Addrs) > 0 {
+		return ipv6Addrs[0], primaryIPv6Addrs, ipv6Addrs
+	}
+	return "", primaryIPv6Addrs, ipv6Addrs
 }
