@@ -16,7 +16,7 @@ Presets help you configure anomaly detection and the alerts used to monitor its 
 > [!TIP]
 > **Choose a starting point**
 >
-> - **[Dynamic presets](#dynamic-presets)** — describe what you want to monitor; AI Copilot helps build downloadable configurations tailored to your available metrics.
+> - **[Dynamic presets](#dynamic-presets)** — describe what you want to monitor. AI Copilot helps build downloadable configurations tailored to your available metrics.
 > - **Predefined presets** — start with one of the ready-made options below and supply its required settings.
 >
 > New to `vmanomaly`? Follow the [Quick Start Guide](https://docs.victoriametrics.com/anomaly-detection/quickstart/) to install and run it.
@@ -37,9 +37,9 @@ Each preset section describes the required inputs, such as [reader](https://docs
 
 ## Dynamic presets
 
-{{% available_from "v1.32.0" anomaly %}} Build a configuration for the metrics you actually have with [AI Copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) and a compatible [MCP server](https://docs.victoriametrics.com/anomaly-detection/ui/#mcp-tools-server). The same workflow is available to AI agents through the [vmanomaly preset skill](https://github.com/VictoriaMetrics/skills/tree/main/plugins/vmanomaly/skills/vmanomaly-preset). These generated configurations complement the predefined presets below; no new `preset` name is required.
+{{% available_from "v1.32.0" anomaly %}} Build a configuration for the metrics you actually have with [AI Copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) and a compatible [MCP server](https://docs.victoriametrics.com/anomaly-detection/ui/#mcp-tools-server). The same workflow is available to AI agents through the [vmanomaly preset skill](https://github.com/VictoriaMetrics/skills/tree/main/plugins/vmanomaly/skills/vmanomaly-preset). These generated configurations complement the predefined presets below. No new `preset` name is required.
 
-Use an MCP build that exposes `vmanomaly_get_preset_guide` and `vmanomaly_generate_preset_artifacts`; deployment bundles also require the artifact tool’s `deployment` options. Older MCP builds may offer only part of this workflow.
+Use an MCP build that exposes `vmanomaly_get_preset_guide` and `vmanomaly_generate_preset_artifacts`. Deployment bundles also require the artifact tool’s `deployment` options. Older MCP builds may offer only part of this workflow.
 
 Start with a request in ordinary language, for example:
 
@@ -51,15 +51,15 @@ The workflow produces:
 
 - `vmanomaly.yaml`: queries, models, scheduling and reader/writer settings.
 - `alerts.yaml`: matching anomaly-score rules for [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/).
-- Optional deployment files for **Docker Compose**, **Helm** or **VM Operator**, plus setup instructions. Compose and Helm support persistent state or ephemeral RAM; generated VM Operator resources support persistent storage only. Helm output contains values for a specified chart version; Operator output contains a custom resource.
+- Optional deployment files for **Docker Compose**, **Helm** or **VM Operator**, plus setup instructions. Compose and Helm support persistent state or ephemeral RAM. Generated VM Operator resources support persistent storage only. Helm output contains values for a specified chart version. Operator output contains a custom resource.
 
-Known deployment choices are included in one complete bundle. Otherwise, the base configuration and alerts remain downloadable while Copilot asks which deployment and storage option you want. Each file card supports preview, copy and download. Changed choices regenerate a complete matching bundle; use files from the same generation together.
+Known deployment choices are included in one complete bundle. Otherwise, the base configuration and alerts remain downloadable while Copilot asks which deployment and storage option you want. Each file card supports preview, copy and download. Changed choices regenerate a complete matching bundle. Use files from the same generation together.
 
 ![AI Copilot showing downloadable draft configuration and alert files with required writer settings](vmanomaly-copilot-dynamic-preset.webp)
 
 ### Drafts and deployment requirements
 
-If the score-writer destination is unknown, Copilot can still produce a **Draft** using `http://replace-me.invalid:8428`. Replace it with your real writer URL and confirm any cluster tenant; the reader destination is not automatically a writer. The placeholder must not be contacted. File cards and YAML comments list required substitutions, including deployment prerequisites where applicable.
+If the score-writer destination is unknown, Copilot can still produce a **Draft** using `http://replace-me.invalid:8428`. Replace it with your real writer URL and confirm any cluster tenant. The reader destination is not automatically a writer. The placeholder must not be contacted. File cards and YAML comments list required substitutions, including deployment prerequisites where applicable.
 
 Configure vmalert to read the **score destination**, using its query endpoint and tenant. Supply an externally reachable vmanomaly URL, including any reverse-proxy path prefix, for [incident investigation links in alerts](https://docs.victoriametrics.com/anomaly-detection/ui/#investigate-a-firing-alert). Investigation links currently require a shared VictoriaMetrics reader/writer URL and tenant, default output metric names, and the unmodified query key in the `for` label (see [writer metrics formatting](https://docs.victoriametrics.com/anomaly-detection/components/writer/#metrics-formatting)). Keep static rules that read raw metrics separate when they need a different datasource.
 
