@@ -77,10 +77,10 @@ export const parseSupportedDuration = (str: string): Partial<Record<UnitTypeShor
   return Object.keys(result).length ? result : undefined;
 };
 
+const durationTokenRegexp = /(?:\d+(?:\.\d+)?|\.\d+)(?:ms|[ywdhms])(?![a-zA-Z])/g;
+
 export const getSecondsFromDuration = (dur: string) => {
-  const shortSupportedDur = supportedDurations.map(d => d.short).join("|");
-  const regexp = new RegExp(`\\d+(\\.\\d+)?[${shortSupportedDur}]+`, "g");
-  const durItems = dur.match(regexp) || [];
+  const durItems = dur.replace(/,/g, ".").match(durationTokenRegexp) || [];
 
   const durObject = durItems.reduce((prev, curr) => {
 
@@ -102,6 +102,35 @@ export const getSecondsFromDuration = (dur: string) => {
 
 export const getMillisecondsFromDuration = (dur: string): number => {
   return getSecondsFromDuration(dur) * 1000;
+};
+
+export const normalizeDuration = (value: string): string | undefined => {
+  const duration = value.trim().toLowerCase().replace(/\s+/g, "").replace(/,/g, ".");
+  if (!duration || duration.match(durationTokenRegexp)?.join("") !== duration) return;
+
+  const units = duration.match(/[a-z]+/g) || [];
+  const unitOrder = supportedDurations.map(({ short }) => short);
+  const unitIndexes = units.map(unit => unitOrder.indexOf(unit));
+  const hasInvalidUnits = unitIndexes.some(index => index < 0);
+  const hasDuplicateUnits = new Set(units).size !== units.length;
+  const hasIncorrectUnitOrder = unitIndexes.some((index, i) => i > 0 && index <= unitIndexes[i - 1]);
+  if (hasInvalidUnits || hasDuplicateUnits || hasIncorrectUnitOrder) return;
+
+  const milliseconds = getMillisecondsFromDuration(duration);
+  if (milliseconds < limitsDurations.min || milliseconds > limitsDurations.max) return;
+
+  return duration;
+};
+
+const customRelativeTimePrefix = "last_";
+
+export const getCustomRelativeTimeId = (duration: string): string => {
+  return `${customRelativeTimePrefix}${duration}`;
+};
+
+export const getCustomDurationFromRelativeTimeId = (id: unknown): string | undefined => {
+  if (typeof id !== "string" || !id.startsWith(customRelativeTimePrefix)) return;
+  return normalizeDuration(id.slice(customRelativeTimePrefix.length));
 };
 
 const instantQueryViews = [DisplayType.table, DisplayType.code];
@@ -187,15 +216,17 @@ export const relativeTimeOptions: RelativeTimeOption[] = [
   ...o
 }));
 
-interface getRelativeTimeArguments { relativeTimeId?: string, defaultDuration: string, defaultEndInput: Date }
+interface getRelativeTimeArguments { relativeTimeId?: unknown, defaultDuration: string, defaultEndInput: Date }
 export const getRelativeTime = ({ relativeTimeId, defaultDuration, defaultEndInput }: getRelativeTimeArguments) => {
   const defaultId = relativeTimeOptions.find(t => t.isDefault)?.id;
-  const id = relativeTimeId || getQueryStringValue("g0.relative_time", defaultId) as string;
+  const rawId = relativeTimeId || getQueryStringValue("g0.relative_time", defaultId);
+  const id = typeof rawId === "string" ? rawId : "none";
   const target = relativeTimeOptions.find(d => d.id === id);
+  const customDuration = getCustomDurationFromRelativeTimeId(id);
   return {
-    relativeTimeId: target ? id : "none",
-    duration: target ? target.duration : defaultDuration,
-    endInput: target ? target.until() : defaultEndInput
+    relativeTimeId: target || customDuration ? id : "none",
+    duration: target?.duration || customDuration || defaultDuration,
+    endInput: target || customDuration ? target?.until() || dayjs().tz().toDate() : defaultEndInput
   };
 };
 

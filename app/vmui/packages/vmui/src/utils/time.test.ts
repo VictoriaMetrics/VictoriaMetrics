@@ -1,6 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import dayjs from "dayjs";
-import { getMillisecondsFromDuration, getNanoTimestamp, parseSupportedDuration } from "./time";
+import {
+  getCustomDurationFromRelativeTimeId,
+  getCustomRelativeTimeId,
+  getMillisecondsFromDuration,
+  getNanoTimestamp,
+  getRelativeTime,
+  normalizeDuration,
+  parseSupportedDuration
+} from "./time";
 
 describe("Time utils", () => {
   describe("getNanoTimestamp", () => {
@@ -90,11 +98,74 @@ describe("Time utils", () => {
       expect(getMillisecondsFromDuration("1m30s")).toBe(90000);
       expect(getMillisecondsFromDuration("1h 30m")).toBe(5400000);
       expect(getMillisecondsFromDuration("500ms")).toBe(500);
+      expect(getMillisecondsFromDuration(".5h")).toBe(1800000);
+      expect(getMillisecondsFromDuration("1h.5m")).toBe(3630000);
+      expect(getMillisecondsFromDuration("1,5h")).toBe(5400000);
     });
 
     it("should return zero when duration cannot be parsed", () => {
       expect(getMillisecondsFromDuration("garbage")).toBe(0);
+      expect(getMillisecondsFromDuration("1mm")).toBe(0);
       expect(getMillisecondsFromDuration("")).toBe(0);
+    });
+  });
+
+  describe("custom relative durations", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("normalizes valid durations", () => {
+      expect(normalizeDuration(" 1H 30m ")).toBe("1h30m");
+      expect(normalizeDuration("1,5h")).toBe("1.5h");
+      expect(normalizeDuration("500ms")).toBe("500ms");
+    });
+
+    it("rejects invalid durations", () => {
+      expect(normalizeDuration("")).toBeUndefined();
+      expect(normalizeDuration("0m")).toBeUndefined();
+      expect(normalizeDuration("-2m")).toBeUndefined();
+      expect(normalizeDuration("1m2h")).toBeUndefined();
+      expect(normalizeDuration("1h2h")).toBeUndefined();
+      expect(normalizeDuration("6y")).toBeUndefined();
+      expect(normalizeDuration("1 hour")).toBeUndefined();
+    });
+
+    it("round-trips custom relative time ids", () => {
+      const id = getCustomRelativeTimeId("4h");
+      expect(id).toBe("last_4h");
+      expect(getCustomDurationFromRelativeTimeId(id)).toBe("4h");
+      expect(getCustomDurationFromRelativeTimeId("last_5_minutes")).toBeUndefined();
+      expect(getCustomDurationFromRelativeTimeId(["last_4h"])).toBeUndefined();
+    });
+
+    it("resolves a custom relative time against now", () => {
+      const now = new Date("2026-01-02T03:04:05Z");
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+
+      const result = getRelativeTime({
+        relativeTimeId: "last_4h",
+        defaultDuration: "1h",
+        defaultEndInput: new Date(0),
+      });
+
+      expect(result.relativeTimeId).toBe("last_4h");
+      expect(result.duration).toBe("4h");
+      expect(result.endInput).toEqual(now);
+    });
+
+    it("ignores non-string relative time ids", () => {
+      const defaultEndInput = new Date(0);
+      const result = getRelativeTime({
+        relativeTimeId: ["last_4h", "last_5h"],
+        defaultDuration: "1h",
+        defaultEndInput,
+      });
+
+      expect(result.relativeTimeId).toBe("none");
+      expect(result.duration).toBe("1h");
+      expect(result.endInput).toBe(defaultEndInput);
     });
   });
 });
