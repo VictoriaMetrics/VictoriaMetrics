@@ -89,7 +89,7 @@ VictoriaMetrics supports the following Graphite querying APIs:
 
 All Graphite handlers can be prepended with `/graphite` prefix. For example, both `/graphite/metrics/find` and `/metrics/find` should work.
 
-VictoriaMetrics accepts optional query args: `extra_label=<label_name>=<label_value>` and `extra_filters[]=series_selector`
+VictoriaMetrics accepts optional query args: `extra_label=<label_name>=<label_value>` and `extra_filters=series_selector`
 for all the Graphite APIs. These args can be used for limiting the scope of time series visible to the given tenant.
 It is expected that the `extra_label` query arg is automatically set by auth proxy sitting in front of VictoriaMetrics.
 See [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) and [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/) as examples of such proxies.

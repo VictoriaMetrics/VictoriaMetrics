@@ -3948,7 +3948,7 @@ func nextSeriesConcurrentWrapper(nextSeries nextSeriesFunc, f func(s *series) (*
 					break
 				}
 			}
-			<-errCh
+			<-errCh //nolint:errcheck
 			return nil, r.err
 		}
 		if r.s == nil {

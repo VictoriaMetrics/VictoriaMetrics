@@ -75,7 +75,7 @@ var (
 		"This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points "+
 		"returned to graphing UI such as VMUI or Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph. "+
 		"See also -search.maxResponseSeries")
-	ignoreExtraFiltersAtLabelsAPI = flag.Bool("search.ignoreExtraFiltersAtLabelsAPI", false, "Whether to ignore match[], extra_filters[] and extra_label query args at "+
+	ignoreExtraFiltersAtLabelsAPI = flag.Bool("search.ignoreExtraFiltersAtLabelsAPI", false, "Whether to ignore match[], extra_filters and extra_label query args at "+
 		"/api/v1/labels and /api/v1/label/.../values . This may be useful for decreasing load on VictoriaMetrics when extra filters "+
 		"match too many time series. The downside is that superfluous labels or series could be returned, which do not match the extra filters. "+
 		"See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration")
@@ -1482,7 +1482,7 @@ func QueryStatsHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) e
 
 // commonParams contains common parameters for all /api/v1/* handlers
 //
-// timeout, start, end, match[], extra_label, extra_filters[]
+// timeout, start, end, match[], extra_label, extra_filters, DEPRECATED extra_filters[]
 type commonParams struct {
 	start            int64
 	end              int64
@@ -1501,7 +1501,8 @@ func (cp *commonParams) IsDefaultTimeRange() bool {
 // - end
 // - match[]
 // - extra_label
-// - extra_filters[]
+// - extra_filters
+// - extra_filters[] DEPRECATED
 func getExportParams(r *http.Request, startTime time.Time) (*commonParams, error) {
 	cp, err := getCommonParams(r, startTime, true)
 	if err != nil {
@@ -1528,7 +1529,8 @@ func getCommonParamsForLabelsAPI(r *http.Request, startTime time.Time, requireNo
 // - end
 // - match[]
 // - extra_label
-// - extra_filters[]
+// - extra_filters
+// - extra_filters[] DEPRECATED
 func getCommonParams(r *http.Request, startTime time.Time, requireNonEmptyMatch bool) (*commonParams, error) {
 	return getCommonParamsInternal(r, startTime, requireNonEmptyMatch, false)
 }
