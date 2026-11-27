@@ -40,6 +40,10 @@ func IsTrivialNetworkError(err error) bool {
 // The addr may be either the usual TCP address or srv+host form, where host is SRV addr.
 // If the addr has srv+host form, then the host is resolved with SRV into randomly chosen TCP address for the connection.
 func DialMaybeSRV(ctx context.Context, network, addr string) (net.Conn, error) {
+	return dialMaybeSRV(ctx, network, addr, Dialer)
+}
+
+func dialMaybeSRV(ctx context.Context, network, addr string, dialer *net.Dialer) (net.Conn, error) {
 	if strings.HasPrefix(addr, "srv+") {
 		addr = strings.TrimPrefix(addr, "srv+")
 		if n := strings.IndexByte(addr, ':'); n >= 0 {
@@ -56,18 +60,22 @@ func DialMaybeSRV(ctx context.Context, network, addr string) (net.Conn, error) {
 		n := rand.Intn(len(addrs))
 		addr = fmt.Sprintf("%s:%d", addrs[n].Target, addrs[n].Port)
 	}
-	return Dialer.DialContext(ctx, network, addr)
+	return dialer.DialContext(ctx, network, addr)
 }
 
 // Dialer is default network dialer.
-var Dialer = &net.Dialer{
-	Timeout: 30 * time.Second,
-	KeepAliveConfig: net.KeepAliveConfig{
-		Enable:   true,
-		Idle:     30 * time.Second,
-		Interval: 30 * time.Second,
-	},
-	DualStack: TCP6Enabled(),
+var Dialer = newDialer(30 * time.Second)
+
+func newDialer(timeout time.Duration) *net.Dialer {
+	return &net.Dialer{
+		Timeout: timeout,
+		KeepAliveConfig: net.KeepAliveConfig{
+			Enable:   true,
+			Idle:     30 * time.Second,
+			Interval: 30 * time.Second,
+		},
+		DualStack: TCP6Enabled(),
+	}
 }
 
 // IsErrMissingPort checks if the given error is due to a missing port in the address.
