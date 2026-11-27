@@ -171,6 +171,56 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
+	// /api/v1/series with multiple extra_filters and extra_label.
+	// They must be merged with "and" logic, so additional args can only narrow down the selected tenants.
+
+	wantSR = apptest.NewPrometheusAPIV1SeriesResponse(t,
+		`{"data": [
+	       {"__name__":"foo_bar", "vm_account_id":"5", "vm_project_id":"15"}
+	             ]
+	   }`)
+	gotSR = vmselect.PrometheusAPIV1Series(t, "foo_bar", apptest.QueryOpts{
+		Start:        "2022-05-10T08:00:00.000Z",
+		End:          "2022-05-10T08:30:00.000Z",
+		ExtraFilters: []string{`{vm_project_id="15"}`, `{vm_account_id="5"}`},
+		Tenant:       "multitenant",
+	})
+	gotSR.Sort()
+	if diff := cmp.Diff(wantSR, gotSR, cmpSROpt); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+
+	// conflicting extra_label and extra_filters select nothing instead of the union of tenants
+	gotSR = vmselect.PrometheusAPIV1Series(t, "foo_bar", apptest.QueryOpts{
+		Start:        "2022-05-10T08:00:00.000Z",
+		End:          "2022-05-10T08:30:00.000Z",
+		ExtraLabels:  []string{`vm_account_id=1`},
+		ExtraFilters: []string{`{vm_account_id="5"}`},
+		Tenant:       "multitenant",
+	})
+	if len(gotSR.Data) != 0 {
+		t.Errorf("unexpected non-empty response for conflicting extra_label and extra_filters: %v", gotSR.Data)
+	}
+
+	// `or` filters inside a single extra_filters arg select the union of tenants
+	wantSR = apptest.NewPrometheusAPIV1SeriesResponse(t,
+		`{"data": [
+	       {"__name__":"foo_bar", "vm_account_id":"1", "vm_project_id":"1"},
+	       {"__name__":"foo_bar", "vm_account_id":"5", "vm_project_id":"15"}
+	             ]
+	   }`)
+	wantSR.Sort()
+	gotSR = vmselect.PrometheusAPIV1Series(t, "foo_bar", apptest.QueryOpts{
+		Start:        "2022-05-10T08:00:00.000Z",
+		End:          "2022-05-10T08:30:00.000Z",
+		ExtraFilters: []string{`{vm_account_id="1",vm_project_id="1" or vm_account_id="5",vm_project_id="15"}`},
+		Tenant:       "multitenant",
+	})
+	gotSR.Sort()
+	if diff := cmp.Diff(wantSR, gotSR, cmpSROpt); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+
 	// /api/v1/label/../value with extra_filters
 
 	wantVR := apptest.NewPrometheusAPIV1LabelValuesResponse(t,

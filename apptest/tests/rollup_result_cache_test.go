@@ -52,7 +52,7 @@ func TestClusterRollupResultCache(t *testing.T) {
 		Start:        "2022-05-10T07:59:00.000Z",
 		End:          "2022-05-10T08:05:00.000Z",
 		Step:         "1m",
-		ExtraFilters: []string{`{vm_account_id="5",vm_project_id="15"}`, `{vm_account_id="5",vm_project_id="0"}`},
+		ExtraFilters: []string{`{vm_account_id="5",vm_project_id="15" or vm_account_id="5",vm_project_id="0"}`},
 	})
 	if diff := cmp.Diff(want, got, cmpOpt); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
@@ -75,4 +75,24 @@ func TestClusterRollupResultCache(t *testing.T) {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
+	// Multiple extra_filters args are merged with "and" logic.
+	want = apptest.NewPrometheusAPIV1QueryResponse(t,
+		`{"data":
+	   {"result":[
+	        {"metric":{"__name__":"foo_bar","vm_account_id":"5","vm_project_id":"15"},"values":[[1652169720,"3"],[1652169780,"3"]]}
+	               ]
+	   }
+	}`,
+	)
+
+	got = vmselect.PrometheusAPIV1QueryRange(t, `foo_bar{}`, apptest.QueryOpts{
+		Tenant:       "multitenant",
+		Start:        "2022-05-10T07:59:00.000Z",
+		End:          "2022-05-10T08:05:00.000Z",
+		Step:         "1m",
+		ExtraFilters: []string{`{vm_account_id="5",vm_project_id="15" or vm_account_id="5",vm_project_id="0"}`, `{vm_project_id="15"}`},
+	})
+	if diff := cmp.Diff(want, got, cmpOpt); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
 }
