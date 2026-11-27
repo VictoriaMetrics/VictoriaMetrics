@@ -300,7 +300,7 @@ func getRollupAggrFuncNames(expr metricsql.Expr) ([]string, error) {
 	if !ok {
 		logger.Panicf("BUG: unexpected expression; want metricsql.FuncExpr; got %T; value: %s", expr, expr.AppendString(nil))
 	}
-	if fe.Name != "aggr_over_time" {
+	if !strings.EqualFold(fe.Name, "aggr_over_time") {
 		logger.Panicf("BUG: unexpected function name: %q; want `aggr_over_time`", fe.Name)
 	}
 	if len(fe.Args) != 2 {

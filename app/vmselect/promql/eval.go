@@ -375,7 +375,7 @@ func evalTransformFunc(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.Fun
 	}
 	var args [][]*timeseries
 	var err error
-	switch fe.Name {
+	switch strings.ToLower(fe.Name) {
 	case "", "union":
 		args, err = evalExprsInParallel(qt, ec, fe.Args)
 	default:
