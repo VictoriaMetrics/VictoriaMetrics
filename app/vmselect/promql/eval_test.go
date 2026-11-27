@@ -1,10 +1,13 @@
 package promql
 
 import (
+	"context"
+	"errors"
 	"reflect"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metricsql"
 )
@@ -253,4 +256,104 @@ func TestShouldOptimizeRepeatedBinaryOpSubexprsExpressions(t *testing.T) {
 	f("unseeded rand_normal at modifier", `sum(rate(foo[5m] @ rand_normal())) by (job) / sum(rate(foo[5m] @ rand_normal())) by (job)`, false)
 	f("unseeded rand_exponential at modifier", `sum(rate(foo[5m] @ rand_exponential())) by (job) / sum(rate(foo[5m] @ rand_exponential())) by (job)`, false)
 	f("seeded rand at modifier", `sum(rate(foo[5m] @ rand(1))) by (job) / sum(rate(foo[5m] @ rand(1))) by (job)`, true)
+}
+
+func TestEvalExprContextCanceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	ec := &EvalConfig{
+		Context: ctx,
+		Start:   1000,
+		End:     2000,
+		Step:    1000,
+	}
+	qt := querytracer.New(false, "")
+	for _, q := range []string{
+		"1 + 2",
+		"vector(1) or vector(2)",
+		"sum(vector(1))",
+		"abs(vector(-1))",
+	} {
+		e, err := metricsql.Parse(q)
+		if err != nil {
+			t.Fatalf("unexpected error in metricsql.Parse(%q): %s", q, err)
+		}
+		_, err = evalExpr(qt, ec, e)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("expected context.Canceled for %q; got %v", q, err)
+		}
+	}
+}
+
+func TestBinaryOpContextCanceled(t *testing.T) {
+	newSeries := func(n int) []*timeseries {
+		tss := make([]*timeseries, n)
+		for i := range n {
+			tss[i] = &timeseries{
+				MetricName: storage.MetricName{
+					MetricGroup: []byte("metric"),
+					Tags: []storage.Tag{
+						{Key: []byte("id"), Value: []byte{byte('a' + i%26)}},
+					},
+				},
+				Timestamps: []int64{1000},
+				Values:     []float64{float64(i + 1)},
+			}
+		}
+		return tss
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	ec := &EvalConfig{
+		Context: ctx,
+		Start:   1000,
+		End:     1000,
+		Step:    1000,
+	}
+
+	for _, q := range []string{
+		"a + b",
+		"a == b",
+		"a and b",
+		"a or b",
+		"a unless b",
+		"a default b",
+		"a if b",
+		"a ifnot b",
+	} {
+		e, err := metricsql.Parse(q)
+		if err != nil {
+			t.Fatalf("unexpected error in metricsql.Parse(%q): %s", q, err)
+		}
+		be := e.(*metricsql.BinaryOpExpr)
+		bf := getBinaryOpFunc(be.Op)
+		bfa := &binaryOpFuncArg{
+			ec:    ec,
+			be:    be,
+			left:  newSeries(5),
+			right: newSeries(5),
+		}
+		_, err = bf(bfa)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("expected context.Canceled for %q; got %v", q, err)
+		}
+	}
+
+	// Verify mid-flight cancellation during fillLeftNaNsWithRightValuesOrMerge
+	ctxMid, cancelMid := context.WithCancel(context.Background())
+	ecMid := &EvalConfig{
+		Context: ctxMid,
+		Start:   1000,
+		End:     1000,
+		Step:    1000,
+	}
+	tssLeft := newSeries(2000)
+	tssRight := newSeries(2000)
+	cancelMid()
+	err := fillLeftNaNsWithRightValuesOrMerge(ecMid, tssLeft, tssRight)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled from fillLeftNaNsWithRightValuesOrMerge; got %v", err)
+	}
 }

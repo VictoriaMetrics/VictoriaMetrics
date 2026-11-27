@@ -47,7 +47,10 @@ func getBinaryOpFunc(op string) binaryOpFunc {
 	return binaryOpFuncs[op]
 }
 
+const binaryOpCtxCheckMask = 1024 - 1
+
 type binaryOpFuncArg struct {
+	ec    *EvalConfig
 	be    *metricsql.BinaryOpExpr
 	left  []*timeseries
 	right []*timeseries
@@ -69,7 +72,12 @@ func binaryOpEqFunc(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	if len(left) == 0 || len(right) == 0 {
 		return nil, nil
 	}
-	for _, tsLeft := range left {
+	for i, tsLeft := range left {
+		if i&binaryOpCtxCheckMask == 0 {
+			if err := bfa.ec.checkContext(); err != nil {
+				return nil, err
+			}
+		}
 		values := tsLeft.Values
 		for j, v := range values {
 			if !containsValueAt(right, v, j) {
@@ -99,7 +107,12 @@ func binaryOpNeqFunc(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	if len(right) == 0 {
 		return left, nil
 	}
-	for _, tsLeft := range left {
+	for i, tsLeft := range left {
+		if i&binaryOpCtxCheckMask == 0 {
+			if err := bfa.ec.checkContext(); err != nil {
+				return nil, err
+			}
+		}
 		values := tsLeft.Values
 		for j, v := range values {
 			if containsValueAt(right, v, j) {
@@ -181,7 +194,7 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 		if len(right) == 0 && bfa.be.FillRight == nil {
 			return nil, nil
 		}
-		left, right, dst, err := adjustBinaryOpTags(bfa.be, left, right)
+		left, right, dst, err := adjustBinaryOpTags(bfa.ec, bfa.be, left, right)
 		if err != nil {
 			return nil, err
 		}
@@ -200,6 +213,11 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10018.
 		dropNaNRight := isCmpOp && isVectorComparisonExpr(bfa.be.Right)
 		for i, tsLeft := range left {
+			if i&binaryOpCtxCheckMask == 0 {
+				if err := bfa.ec.checkContext(); err != nil {
+					return nil, err
+				}
+			}
 			leftValues := tsLeft.Values
 			rightValues := right[i].Values
 			dstValues := dst[i].Values
@@ -268,7 +286,7 @@ func isScalarLikeExpr(e metricsql.Expr) bool {
 	return false
 }
 
-func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) ([]*timeseries, []*timeseries, []*timeseries, error) {
+func adjustBinaryOpTags(ec *EvalConfig, be *metricsql.BinaryOpExpr, left, right []*timeseries) ([]*timeseries, []*timeseries, []*timeseries, error) {
 	if len(be.GroupModifier.Op) == 0 && len(be.JoinModifier.Op) == 0 {
 		if isScalar(left) {
 			// Fast path: `scalar op vector`
@@ -294,7 +312,10 @@ func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) (
 
 	// Slow path: `vector op vector` or `a op {on|ignoring} {group_left|group_right} {fill|fill_left|fill_right} b`
 	var rvsLeft, rvsRight []*timeseries
-	mLeft, mRight := createTimeseriesMapByTagSet(be, left, right)
+	mLeft, mRight, err := createTimeseriesMapByTagSet(ec, be, left, right)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	joinOp := strings.ToLower(be.JoinModifier.Op)
 	groupOp := strings.ToLower(be.GroupModifier.Op)
 	if len(groupOp) == 0 {
@@ -313,7 +334,14 @@ func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) (
 			}
 		}
 	}
+	iters := 0
 	for k, tssLeft := range mLeft {
+		if iters&binaryOpCtxCheckMask == 0 {
+			if err := ec.checkContext(); err != nil {
+				return nil, nil, nil, err
+			}
+		}
+		iters++
 		tssRight := mRight[k]
 		if len(tssLeft) == 0 {
 			if be.FillLeft == nil {
@@ -330,13 +358,13 @@ func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) (
 		switch joinOp {
 		case "group_left":
 			var err error
-			rvsLeft, rvsRight, err = groupJoin("right", be, rvsLeft, rvsRight, tssLeft, tssRight)
+			rvsLeft, rvsRight, err = groupJoin(ec, "right", be, rvsLeft, rvsRight, tssLeft, tssRight)
 			if err != nil {
 				return nil, nil, nil, err
 			}
 		case "group_right":
 			var err error
-			rvsRight, rvsLeft, err = groupJoin("left", be, rvsRight, rvsLeft, tssRight, tssLeft)
+			rvsRight, rvsLeft, err = groupJoin(ec, "left", be, rvsRight, rvsLeft, tssRight, tssLeft)
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -406,7 +434,7 @@ func ensureSingleTimeseries(side string, be *metricsql.BinaryOpExpr, tss []*time
 	return nil
 }
 
-func groupJoin(singleTimeseriesSide string, be *metricsql.BinaryOpExpr, rvsLeft, rvsRight, tssLeft, tssRight []*timeseries) ([]*timeseries, []*timeseries, error) {
+func groupJoin(ec *EvalConfig, singleTimeseriesSide string, be *metricsql.BinaryOpExpr, rvsLeft, rvsRight, tssLeft, tssRight []*timeseries) ([]*timeseries, []*timeseries, error) {
 	joinTags := be.JoinModifier.Args
 	var skipTags []string
 	if strings.EqualFold(be.GroupModifier.Op, "on") {
@@ -421,7 +449,12 @@ func groupJoin(singleTimeseriesSide string, be *metricsql.BinaryOpExpr, rvsLeft,
 		right *timeseries
 	}
 	m := make(map[string]*tsPair)
-	for _, tsLeft := range tssLeft {
+	for i, tsLeft := range tssLeft {
+		if i&binaryOpCtxCheckMask == 0 {
+			if err := ec.checkContext(); err != nil {
+				return nil, nil, err
+			}
+		}
 		resetMetricGroupIfRequired(be, tsLeft)
 		if len(tssRight) == 1 {
 			// Easy case - right part contains only a single matching time series.
@@ -519,9 +552,19 @@ func resetMetricGroupIfRequired(be *metricsql.BinaryOpExpr, ts *timeseries) {
 }
 
 func binaryOpIf(bfa *binaryOpFuncArg) ([]*timeseries, error) {
-	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
+	mLeft, mRight, err := createTimeseriesMapByTagSet(bfa.ec, bfa.be, bfa.left, bfa.right)
+	if err != nil {
+		return nil, err
+	}
 	var rvs []*timeseries
+	iters := 0
 	for k, tssLeft := range mLeft {
+		if iters&binaryOpCtxCheckMask == 0 {
+			if err := bfa.ec.checkContext(); err != nil {
+				return nil, err
+			}
+		}
+		iters++
 		tssRight := seriesByKey(mRight, k)
 		if tssRight == nil {
 			continue
@@ -533,9 +576,19 @@ func binaryOpIf(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 }
 
 func binaryOpAnd(bfa *binaryOpFuncArg) ([]*timeseries, error) {
-	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
+	mLeft, mRight, err := createTimeseriesMapByTagSet(bfa.ec, bfa.be, bfa.left, bfa.right)
+	if err != nil {
+		return nil, err
+	}
 	var rvs []*timeseries
+	iters := 0
 	for k, tssRight := range mRight {
+		if iters&binaryOpCtxCheckMask == 0 {
+			if err := bfa.ec.checkContext(); err != nil {
+				return nil, err
+			}
+		}
+		iters++
 		tssLeft := mLeft[k]
 		if tssLeft == nil {
 			continue
@@ -566,7 +619,10 @@ func addRightNaNsToLeft(tssLeft, tssRight []*timeseries) []*timeseries {
 }
 
 func binaryOpDefault(bfa *binaryOpFuncArg) ([]*timeseries, error) {
-	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
+	mLeft, mRight, err := createTimeseriesMapByTagSet(bfa.ec, bfa.be, bfa.left, bfa.right)
+	if err != nil {
+		return nil, err
+	}
 	var rvs []*timeseries
 	if len(mLeft) == 0 {
 		for _, tss := range mRight {
@@ -574,7 +630,14 @@ func binaryOpDefault(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 		}
 		return rvs, nil
 	}
+	iters := 0
 	for k, tssLeft := range mLeft {
+		if iters&binaryOpCtxCheckMask == 0 {
+			if err := bfa.ec.checkContext(); err != nil {
+				return nil, err
+			}
+		}
+		iters++
 		rvs = append(rvs, tssLeft...)
 		tssRight := seriesByKey(mRight, k)
 		if tssRight == nil {
@@ -586,10 +649,20 @@ func binaryOpDefault(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 }
 
 func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
-	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
+	mLeft, mRight, err := createTimeseriesMapByTagSet(bfa.ec, bfa.be, bfa.left, bfa.right)
+	if err != nil {
+		return nil, err
+	}
 	var rvs []*timeseries
 
+	iters := 0
 	for k, tss := range mLeft {
+		if iters&binaryOpCtxCheckMask == 0 {
+			if err := bfa.ec.checkContext(); err != nil {
+				return nil, err
+			}
+		}
+		iters++
 		tssLeft := removeEmptySeries(tss)
 		// re-assign modified slice to map, since it can be referred later
 		mLeft[k] = tssLeft
@@ -600,13 +673,22 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	sortSeriesByMetricName(rvs)
 	rvsLen := len(rvs)
 
+	iters = 0
 	for k, tssRight := range mRight {
+		if iters&binaryOpCtxCheckMask == 0 {
+			if err := bfa.ec.checkContext(); err != nil {
+				return nil, err
+			}
+		}
+		iters++
 		tssLeft := mLeft[k]
 		if tssLeft == nil {
 			rvs = append(rvs, tssRight...)
 			continue
 		}
-		fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight)
+		if err := fillLeftNaNsWithRightValuesOrMerge(bfa.ec, tssLeft, tssRight); err != nil {
+			return nil, err
+		}
 		// tssRight might be filled with NaNs after merge
 		tssRight = removeEmptySeries(tssRight)
 		rvs = append(rvs, tssRight...)
@@ -644,7 +726,7 @@ func fillLeftNaNsWithRightValues(tssLeft, tssRight []*timeseries) {
 //
 // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759
 // https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640
-func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
+func fillLeftNaNsWithRightValuesOrMerge(ec *EvalConfig, tssLeft, tssRight []*timeseries) error {
 	if isScalar(tssRight) {
 		// fast path: if tssRight is scalar then it can be merged
 		// with tssLeft only when tssLeft is also a scalar.
@@ -652,7 +734,12 @@ func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
 		// Typical case is: metric_selector or on() vector(0)
 		canBeMerged := isScalar(tssLeft)
 		valuesRight := tssRight[0].Values
-		for _, tsLeft := range tssLeft {
+		for tsIdx, tsLeft := range tssLeft {
+			if tsIdx&binaryOpCtxCheckMask == 0 {
+				if err := ec.checkContext(); err != nil {
+					return err
+				}
+			}
 			valuesLeft := tsLeft.Values
 			for i, v := range valuesLeft {
 				leftIsNaN := math.IsNaN(v)
@@ -668,11 +755,11 @@ func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
 				}
 			}
 		}
-		return
+		return nil
 	}
 
 	if len(tssLeft) == 0 {
-		return
+		return nil
 	}
 
 	var nameLeft []byte
@@ -682,6 +769,11 @@ func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
 	var namesRight []byte
 	namesRightStarts := make([]int, len(tssRight)+1)
 	for j, tsRight := range tssRight {
+		if j&binaryOpCtxCheckMask == 0 {
+			if err := ec.checkContext(); err != nil {
+				return err
+			}
+		}
 		namesRightStarts[j] = len(namesRight)
 		namesRight = marshalMetricNameSorted(namesRight, &tsRight.MetricName)
 	}
@@ -689,16 +781,29 @@ func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
 
 	// canMergeRight[j] reports whether the current tsLeft can be merged with tssRight[j].
 	canMergeRight := make([]bool, len(tssRight))
+	checks := 0
 	for _, tsLeft := range tssLeft {
 		valuesLeft := tsLeft.Values
 		nameLeft = marshalMetricNameSorted(nameLeft[:0], &tsLeft.MetricName)
 		for j := range tssRight {
+			if checks&binaryOpCtxCheckMask == 0 {
+				if err := ec.checkContext(); err != nil {
+					return err
+				}
+			}
+			checks++
 			nameRight := namesRight[namesRightStarts[j]:namesRightStarts[j+1]]
 			canMergeRight[j] = bytes.Equal(nameLeft, nameRight)
 		}
 		for i, v := range valuesLeft {
 			leftIsNaN := math.IsNaN(v)
 			for j, tsRight := range tssRight {
+				if checks&binaryOpCtxCheckMask == 0 {
+					if err := ec.checkContext(); err != nil {
+						return err
+					}
+				}
+				checks++
 				canBeMerged := canMergeRight[j]
 				valueRight := tsRight.Values[i]
 				if leftIsNaN && canBeMerged {
@@ -713,12 +818,23 @@ func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
 			}
 		}
 	}
+	return nil
 }
 
 func binaryOpIfnot(bfa *binaryOpFuncArg) ([]*timeseries, error) {
-	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
+	mLeft, mRight, err := createTimeseriesMapByTagSet(bfa.ec, bfa.be, bfa.left, bfa.right)
+	if err != nil {
+		return nil, err
+	}
 	var rvs []*timeseries
+	iters := 0
 	for k, tssLeft := range mLeft {
+		if iters&binaryOpCtxCheckMask == 0 {
+			if err := bfa.ec.checkContext(); err != nil {
+				return nil, err
+			}
+		}
+		iters++
 		tssRight := seriesByKey(mRight, k)
 		if tssRight == nil {
 			rvs = append(rvs, tssLeft...)
@@ -731,9 +847,19 @@ func binaryOpIfnot(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 }
 
 func binaryOpUnless(bfa *binaryOpFuncArg) ([]*timeseries, error) {
-	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
+	mLeft, mRight, err := createTimeseriesMapByTagSet(bfa.ec, bfa.be, bfa.left, bfa.right)
+	if err != nil {
+		return nil, err
+	}
 	var rvs []*timeseries
+	iters := 0
 	for k, tssLeft := range mLeft {
+		if iters&binaryOpCtxCheckMask == 0 {
+			if err := bfa.ec.checkContext(); err != nil {
+				return nil, err
+			}
+		}
+		iters++
 		tssRight := mRight[k]
 		if tssRight == nil {
 			rvs = append(rvs, tssLeft...)
@@ -777,17 +903,24 @@ func seriesByKey(m map[string][]*timeseries, key string) []*timeseries {
 	return nil
 }
 
-func createTimeseriesMapByTagSet(be *metricsql.BinaryOpExpr, left, right []*timeseries) (map[string][]*timeseries, map[string][]*timeseries) {
+func createTimeseriesMapByTagSet(ec *EvalConfig, be *metricsql.BinaryOpExpr, left, right []*timeseries) (map[string][]*timeseries, map[string][]*timeseries, error) {
 	groupTags := be.GroupModifier.Args
 	groupOp := strings.ToLower(be.GroupModifier.Op)
 	if len(groupOp) == 0 {
 		groupOp = "ignoring"
 	}
-	getTagsMap := func(arg []*timeseries) map[string][]*timeseries {
+	getTagsMap := func(arg []*timeseries) (map[string][]*timeseries, error) {
 		bb := bbPool.Get()
+		defer bbPool.Put(bb)
 		m := make(map[string][]*timeseries, len(arg))
 		mn := storage.GetMetricName()
-		for _, ts := range arg {
+		defer storage.PutMetricName(mn)
+		for i, ts := range arg {
+			if i&binaryOpCtxCheckMask == 0 {
+				if err := ec.checkContext(); err != nil {
+					return nil, err
+				}
+			}
 			mn.CopyFrom(&ts.MetricName)
 			if !be.KeepMetricNames {
 				mn.ResetMetricGroup()
@@ -804,13 +937,17 @@ func createTimeseriesMapByTagSet(be *metricsql.BinaryOpExpr, left, right []*time
 			k := string(bb.B)
 			m[k] = append(m[k], ts)
 		}
-		storage.PutMetricName(mn)
-		bbPool.Put(bb)
-		return m
+		return m, nil
 	}
-	mLeft := getTagsMap(left)
-	mRight := getTagsMap(right)
-	return mLeft, mRight
+	mLeft, err := getTagsMap(left)
+	if err != nil {
+		return nil, nil, err
+	}
+	mRight, err := getTagsMap(right)
+	if err != nil {
+		return nil, nil, err
+	}
+	return mLeft, mRight, nil
 }
 
 func isScalar(arg []*timeseries) bool {

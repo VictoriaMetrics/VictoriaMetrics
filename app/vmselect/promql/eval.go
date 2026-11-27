@@ -187,6 +187,16 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	return &ec
 }
 
+func (ec *EvalConfig) checkContext() error {
+	if ec == nil || ec.Context == nil {
+		return nil
+	}
+	if ec.Context.Err() != nil {
+		return searchutil.AnnotateContextError(ec.Context)
+	}
+	return nil
+}
+
 func (ec *EvalConfig) validate() {
 	if ec.Start > ec.End {
 		logger.Panicf("BUG: start cannot exceed end; got %d vs %d", ec.Start, ec.End)
@@ -278,6 +288,9 @@ func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*time
 }
 
 func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
+	if err := ec.checkContext(); err != nil {
+		return nil, err
+	}
 	if me, ok := e.(*metricsql.MetricExpr); ok {
 		re := &metricsql.RollupExpr{
 			Expr: me,
@@ -369,6 +382,9 @@ func evalTransformFunc(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.Fun
 		fe:   fe,
 		args: args,
 	}
+	if err := ec.checkContext(); err != nil {
+		return nil, fmt.Errorf(`cannot evaluate %q: %w`, fe.AppendString(nil), err)
+	}
 	rv, err := tf(tfa)
 	if err != nil {
 		return nil, &httpserver.UserReadableError{
@@ -411,6 +427,9 @@ func evalAggrFunc(qt *querytracer.Tracer, ec *EvalConfig, ae *metricsql.AggrFunc
 		args: args,
 		ec:   ec,
 	}
+	if err := ec.checkContext(); err != nil {
+		return nil, fmt.Errorf(`cannot evaluate %q: %w`, ae.AppendString(nil), err)
+	}
 	qtChild := qt.NewChild("eval %s", ae.Name)
 	rv, err := af(afa)
 	qtChild.Done()
@@ -429,7 +448,11 @@ func evalBinaryOp(qt *querytracer.Tracer, ec *EvalConfig, be *metricsql.BinaryOp
 	if err != nil {
 		return nil, fmt.Errorf("cannot execute %q: %w", be.AppendString(nil), err)
 	}
+	if err := ec.checkContext(); err != nil {
+		return nil, fmt.Errorf("cannot evaluate %q: %w", be.AppendString(nil), err)
+	}
 	bfa := &binaryOpFuncArg{
+		ec:    ec,
 		be:    be,
 		left:  tssLeft,
 		right: tssRight,
