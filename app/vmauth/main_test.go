@@ -22,6 +22,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
 
+func TestMain(m *testing.M) {
+	concurrencyLimitInit()
+	os.Exit(m.Run())
+}
+
 func TestRequestHandler(t *testing.T) {
 	f := func(cfgStr, requestURL string, backendHandler http.HandlerFunc, responseExpected string) {
 		t.Helper()
