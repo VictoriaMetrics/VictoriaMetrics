@@ -132,8 +132,13 @@ func (r *Restore) Run(ctx context.Context) error {
 			return err
 		}
 	}
+	// Hash only the selected partitions.
+	srcParts, err = fillHashes(src, srcParts, concurrency)
+	if err != nil {
+		return fmt.Errorf("cannot hash src parts: %w", err)
+	}
 	logger.Infof("obtaining list of parts at %s", dst)
-	dstParts, err := dst.ListParts()
+	dstParts, err := listParts(dst, concurrency)
 	if err != nil {
 		return fmt.Errorf("cannot list dst parts: %w", err)
 	}
@@ -201,7 +206,7 @@ func (r *Restore) Run(ctx context.Context) error {
 	}
 
 	// Re-read dstParts, since additional parts may be removed on the previous step.
-	dstParts, err = dst.ListParts()
+	dstParts, err = listParts(dst, concurrency)
 	if err != nil {
 		return fmt.Errorf("cannot list dst parts after the deletion: %w", err)
 	}
