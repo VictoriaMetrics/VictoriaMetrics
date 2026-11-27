@@ -122,7 +122,8 @@ func testSearchWithDisabledPerDayIndex(tc *apptest.TestCase, start startSUTFunc)
 	})
 
 	// Restart SUT with disabled per-day index. This will activate global index.
-	// Insert sample2, and confirm thatsample2 is searchable but sample1 is not.
+	// Insert sample2, and confirm that sample2 is searchable but sample1 is
+	// not.
 	tc.StopPrometheusWriteQuerier(sut)
 	sut = start("without-per-day-index", true)
 	sample2 := []string{"metric2 222 1704067200000"} // 2024-01-01T00:00:00Z

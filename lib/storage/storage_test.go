@@ -2928,7 +2928,8 @@ type testStorageSearchWithoutIndexOptions struct {
 func testStorageSearchWithoutIndex(t *testing.T, opts *testStorageSearchWithoutIndexOptions) {
 	defer testRemoveAll(t)
 
-	// The data is inserted and the search is performed when per-day index is enabled.
+	// The data is inserted and the search is performed when per-day index is
+	// enabled.
 	t.Run("Add-PerDay/Search-PerDay", func(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{
 			DisablePerDayIndex: false,
@@ -2941,7 +2942,8 @@ func testStorageSearchWithoutIndex(t *testing.T, opts *testStorageSearchWithoutI
 		s.MustClose()
 	})
 
-	// The data is inserted and the search is performed when per-day index is disabled.
+	// The data is inserted and the search is performed when per-day index is
+	// disabled.
 	t.Run("Add-Global/Search-Global", func(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{
 			DisablePerDayIndex: true,
@@ -2978,8 +2980,6 @@ func testStorageSearchWithoutIndex(t *testing.T, opts *testStorageSearchWithoutI
 
 	// The data is inserted when per-day index is disabled.
 	// The search is performed when per-day index is enabled.
-	// This case also shows that registering metric names recovers the per-day
-	// index.
 	t.Run("Add-Global/Search-PerDay", func(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{
 			DisablePerDayIndex: true,
