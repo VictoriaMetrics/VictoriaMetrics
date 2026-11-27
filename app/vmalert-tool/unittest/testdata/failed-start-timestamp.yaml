@@ -1,0 +1,17 @@
+rule_files:
+  - rules.yaml
+
+tests:
+  # 1970-01-01 isn't allowed, see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11219
+  - name: "start_timestamp on 1970-01-01"
+    start_timestamp: 0
+    interval: 1m
+    input_series:
+      - series: test
+        values: "1"
+
+    metricsql_expr_test:
+      - expr: time()
+        eval_time: 0
+        exp_samples:
+          - value: 0
