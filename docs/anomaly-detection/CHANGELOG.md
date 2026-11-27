@@ -18,23 +18,38 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 > [!TIP]
 > See the directional [compatibility matrix](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix) before upgrading or rolling back, particularly when restoring persisted model state.
 
+<div class="collapse-group mb-3">
+
 {{% collapse name="2026" open=true %}}
+
+## v1.33.1
+Released: 2026-11-26
+
+- UI: Update to [v1.12.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v1121). Models start with usable defaults, unavailable detection actions explain missing settings, and notifications remain visible above dialogs.
+- FEATURE: Reload the server certificate, key and client CA when files change, without restarting or interrupting existing connections. Add [TLS reload and certificate-expiry metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#server-tls-metrics). See [TLS and mutual TLS](https://docs.victoriametrics.com/anomaly-detection/components/server/#tls-and-mutual-tls).
+- IMPROVEMENT: Bound concurrent fit-data fetches across a [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) with `reader.workers`, retaining each slot until conversion finishes. In tested workloads, default settings reduced peak fit memory by up to 83% and raw-response disk usage by up to 88%, with similar fit duration. Inference fetching is unchanged.
+- IMPROVEMENT: Allow [Holt-Winters](https://docs.victoriametrics.com/anomaly-detection/components/models/#holt-winters) to infer an omitted `frequency` from training data, and refresh compatible runtime/UI dependencies with memory, cleanup and validation fixes.
+- BUGFIX: Stop reading timed-out responses, which previously could continue consuming resources after the fetch was abandoned. Avoid fit-fetch deadlocks with simultaneous [multivariate query groups](https://docs.victoriametrics.com/anomaly-detection/components/models/#group-by). Queued fit fetches do not spend their fetch deadline waiting for a slot.
+- BUGFIX: Correct [deployment sizing](https://docs.victoriametrics.com/anomaly-detection/components/server/#deployment-sizing) for earlier targets that decode every query's fit data concurrently. V1.33.1 estimates account for bounded fit fetches.
+- BUGFIX: Align [VictoriaMetrics requests](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) and [VictoriaLogs stats buckets](https://docs.victoriametrics.com/anomaly-detection/components/reader/#victorialogs-reader) to the query-step grid and bucket end timestamps, respectively. Separate [periodic inference](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) recovers scheduler jitter and reported fetch failures within a bounded window. Refit models trained on unaligned or mixed-phase timestamps. See [migration guidance](https://docs.victoriametrics.com/anomaly-detection/migration/#breaking-and-configuration-changes).
+- BUGFIX: Change `query_last_seen_max_lookback` to limit reader recovery extensions only. It no longer truncates the requested window or rounds a sub-step limit up to one step. See the [VM reader parameter](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-last-seen-recovery) and [VictoriaLogs reader parameter](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vlogs-last-seen-recovery). It does not limit the [scheduler's independent cursor recovery](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler).
+- BUGFIX: Multivariate [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) v1/v2 uses per-channel deviations when fewer than two channels are active, including a flat channel or `dependency_rank: 1`. These cases previously returned all-zero [scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). Existing saved model formats remain readable.
 
 ## v1.33.0
 Released: 2026-11-19
 
 - UI: Update to [v1.12.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v1120), with refined model controls, [guided tours](https://docs.victoriametrics.com/anomaly-detection/ui/#guided-tours), sharing and fixes for tours with collapsed panels.
-- FEATURE: Add optional [`is_holiday`](https://docs.victoriametrics.com/anomaly-detection/components/models/#holiday-output) output for [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) and [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) (v1/v2, including multivariate). Request a timestamp-aligned `0`/`1` flag through `provide_series`; Prophet also supports structured country and special-event calendars.
+- FEATURE: Add optional [`is_holiday`](https://docs.victoriametrics.com/anomaly-detection/components/models/#holiday-output) output for [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) and [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) (v1/v2, including multivariate). Request a timestamp-aligned `0`/`1` flag through `provide_series`. Prophet also supports structured country and special-event calendars.
 - IMPROVEMENT: Add explicit [ESA acceptance](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing) with `-eula`, retaining compatibility with existing license settings.
 - IMPROVEMENT: Speed up point-by-point [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) inference by up to 2× for v2 and 1.4× for v1 in tested workloads, with unchanged results. Reduce preparation overhead for series sharing timestamp grids.
 - IMPROVEMENT: Parallelize conversion of large compact fit responses in [on-disk mode](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode), with 6.9× conversion throughput using eight workers versus one in a 10-million-point benchmark.
-- IMPROVEMENT: Reduce data-dump disk usage by approximately 50–60% in tested workloads with compact Parquet encodings, and release freed Arrow buffers more promptly. Existing data dumps remain readable.
+- IMPROVEMENT: Reduce data-dump disk usage by approximately 50 - 60% in tested workloads with compact Parquet encodings, and release freed Arrow buffers more promptly. Existing data dumps remain readable.
 - IMPROVEMENT: Improve [deployment sizing](https://docs.victoriametrics.com/anomaly-detection/components/server/#deployment-sizing) accuracy to reflect the latest [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope), data-preparation and storage optimizations.
-- DEPRECATION: Deprecate [`holtwinters`](https://docs.victoriametrics.com/anomaly-detection/components/models/#holt-winters), [`isolation_forest_univariate`](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate) and [`isolation_forest_multivariate`](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate), with removal planned for v1.34.0. Existing configurations still run with warnings; migrate to [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope).
-- BUGFIX: Improve [Temporal Envelope (v2)](https://docs.victoriametrics.com/anomaly-detection/components/models/#experimental-temporal-envelope-implementations) cold-start weekly profiles and holiday-response learning. Previously, sparse weekly history could produce forecast overshoot, and ordinary recurring patterns could be learned as holiday effects. Previously saved warm-up states benefit on subsequent inference; fully trained models retain their predictions.
+- DEPRECATION: Deprecate [`holtwinters`](https://docs.victoriametrics.com/anomaly-detection/components/models/#holt-winters), [`isolation_forest_univariate`](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate) and [`isolation_forest_multivariate`](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate), with removal planned for v1.34.0. Existing configurations still run with warnings. Migrate to [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope).
+- BUGFIX: Improve [Temporal Envelope (v2)](https://docs.victoriametrics.com/anomaly-detection/components/models/#experimental-temporal-envelope-implementations) cold-start weekly profiles and holiday-response learning. Previously, sparse weekly history could produce forecast overshoot, and ordinary recurring patterns could be learned as holiday effects. Previously saved warm-up states benefit on subsequent inference. Fully trained models retain their predictions.
 - BUGFIX: Exclude unusable series from unsupervised [replay tuning](https://docs.victoriametrics.com/anomaly-detection/components/server/#time-series-analysis-and-autotune-api) and report the exclusions, allowing tuning to continue when some sampled series lack training or evaluation observations instead of failing the whole run.
 - BUGFIX: Keep [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/) range chunks within the VictoriaMetrics server’s per-series point limit and record HTTP status for rejected requests. Previously, full chunks exceeded the limit by one point, and HTTP rejections were reported as `io_error`.
-- BUGFIX: Fix [Isolation Forest](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate) fitting failures when `contamination` is supplied in `args`. It applies when model-level `contamination` remains `auto`; an explicit model-level value takes precedence and logs a warning.
+- BUGFIX: Fix [Isolation Forest](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate) fitting failures when `contamination` is supplied in `args`. It applies when model-level `contamination` remains `auto`. An explicit model-level value takes precedence and logs a warning.
 
 ## v1.32.0
 Released: 2026-11-04
@@ -48,8 +63,8 @@ Released: 2026-11-04
 - IMPROVEMENT: Compress Temporal Envelope snapshots losslessly while retaining support for older snapshots. See [migration guidance](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix) before switching model versions or rolling back.
 - FEATURE: Added a lightweight `--healthcheck` command and default [container health checks](https://docs.victoriametrics.com/anomaly-detection/quickstart/#container-health-checks), including HTTPS configurations.
 - BUGFIX: Improved [autotune](https://docs.victoriametrics.com/anomaly-detection/components/server/#time-series-analysis-and-autotune-api) quality evaluation and historical replay, keeping training and validation data separate and preserving fixed model settings and query policies. Insufficient history now produces clearer errors, and disabling gap interpolation preserves missing observations.
-- BUGFIX: Excluded review labels and prior anomaly scores from model inputs. Refit persisted multivariate `auto` models that learned these metadata columns; see [migration guidance](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix).
-- BUGFIX: Corrected online-model state resets on refit and prevented Temporal Envelope forecast spikes caused by nearly duplicate timestamps; refit models with previously affected trends.
+- BUGFIX: Excluded review labels and prior anomaly scores from model inputs. Refit persisted multivariate `auto` models that learned these metadata columns. See [migration guidance](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix).
+- BUGFIX: Corrected online-model state resets on refit and prevented Temporal Envelope forecast spikes caused by nearly duplicate timestamps. Refit models with previously affected trends.
 - BUGFIX: Restored the [preset asset pages](https://docs.victoriametrics.com/anomaly-detection/presets/) served at `http://<host>:<port>/presets/` and improved their file previews.
 - SECURITY: Update certificate trust bundles following the [emSign CA security incident](https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576).
 
@@ -61,9 +76,9 @@ Released: 2026-10-15
 ## v1.31.0
 Released: 2026-10-09
 
-- UI: Updated from v1.9.2 to [v1.10.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v1100). Added a [Tune workflow](https://docs.victoriametrics.com/anomaly-detection/ui/#tune-a-model) for supervised tuning with marked anomalies or unsupervised tuning with an expected anomaly rate. Review suggested parameters and apply them directly; this is the preferred UI workflow over the `auto` model option, which is planned for removal from the selector. Also added peer-group investigation with searchable groups, affected-peer activity and theme-aware charts. See the full UI changelog for details.
-- FEATURE: Added [peer-group outlier detection](https://docs.victoriametrics.com/anomaly-detection/components/models/#peer-outlier). The online `peer_outlier` model learns an asymmetric accepted range for comparable entities, supports changing membership and missing peers, and scores each peer separately. It supports [AutoTuned models and shared tuning](https://docs.victoriametrics.com/anomaly-detection/components/models/#autotuned), including supervised per-peer labels, while keeping query populations isolated. It is also supported in [deployment sizing](https://docs.victoriametrics.com/anomaly-detection/components/server/#deployment-sizing) for fixed, equal-size peer groups; these estimates are experimental, so allow extra headroom and validate with your workload.
-- FEATURE: Added [deployment sizing](https://docs.victoriametrics.com/anomaly-detection/components/server/#deployment-sizing) APIs for CPU, peak RAM, disk and output estimates, plus inference-only capacity estimates for a resource budget. Results include assumptions and extrapolation warnings; validate estimates with representative workloads.
+- UI: Updated from v1.9.2 to [v1.10.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v1100). Added a [Tune workflow](https://docs.victoriametrics.com/anomaly-detection/ui/#tune-a-model) for supervised tuning with marked anomalies or unsupervised tuning with an expected anomaly rate. Review suggested parameters and apply them directly. This is the preferred UI workflow over the `auto` model option, which is planned for removal from the selector. Also added peer-group investigation with searchable groups, affected-peer activity and theme-aware charts. See the full UI changelog for details.
+- FEATURE: Added [peer-group outlier detection](https://docs.victoriametrics.com/anomaly-detection/components/models/#peer-outlier). The online `peer_outlier` model learns an asymmetric accepted range for comparable entities, supports changing membership and missing peers, and scores each peer separately. It supports [AutoTuned models and shared tuning](https://docs.victoriametrics.com/anomaly-detection/components/models/#autotuned), including supervised per-peer labels, while keeping query populations isolated. It is also supported in [deployment sizing](https://docs.victoriametrics.com/anomaly-detection/components/server/#deployment-sizing) for fixed, equal-size peer groups. These estimates are experimental, so allow extra headroom and validate with your workload.
+- FEATURE: Added [deployment sizing](https://docs.victoriametrics.com/anomaly-detection/components/server/#deployment-sizing) APIs for CPU, peak RAM, disk and output estimates, plus inference-only capacity estimates for a resource budget. Results include assumptions and extrapolation warnings. Validate estimates with representative workloads.
 - IMPROVEMENT: Increased inference throughput by up to 25% in tested workloads, depending on the models and workload configuration.
 - IMPROVEMENT: Updated the [anomaly-score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#grafana-dashboard) with sample-weighted statistics, consistent filters and univariate/multivariate forecast-disagreement trends.
 - BUGFIX: Prevented duplicate-label inference failures in [`std`](https://docs.victoriametrics.com/anomaly-detection/components/models/#seasonal-trend-decomposition) when buffered history overlaps new observations, including after restoring state. Preserved alignment for repeated, reordered and gapped inference timestamps.
@@ -108,7 +123,7 @@ Released: 2026-09-10
 
 - IMPROVEMENT: Reduced duplicate [AI Copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) context, added configurable context/output budgets, and exposed bounded [AI Copilot metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#ai-copilot-metrics) for request size, reported tokens, finish reasons and local budget refusals.
 
-- BUGFIX: Applied query-level data ranges, detection directions and minimum deviations consistently in [multiprocessing mode](https://docs.victoriametrics.com/anomaly-detection/components/settings/#parallelization). Explicit query policies take precedence over model fallbacks; observations outside the configured range retain their out-of-range anomaly score.
+- BUGFIX: Applied query-level data ranges, detection directions and minimum deviations consistently in [multiprocessing mode](https://docs.victoriametrics.com/anomaly-detection/components/settings/#parallelization). Explicit query policies take precedence over model fallbacks. Observations outside the configured range retain their out-of-range anomaly score.
 
 ## v1.30.4
 Released: 2026-08-28
@@ -134,7 +149,7 @@ Released: 2026-08-27
 
 - BUGFIX: Prevented model output normalization from mutating shared [`provide_series`](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output) configuration and default lists during model construction.
 
-- **BREAKING**: Custom many-to-one model classes must declare `topology = ModelTopology.MANY_TO_ONE`; the legacy `is_multivariate = True` flag no longer selects service orchestration. Built-in multivariate model state from compatible releases remains restorable.
+- **BREAKING**: Custom many-to-one model classes must declare `topology = ModelTopology.MANY_TO_ONE`. The legacy `is_multivariate = True` flag no longer selects service orchestration. Built-in multivariate model state from compatible releases remains restorable.
 
 ## v1.30.2
 Released: 2026-08-13
@@ -143,15 +158,15 @@ Released: 2026-08-13
 
 - FEATURE: Added **query**-level [`data_range`, `detection_direction`, `min_dev_from_expected`, and `min_rel_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters). Model-level placement is deprecated but remains a compatible fallback.
 
-- IMPROVEMENT: Added [`reader.workers`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) to cap concurrent datasource requests and disk-streamed query chunks; `0` selects an automatic bound.
+- IMPROVEMENT: Added [`reader.workers`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) to cap concurrent datasource requests and disk-streamed query chunks. `0` selects an automatic bound.
 
-- IMPROVEMENT: Added [`settings.native_threads_per_worker`](https://docs.victoriametrics.com/anomaly-detection/components/settings/#parallelization) to reduce [native-thread oversubscription](https://scikit-learn.org/stable/computing/parallelism.html#oversubscription-spawning-too-many-threads), throttling risk, fit latency, and memory. For example, with 16 CPUs/workers, [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) fit time fell 70.6% for 1,000 univariate models and 11.5% for 100 x 10-channel grouped models; inference was unchanged.
+- IMPROVEMENT: Added [`settings.native_threads_per_worker`](https://docs.victoriametrics.com/anomaly-detection/components/settings/#parallelization) to reduce [native-thread oversubscription](https://scikit-learn.org/stable/computing/parallelism.html#oversubscription-spawning-too-many-threads), throttling risk, fit latency, and memory. For example, with 16 CPUs/workers, [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) fit time fell 70.6% for 1,000 univariate models and 11.5% for 100 x 10-channel grouped models. Inference was unchanged.
 
 - IMPROVEMENT: Removed temporary fit-data generations after all dependent models finish and commit, while safely retaining failed or overlapping generations.
 
 - IMPROVEMENT: Reduced disk-backed grouped multivariate memory and fit latency without model or state migration. For example, 100 x 100-channel four-week fits cut peak PSS/fit time by 63%/56% for [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope).
 
-- BUGFIX: Made [multivariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) independent of input channel order when the fitted channel set matches; missing, extra, or duplicate channels remain rejected.
+- BUGFIX: Made [multivariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) independent of input channel order when the fitted channel set matches. Missing, extra, or duplicate channels remain rejected.
 
 ## v1.30.1
 Released: 2026-08-06
@@ -273,7 +288,7 @@ Released: 2026-03-05
 
 - IMPROVEMENT: Optimized internal data structures for readers when `query_from_last_seen_timestamp` [parameter](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) is enabled, resulting in reduced memory usage and improved performance for large datasets.
 
-- IMPROVEMENT: Hardened [hot reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) with staged snapshot apply and automatic rollback. Reload now validates once and applies the same snapshot, preventing re-read race conditions and avoiding same-port conflicts during restart; failures keep previous runtime and are reflected in [startup metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#startup-metrics).
+- IMPROVEMENT: Hardened [hot reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) with staged snapshot apply and automatic rollback. Reload now validates once and applies the same snapshot, preventing re-read race conditions and avoiding same-port conflicts during restart. Failures keep previous runtime and are reflected in [startup metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#startup-metrics).
 
 - BUGFIX: Config file read/parse failures are now non-fatal in [hot reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) mode (service keeps running), while initial startup remains fatal for invalid/broken config files.
 
@@ -308,6 +323,10 @@ Released: 2026-01-12
 - BUGFIX: Restored expected behavior when `fit_every` equals `infer_every` in [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) - now full data range `fit_window` is fetched for model trainings instead of a  last point from that interval.
 
 {{% /collapse %}}
+
+</div>
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="2025" %}}
 
@@ -517,13 +536,13 @@ Released: 2025-04-11
 
 **(Experimental Patch Release)**
 
-> Important Notice - this patch disables parallelization to resolve rate but critical deadlock issue that completely halted the fit/infer pipeline (resulting in no anomaly scores, no model refits, and no log output) on multicore systems. Although this change improves resource usage by reducing peak-to-average RAM consumption, it incurs a 2–4x slowdown in fit/infer routines. We recommend upgrading only if your current deployments are experiencing deadlock-related outages. Please upgrade to [v1.23.0](#v1230) or newer for restored parallelization.
+> Important Notice - this patch disables parallelization to resolve rate but critical deadlock issue that completely halted the fit/infer pipeline (resulting in no anomaly scores, no model refits, and no log output) on multicore systems. Although this change improves resource usage by reducing peak-to-average RAM consumption, it incurs a 2 - 4x slowdown in fit/infer routines. We recommend upgrading only if your current deployments are experiencing deadlock-related outages. Please upgrade to [v1.23.0](#v1230) or newer for restored parallelization.
 
 - BUGFIX: Resolved an intermittent deadlock in the fit/infer process that previously caused the service to freeze indefinitely, thereby preventing anomaly score production and model refits on multicore systems.
 
 - BUGFIX: Fixed incorrect propagation of the `scale` model [common argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#scale) from the old format (single float) to the new format (list of 2 floats).
 
-- IMPROVEMENT: Reduced the peak-to-average RAM usage for fit/infer calls from 2–2.5x to 1.1–1.3x, significantly lowering the risk of out-of-memory errors at startup.
+- IMPROVEMENT: Reduced the peak-to-average RAM usage for fit/infer calls from 2 - 2.5x to 1.1 - 1.3x, significantly lowering the risk of out-of-memory errors at startup.
 
 ## v1.21.0
 Released: 2025-03-19
@@ -583,6 +602,10 @@ Released: 2025-01-20
 - BUGFIX: Corrected the construction of write endpoints for cluster VictoriaMetrics `url`s (`tenant_id` arg is set) in `monitoring.push` [section configurations](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters).
 
 {{% /collapse %}}
+
+</div>
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="2024" %}}
 
@@ -902,6 +925,10 @@ Released: 2024-01-15
 
 {{% /collapse %}}
 
+</div>
+
+<div class="collapse-group mb-3">
+
 {{% collapse name="2023" %}}
 
 
@@ -1000,6 +1027,10 @@ Released: 2023-01-06
 
 {{% /collapse %}}
 
+</div>
+
+<div class="collapse-group mb-3">
+
 {{% collapse name="2022" %}}
 
 ## v1.0.0-beta
@@ -1007,3 +1038,5 @@ Released: 2022-12-08
 - First public release is available
 
 {{% /collapse %}}
+
+</div>

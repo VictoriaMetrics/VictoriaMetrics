@@ -302,7 +302,7 @@ scrape_configs:
 
 ### vmanomaly licensing
 
-The Compose example passes `-eula`; no license-file mount is needed. See [licensing](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing) for permitted use and compatibility with existing license settings.
+The Compose example passes `-eula`. No license-file mount is needed. See [licensing](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing) for permitted use and compatibility with existing license settings.
 
 For additional licensing options, please refer to the [VictoriaMetrics Anomaly Detection documentation on licensing](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing).
 
@@ -400,7 +400,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.33.0
+    image: victoriametrics/vmanomaly:v1.33.1
     depends_on:
       - "victoriametrics"
     ports:
@@ -526,4 +526,4 @@ Key takeaways include:
 
 As you continue to use VictoriaMetrics Anomaly Detection and `vmalert`, remember that the effectiveness of anomaly detection largely depends on the appropriateness of the model chosen, the accuracy of configurations and the data patterns observed. This guide serves as a starting point, and we encourage you to experiment with different configurations and models to best suit your specific data needs and use cases. In case you need a helping hand - [contact us](https://victoriametrics.com/contact-us/).
 
-> `node-exporter` observability preset{{% available_from "v1.13.0" anomaly %}} is available for `vmanomaly`. Please find the guide [here](https://docs.victoriametrics.com/anomaly-detection/presets/#node-exporter).
+> `node-exporter` observability preset{{< available_from "v1.13.0" anomaly >}} is available for `vmanomaly`. Please find the guide [here](https://docs.victoriametrics.com/anomaly-detection/presets/#node-exporter).

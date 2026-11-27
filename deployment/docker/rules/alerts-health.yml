@@ -156,8 +156,9 @@ groups:
           severity: warning
         annotations:
           summary: "Some rows are rejected on \"{{ $labels.instance }}\" on ingestion attempt"
-          description: "Ingested rows on instance \"{{ $labels.instance }}\" are rejected due to the
-            following reason: \"{{ $labels.reason }}\""
+          description: |
+            Ingested rows on instance "{{ $labels.instance }}" are rejected due to the
+            following reason: "{{ $labels.reason }}"
 
       - alert: TooManySnapshots
         expr: vm_snapshots > 2
