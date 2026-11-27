@@ -2,6 +2,7 @@ package vmstorage
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -317,13 +318,15 @@ func (vms *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 		w.Header().Set("Content-Type", "application/json")
 		snapshotName, err := vms.s.CreateSnapshot(r.Context())
 
-		// Verify whether the connection is closed by client or shutdown process.
-		// In this case it is better to drop the created snapshot.
 		if err != nil || r.Context().Err() != nil {
 			if snapshotName == "" {
 				return true
 			}
-			logger.Infof("deleting snapshot %q because the request was canceled", snapshotName)
+			if errors.Is(context.Cause(r.Context()), httpserver.ErrServerShutdown) {
+				logger.Warnf("skipping cleanup of snapshot %q during HTTP server shutdown", snapshotName)
+				return true
+			}
+			logger.Infof("deleting snapshot %q because the request was canceled by client", snapshotName)
 			if err := vms.deleteSnapshot(snapshotName); err != nil {
 				logger.Infof("cannot delete snapshot %q: %s", snapshotName, err)
 			}
