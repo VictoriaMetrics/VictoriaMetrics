@@ -2030,7 +2030,7 @@ func (db *indexDB) searchTSIDs(ctx context.Context, qt *querytracer.Tracer, tfss
 	var wg sync.WaitGroup
 	tsidsByDate := make([][]TSID, numDays)
 	errsByDate := make([]error, numDays)
-	qt = qt.NewChild("parallel search TSIDs in per-day on %d days: filters=%s, timeRange=%s, maxMetrics=%d", numDays, tfss, &tr, maxMetrics)
+	qt = qt.NewChild("parallel search TSIDs in per-day index on %d days: filters=%s, timeRange=%s, maxMetrics=%d", numDays, tfss, &tr, maxMetrics)
 	defer qt.Done()
 	for day := range numDays {
 		if !beginConcurrentPerDaySearch(ctx) {
