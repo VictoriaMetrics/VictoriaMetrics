@@ -1301,7 +1301,9 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertDeletedMetricIDsCacheSize(month2, 0)
 
 	// Delete metric2. TSID cache not must be cleared. Tag filters for month2
-	// must be cleared and deletedMetricIDsCache size for month2 must be 1.
+	// must be cleared but created again for month1 (because searching for
+	// metricIDs happens across all indexDBs and causes re-population of tfss
+	// cache). deletedMetricIDsCache size for month2 must be 1.
 	deleteSeries(tfssMetric2, 1)
 
 	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
@@ -1309,7 +1311,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
 	assertTagFiltersCached(tfssMetric1, month1, false)
 	assertTagFiltersCached(tfssMetric1, month2, false)
-	assertTagFiltersCached(tfssMetric2, month1, false)
+	assertTagFiltersCached(tfssMetric2, month1, true)
 	assertTagFiltersCached(tfssMetric2, month2, false)
 	assertTagFiltersCached(tfssMetric3, month1, false)
 	assertTagFiltersCached(tfssMetric3, month2, false)
@@ -1320,7 +1322,8 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertDeletedMetricIDsCacheSize(month1, 1)
 	assertDeletedMetricIDsCacheSize(month2, 1)
 
-	// Delete metric3. TSID cache not must be cleared.
+	// Delete metric3. TSID cache not must be cleared. Tag filters cache for
+	// month1 and 2 must be cleared, because metric3 existed in both months.
 	// deletedMetricIDsCache size for month1 and 2 must be 2.
 	deleteSeries(tfssMetric3, 1)
 
@@ -2729,8 +2732,9 @@ func TestStorageSearchLabelValues_EmptyValuesAreNotReturned(t *testing.T) {
 func TestStorageGetSeriesCount(t *testing.T) {
 	defer testRemoveAll(t)
 
-	// Inserts the numMetrics of the same metrics for each time range from trs
-	// and then gets the series count and compares it with wanted value.
+	// Inserts the numMetrics of the same metrics for each day of time range
+	// from trs and then gets the series count and compares it with wanted
+	// value.
 	f := func(numMetrics int, trs []TimeRange, want uint64) {
 		t.Helper()
 
@@ -2747,10 +2751,12 @@ func TestStorageGetSeriesCount(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
 		for _, tr := range trs {
-			for j := range mrs {
-				mrs[j].Timestamp = tr.MinTimestamp + rand.Int63n(tr.MaxTimestamp-tr.MinTimestamp)
+			for timestamp := tr.MinTimestamp; timestamp <= tr.MaxTimestamp; timestamp += msecPerDay {
+				for j := range mrs {
+					mrs[j].Timestamp = timestamp + rand.Int63n(msecPerDay-1)
+				}
+				s.AddRows(mrs, defaultPrecisionBits)
 			}
-			s.AddRows(mrs, defaultPrecisionBits)
 		}
 		s.DebugFlush()
 
@@ -2763,28 +2769,31 @@ func TestStorageGetSeriesCount(t *testing.T) {
 		}
 	}
 
-	const numMetrics = 100
+	const (
+		numDays    = 20
+		numMetrics = 100
+	)
 	month := func(m int) TimeRange {
 		return TimeRange{
 			MinTimestamp: time.Date(2024, time.Month(m), 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2024, time.Month(m), 20, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2024, time.Month(m), numDays, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		}
 	}
 	var want uint64
 
 	oneMonth := []TimeRange{month(1)}
 	// no index inflation since the metrics are inserted only to one indexDB
-	want = numMetrics
+	want = numMetrics * numDays
 	f(numMetrics, oneMonth, want)
 
 	twoMonths := []TimeRange{month(1), month(2)}
 	// index inflation since the same metrics are inserted into two partitions.
-	want = numMetrics * 2
+	want = numMetrics * numDays * 2
 	f(numMetrics, twoMonths, want)
 
 	fourMonths := []TimeRange{month(1), month(2), month(3), month(4)}
 	// index inflation since the same metrics are inserted into four partitions.
-	want = numMetrics * 4
+	want = numMetrics * numDays * 4
 	f(numMetrics, fourMonths, want)
 }
 
@@ -2919,8 +2928,9 @@ type testStorageSearchWithoutIndexOptions struct {
 func testStorageSearchWithoutIndex(t *testing.T, opts *testStorageSearchWithoutIndexOptions) {
 	defer testRemoveAll(t)
 
-	// The data is inserted and the search is performed when per-day index is enabled.
-	t.Run("Add-Global-PerDay/Search-Global-PerDay", func(t *testing.T) {
+	// The data is inserted and the search is performed when per-day index is
+	// enabled.
+	t.Run("Add-PerDay/Search-PerDay", func(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{
 			DisablePerDayIndex: false,
 		})
@@ -2932,8 +2942,9 @@ func testStorageSearchWithoutIndex(t *testing.T, opts *testStorageSearchWithoutI
 		s.MustClose()
 	})
 
-	// The data is inserted and the search is performed when per-day index is disabled.
-	t.Run("Add-Global-noPerDay/Search-Global-noPerDay", func(t *testing.T) {
+	// The data is inserted and the search is performed when per-day index is
+	// disabled.
+	t.Run("Add-Global/Search-Global", func(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{
 			DisablePerDayIndex: true,
 		})
@@ -2950,7 +2961,7 @@ func testStorageSearchWithoutIndex(t *testing.T, opts *testStorageSearchWithoutI
 
 	// The data is inserted when per-day index are enabled.
 	// The search is performed when per-day index is disabled.
-	t.Run("Add-Global-PerDay/Search-Global-noPerDay", func(t *testing.T) {
+	t.Run("Add-PerDay/Search-Global", func(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{
 			DisablePerDayIndex: false,
 		})
@@ -2961,20 +2972,15 @@ func testStorageSearchWithoutIndex(t *testing.T, opts *testStorageSearchWithoutI
 		s = MustOpenStorage(t.Name(), OpenOptions{
 			DisablePerDayIndex: true,
 		})
-		for tr, want := range opts.wantPerTimeRange {
-			if !opts.alwaysPerTimeRange {
-				want = opts.wantAll
-			}
-			opts.assertSearchResult(t, s, tr, want)
+		for tr := range opts.wantPerTimeRange {
+			opts.assertSearchResult(t, s, tr, opts.wantEmpty)
 		}
 		s.MustClose()
 	})
 
 	// The data is inserted when per-day index is disabled.
 	// The search is performed when per-day index is enabled.
-	// This case also shows that registering metric names recovers the per-day
-	// index.
-	t.Run("Add-Global-noPerDay/Search-Global-PerDay", func(t *testing.T) {
+	t.Run("Add-Global/Search-PerDay", func(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{
 			DisablePerDayIndex: true,
 		})
@@ -2985,17 +2991,8 @@ func testStorageSearchWithoutIndex(t *testing.T, opts *testStorageSearchWithoutI
 		s = MustOpenStorage(t.Name(), OpenOptions{
 			DisablePerDayIndex: false,
 		})
-
 		for tr := range opts.wantPerTimeRange {
 			opts.assertSearchResult(t, s, tr, opts.wantEmpty)
-		}
-
-		// Verify that search result contains correct label values after populating
-		// per-day index by registering metric names.
-		s.RegisterMetricNames(nil, opts.mrs)
-		s.DebugFlush()
-		for tr, want := range opts.wantPerTimeRange {
-			opts.assertSearchResult(t, s, tr, want)
 		}
 		s.MustClose()
 	})
@@ -3559,8 +3556,8 @@ func testStorageAddRowsWithZeroDate(t *testing.T, disablePerDayIndex bool) {
 // The function is not a part of Storage because it is currently used in unit
 // tests only.
 func testSearchMetricIDs(ctx context.Context, s *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int) []uint64 {
-	search := func(_ *querytracer.Tracer, idb *indexDB, tr TimeRange) (*uint64set.Set, error) {
-		return idb.searchMetricIDs(ctx, tfss, tr, maxMetrics)
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (*uint64set.Set, error) {
+		return idb.searchMetricIDs(ctx, qt, tfss, tr, maxMetrics)
 	}
 	merge := func(data []*uint64set.Set) *uint64set.Set {
 		all := &uint64set.Set{}
@@ -4469,4 +4466,100 @@ func TestStorageAddFlushSearchMetricNamesConcurrently(t *testing.T) {
 			t.Errorf("%s", err)
 		}
 	}
+}
+
+func TestStorageSwitchingBetweenGlobalAndPerDayIndexes(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const numSeries = 100
+	nowMilli := time.Now().UnixMilli()
+	tr := TimeRange{
+		MinTimestamp: nowMilli - 3600*1000,
+		MaxTimestamp: nowMilli,
+	}
+
+	genMetricRows := func(prefix string) ([]MetricRow, []string) {
+		mrs := make([]MetricRow, numSeries)
+		mns := make([]string, numSeries)
+		for i := range numSeries {
+			name := fmt.Sprintf("%s_%04d", prefix, i)
+			labelName := fmt.Sprintf("label_%04d", i)
+			labelValue := fmt.Sprintf("value_%04d", i)
+			mn := MetricName{
+				MetricGroup: []byte(name),
+				Tags: []Tag{
+					{Key: []byte(labelName), Value: []byte("value")},
+					{Key: []byte("label"), Value: []byte(labelValue)},
+				},
+			}
+
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Timestamp = tr.MinTimestamp + rand.Int63n(tr.MaxTimestamp-tr.MinTimestamp)
+			mrs[i].Value = float64(i)
+
+			mns[i] = string(mn.Marshal(nil))
+		}
+		return mrs, mns
+	}
+
+	assertAllMetricNames := func(s *Storage, want []string) {
+		t.Helper()
+		tfs := NewTagFilters()
+		if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+			t.Fatalf("TagFilters.Add() failed unexpectedly: %s", err)
+		}
+		got, err := s.SearchMetricNames(noDeadlineContext, nil, []*TagFilters{tfs}, tr, 1e9)
+		if err != nil {
+			t.Fatalf("SearchMetricNames() failed unexpectedly: %s", err)
+		}
+
+		slices.Sort(want)
+		slices.Sort(got)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
+		}
+	}
+
+	var s *Storage
+
+	// Start empty storage with per-day index enabled.
+	s = MustOpenStorage(t.Name(), OpenOptions{
+		DisablePerDayIndex: false,
+	})
+	mrs1, mns1 := genMetricRows("m1")
+	s.AddRows(mrs1, 64)
+	s.DebugFlush()
+	assertAllMetricNames(s, mns1)
+
+	// Restart storage with per-day index disabled.
+	s.MustClose()
+	s = MustOpenStorage(t.Name(), OpenOptions{
+		DisablePerDayIndex: true,
+	})
+	mrs2, mns2 := genMetricRows("m2")
+	s.AddRows(mrs2, 64)
+	s.DebugFlush()
+	assertAllMetricNames(s, mns2)
+
+	// Restart storage with per-day index enabled.
+	s.MustClose()
+	s = MustOpenStorage(t.Name(), OpenOptions{
+		DisablePerDayIndex: false,
+	})
+	mrs3, mns3 := genMetricRows("m3")
+	s.AddRows(mrs3, 64)
+	s.DebugFlush()
+	assertAllMetricNames(s, slices.Concat(mns1, mns3))
+
+	// Restart storage with per-day index disabled.
+	s.MustClose()
+	s = MustOpenStorage(t.Name(), OpenOptions{
+		DisablePerDayIndex: true,
+	})
+	mrs4, mns4 := genMetricRows("m4")
+	s.AddRows(mrs4, 64)
+	s.DebugFlush()
+	assertAllMetricNames(s, slices.Concat(mns2, mns4))
+
+	s.MustClose()
 }
