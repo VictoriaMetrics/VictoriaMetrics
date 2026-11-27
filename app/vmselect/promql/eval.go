@@ -21,7 +21,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -1847,21 +1846,10 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	// Verify timeseries fit available memory during rollup calculations.
 	timeseriesLen := rssLen
 	if iafc != nil {
-		// Incremental aggregates require holding only GOMAXPROCS timeseries in memory.
-		timeseriesLen = cgroup.AvailableCPUs()
-		if iafc.ae.Modifier.Op != "" {
-			if iafc.ae.Limit > 0 {
-				// There is an explicit limit on the number of output time series.
-				timeseriesLen *= iafc.ae.Limit
-			} else {
-				// Increase the number of timeseries for non-empty group list: `aggr() by (something)`,
-				// since each group can have own set of time series in memory.
-				timeseriesLen *= 1000
-			}
-		}
-		// The maximum number of output time series is limited by rssLen.
-		if timeseriesLen > rssLen {
-			timeseriesLen = rssLen
+		timeseriesLen, err = iafc.maxSeriesInMemory(rss)
+		if err != nil {
+			rss.Cancel()
+			return nil, err
 		}
 	}
 	rollupPoints := mulNoOverflow(pointsPerSeries, int64(timeseriesLen*len(rcs)))

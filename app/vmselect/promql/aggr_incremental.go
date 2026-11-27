@@ -1,14 +1,17 @@
 package promql
 
 import (
+	"fmt"
 	"math"
 	"strings"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/metricsql"
+	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 // callbacks for optimized incremental calculations for aggregate functions
@@ -109,9 +112,8 @@ func (iafc *incrementalAggrFuncContext) updateTimeseries(tsOrig *timeseries, wor
 		dst.CopyFromMetricNames(tsOrig)
 		ts = &dst
 	}
-	removeGroupTags(&ts.MetricName, &iafc.ae.Modifier)
 	bb := bbPool.Get()
-	bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
+	bb.B = iafc.marshalGroupKey(bb.B[:0], &ts.MetricName)
 	k := bb.B
 	iac := m[string(k)]
 	if iac == nil {
@@ -136,6 +138,34 @@ func (iafc *incrementalAggrFuncContext) updateTimeseries(tsOrig *timeseries, wor
 	}
 	bbPool.Put(bb)
 	iafc.callbacks.updateAggrFunc(iac, ts.Values)
+}
+
+func (iafc *incrementalAggrFuncContext) marshalGroupKey(dst []byte, mn *storage.MetricName) []byte {
+	removeGroupTags(mn, &iafc.ae.Modifier)
+	return marshalMetricNameSorted(dst, mn)
+}
+
+func (iafc *incrementalAggrFuncContext) maxSeriesInMemory(rss *netstorage.Results) (int, error) {
+	seriesLen := rss.Len()
+	workers := len(iafc.byWorkerID)
+	if iafc.ae.Modifier.Op == "" {
+		return min(seriesLen, workers), nil
+	}
+	maxGroups := (seriesLen + workers - 1) / workers
+	if limit := iafc.ae.Limit; limit > 0 {
+		maxGroups = min(maxGroups, limit)
+	}
+	groups := make(map[uint64]struct{})
+	var mn storage.MetricName
+	var buf []byte
+	for i := 0; i < seriesLen && len(groups) < maxGroups; i++ {
+		if err := mn.UnmarshalString(rss.MetricName(i)); err != nil {
+			return 0, fmt.Errorf("cannot unmarshal metric name: %w", err)
+		}
+		buf = iafc.marshalGroupKey(buf[:0], &mn)
+		groups[xxhash.Sum64(buf)] = struct{}{}
+	}
+	return min(seriesLen, workers*len(groups)), nil
 }
 
 func (iafc *incrementalAggrFuncContext) finalizeTimeseries() []*timeseries {
