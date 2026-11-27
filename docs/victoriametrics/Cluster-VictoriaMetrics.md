@@ -575,19 +575,19 @@ up{vm_account_id!="42"} # selects all the time series except those belonging to 
 up{vm_account_id=~"4.*"} # selects all the time series belonging to accountIDs starting with 4
 ```
 
-Alternatively, it is possible to use [`extra_filters[]` and `extra_label`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements)
+Alternatively, it is possible to use [`extra_filters` and `extra_label`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements)
 query args to apply additional filters for the query:
 
 ```bash
 curl 'http://vmselect:8481/select/multitenant/prometheus/api/v1/query' \
   -d 'query=up' \
-  -d 'extra_filters[]={vm_account_id="7",vm_project_id="9"}' \
-  -d 'extra_filters[]={vm_account_id="42"}'
+  -d 'extra_filters={vm_account_id="7",vm_project_id="9"}' \
+  -d 'extra_filters={vm_account_id="42"}'
 ```
 
 The precedence for applying filters for tenants follows this order:
 
-1. Filter tenants by `extra_label`, `extra_filters` and `extra_filters[]` filters.
+1. Filter tenants by `extra_label`, and `extra_filters` filters.
    These filters have the highest priority and are applied first when provided through the query arguments.
    Filters use `OR` logic - a tenant is selected if it matches any of the filters.
 2. Filter tenants from labels selectors defined at metricsQL query expression.
@@ -879,7 +879,7 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   See also `-search.maxMemoryPerQuery` command-line flag at `vmselect`.
 - `-search.maxQueueDuration` at `vmselect` and `vmstorage` limits the maximum duration queries may wait for execution when `-search.maxConcurrentRequests`
   concurrent queries are executed.
-- `-search.ignoreExtraFiltersAtLabelsAPI` at `vmselect` enables ignoring of `match[]`, [`extra_filters[]` and `extra_label`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements)
+- `-search.ignoreExtraFiltersAtLabelsAPI` at `vmselect` enables ignoring of `match[]`, [`extra_filters` and `extra_label`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements)
   query args at [/api/v1/labels](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels) and
   [/api/v1/label/.../values](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues).
   This may be useful for reducing the load on `vmstorage` if the provided extra filters match too many time series.
