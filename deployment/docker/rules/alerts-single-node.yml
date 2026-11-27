@@ -29,9 +29,10 @@ groups:
         annotations:
           dashboard: "{{ $externalURL }}/d/wNf0q_kZk?viewPanel=53&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} will run out of disk space soon"
-          description: "Taking into account current ingestion rate, free disk space will be enough only
-            for {{ $value | humanizeDuration }} on instance {{ $labels.instance }}.\n
-            Consider to limit the ingestion rate, decrease retention or scale the disk space if possible."
+          description: |
+            Taking into account current ingestion rate, free disk space will be enough only
+            for {{ $value | humanizeDuration }} on instance {{ $labels.instance }}.
+            Consider to limit the ingestion rate, decrease retention or scale the disk space if possible.
 
       - alert: NodeBecomesReadonlyIn3Days
         expr: |
@@ -53,9 +54,10 @@ groups:
         annotations:
           dashboard: "{{ $externalURL }}/d/oS7Bi_0Wz?viewPanel=53&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} will become read-only in 3 days"
-          description: "Taking into account current ingestion rate and free disk space
-              instance {{ $labels.instance }} is writable for {{ $value | humanizeDuration }}.\n
-              Consider to limit the ingestion rate, decrease retention or scale the disk space up if possible."
+          description: |
+            Taking into account current ingestion rate and free disk space
+            instance {{ $labels.instance }} is writable for {{ $value | humanizeDuration }}.
+            Consider to limit the ingestion rate, decrease retention or scale the disk space up if possible.
 
       - alert: DiskRunsOutOfSpace
         expr: |
@@ -70,9 +72,10 @@ groups:
         annotations:
           dashboard: "{{ $externalURL }}/d/wNf0q_kZk?viewPanel=53&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} (job={{ $labels.job }}) will run out of disk space soon"
-          description: "Disk utilisation on instance {{ $labels.instance }} is more than 80%.\n
+          description: |
+            Disk utilisation on instance {{ $labels.instance }} is more than 80%.
             Having less than 20% of free disk space could cripple merge processes and overall performance.
-            Consider to limit the ingestion rate, decrease retention or scale the disk space if possible."
+            Consider to limit the ingestion rate, decrease retention or scale the disk space if possible.
 
       - alert: RequestErrorsToAPI
         expr: increase(vm_http_request_errors_total[5m]) > 0
@@ -82,8 +85,9 @@ groups:
         annotations:
           dashboard: "{{ $externalURL }}/d/wNf0q_kZk?viewPanel=35&var-instance={{ $labels.instance }}"
           summary: "Too many errors served for path {{ $labels.path }} (instance {{ $labels.instance }})"
-          description: "Requests to path {{ $labels.path }} are receiving errors.
-            Please verify if clients are sending correct requests."
+          description: |
+            Requests to path {{ $labels.path }} are receiving errors.
+            Please verify if clients are sending correct requests.
 
       - alert: TooHighChurnRate
         expr: |
@@ -98,10 +102,11 @@ groups:
         annotations:
           dashboard: "{{ $externalURL }}/d/wNf0q_kZk?viewPanel=66&var-instance={{ $labels.instance }}"
           summary: "Churn rate is more than 10% on \"{{ $labels.instance }}\" for the last 15m"
-          description: "VM constantly creates new time series on \"{{ $labels.instance }}\".\n
-            This effect is known as Churn Rate.\n
+          description: |
+            VM constantly creates new time series on "{{ $labels.instance }}".
+            This effect is known as Churn Rate.
             High Churn Rate is tightly connected with database performance and may
-            result in unexpected OOM's or slow queries."
+            result in unexpected OOM's or slow queries.
 
       - alert: TooHighChurnRate24h
         expr: |
@@ -114,11 +119,12 @@ groups:
         annotations:
           dashboard: "{{ $externalURL }}/d/wNf0q_kZk?viewPanel=66&var-instance={{ $labels.instance }}"
           summary: "Too high number of new series on \"{{ $labels.instance }}\" created over last 24h"
-          description: "The number of created new time series over last 24h is 3x times higher than
-            current number of active series on \"{{ $labels.instance }}\".\n
-            This effect is known as Churn Rate.\n
+          description: |
+            The number of created new time series over last 24h is 3x times higher than
+            current number of active series on "{{ $labels.instance }}".
+            This effect is known as Churn Rate.
             High Churn Rate is tightly connected with database performance and may
-            result in unexpected OOM's or slow queries."
+            result in unexpected OOM's or slow queries.
 
       - alert: TooHighSlowInsertsRate
         expr: |
@@ -133,9 +139,10 @@ groups:
         annotations:
           dashboard: "{{ $externalURL }}/d/wNf0q_kZk?viewPanel=68&var-instance={{ $labels.instance }}"
           summary: "Percentage of slow inserts is more than 5% on \"{{ $labels.instance }}\" for the last 15m"
-          description: "High rate of slow inserts on \"{{ $labels.instance }}\" may be a sign of resource exhaustion
+          description: |
+            High rate of slow inserts on "{{ $labels.instance }}" may be a sign of resource exhaustion
             for the current load. It is likely more RAM is needed for optimal handling of the current number of active time series.
-            See also https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183"
+            See also https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183
 
       - alert: MetadataCacheUtilizationIsTooHigh
         expr: |
@@ -145,10 +152,11 @@ groups:
           severity: warning
         annotations:
           summary: "Metadata cache capacity on {{ $labels.instance }} (job={{ $labels.job }}) is utilized for more than 95% for the last 15min"
-          description: "Metadata cache stores meta information about ingested time series - see https://docs.victoriametrics.com/victoriametrics/#metrics-metadata.
-           When cache is overutilized, the oldest entries will be dropped out automatically. It may result into incomplete
-           response for /api/v1/metadata API calls. It doesn't impact regular queries or alerts. Cache size is controlled
-           via -storage.maxMetadataStorageSize cmd-line flag."
+          description: |
+            Metadata cache stores meta information about ingested time series - see https://docs.victoriametrics.com/victoriametrics/#metrics-metadata.
+            When cache is overutilized, the oldest entries will be dropped out automatically. It may result into incomplete
+            response for /api/v1/metadata API calls. It doesn't impact regular queries or alerts. Cache size is controlled
+            via -storage.maxMetadataStorageSize cmd-line flag.
 
       - alert: MetricNameStatsCacheUtilizationIsTooHigh
         expr: |
@@ -158,13 +166,14 @@ groups:
           severity: warning
         annotations:
           summary: "Cache capacity for tracking metric names usage on {{ $labels.instance }} (job={{ $labels.job }}) is utilized for more than 95% during the last 15min"
-          description: "Metric names usage cache stores information about unique metric names and how frequently they are queried - see https://docs.victoriametrics.com/victoriametrics/#track-ingested-metrics-usage.
-           When cache is overutilized, it will stop tracking the new metric names. It has no other negative impact.
-           Usually, the number of unique metric names is very limited (thousands). The cache can be overutilized only if metric names
-           are changing too frequently or if the cache size is too low. There are following ways to mitigate cache overutilization:
-           - disable cache via `--storage.trackMetricNamesStats=false` flag, so metric names usage will stop tracking
-           - increase the cache size via `--storage.cacheSizeMetricNamesStats` flag
-           - reset the cache (see docs for details)"
+          description: |
+            Metric names usage cache stores information about unique metric names and how frequently they are queried - see https://docs.victoriametrics.com/victoriametrics/#track-ingested-metrics-usage.
+            When cache is overutilized, it will stop tracking the new metric names. It has no other negative impact.
+            Usually, the number of unique metric names is very limited (thousands). The cache can be overutilized only if metric names
+            are changing too frequently or if the cache size is too low. There are following ways to mitigate cache overutilization:
+            - disable cache via `--storage.trackMetricNamesStats=false` flag, so metric names usage will stop tracking
+            - increase the cache size via `--storage.cacheSizeMetricNamesStats` flag
+            - reset the cache (see docs for details)
 
       - alert: IndexDBRecordsDrop
         expr: increase(vm_indexdb_items_dropped_total[5m]) > 0
