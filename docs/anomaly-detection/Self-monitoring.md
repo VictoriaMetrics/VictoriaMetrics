@@ -108,7 +108,7 @@ This global panel holds resource utilization (CPU, RAM, File Descriptors) on bot
 
 ### AI Copilot usage
 
-Revision 10 of [dashboard 22337](https://grafana.com/grafana/dashboards/22337) adds fleet availability and per-instance [AI Copilot metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#ai-copilot-metrics), including tokens, estimated cost and unpriced responses. Only job and instance filters apply. Missing telemetry remains **Unknown**; initialized status reflects startup, not live provider health. Estimated costs exclude unpriced responses and tool/server compute.
+Revision 10 of [dashboard 22337](https://grafana.com/grafana/dashboards/22337) adds fleet availability and per-instance [AI Copilot metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#ai-copilot-metrics), including tokens, estimated cost and unpriced responses. Only job and instance filters apply. Missing telemetry remains **Unknown**. Initialized status records the startup outcome. Check provider health separately. Estimated costs exclude unpriced responses and tool/server compute.
 
 ### Model Statistics
 

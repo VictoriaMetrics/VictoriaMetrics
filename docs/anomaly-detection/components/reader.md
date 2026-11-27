@@ -26,6 +26,12 @@ Use the following playgrounds to develop and test input queries:
 
 ## VM reader
 
+> [!NOTE]
+> {{< available_from "v1.33.1" anomaly >}} Requests include only points on the epoch-aligned query-step grid inside the requested window, after applying `offset`. The newest point can be up to one step older than the window end. `latency_offset` is a separate datasource query parameter. Empty aligned windows are skipped. Memory and on-disk reads use the same alignment.
+
+> [!WARNING]
+> When upgrading to v1.33.1, refit models trained on unaligned or mixed-phase timestamps. See [migration guidance](https://docs.victoriametrics.com/anomaly-detection/migration/#breaking-and-configuration-changes).
+
 <div class="collapse-group">
 
 {{% collapse name="Queries format migration (to v1.13.0+)" %}}
@@ -90,9 +96,9 @@ There is change {{% available_from "v1.13.0" anomaly %}} of [`queries`](https://
 
 - `detection_direction`{{% available_from "v1.30.2" anomaly %}} (`both`, `above_expected`, or `below_expected`): controls whether deviations on both sides, only above the expected value, or only below it can produce anomaly scores. The default is `both`. See [detection direction](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) for behavior details.
 
-- `min_dev_from_expected`{{% available_from "v1.30.2" anomaly %}} (float or one/two-element list[float]): ignores deviations smaller than the configured absolute threshold. A scalar or one-element list applies to both directions; a two-element list configures lower and upper deviations separately. See [minimal deviation from expected](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected).
+- `min_dev_from_expected`{{% available_from "v1.30.2" anomaly %}} (float or one/two-element list[float]): ignores deviations smaller than the configured absolute threshold. A scalar or one-element list applies to both directions. A two-element list configures lower and upper deviations separately. See [minimal deviation from expected](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected).
 
-- `min_rel_dev_from_expected`{{% available_from "v1.30.2" anomaly %}} (float or one/two-element list[float]): ignores deviations smaller than the configured percentage of the absolute expected value. A scalar or one-element list applies to both directions; a two-element list configures lower and upper percentages separately. See [minimal relative deviation from expected](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-relative-deviation-from-expected).
+- `min_rel_dev_from_expected`{{% available_from "v1.30.2" anomaly %}} (float or one/two-element list[float]): ignores deviations smaller than the configured percentage of the absolute expected value. A scalar or one-element list applies to both directions. A two-element list configures lower and upper percentages separately. See [minimal relative deviation from expected](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-relative-deviation-from-expected).
 
   > Configuring `detection_direction`, `min_dev_from_expected`, or `min_rel_dev_from_expected` in a model is {{% deprecated_from "v1.30.2" anomaly %}}. Query-level values are authoritative. Existing model-level values remain compatible only as model-local fallbacks for attached queries that do not define the corresponding policy.
 
@@ -323,7 +329,7 @@ Optional timeout {{% available_from "v1.30.0" anomaly %}} for post-fetch process
 `0`
             </td>
             <td>
-Maximum concurrent datasource fetch threads {{% available_from "v1.30.2" anomaly %}}. `0` selects a bounded value automatically from the number of queries and available CPUs. A positive value sets an explicit cap for queries and disk-streamed split-query chunks.
+Maximum concurrent datasource fetch threads {{% available_from "v1.30.2" anomaly %}}. `0` selects a bounded value automatically from the number of queries and available CPUs. A positive value sets an explicit cap for queries and disk-streamed split-query chunks. {{% available_from "v1.33.1" anomaly %}} Fit fetches share a reader-wide limit across simultaneously scheduled calls, and keep their slot until response conversion finishes. Waiting for a fit slot does not consume the fetch deadline. Inference fetching is unchanged. Increase `workers` for more fit parallelism at higher memory/disk cost.
             </td>
         </tr>
         <tr>
@@ -422,14 +428,14 @@ If True, then query will be performed from the last seen timestamp for a given s
         <tr>
             <td>
 
-<span style="white-space: nowrap;">`query_last_seen_max_lookback`</span>
+<span id="vm-last-seen-recovery" style="white-space: nowrap;">`query_last_seen_max_lookback`</span>
             </td>
             <td>
 
 `None`
             </td>
             <td>
-Optional hard cap {{% available_from "v1.30.0" anomaly %}} for how far `query_from_last_seen_timestamp` may move a query start into the past to recover skipped inference intervals. When configured below the query step, the effective cap is raised to one step. Examples: `5m`, `1h`.
+Optional cap {{% available_from "v1.30.0" anomaly %}} on last-seen recovery when `query_from_last_seen_timestamp` is `true`, measured back from the query end. Examples: `5m`, `1h`. {{% available_from "v1.33.1" anomaly %}} It limits only extensions before the requested start. It never shortens the requested window and values below one query step are not rounded up. The scheduler independently bounds cursor recovery. See [periodic inference recovery](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler).
             </td>
         </tr>
         <tr>
@@ -538,7 +544,8 @@ reader:
   fetch_timeout: '30s'  # timeout for each datasource request, overrides `timeout` if set
   processing_timeout: '1m'  # timeout for preparing fetched series for fit/infer, overrides `timeout` if set
   workers: 0  # automatic bounded datasource concurrency; set a positive value for an explicit cap
-  query_from_last_seen_timestamp: True  # false by default
+  query_from_last_seen_timestamp: true  # false by default
+  query_last_seen_max_lookback: '1h'  # optional recovery cap; example value, not the default
   latency_offset: '1ms'
   series_processing_batch_size: 8
 ```
@@ -625,6 +632,12 @@ reader:
 Its queries should be expressed in [LogsQL*](https://docs.victoriametrics.com/victorialogs/logsql/) language that both VictoriaLogs and VictoriaTraces support, with the focus on using [stats pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) functions to calculate metrics from logs.
 
 > Please be aware that `VLogsReader` is designed to work with a `/select/stats_query_range` endpoint of [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/), so the `<query>` expressions must ends with `stats` [pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) (see [query-examples](#query-examples) section below). The calculated stats is converted into metrics with labels from `by(...)` clause of the `| stats by(...)` pipe, where `stats_func*` is any of the supported [stats function subset](#valid-stats-functions) of [available stats functions](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions), while the `result_name*` is the name of the log field to store the result of the corresponding stats function. The `as` keyword is optional.
+
+> [!NOTE]
+> {{< available_from "v1.33.1" anomaly >}} Stats buckets are labelled by their end timestamp. Requests include complete buckets whose ends lie inside the requested window, in both memory and on-disk modes. Use a negative `offset` to allow for ingestion delay. VictoriaLogs does not use VictoriaMetrics' `latency_offset` setting.
+
+> [!WARNING]
+> When upgrading from bucket-start timestamps, refit existing VictoriaLogs models and regenerate their training data. Restored last-seen state can otherwise process the last previously seen bucket once more under its corrected timestamp. See [migration guidance](https://docs.victoriametrics.com/anomaly-detection/migration/#breaking-and-configuration-changes).
 
 ### Valid stats functions
 `VLogsReader` relies on [stats pipe functions](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions) that return **numeric values**, which can be used for anomaly detection on timeseries (metrics). The future addition of similar stats functions in VictoriaLogs will be supported automatically, as long as they return **numeric values**.
@@ -931,7 +944,7 @@ Optional timeout {{% available_from "v1.30.0" anomaly %}} for post-fetch process
 `0`
             </td>
             <td>
-Maximum concurrent datasource fetch threads {{% available_from "v1.30.2" anomaly %}}. `0` selects a bounded value automatically from the number of queries and available CPUs. A positive value sets an explicit cap for queries and disk-streamed split-query chunks.
+Maximum concurrent datasource fetch threads {{% available_from "v1.30.2" anomaly %}}. `0` selects a bounded value automatically from the number of queries and available CPUs. A positive value sets an explicit cap for queries and disk-streamed split-query chunks. {{% available_from "v1.33.1" anomaly %}} Fit fetches share a reader-wide limit across simultaneously scheduled calls, and keep their slot until response conversion finishes. Waiting for a fit slot does not consume the fetch deadline. Inference fetching is unchanged. Increase `workers` for more fit parallelism at higher memory/disk cost.
             </td>
         </tr>
         <tr>
@@ -1039,15 +1052,27 @@ Optional argument {{% available_from "v1.29.7" anomaly %}}, allows specifying th
         </tr>
         <tr>
             <td>
+<span style="white-space: nowrap;">`query_from_last_seen_timestamp`</span>
+            </td>
+            <td>
 
-<span style="white-space: nowrap;">`query_last_seen_max_lookback`</span>
+`False`
+            </td>
+            <td>
+Enable last-seen recovery for inference to recover skipped intervals. Defaults to `False`. Set `query_last_seen_max_lookback` to bound recovery extensions. It does not shorten the scheduler's requested window.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span id="vlogs-last-seen-recovery" style="white-space: nowrap;">`query_last_seen_max_lookback`</span>
             </td>
             <td>
 
 `None`
             </td>
             <td>
-Optional hard cap {{% available_from "v1.30.0" anomaly %}} for how far last-seen recovery may move a query start into the past. Examples: `5m`, `1h`.
+Optional cap {{% available_from "v1.30.0" anomaly %}} on last-seen recovery when `query_from_last_seen_timestamp` is `true`, measured back from the query end. Examples: `5m`, `1h`. {{% available_from "v1.33.1" anomaly %}} It limits only extensions before the requested start. It never shortens the requested window and values below one query step are not rounded up. The scheduler independently bounds cursor recovery. See [periodic inference recovery](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler).
             </td>
         </tr>
     </tbody>
@@ -1079,6 +1104,8 @@ reader:
   fetch_timeout: '30s'  # timeout for each datasource request, overrides `timeout` if set
   processing_timeout: '1m'  # timeout for preparing fetched series for fit/infer, overrides `timeout` if set
   workers: 0  # automatic bounded datasource concurrency; set a positive value for an explicit cap
+  query_from_last_seen_timestamp: true  # enable optional last-seen recovery
+  query_last_seen_max_lookback: '1h'  # optional recovery cap; example value, not the default
   queries:
     # one query returning 1 result fields (avg_duration), it will have __name__ label (series name) as `duration_30m__avg`
     duration_avg_30m:
