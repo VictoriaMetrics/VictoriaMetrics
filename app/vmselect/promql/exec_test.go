@@ -8938,6 +8938,21 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1}
 		f(q, resultExpected)
 	})
+	t.Run(`Aggr_over_time(mixed-case)`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(AGGR_over_time("increase", rand(0)[:10s]),0.01)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{5.47, 6.64, 6.84, 7.24, 5.17, 6.59},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("rollup"),
+			Value: []byte("increase"),
+		}}
+		resultExpected := []netstorage.Result{r1}
+		f(q, resultExpected)
+	})
 	t.Run(`aggr_over_time(multi-func)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(aggr_over_time(("min_over_time", "median_over_time", "max_over_time"), round(rand(0),0.1)[:10s]))`
