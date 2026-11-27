@@ -670,6 +670,9 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	}
 	// Sort left-hand-side series by metric name as Prometheus does.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
+	if err := bfa.ec.checkContext(); err != nil {
+		return nil, err
+	}
 	sortSeriesByMetricName(rvs)
 	rvsLen := len(rvs)
 
@@ -695,6 +698,9 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	}
 	// Sort the added right-hand-side series by metric name as Prometheus does.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
+	if err := bfa.ec.checkContext(); err != nil {
+		return nil, err
+	}
 	sortSeriesByMetricName(rvs[rvsLen:])
 
 	return rvs, nil

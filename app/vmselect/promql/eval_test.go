@@ -341,8 +341,11 @@ func TestBinaryOpContextCanceled(t *testing.T) {
 		}
 	}
 
-	// Verify mid-flight cancellation during fillLeftNaNsWithRightValuesOrMerge
-	ctxMid, cancelMid := context.WithCancel(context.Background())
+	// Verify genuine mid-flight cancellation during fillLeftNaNsWithRightValuesOrMerge
+	ctxMid := &countdownCancelCtx{
+		Context: context.Background(),
+		allow:   3,
+	}
 	ecMid := &EvalConfig{
 		Context: ctxMid,
 		Start:   1000,
@@ -351,9 +354,25 @@ func TestBinaryOpContextCanceled(t *testing.T) {
 	}
 	tssLeft := newSeries(2000)
 	tssRight := newSeries(2000)
-	cancelMid()
 	err := fillLeftNaNsWithRightValuesOrMerge(ecMid, tssLeft, tssRight)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context.Canceled from fillLeftNaNsWithRightValuesOrMerge; got %v", err)
 	}
+	if ctxMid.checks <= 3 {
+		t.Fatalf("expected fillLeftNaNsWithRightValuesOrMerge to cancel mid-flight after initial checks; got %d checks", ctxMid.checks)
+	}
+}
+
+type countdownCancelCtx struct {
+	context.Context
+	allow  int
+	checks int
+}
+
+func (c *countdownCancelCtx) Err() error {
+	c.checks++
+	if c.checks <= c.allow {
+		return nil
+	}
+	return context.Canceled
 }
