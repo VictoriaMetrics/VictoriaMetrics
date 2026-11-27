@@ -2619,12 +2619,18 @@ func (sn *storageNode) execOnConn(ctx context.Context, qt *querytracer.Tracer, f
 		switch {
 		case errors.As(err, &er):
 			// Remote error. The connection may be re-used. Return it to the pool.
-			_ = readTrace(qt, bc)
-			sn.connPool.Put(bc)
+			if err := readTrace(qt, bc); err != nil {
+				_ = bc.Close()
+			} else {
+				sn.connPool.Put(bc)
+			}
 		case errors.Is(err, context.Canceled):
 			// Context was canceled by client. The connection may be re-used. Return it to the pool.
-			_ = readTrace(qt, bc)
-			sn.connPool.Put(bc)
+			if err := readTrace(qt, bc); err != nil {
+				_ = bc.Close()
+			} else {
+				sn.connPool.Put(bc)
+			}
 		default:
 			// Local error.
 			// Close the connection instead of returning it to the pool,
