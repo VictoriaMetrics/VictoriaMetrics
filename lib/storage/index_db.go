@@ -350,9 +350,9 @@ func (db *indexDB) getMetricIDsFromTagFiltersCache(qt *querytracer.Tracer, key [
 //
 // The caller must not modify the set of metricIDs after calling this method.
 func (db *indexDB) putMetricIDsToTagFiltersCache(qt *querytracer.Tracer, metricIDs *uint64set.Set, key []byte) {
-	qt.Printf("put %d metricIDs in tagFiltersToMetricIDs cache", metricIDs.Len())
+	qt.Printf("store %d metricIDs in tagFiltersToMetricIDs cache", metricIDs.Len())
 	db.tagFiltersToMetricIDsCache.PutEntry(string(key), metricIDs)
-	qt.Printf("put %d metricIDs in tagFiltersToMetricIDs cache", metricIDs.Len())
+	qt.Printf("stored %d metricIDs in tagFiltersToMetricIDs cache", metricIDs.Len())
 }
 
 func (db *indexDB) marshalTagFiltersKey(dst []byte, tfss []*TagFilters, date uint64) []byte {
