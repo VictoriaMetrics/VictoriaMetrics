@@ -156,7 +156,7 @@ func (d *deadline) String() string {
 
 // GetExtraTagFilters returns additional label filters from request.
 //
-// Label filters can be present in extra_label and extra_filters[] query args.
+// Label filters can be present in extra_label, extra_filters, and DEPRECATED extra_filters[] query args.
 // They are combined. For example, the following query args:
 //
 //	extra_label=t1=v1&extra_label=t2=v2&extra_filters[]={env="prod",team="devops"}&extra_filters={env=~"dev|staging",team!="devops"}
@@ -198,6 +198,7 @@ func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
 		})
 	}
 	extraFilters := append([]string{}, getRequestParam("extra_filters")...)
+	// extra_filters[] query arg is deprecated and preserved only for BC. Use extra_filters instead.
 	extraFilters = append(extraFilters, getRequestParam("extra_filters[]")...)
 	var etfs [][]storage.TagFilter
 	for _, extraFilter := range extraFilters {
