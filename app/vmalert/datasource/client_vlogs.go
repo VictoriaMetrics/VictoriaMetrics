@@ -29,6 +29,9 @@ func (c *Client) setVLogsRangeReqParams(r *http.Request, query string, start, en
 	if !*disablePathAppend {
 		r.URL.Path += "/select/logsql/stats_query_range"
 	}
+	// stats_query_range stamps each bucket with its start, so parseVLogsRangeResponse moves timestamps one step forward.
+	start = start.Add(-c.vlogsRangeShift())
+	end = end.Add(-c.vlogsRangeShift())
 	q := r.URL.Query()
 	q.Add("start", start.Format(time.RFC3339))
 	q.Add("end", end.Format(time.RFC3339))
@@ -60,13 +63,17 @@ func parseVLogsInstantResponse(resp *http.Response) (res Result, err error) {
 	return
 }
 
-func parseVLogsRangeResponse(resp *http.Response) (res Result, err error) {
+func (c *Client) parseVLogsRangeResponse(resp *http.Response) (res Result, err error) {
 	res, err = parsePrometheusRangeResponse(resp)
 	if err != nil {
 		return Result{}, err
 	}
+	shift := int64(c.vlogsRangeShift().Seconds())
 	for i := range res.Data {
 		m := &res.Data[i]
+		for j := range m.Timestamps {
+			m.Timestamps[j] += shift
+		}
 		for j := range m.Labels {
 			// reserve the stats func result name with a new label `stats_result` instead of dropping it,
 			// since there could be multiple stats results in a single query, for instance:
@@ -78,4 +85,9 @@ func parseVLogsRangeResponse(resp *http.Response) (res Result, err error) {
 		}
 	}
 	return
+}
+
+// vlogsRangeShift returns the step sent to stats_query_range, which is truncated to whole seconds.
+func (c *Client) vlogsRangeShift() time.Duration {
+	return c.evaluationInterval.Truncate(time.Second)
 }
