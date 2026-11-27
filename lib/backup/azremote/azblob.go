@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
@@ -78,10 +79,12 @@ func (fs *FS) Init(ctx context.Context) error {
 }
 
 func (fs *FS) newClient() (*service.Client, error) {
+	opts := azClientOptions()
+
 	connString := fs.env("AZURE_STORAGE_ACCOUNT_CONNECTION_STRING")
 	if connString != "" {
 		logger.Infof("creating AZBlob service client from connection string defined at AZURE_STORAGE_ACCOUNT_CONNECTION_STRING")
-		return service.NewClientFromConnectionString(connString, nil)
+		return service.NewClientFromConnectionString(connString, opts)
 	}
 
 	accountKey := fs.env("AZURE_STORAGE_ACCOUNT_KEY")
@@ -98,13 +101,15 @@ func (fs *FS) newClient() (*service.Client, error) {
 			return nil, fmt.Errorf("failed to create Shared Key credentials: %w", err)
 		}
 		serviceURL := fs.getServiceURL(accountName)
-		return service.NewClientWithSharedKeyCredential(serviceURL, creds, nil)
+		return service.NewClientWithSharedKeyCredential(serviceURL, creds, opts)
 	}
 
 	useDefault := fs.env("AZURE_USE_DEFAULT_CREDENTIAL")
 	if useDefault == "true" {
 		logger.Infof("creating AZBlob service client from default credentials")
-		creds, err := azidentity.NewDefaultAzureCredential(nil)
+		creds, err := azidentity.NewDefaultAzureCredential(&azidentity.DefaultAzureCredentialOptions{
+			ClientOptions: credentialClientOptions(),
+		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create default Azure credentials: %w", err)
 		}
@@ -116,11 +121,46 @@ func (fs *FS) newClient() (*service.Client, error) {
 		}
 
 		serviceURL := fs.getServiceURL(accountName)
-		return service.NewClient(serviceURL, creds, nil)
+		return service.NewClient(serviceURL, credentialWithTimeout{creds}, opts)
 	}
 
 	return nil, fmt.Errorf("failed to detect credentials for AZBlob; ensure that one of the options listed at " +
 		"https://docs.victoriametrics.com/victoriametrics/vmbackup/#providing-credentials-via-env-variables is set")
+}
+
+// The SDK default (3 retries, 60s max delay) gives up too early on 503 ServerBusy.
+func azClientOptions() *service.ClientOptions {
+	return &service.ClientOptions{
+		Retry: policy.RetryOptions{
+			MaxRetries:    10,
+			RetryDelay:    4 * time.Second,
+			MaxRetryDelay: 2 * time.Minute,
+		},
+	}
+}
+
+// Without a caller deadline, MSAL applies a hardcoded 30s timeout that cuts off azcore retries.
+const credentialAcquisitionTimeout = 10 * time.Minute
+
+func credentialClientOptions() azcore.ClientOptions {
+	return azcore.ClientOptions{
+		Retry: policy.RetryOptions{
+			MaxRetries:    5,
+			TryTimeout:    10 * time.Second,
+			RetryDelay:    10 * time.Second,
+			MaxRetryDelay: 300 * time.Second,
+		},
+	}
+}
+
+type credentialWithTimeout struct {
+	azcore.TokenCredential
+}
+
+func (c credentialWithTimeout) GetToken(ctx context.Context, opts policy.TokenRequestOptions) (azcore.AccessToken, error) {
+	ctx, cancel := context.WithTimeout(ctx, credentialAcquisitionTimeout)
+	defer cancel()
+	return c.TokenCredential.GetToken(ctx, opts)
 }
 
 func (fs *FS) env(name string) string {
