@@ -126,8 +126,7 @@ func (fs *FS) NewReadCloser(p common.Part) (io.ReadCloser, error) {
 
 // NewDirectWriteCloser returns an io.WriteCloser that writes directly to the
 // underlying file without buffering, enabling large IO sizes from the caller.
-// On platforms with preallocation, writes go to a .tmp file that must be
-// finalized with FinalizeFile.
+// When UseTmpFiles is set, writes go to a .tmp file that must be finalized with FinalizeFile.
 func (fs *FS) NewDirectWriteCloser(p common.Part) (io.WriteCloser, error) {
 	if !p.IsLocalPathInsideDir(fs.Dir) {
 		logger.Fatalf("BUG: part file %s would be written outside storage directory %s", p.Path, fs.Dir)
@@ -163,20 +162,26 @@ func (fs *FS) PreallocateFile(p common.Part) error {
 	if err := fs.mkdirAll(path); err != nil {
 		return err
 	}
+	if fs.UseTmpFiles {
+		// Preserve already downloaded chunks when continuing an existing partial file.
+		if err := os.Rename(fs.path(p), path); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("cannot move %q to %q before preallocation: %w", fs.path(p), path, err)
+		}
+	}
 	return preallocateFile(path, int64(p.FileSize))
 }
 
-// FinalizeFile syncs the completed file to disk. On platforms with
-// preallocation, it first renames the .tmp file to its final path.
+// FinalizeFile syncs the completed file to disk.
+// When UseTmpFiles is set, it first renames the .tmp file to its final path.
 func (fs *FS) FinalizeFile(p common.Part) error {
 	finalPath := fs.path(p)
-	if canPreallocate && fs.UseTmpFiles {
+	if fs.UseTmpFiles {
 		tmpPath := fs.tmpPath(p)
 		if err := os.Rename(tmpPath, finalPath); err != nil {
 			return fmt.Errorf("cannot rename %q to %q: %w", tmpPath, finalPath, err)
 		}
 	}
-	f, err := os.Open(finalPath)
+	f, err := os.OpenFile(finalPath, os.O_WRONLY, 0)
 	if err != nil {
 		return fmt.Errorf("cannot open %q for fsync: %w", finalPath, err)
 	}
@@ -188,11 +193,7 @@ func (fs *FS) FinalizeFile(p common.Part) error {
 }
 
 // CleanupTmpFiles removes leftover .tmp files from interrupted restores.
-// On platforms without preallocation this is a no-op.
 func (fs *FS) CleanupTmpFiles() error {
-	if !canPreallocate {
-		return nil
-	}
 	if _, err := os.Stat(fs.Dir); err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -261,7 +262,7 @@ func (fs *FS) tmpPath(p common.Part) string {
 }
 
 func (fs *FS) writePath(p common.Part) string {
-	if canPreallocate && fs.UseTmpFiles {
+	if fs.UseTmpFiles {
 		return fs.tmpPath(p)
 	}
 	return fs.path(p)

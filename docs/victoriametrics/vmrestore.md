@@ -115,6 +115,20 @@ Non-partition files (metadata etc.) are always restored regardless of this flag.
 
 * See [Connecting VM components to cloud storage](https://docs.victoriametrics.com/guides/connecting-vm-components-to-cloud-storage/) for instructions on configuring credentials.
 * If `vmrestore` consumes all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
+* Keep the source backup unchanged throughout the restore. In particular, don't restore from a `latest`
+  backup while a backup job is updating it.
+* Downloads interrupted with `unexpected EOF` retry the same whole backup part from its original file
+  offset, with up to three total worker attempts and delays of 1s and 2s. Other errors aren't retried by
+  the restore worker. Retrying cannot make a changing backup consistent.
+* `-concurrency` limits all concurrent downloads, including downloads belonging to the same file.
+  With preallocation enabled, workers can download multiple existing backup parts of the same file concurrently.
+  This applies to S3/S3-compatible storage, GCS, Azure Blob Storage, and local filesystem backups.
+  Work is queued in FIFO rounds: the first pending part of every file comes
+  before any second pending part, then the second parts are queued, and so on.
+  Each backup object is downloaded whole; object keys and the backup format are unchanged.
+  No additional splitting or HTTP Range requests are used.
+  With `-skipFilePreallocation`, each file's objects are downloaded whole and sequentially in offset order
+  so an interrupted restore can safely resume within the file; different files can still download concurrently.
 * If `vmrestore` has been interrupted due to temporary error, then just restart it with the same args. It will resume the restore process.
 
 ## Advanced usage

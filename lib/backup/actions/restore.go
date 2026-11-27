@@ -83,9 +83,7 @@ func (r *Restore) Run(ctx context.Context) error {
 	src := r.Src
 	dst := r.Dst
 
-	if !r.SkipPreallocation {
-		dst.UseTmpFiles = true
-	}
+	dst.UseTmpFiles = !r.SkipPreallocation
 
 	if !r.SkipBackupCompleteCheck {
 		ok, err := src.HasFile(backupnames.BackupCompleteFilename)
@@ -218,25 +216,7 @@ func (r *Restore) Run(ctx context.Context) error {
 		}
 		logger.Infof("downloading %d parts from %s to %s", len(partsToCopy), src, dst)
 		var bytesDownloaded atomic.Uint64
-		err = runParallelPerPath(ctx, concurrency, perPath, func(parts []common.Part) error {
-			// Sort partsToCopy in order to properly grow file size during downloading
-			common.SortParts(parts)
-			if !r.SkipPreallocation {
-				if err := dst.PreallocateFile(parts[0]); err != nil {
-					return fmt.Errorf("cannot preallocate %s: %w", parts[0].Path, err)
-				}
-			}
-			for _, p := range parts {
-				logger.Infof("downloading %s from %s to %s", &p, src, dst)
-				if err := pipelinedDownload(src, dst, p, &bytesDownloaded); err != nil {
-					return err
-				}
-			}
-			if err := dst.FinalizeFile(parts[0]); err != nil {
-				return fmt.Errorf("cannot finalize %s: %w", parts[0].Path, err)
-			}
-			return nil
-		}, func(elapsed time.Duration) {
+		err = r.runParallelPerPath(ctx, concurrency, perPath, &bytesDownloaded, func(elapsed time.Duration) {
 			if elapsed.Seconds() <= 0 {
 				// The only way for this to happen is when the operation is immediately canceled.
 				// There is no need to log progress in this case, and this prevents division by zero below.
@@ -279,10 +259,10 @@ var readBufPool = sync.Pool{
 	},
 }
 
-func pipelinedDownload(src common.RemoteFS, dst *fslocal.FS, p common.Part, bytesDownloaded *atomic.Uint64) error {
+func pipelinedDownload(src common.RemoteFS, dst *fslocal.FS, p common.Part, bytesDownloaded *atomic.Uint64) (uint64, error) {
 	wc, err := dst.NewDirectWriteCloser(p)
 	if err != nil {
-		return fmt.Errorf("cannot create writer for %q to %s: %w", &p, dst, err)
+		return 0, fmt.Errorf("cannot create writer for %q to %s: %w", &p, dst, err)
 	}
 
 	pr, pw := io.Pipe()
@@ -314,24 +294,26 @@ func pipelinedDownload(src common.RemoteFS, dst *fslocal.FS, p common.Part, byte
 	closeErr := wc.Close()
 
 	if writeErr != nil {
-		return fmt.Errorf("cannot write %s to %s: %w", &p, dst, writeErr)
+		return sw.n, fmt.Errorf("cannot write %s to %s: %w", &p, dst, writeErr)
 	}
 	if downloadErr != nil {
-		return fmt.Errorf("cannot download %s from %s: %w", &p, src, downloadErr)
+		return sw.n, fmt.Errorf("cannot download %s from %s: %w", &p, src, downloadErr)
 	}
 	if closeErr != nil {
-		return fmt.Errorf("cannot close writer for %s at %s: %w", &p, dst, closeErr)
+		return sw.n, fmt.Errorf("cannot close writer for %s at %s: %w", &p, dst, closeErr)
 	}
-	return nil
+	return sw.n, nil
 }
 
 type statWriter struct {
 	w            io.Writer
 	bytesWritten *atomic.Uint64
+	n            uint64
 }
 
 func (sw *statWriter) Write(p []byte) (int, error) {
 	n, err := sw.w.Write(p)
+	sw.n += uint64(n)
 	sw.bytesWritten.Add(uint64(n))
 	bytesDownloadedTotal.Add(n)
 	return n, err
