@@ -18,6 +18,127 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
 
+func TestParseAuthConfigNullHeaders(t *testing.T) {
+	f := func(s, errorExpected string) {
+		t.Helper()
+		_, err := parseAuthConfig([]byte(s))
+		if err == nil || err.Error() != errorExpected {
+			t.Fatalf("unexpected error; got %v; want %q", err, errorExpected)
+		}
+	}
+	f(`
+response_headers: [null]
+users:
+- username: foo
+  url_prefix: http://foo.bar
+`, "response_headers[0] cannot be null")
+	f(`
+response_headers: [null]
+unauthorized_user:
+  url_prefix: http://foo.bar
+`, "response_headers[0] cannot be null")
+	f(`response_headers: [null]`, "response_headers[0] cannot be null")
+	f(`response_headers: ["X-Test: value", null]`, "response_headers[1] cannot be null")
+	for _, field := range []string{"headers", "response_headers"} {
+		f(fmt.Sprintf(`
+users:
+- username: foo
+  url_prefix: http://foo.bar
+  %s: [null]
+`, field), "users[0]: "+field+"[0] cannot be null")
+		f(fmt.Sprintf(`
+unauthorized_user:
+  url_prefix: http://foo.bar
+  %s: [null]
+`, field), "unauthorized_user: "+field+"[0] cannot be null")
+		f(fmt.Sprintf(`
+users:
+- username: foo
+  url_map:
+  - src_paths: [/route]
+    url_prefix: http://foo.bar
+    %s: [null]
+`, field), "users[0]: url_map[0]: "+field+"[0] cannot be null")
+		f(fmt.Sprintf(`
+unauthorized_user:
+  url_map:
+  - src_paths: [/route]
+    url_prefix: http://foo.bar
+    %s: [null]
+`, field), "unauthorized_user: url_map[0]: "+field+"[0] cannot be null")
+	}
+	f(`
+users:
+- username: foo
+  url_map:
+  - src_paths: [/route]
+    url_prefix: http://foo.bar
+    src_headers: [null]
+`, "users[0]: url_map[0]: src_headers[0] cannot be null")
+	f(`
+unauthorized_user:
+  url_map:
+  - src_paths: [/route]
+    url_prefix: http://foo.bar
+    src_headers: [null]
+`, "unauthorized_user: url_map[0]: src_headers[0] cannot be null")
+}
+
+func TestParseAuthConfigEmptyHeaders(t *testing.T) {
+	f := func(emptyHeaders, globalHeaders string, headersExpected int) {
+		t.Helper()
+		s := fmt.Sprintf(`
+response_headers: %s
+users:
+- username: foo
+  url_prefix: http://foo.bar
+  headers: %[2]s
+  response_headers: %[2]s
+  url_map:
+  - src_paths: [/route]
+    url_prefix: http://foo.bar
+    src_headers: %[2]s
+    headers: %[2]s
+    response_headers: %[2]s
+unauthorized_user:
+  url_prefix: http://foo.bar
+  headers: %[2]s
+  response_headers: %[2]s
+  url_map:
+  - src_paths: [/route]
+    url_prefix: http://foo.bar
+    src_headers: %[2]s
+    headers: %[2]s
+    response_headers: %[2]s
+`, globalHeaders, emptyHeaders)
+		ac, err := parseAuthConfig([]byte(s))
+		if err != nil {
+			t.Fatalf("unexpected error when parsing empty headers: %s", err)
+		}
+		if _, err := parseAuthConfigUsers(ac); err != nil {
+			t.Fatalf("unexpected error when parsing users with empty headers: %s", err)
+		}
+		for _, ui := range []*UserInfo{&ac.Users[0], ac.UnauthorizedUser} {
+			if len(ui.URLMaps[0].SrcHeaders) != 0 {
+				t.Fatalf("unexpected src_headers: %v", ui.URLMaps[0].SrcHeaders)
+			}
+			for _, hc := range []*HeadersConf{&ui.HeadersConf, &ui.URLMaps[0].HeadersConf} {
+				if len(hc.RequestHeaders) != 0 || len(hc.ResponseHeaders) != headersExpected {
+					t.Fatalf("unexpected headers; got request=%v, response=%v; want 0 request and %d response headers",
+						hc.RequestHeaders, hc.ResponseHeaders, headersExpected)
+				}
+				if headersExpected > 0 && (hc.ResponseHeaders[0].Name != "X-Common" || hc.ResponseHeaders[0].Value != "global") {
+					t.Fatalf("unexpected inherited response header: %v", hc.ResponseHeaders[0])
+				}
+			}
+		}
+	}
+	f("null", "null", 0)
+	f("[]", "[]", 0)
+	f("null", `["X-Common: global"]`, 1)
+	f("[]", `["X-Common: global"]`, 1)
+}
+
 func TestParseAuthConfigFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
@@ -76,6 +197,8 @@ users:
 `)
 
 	// Invalid headers
+	f(`response_headers: foobar`)
+	f(`response_headers: [missing-colon]`)
 	f(`
 users:
 - username: foo

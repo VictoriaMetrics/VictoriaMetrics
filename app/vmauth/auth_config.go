@@ -60,6 +60,7 @@ type AuthConfig struct {
 	Users            []UserInfo   `yaml:"users,omitempty"`
 	UnauthorizedUser *UserInfo    `yaml:"unauthorized_user,omitempty"`
 	SSO              []*ssoConfig `yaml:"sso,omitempty"`
+	ResponseHeaders  []*Header    `yaml:"response_headers,omitempty"`
 
 	// ms holds all the metrics for the given AuthConfig
 	ms *metrics.Set
@@ -178,6 +179,48 @@ type HeadersConf struct {
 	ResponseHeaders    []*Header `yaml:"response_headers,omitempty"`
 	KeepOriginalHost   *bool     `yaml:"keep_original_host,omitempty"`
 	hasAnyPlaceHolders bool
+}
+
+func (hc *HeadersConf) validate() error {
+	if err := validateHeaders(hc.RequestHeaders, "headers"); err != nil {
+		return err
+	}
+	return validateHeaders(hc.ResponseHeaders, "response_headers")
+}
+
+func validateHeaders(headers []*Header, field string) error {
+	for i, h := range headers {
+		if h == nil {
+			return fmt.Errorf("%s[%d] cannot be null", field, i)
+		}
+	}
+	return nil
+}
+
+func (ui *UserInfo) validateHeaders() error {
+	if err := ui.HeadersConf.validate(); err != nil {
+		return err
+	}
+	for i := range ui.URLMaps {
+		if err := ui.URLMaps[i].HeadersConf.validate(); err != nil {
+			return fmt.Errorf("url_map[%d]: %w", i, err)
+		}
+		if err := validateHeaders(ui.URLMaps[i].SrcHeaders, "src_headers"); err != nil {
+			return fmt.Errorf("url_map[%d]: %w", i, err)
+		}
+	}
+	return nil
+}
+
+func (ui *UserInfo) prependResponseHeaders(headers []*Header) {
+	if len(headers) == 0 {
+		return
+	}
+	ui.HeadersConf.ResponseHeaders = append(slices.Clone(headers), ui.HeadersConf.ResponseHeaders...)
+	for i := range ui.URLMaps {
+		hc := &ui.URLMaps[i].HeadersConf
+		hc.ResponseHeaders = append(slices.Clone(headers), hc.ResponseHeaders...)
+	}
 }
 
 func (ui *UserInfo) beginConcurrencyLimit(ctx context.Context) error {
@@ -1024,6 +1067,21 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 	}
 	if err := yaml.UnmarshalStrict(data, ac); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal AuthConfig data: %w", err)
+	}
+	if err := validateHeaders(ac.ResponseHeaders, "response_headers"); err != nil {
+		return nil, err
+	}
+	for i := range ac.Users {
+		if err := ac.Users[i].validateHeaders(); err != nil {
+			return nil, fmt.Errorf("users[%d]: %w", i, err)
+		}
+		ac.Users[i].prependResponseHeaders(ac.ResponseHeaders)
+	}
+	if ac.UnauthorizedUser != nil {
+		if err := ac.UnauthorizedUser.validateHeaders(); err != nil {
+			return nil, fmt.Errorf("unauthorized_user: %w", err)
+		}
+		ac.UnauthorizedUser.prependResponseHeaders(ac.ResponseHeaders)
 	}
 
 	ui := ac.UnauthorizedUser
