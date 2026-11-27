@@ -1237,7 +1237,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 		defer s.tb.PutPartitions(ptws)
 
 		if got, want := len(ptws), 1; got != want {
-			t.Fatalf("unexpected partitions count for %v: got %d, want %d", &tr, got, want)
+			t.Fatalf("unexpected partitions count for %s: got %d, want %d", &tr, got, want)
 		}
 		idb := ptws[0].pt.idb
 		tfssTR := tr
