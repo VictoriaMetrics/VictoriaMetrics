@@ -80,22 +80,86 @@ func (ts *TableSearch) Init(tb *Table, sparse bool) {
 
 // Seek seeks for the first item greater or equal to k in the ts.
 func (ts *TableSearch) Seek(k []byte) {
+	ts.seek(k, false)
+}
+
+// PartFilterSearchStats describes the per-part filter decisions made by
+// SeekWithPartFilter.
+type PartFilterSearchStats struct {
+	SkippedParts    uint64
+	PossibleParts   uint64
+	UnfilteredParts uint64
+
+	BudgetFallbackParts uint64
+	ReadFallbackParts   uint64
+	VerifyFallbackParts uint64
+}
+
+// HasFallbacks reports whether at least one part couldn't be filtered, so it
+// must be searched.
+func (stats *PartFilterSearchStats) HasFallbacks() bool {
+	return stats.UnfilteredParts > 0 || stats.BudgetFallbackParts > 0 ||
+		stats.ReadFallbackParts > 0 || stats.VerifyFallbackParts > 0
+}
+
+// SeekWithPartFilter seeks in parts whose filter may contain k.
+//
+// Parts without a filter, parts with an unusable filter and parts which may
+// contain k are searched, so the returned item set is the same as the one
+// returned by Seek for the searched parts.
+func (ts *TableSearch) SeekWithPartFilter(k []byte) PartFilterSearchStats {
+	return ts.seek(k, true)
+}
+
+func (ts *TableSearch) seek(k []byte, usePartFilter bool) PartFilterSearchStats {
+	var stats PartFilterSearchStats
 	if err := ts.Error(); err != nil {
 		// Do nothing on unrecoverable error.
-		return
+		return stats
 	}
 	ts.err = nil
 
 	// Initialize the psHeap.
 	ts.psHeap = ts.psHeap[:0]
+	var filterH, filterHash1, filterHash2 uint64
+	if usePartFilter {
+		// The hashes are calculated only once per SeekWithPartFilter call and
+		// are re-used for all the parts.
+		filterH, filterHash1, filterHash2 = partFilterHashes(k)
+	}
 	for i := range ts.psPool {
 		ps := &ts.psPool[i]
+		if usePartFilter {
+			if bytes.Compare(k, ps.p.ph.lastItem) > 0 {
+				// The key sorts after every item in the part, so this part cannot
+				// contain the key and doesn't need a filter check or index seek.
+				stats.SkippedParts++
+				continue
+			}
+			switch ps.p.filterDecision(filterH, filterHash1, filterHash2) {
+			case partFilterNegative:
+				stats.SkippedParts++
+				continue
+			case partFilterPossible:
+				stats.PossibleParts++
+			case partFilterUnfiltered:
+				stats.UnfilteredParts++
+			case partFilterFallbackBudget:
+				stats.BudgetFallbackParts++
+			case partFilterFallbackRead:
+				stats.ReadFallbackParts++
+			case partFilterFallbackVerify:
+				stats.VerifyFallbackParts++
+			default:
+				logger.Panicf("BUG: unexpected part filter decision for the part %q", ps.p.path)
+			}
+		}
 		ps.Seek(k)
 		if !ps.NextItem() {
 			if err := ps.Error(); err != nil {
 				// Return only the first error, since it has no sense in returning all errors.
 				ts.err = fmt.Errorf("cannot seek %q: %w", k, err)
-				return
+				return stats
 			}
 			continue
 		}
@@ -103,11 +167,12 @@ func (ts *TableSearch) Seek(k []byte) {
 	}
 	if len(ts.psHeap) == 0 {
 		ts.err = io.EOF
-		return
+		return stats
 	}
 	heap.Init(&ts.psHeap)
 	ts.Item = ts.psHeap[0].Item
 	ts.nextItemNoop = true
+	return stats
 }
 
 // FirstItemWithPrefix seeks for the first item with the given prefix in the ts.

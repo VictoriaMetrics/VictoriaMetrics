@@ -21,7 +21,7 @@ func TestBlockStreamReaderReadFromInmemoryPart(t *testing.T) {
 	}
 	sort.Strings(items)
 	var ip inmemoryPart
-	ip.Init(&ib)
+	ip.Init(&ib, nil)
 
 	// Make sure items may be read concurrently from the same inmemoryPart.
 	ch := make(chan error, 5)

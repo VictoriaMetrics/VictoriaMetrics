@@ -6,5 +6,6 @@ const (
 	itemsFilename     = "items.bin"
 	lensFilename      = "lens.bin"
 	metadataFilename  = "metadata.json"
+	filterFilename    = "filter.bin"
 	partsFilename     = "parts.json"
 )
