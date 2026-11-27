@@ -4467,3 +4467,99 @@ func TestStorageAddFlushSearchMetricNamesConcurrently(t *testing.T) {
 		}
 	}
 }
+
+func TestStorageSwitchingBetweenGlobalAndPerDayIndexes(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const numSeries = 100
+	nowMilli := time.Now().UnixMilli()
+	tr := TimeRange{
+		MinTimestamp: nowMilli - 3600*1000,
+		MaxTimestamp: nowMilli,
+	}
+
+	genMetricRows := func(prefix string) ([]MetricRow, []string) {
+		mrs := make([]MetricRow, numSeries)
+		mns := make([]string, numSeries)
+		for i := range numSeries {
+			name := fmt.Sprintf("%s_%04d", prefix, i)
+			labelName := fmt.Sprintf("label_%04d", i)
+			labelValue := fmt.Sprintf("value_%04d", i)
+			mn := MetricName{
+				MetricGroup: []byte(name),
+				Tags: []Tag{
+					{Key: []byte(labelName), Value: []byte("value")},
+					{Key: []byte("label"), Value: []byte(labelValue)},
+				},
+			}
+
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Timestamp = tr.MinTimestamp + rand.Int63n(tr.MaxTimestamp-tr.MinTimestamp)
+			mrs[i].Value = float64(i)
+
+			mns[i] = string(mn.Marshal(nil))
+		}
+		return mrs, mns
+	}
+
+	assertAllMetricNames := func(s *Storage, want []string) {
+		t.Helper()
+		tfs := NewTagFilters()
+		if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+			t.Fatalf("TagFilters.Add() failed unexpectedly: %s", err)
+		}
+		got, err := s.SearchMetricNames(noDeadlineContext, nil, []*TagFilters{tfs}, tr, 1e9)
+		if err != nil {
+			t.Fatalf("SearchMetricNames() failed unexpectedly: %s", err)
+		}
+
+		slices.Sort(want)
+		slices.Sort(got)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
+		}
+	}
+
+	var s *Storage
+
+	// Start empty storage with per-day index enabled.
+	s = MustOpenStorage(t.Name(), OpenOptions{
+		DisablePerDayIndex: false,
+	})
+	mrs1, mns1 := genMetricRows("m1")
+	s.AddRows(mrs1, 64)
+	s.DebugFlush()
+	assertAllMetricNames(s, mns1)
+
+	// Restart storage with per-day index disabled.
+	s.MustClose()
+	s = MustOpenStorage(t.Name(), OpenOptions{
+		DisablePerDayIndex: true,
+	})
+	mrs2, mns2 := genMetricRows("m2")
+	s.AddRows(mrs2, 64)
+	s.DebugFlush()
+	assertAllMetricNames(s, mns2)
+
+	// Restart storage with per-day index enabled.
+	s.MustClose()
+	s = MustOpenStorage(t.Name(), OpenOptions{
+		DisablePerDayIndex: false,
+	})
+	mrs3, mns3 := genMetricRows("m3")
+	s.AddRows(mrs3, 64)
+	s.DebugFlush()
+	assertAllMetricNames(s, slices.Concat(mns1, mns3))
+
+	// Restart storage with per-day index disabled.
+	s.MustClose()
+	s = MustOpenStorage(t.Name(), OpenOptions{
+		DisablePerDayIndex: true,
+	})
+	mrs4, mns4 := genMetricRows("m4")
+	s.AddRows(mrs4, 64)
+	s.DebugFlush()
+	assertAllMetricNames(s, slices.Concat(mns2, mns4))
+
+	s.MustClose()
+}
