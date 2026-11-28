@@ -2067,3 +2067,66 @@ func TestRollupChangesWithStaleness(t *testing.T) {
 		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
 }
+
+func TestAggrOverTimeMixedCounterReset(t *testing.T) {
+	expr, err := metricsql.Parse(`aggr_over_time(("min_over_time", "max_over_time", "rate", "increase"), foo[5m])`)
+	if err != nil {
+		t.Fatalf("unexpected error in metricsql.Parse: %s", err)
+	}
+	const (
+		step   = int64(30e3)
+		window = int64(300e3)
+		tsEnd  = int64(1704067320000)
+	)
+	sharedTimestamps := []int64{tsEnd}
+	preFunc, rcs, err := getRollupConfigs("aggr_over_time", rollupFake, expr, tsEnd, tsEnd, step, 1e4, window, 10e3, sharedTimestamps)
+	if err != nil {
+		t.Fatalf("unexpected error in getRollupConfigs: %s", err)
+	}
+
+	values := []float64{1, 5, 0, 2}
+	timestamps := []int64{1704067230000, 1704067260000, 1704067290000, 1704067320000}
+	preFunc(values, timestamps)
+	var rv rollupResetValues
+	got := make(map[string]float64, len(rcs))
+	for _, rc := range rcs {
+		rcValues := rv.get(rc, values, timestamps)
+		res, _ := rc.Do(nil, rcValues, timestamps)
+		if len(res) != 1 {
+			t.Fatalf("unexpected result length for %s: got %d, want 1", rc.TagValue, len(res))
+		}
+		got[rc.TagValue] = res[0]
+	}
+
+	if got["min_over_time"] != 0 {
+		t.Fatalf("unexpected min_over_time: got %v, want 0", got["min_over_time"])
+	}
+	if got["max_over_time"] != 5 {
+		t.Fatalf("unexpected max_over_time: got %v, want 5", got["max_over_time"])
+	}
+	if got["increase"] != 7 {
+		t.Fatalf("unexpected increase: got %v, want 7", got["increase"])
+	}
+	if wantRate := 6.0 / 90.0; math.Abs(got["rate"]-wantRate) > 1e-12 {
+		t.Fatalf("unexpected rate: got %v, want %v", got["rate"], wantRate)
+	}
+
+	// Verify uniform counter-reset rollups still run in place via preFunc without per-config copying.
+	onlyResetExpr, err := metricsql.Parse(`aggr_over_time(("rate", "increase"), foo[5m])`)
+	if err != nil {
+		t.Fatalf("unexpected error in metricsql.Parse: %s", err)
+	}
+	onlyResetPreFunc, onlyResetRCs, err := getRollupConfigs("aggr_over_time", rollupFake, onlyResetExpr, tsEnd, tsEnd, step, 1e4, window, 10e3, sharedTimestamps)
+	if err != nil {
+		t.Fatalf("unexpected error in getRollupConfigs: %s", err)
+	}
+	for _, rc := range onlyResetRCs {
+		if rc.removeCounterResets {
+			t.Fatalf("expected removeCounterResets=false when all rollups reset counters (%s)", rc.TagValue)
+		}
+	}
+	inPlaceVals := []float64{1, 5, 0, 2}
+	onlyResetPreFunc(inPlaceVals, timestamps)
+	wantInPlace := []float64{1, 5, 5, 7}
+	testRowsEqual(t, inPlaceVals, timestamps, wantInPlace, timestamps)
+}

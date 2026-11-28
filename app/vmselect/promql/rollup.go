@@ -496,15 +496,28 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 		if err != nil {
 			return nil, nil, fmt.Errorf("invalid args to %s: %w", expr.AppendString(nil), err)
 		}
+		hasCounterReset := false
+		hasRaw := false
 		for _, aggrFuncName := range aggrFuncNames {
-			if rollupFuncsRemoveCounterResets[aggrFuncName] {
-				// There is no need to save the previous preFunc, since it is either empty or the same.
-				preFunc = func(values []float64, timestamps []int64) {
-					removeCounterResets(values, timestamps, stalenessInterval)
-				}
-			}
 			rf := rollupAggrFuncs[aggrFuncName]
-			rcs = append(rcs, newRollupConfig(rf, aggrFuncName))
+			rc := newRollupConfig(rf, aggrFuncName)
+			if rollupFuncsRemoveCounterResets[aggrFuncName] {
+				rc.removeCounterResets = true
+				rc.stalenessInterval = stalenessInterval
+				hasCounterReset = true
+			} else {
+				hasRaw = true
+			}
+			rcs = append(rcs, rc)
+		}
+		if hasCounterReset && !hasRaw {
+			// All aggregate functions need counter reset removal, so update values once in place.
+			preFunc = func(values []float64, timestamps []int64) {
+				removeCounterResets(values, timestamps, stalenessInterval)
+			}
+			for _, rc := range rcs {
+				rc.removeCounterResets = false
+			}
 		}
 	default:
 		rcs = append(rcs, newRollupConfig(rf, ""))
@@ -603,6 +616,28 @@ type rollupConfig struct {
 	//
 	// If zero, then it is considered that Func scans all the samples passed to it.
 	samplesScannedPerCall int
+
+	// Whether removeCounterResets must be called on input values before invoking Func.
+	// Used when aggr_over_time() mixes counter-reset rollups with raw-value rollups.
+	removeCounterResets bool
+	stalenessInterval   int64
+}
+
+type rollupResetValues struct {
+	values      []float64
+	initialized bool
+}
+
+func (rv *rollupResetValues) get(rc *rollupConfig, values []float64, timestamps []int64) []float64 {
+	if !rc.removeCounterResets {
+		return values
+	}
+	if !rv.initialized {
+		rv.values = append(rv.values[:0], values...)
+		removeCounterResets(rv.values, timestamps, rc.stalenessInterval)
+		rv.initialized = true
+	}
+	return rv.values
 }
 
 func (rc *rollupConfig) getTimestamps() []int64 {

@@ -9021,6 +9021,39 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run(`aggr_over_time(mixed-counter-reset)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(aggr_over_time(("min_over_time", "max_over_time", "increase"), (time() % 500)[400s:200s]))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 0, 200, 100, 100, 0},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("rollup"),
+			Value: []byte("min_over_time"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{200, 200, 400, 300, 300, 200},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("rollup"),
+			Value: []byte("increase"),
+		}}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{300, 200, 400, 400, 300, 300},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("rollup"),
+			Value: []byte("max_over_time"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2, r3}
+		f(q, resultExpected)
+	})
 	t.Run(`rollup_candlestick()`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(rollup_candlestick(alias(round(rand(0),0.01),"foobar")[:10s]))`
