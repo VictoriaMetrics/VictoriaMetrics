@@ -2087,15 +2087,15 @@ func TestAggrOverTimeMixedCounterReset(t *testing.T) {
 	values := []float64{1, 5, 0, 2}
 	timestamps := []int64{1704067230000, 1704067260000, 1704067290000, 1704067320000}
 	preFunc(values, timestamps)
-	var rv rollupResetValues
 	got := make(map[string]float64, len(rcs))
-	for _, rc := range rcs {
-		rcValues := rv.get(rc, values, timestamps)
-		res, _ := rc.Do(nil, rcValues, timestamps)
+	if err := evalRollupConfigs(t.Context(), rcs, values, timestamps, func(_ int, rc *rollupConfig) {
+		res, _ := rc.Do(nil, values, timestamps)
 		if len(res) != 1 {
 			t.Fatalf("unexpected result length for %s: got %d, want 1", rc.TagValue, len(res))
 		}
 		got[rc.TagValue] = res[0]
+	}); err != nil {
+		t.Fatalf("unexpected error in evalRollupConfigs: %s", err)
 	}
 
 	if got["min_over_time"] != 0 {

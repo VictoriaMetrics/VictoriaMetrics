@@ -1,6 +1,7 @@
 package promql
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"math"
@@ -623,21 +624,42 @@ type rollupConfig struct {
 	stalenessInterval   int64
 }
 
-type rollupResetValues struct {
-	values      []float64
-	initialized bool
-}
-
-func (rv *rollupResetValues) get(rc *rollupConfig, values []float64, timestamps []int64) []float64 {
-	if !rc.removeCounterResets {
-		return values
+func evalRollupConfigs(ctx context.Context, rcs []*rollupConfig, values []float64, timestamps []int64, emit func(idx int, rc *rollupConfig)) error {
+	var stalenessInterval int64
+	needReset := false
+	for i, rc := range rcs {
+		if ctx != nil {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+		}
+		if rc.removeCounterResets {
+			needReset = true
+			stalenessInterval = rc.stalenessInterval
+			continue
+		}
+		emit(i, rc)
 	}
-	if !rv.initialized {
-		rv.values = append(rv.values[:0], values...)
-		removeCounterResets(rv.values, timestamps, rc.stalenessInterval)
-		rv.initialized = true
+	if !needReset {
+		return nil
 	}
-	return rv.values
+	if ctx != nil {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+	}
+	removeCounterResets(values, timestamps, stalenessInterval)
+	for i, rc := range rcs {
+		if ctx != nil {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+		}
+		if rc.removeCounterResets {
+			emit(i, rc)
+		}
+	}
+	return nil
 }
 
 func (rc *rollupConfig) getTimestamps() []int64 {

@@ -1072,29 +1072,28 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	}
 
 	var samplesScannedTotal atomic.Uint64
+	var cancelErr atomic.Pointer[error]
 	keepMetricNames := getKeepMetricNames(expr)
 	tsw := getTimeseriesByWorkerID()
 	defer putTimeseriesByWorkerID(tsw)
 	seriesByWorkerID := tsw.byWorkerID
 	doParallel(tssSQ, func(tsSQ *timeseries, values []float64, timestamps []int64, workerID uint) ([]float64, []int64) {
+		if ec.Context != nil && ec.Context.Err() != nil {
+			return values, timestamps
+		}
 		values, timestamps = removeNanValues(values[:0], timestamps[:0], tsSQ.Values, tsSQ.Timestamps)
 		preFunc(values, timestamps)
-		var rv rollupResetValues
-		for _, rc := range rcs {
-			rcValues := rv.get(rc, values, timestamps)
-			if tsm := newTimeseriesMap(funcName, keepMetricNames, sharedTimestamps, &tsSQ.MetricName); tsm != nil {
-				samplesScanned := rc.DoTimeseriesMap(tsm, rcValues, timestamps)
-				samplesScannedTotal.Add(samplesScanned)
-				seriesByWorkerID[workerID].tss = tsm.AppendTimeseriesTo(seriesByWorkerID[workerID].tss)
-				continue
-			}
-			var ts timeseries
-			samplesScanned := doRollupForTimeseries(funcName, keepMetricNames, rc, &ts, &tsSQ.MetricName, rcValues, timestamps, sharedTimestamps)
-			samplesScannedTotal.Add(samplesScanned)
-			seriesByWorkerID[workerID].tss = append(seriesByWorkerID[workerID].tss, &ts)
+		tss, samplesScanned, err := evalSeriesRollups(ec.Context, funcName, keepMetricNames, rcs, &tsSQ.MetricName, values, timestamps, sharedTimestamps, seriesByWorkerID[workerID].tss)
+		seriesByWorkerID[workerID].tss = tss
+		samplesScannedTotal.Add(samplesScanned)
+		if err != nil {
+			cancelErr.CompareAndSwap(nil, &err)
 		}
 		return values, timestamps
 	})
+	if errPtr := cancelErr.Load(); errPtr != nil {
+		return nil, *errPtr
+	}
 	tss := make([]*timeseries, 0, len(tssSQ)*len(rcs))
 	for i := range seriesByWorkerID {
 		tss = append(tss, seriesByWorkerID[i].tss...)
@@ -1940,27 +1939,24 @@ func evalRollupWithIncrementalAggregate(ctx context.Context, qt *querytracer.Tra
 		preFunc(rs.Values, rs.Timestamps)
 		ts := getTimeseries()
 		defer putTimeseries(ts)
-		var rv rollupResetValues
-		for _, rc := range rcs {
-			rcValues := rv.get(rc, rs.Values, rs.Timestamps)
+		return evalRollupConfigs(ctx, rcs, rs.Values, rs.Timestamps, func(_ int, rc *rollupConfig) {
 			if tsm := newTimeseriesMap(funcName, keepMetricNames, sharedTimestamps, &rs.MetricName); tsm != nil {
-				samplesScanned := rc.DoTimeseriesMap(tsm, rcValues, rs.Timestamps)
+				samplesScanned := rc.DoTimeseriesMap(tsm, rs.Values, rs.Timestamps)
 				for _, ts := range tsm.m {
 					iafc.updateTimeseries(ts, workerID)
 				}
 				samplesScannedTotal.Add(samplesScanned)
-				continue
+				return
 			}
 			ts.Reset()
-			samplesScanned := doRollupForTimeseries(funcName, keepMetricNames, rc, ts, &rs.MetricName, rcValues, rs.Timestamps, sharedTimestamps)
+			samplesScanned := doRollupForTimeseries(funcName, keepMetricNames, rc, ts, &rs.MetricName, rs.Values, rs.Timestamps, sharedTimestamps)
 			samplesScannedTotal.Add(samplesScanned)
 			iafc.updateTimeseries(ts, workerID)
 
 			// ts.Timestamps points to sharedTimestamps. Zero it, so it can be reused.
 			ts.Timestamps = nil
 			ts.denyReuse = false
-		}
-		return nil
+		})
 	})
 	if err != nil {
 		return nil, err
@@ -1985,21 +1981,10 @@ func evalRollupNoIncrementalAggregate(ctx context.Context, qt *querytracer.Trace
 	err := rss.RunParallel(ctx, qt, func(rs *netstorage.Result, workerID uint) error {
 		rs.Values, rs.Timestamps = dropStaleNaNs(funcName, rs.Values, rs.Timestamps)
 		preFunc(rs.Values, rs.Timestamps)
-		var rv rollupResetValues
-		for _, rc := range rcs {
-			rcValues := rv.get(rc, rs.Values, rs.Timestamps)
-			if tsm := newTimeseriesMap(funcName, keepMetricNames, sharedTimestamps, &rs.MetricName); tsm != nil {
-				samplesScanned := rc.DoTimeseriesMap(tsm, rcValues, rs.Timestamps)
-				samplesScannedTotal.Add(samplesScanned)
-				seriesByWorkerID[workerID].tss = tsm.AppendTimeseriesTo(seriesByWorkerID[workerID].tss)
-				continue
-			}
-			var ts timeseries
-			samplesScanned := doRollupForTimeseries(funcName, keepMetricNames, rc, &ts, &rs.MetricName, rcValues, rs.Timestamps, sharedTimestamps)
-			samplesScannedTotal.Add(samplesScanned)
-			seriesByWorkerID[workerID].tss = append(seriesByWorkerID[workerID].tss, &ts)
-		}
-		return nil
+		tss, samplesScanned, err := evalSeriesRollups(ctx, funcName, keepMetricNames, rcs, &rs.MetricName, rs.Values, rs.Timestamps, sharedTimestamps, seriesByWorkerID[workerID].tss)
+		seriesByWorkerID[workerID].tss = tss
+		samplesScannedTotal.Add(samplesScanned)
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -2012,6 +1997,39 @@ func evalRollupNoIncrementalAggregate(ctx context.Context, qt *querytracer.Trace
 	rowsScannedPerQuery.Update(float64(samplesScannedTotal.Load()))
 	qt.Printf("samplesScanned=%d", samplesScannedTotal.Load())
 	return tss, nil
+}
+
+func evalSeriesRollups(ctx context.Context, funcName string, keepMetricNames bool, rcs []*rollupConfig,
+	mnSrc *storage.MetricName, values []float64, timestamps []int64, sharedTimestamps []int64,
+	dst []*timeseries,
+) ([]*timeseries, uint64, error) {
+	hasMixed := slices.ContainsFunc(rcs, func(rc *rollupConfig) bool { return rc.removeCounterResets })
+	if !hasMixed {
+		var samplesScanned uint64
+		err := evalRollupConfigs(ctx, rcs, values, timestamps, func(_ int, rc *rollupConfig) {
+			if tsm := newTimeseriesMap(funcName, keepMetricNames, sharedTimestamps, mnSrc); tsm != nil {
+				samplesScanned += rc.DoTimeseriesMap(tsm, values, timestamps)
+				dst = tsm.AppendTimeseriesTo(dst)
+				return
+			}
+			var ts timeseries
+			samplesScanned += doRollupForTimeseries(funcName, keepMetricNames, rc, &ts, mnSrc, values, timestamps, sharedTimestamps)
+			dst = append(dst, &ts)
+		})
+		return dst, samplesScanned, err
+	}
+	base := len(dst)
+	dst = append(dst, make([]*timeseries, len(rcs))...)
+	var samplesScanned uint64
+	err := evalRollupConfigs(ctx, rcs, values, timestamps, func(i int, rc *rollupConfig) {
+		var ts timeseries
+		samplesScanned += doRollupForTimeseries(funcName, keepMetricNames, rc, &ts, mnSrc, values, timestamps, sharedTimestamps)
+		dst[base+i] = &ts
+	})
+	if err != nil {
+		return dst[:base], samplesScanned, err
+	}
+	return dst, samplesScanned, nil
 }
 
 func doRollupForTimeseries(funcName string, keepMetricNames bool, rc *rollupConfig, tsDst *timeseries, mnSrc *storage.MetricName,
