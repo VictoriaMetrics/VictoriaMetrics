@@ -147,10 +147,15 @@ func (ps *partSearch) Seek(k []byte) {
 	n = sort.Search(len(ps.bhs), func(i int) bool {
 		return string(k) <= string(ps.bhs[i].firstItem)
 	})
-	if n > 0 {
-		// The given k may be located in the previous block, so go to it.
-		n--
+	if n == 0 || !canBlockContainItemGE(&ps.bhs[n-1], k) {
+		// The previous block (if any) cannot contain items >= k,
+		// so the first item in the next block is guaranteed to be >= k.
+		ps.bhs = ps.bhs[n:]
+		ps.err = ps.nextBlock()
+		return
 	}
+	// The given k may be located in the previous block, so go to it.
+	n--
 	ps.bhs = ps.bhs[n:]
 
 	// Read the block.
@@ -406,4 +411,18 @@ func binarySearchKey(data []byte, items []Item, k []byte, cpLen int) int {
 		}
 	}
 	return int(i + offset)
+}
+
+// canBlockContainItemGE returns true if the block described by bh may contain
+// an item greater than or equal to k, assuming string(k) > string(bh.firstItem).
+func canBlockContainItemGE(bh *blockHeader, k []byte) bool {
+	if bh.itemsCount <= 1 {
+		// The block only contains bh.firstItem, which is already less than k.
+		return false
+	}
+	cp := bh.commonPrefix
+	if len(k) > len(cp) {
+		k = k[:len(cp)]
+	}
+	return string(k) <= string(cp)
 }
